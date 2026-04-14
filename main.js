@@ -458,8 +458,9 @@ class S3Client {
 
   async hmacSha256(key, data) {
     const encoder = new TextEncoder();
+    const keyBytes = key instanceof Uint8Array ? key : encoder.encode(key);
     const cryptoKey = await crypto.subtle.importKey(
-      'raw', encoder.encode(key), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+      'raw', keyBytes, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
     );
     const signature = await crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(data));
     return new Uint8Array(signature);
@@ -1457,7 +1458,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
 
   async onload() {
-    console.log('CloudAttach v0.1.013 loading...');
+    console.log('CloudAttach v0.1.014 loading...');
     await this.loadSettings();
     this.addStyles();
     this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf, this));
