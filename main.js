@@ -367,11 +367,15 @@ class S3Client {
           ...options
         });
         // 包装成 fetch Response 兼容格式
+        let jsonData = null;
+        if (resp.headers && (resp.headers['content-type'] || '').includes('application/json')) {
+          try { jsonData = JSON.parse(resp.text || '{}'); } catch(e) { jsonData = {}; }
+        }
         return {
           ok: resp.status >= 200 && resp.status < 300,
           status: resp.status,
           text: async () => resp.text || '',
-          json: async () => resp.json || {},
+          json: async () => jsonData || {},
           headers: {
             get: (k) => resp.headers[k] || resp.headers[k.toLowerCase()] || resp.headers[k.toUpperCase()]
           }
@@ -1486,7 +1490,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
 
   async onload() {
-    console.log('CloudAttach v0.1.005 loading...');
+    console.log('CloudAttach v0.1.006 loading...');
     await this.loadSettings();
     this.addStyles();
     this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf, this));
