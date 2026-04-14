@@ -367,9 +367,11 @@ class S3Client {
     const signedHeaders = {};
     const credential = `${this.accessKey}/${dateOnly}/${this.region}/s3/aws4_request`;
     const signedHeaderNames = ['host', 'x-amz-content-sha256', 'x-amz-date'].sort().join(';');
+    signedHeaders['host'] = headers['Host'];
     signedHeaders['x-amz-content-sha256'] = 'UNSIGNED-PAYLOAD';
-    signedHeaders['X-Amz-Date'] = headers['X-Amz-Date'];
-    signedHeaders['Authorization'] = `AWS4-HMAC-SHA256 Credential=${credential}, SignedHeaders=${signedHeaderNames}, Signature=${await this.computeSignature(method, url, signedHeaders, dateStr)}`;
+    signedHeaders['x-amz-date'] = headers['X-Amz-Date'];
+    const signature = await this.computeSignature(method, url, signedHeaders, dateStr);
+    signedHeaders['Authorization'] = `AWS4-HMAC-SHA256 Credential=${credential}, SignedHeaders=${signedHeaderNames}, Signature=${signature}`;
     return signedHeaders;
   }
 
@@ -386,8 +388,8 @@ class S3Client {
 
     const sortedHeaders = Object.entries(signedHeaders)
       .sort((a, b) => a[0].toLowerCase().localeCompare(b[0].toLowerCase()));
-    const canonicalHeaders = sortedHeaders.map(([k, v]) => `${k.toLowerCase()}:${v.trim()}`).join('\n') + '\n';
-    const signedHeadersLine = sortedHeaders.map(([k]) => k.toLowerCase()).join(';');
+    const canonicalHeaders = sortedHeaders.map(([k, v]) => `${k}:${v.trim()}`).join('\n') + '\n';
+    const signedHeadersLine = sortedHeaders.map(([k]) => k).join(';');
 
     const canonicalRequest = [
       method.toUpperCase(),
@@ -1451,7 +1453,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
 
   async onload() {
-    console.log('CloudAttach v0.1.002 loading...');
+    console.log('CloudAttach v0.1.003 loading...');
     await this.loadSettings();
     this.addStyles();
     this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf, this));
