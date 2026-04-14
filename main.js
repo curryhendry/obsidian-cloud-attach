@@ -342,9 +342,7 @@ class S3Client {
   async s3Request(path, method = 'GET', options = {}) {
     const url = `${this.endpoint}/${this.bucket}${path}`;
     const host = new URL(this.endpoint).host;
-    const now = new Date();
-    const dateStr = now.toISOString().replace(/[:-]|\.\d{3}/g, ''); // YYYYMMDDTHHmmssZ
-    const dateOnly = dateStr.slice(0, 8); // YYYYMMDD
+    const dateStr = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
 
     const headers = {
       'Host': host,
@@ -361,68 +359,35 @@ class S3Client {
       'x-amz-content-sha256': 'UNSIGNED-PAYLOAD'
     };
 
-    console.log('[CloudAttach] s3Request URL:', url);
-    console.log('[CloudAttach] s3Request Host header:', authHeaders['Host']);
-
-    // 用 app.requestUrl 走 Electron 主进程，完全绕过 CORS
-    if (this.app && this.app.requestUrl) {
+    // 优先用 app.requestUrl（Electron 主进程，绕过 CORS）
+    if (this.app && typeof this.app.requestUrl === 'function') {
       try {
         const resp = await this.app.requestUrl(url, {
           method,
           headers: authHeaders,
           ...options
         });
-        // app.requestUrl 返回格式：{status, headers, text, json}
-        const hasRespJson = resp && typeof resp === 'object';
-        if (!hasRespJson) {
-          new Notice(`app.requestUrl 返回异常: ${JSON.stringify(resp)}`, 5000);
-          throw new Error('app.requestUrl 返回格式错误');
-        }
+        const status = resp.status || 0;
+        const text = resp.text || '';
         let jsonData = null;
-        if (resp.text && typeof resp.text === 'string' && (resp.headers && (
-          (typeof resp.headers.get === 'function' ? resp.headers.get('content-type') : resp.headers['content-type'] || '')
-        ).includes('application/json'))) {
-          try { jsonData = JSON.parse(resp.text); } catch(e) { jsonData = null; }
-        }
         if (resp.json !== undefined && resp.json !== null && typeof resp.json !== 'function') {
           jsonData = resp.json;
+        } else if (text) {
+          try { jsonData = JSON.parse(text); } catch(e) {}
         }
         return {
-          ok: resp.status >= 200 && resp.status < 300,
-          status: resp.status,
-          text: async () => (resp.text || ''),
+          ok: status >= 200 && status < 300,
+          status,
+          text: async () => text,
           json: async () => (jsonData || {}),
-          headers: {
-            get: (k) => {
-              if (!resp.headers) return null;
-              if (typeof resp.headers.get === 'function') return resp.headers.get(k);
-              return resp.headers[k] || resp.headers[k.toLowerCase()] || resp.headers[k.toUpperCase()];
-            }
-          }
+          headers: { get: () => null }
         };
       } catch(e) {
-        // 网络错误
-        console.error('[CloudAttach] app.requestUrl error:', e);
-        new Notice(`请求失败: ${e.message}`, 5000);
-        return {
-          ok: false,
-          status: 0,
-          text: async () => e.message,
-          json: async () => ({}),
-          headers: { get: () => null }
-        };
-      }
-    }
-          ok: false,
-          status: 0,
-          text: async () => e.message || 'Network error',
-          json: async () => ({}),
-          headers: { get: () => null }
-        };
+        console.error('[CloudAttach] app.requestUrl error:', e.message);
       }
     }
 
-    // 兜底：旧的 fetch 方式
+    // 兜底用 fetch（可能 CORS 失败）
     return fetch(url, { method, headers: authHeaders, ...options });
   }
 
@@ -1520,7 +1485,21 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
 
   async onload() {
-    console.log('CloudAttach v0.1.007 loading...');
+    const diagEl = document.createElement('div');
+    diagEl.style = 'position:fixed;bottom:10px;right:10px;z-index:9999;background:#1a1a2e;color:#0ff;padding:12px;border-radius:8px;font-size:12px;max-width:350px;border:1px solid #0ff;';
+    const appUrlOK = !!(this.app && typeof this.app.requestUrl === 'function');
+    const appNetOK = !!(typeof require !== 'undefined' && require('electron')?.net);
+    diagEl.innerHTML = `<b>CloudAttach v0.1.007</b><br>
+      ✅ Plugin loaded<br>
+      app.requestUrl: <span style="color:${appUrlOK?'#0f0':'#f44'}">${appUrlOK?'YES':'NO'}</span><br>
+      electron.net: <span style="color:${appNetOK?'#0f0':'#f44'}">${appNetOK?'YES':'NO'}</span><br>
+      <b style="color:${appUrlOK?'#0f0':'#ff0'}">${appUrlOK?'✅ Use app.requestUrl (bypass CORS)':'⚠️ Use fetch (CORS issue expected)'}</b>`;
+    document.body.appendChild(diagEl);
+    setTimeout(() => diagEl.remove(), 30000); // 30秒后自动消失
+    
+    console.log('CloudAttach v0.1.008 loading...');
+    console.log('[CloudAttach] app.requestUrl available:', appUrlOK);
+    console.log('[CloudAttach] electron.net available:', appNetOK);
     await this.loadSettings();
     this.addStyles();
     this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf, this));
