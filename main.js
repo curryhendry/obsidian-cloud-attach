@@ -347,7 +347,7 @@ class S3Client {
     };
 
     // 添加签名
-    const signedHeaders = await this.signRequest(method, url, headers);
+    const signedHeaders = await this.signRequest(method, url, headers, dateStr);
     // signedHeaders 包含完整的 Authorization 头
     const authHeaders = {
       ...signedHeaders,
@@ -362,23 +362,23 @@ class S3Client {
   /**
    * AWS Signature V4 签名
    */
-  async signRequest(method, url, headers) {
+  async signRequest(method, url, headers, dateStr) {
+    const dateOnly = dateStr.slice(0, 8);
     const signedHeaders = {};
     const credential = `${this.accessKey}/${dateOnly}/${this.region}/s3/aws4_request`;
     const signedHeaderNames = ['host', 'x-amz-content-sha256', 'x-amz-date'].sort().join(';');
     signedHeaders['x-amz-content-sha256'] = 'UNSIGNED-PAYLOAD';
     signedHeaders['X-Amz-Date'] = headers['X-Amz-Date'];
-    signedHeaders['Authorization'] = `AWS4-HMAC-SHA256 Credential=${credential}, SignedHeaders=${signedHeaderNames}, Signature=${await this.computeSignature(method, url, signedHeaders)}`;
+    signedHeaders['Authorization'] = `AWS4-HMAC-SHA256 Credential=${credential}, SignedHeaders=${signedHeaderNames}, Signature=${await this.computeSignature(method, url, signedHeaders, dateStr)}`;
     return signedHeaders;
   }
 
-  async computeSignature(method, url, signedHeaders) {
-    const dateOnly = signedHeaders['X-Amz-Date'].slice(0, 8);
-    const now = new Date();
-    const dateStr = now.toISOString().replace(/[:-]|\.\d{3}/g, '');
+  async computeSignature(method, url, signedHeaders, dateStr) {
+    const dateOnly = dateStr.slice(0, 8);
 
     const urlObj = new URL(url);
-    const canonicalUri = encodeURIComponent(urlObj.pathname.replace(/\/+/g, '/'));
+    // URL 已包含 bucket（格式: https://endpoint/bucket/path），直接用 pathname
+    const canonicalUri = encodeURIComponent(urlObj.pathname.replace(/\\/g, '/')).replace(/%2F/g, '/');
     const canonicalQueryString = urlObj.search.slice(1).split('&').filter(Boolean).sort().map(p => {
       const [k, v] = p.split('=');
       return `${encodeURIComponent(k)}=${encodeURIComponent(v || '')}`;
@@ -391,7 +391,7 @@ class S3Client {
 
     const canonicalRequest = [
       method.toUpperCase(),
-      '/' + this.bucket + urlObj.pathname.replace(/^\/+|^\\+/, '').replace(/\\/g, '/'),
+      canonicalUri,
       canonicalQueryString,
       canonicalHeaders,
       signedHeadersLine,
@@ -1451,7 +1451,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
 
   async onload() {
-    console.log('CloudAttach v0.1.001 loading...');
+    console.log('CloudAttach v0.1.002 loading...');
     await this.loadSettings();
     this.addStyles();
     this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf, this));
