@@ -356,6 +356,10 @@ class S3Client {
       'x-amz-content-sha256': 'UNSIGNED-PAYLOAD'
     };
 
+    // 诊断：打印实际发出去的请求头
+    const entries = {};
+    authHeaders.forEach((v, k) => { entries[k] = v; });
+    console.log('[CloudAttach] S3 fetch headers:', JSON.stringify(entries, null, 2));
     return fetch(url, { method, headers: authHeaders, ...options });
   }
 
@@ -1453,7 +1457,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
 
   async onload() {
-    console.log('CloudAttach v0.1.003 loading...');
+    console.log('CloudAttach v0.1.004 loading...');
     await this.loadSettings();
     this.addStyles();
     this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf, this));
