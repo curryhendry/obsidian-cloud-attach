@@ -82,22 +82,6 @@
 
 ## 更新日志
 
-### [v0.1.021](https://github.com/curryhendry/obsidian-cloud-attach/releases/tag/v0.1.021)
-
-- [x] 修复 getActiveLeaf → getMostRecentLeaf（适配新版 Obsidian API）
-
-### [v0.1.020](https://github.com/curryhendry/obsidian-cloud-attach/releases/tag/v0.1.020)
-
-- [x] 修复 hmacSha256，正确处理 Uint8Array 类型的 key
-- [x] 修复 canonicalUri，objectKey 为空时不加尾部斜杠
-- [x] 修复签名参数排序，改为字节序替代 localeCompare
-
-### [v0.1.019](https://github.com/curryhendry/obsidian-cloud-attach/releases/tag/v0.1.019)
-
-- [x] 用 presigned URL 替代 Authorization 头，绕过 CORS 限制
-- [x] 修复 presigned URL 拼接，objectKey 为空时正确处理
-- [x] 移除 app.requestUrl，统一使用原生 fetch
-
 ### [v0.1.018](https://github.com/curryhendry/obsidian-cloud-attach/releases/tag/v0.1.018)
 
 - [x] 对象存储支持
