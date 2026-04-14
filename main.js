@@ -218,7 +218,8 @@ class S3Client {
     this.accessKey = account.accessKey || '';
     this.secretKey = account.secretKey || '';
     this.publicUrl = account.publicUrl?.replace(/\/$/, '') || '';
-    this.prefix = account.prefix ? '/' + account.prefix.replace(/^\/+|\/+$/g, '') + '/' : '/';
+    // S3 prefix 不应该以 / 开头，应该是相对于 bucket 的路径
+    this.prefix = account.prefix ? account.prefix.replace(/^\/+|\/+$/g, '') + '/' : '';
   }
 
   /**
@@ -230,8 +231,13 @@ class S3Client {
     try {
       // 规范化路径：去除两端斜杠，转为 prefix 格式
       const cleanPath = remotePath === '/' ? '' : remotePath.replace(/^\/|\/$/g, '');
-      // S3 prefix：不以 / 结尾，但需要表示目录层级
-      const s3Prefix = cleanPath ? this.prefix.replace(/\/$/, '') + '/' + cleanPath + '/' : this.prefix;
+      // S3 prefix：拼接 base prefix + 当前路径（不以 / 开头）
+      const basePrefix = this.prefix ? this.prefix.replace(/\/$/, '') : '';
+      const s3Prefix = cleanPath 
+        ? (basePrefix ? basePrefix + '/' + cleanPath + '/' : cleanPath + '/')
+        : (basePrefix ? basePrefix + '/' : '');
+
+      console.log('[CloudAttach] listDirectory remotePath:', remotePath, 'cleanPath:', cleanPath, 's3Prefix:', s3Prefix);
 
       const params = new URLSearchParams({
         'list-type': '2',
@@ -247,6 +253,7 @@ class S3Client {
       }
 
       const text = await response.text();
+      console.log('[CloudAttach] listDirectory response:', text.substring(0, 500));
       return this.parseListResult(text, s3Prefix);
     } catch (e) {
       console.error('[CloudAttach] S3 listDirectory error:', e);
@@ -261,12 +268,12 @@ class S3Client {
    */
   getFileUrl(remotePath) {
     // 去除前缀的尾斜杠，拼到 publicUrl
-    const basePrefix = this.prefix.replace(/\/$/, '');
+    const basePrefix = this.prefix ? this.prefix.replace(/\/$/, '') : '';
     const cleanPath = remotePath.replace(/^\/+/, '');
-    const fullPath = basePrefix ? `${basePrefix}/${cleanPath}` : `/${cleanPath}`;
+    const fullPath = basePrefix ? `${basePrefix}/${cleanPath}` : cleanPath;
     // publicUrl 可能是裸域名（无协议），自动补 https://
     const base = this.publicUrl.startsWith('http') ? this.publicUrl : `https://${this.publicUrl}`;
-    return `${base}${fullPath}`;
+    return `${base}/${fullPath}`;
   }
 
   /**
@@ -490,8 +497,13 @@ class S3Client {
     const commonPrefixes = doc.getElementsByTagName('CommonPrefixes');
     for (let i = 0; i < commonPrefixes.length; i++) {
       const prefix = commonPrefixes[i].getElementsByTagName('Prefix')[0]?.textContent || '';
-      const name = prefix.slice(currentPrefix.length).replace(/\/$/, '');
-      files.push({ name, path: '/' + name + '/', isDirectory: true, size: 0 });
+      // S3 返回的 prefix 是 URL 编码的，需要解码
+      const decodedPrefix = decodeURIComponent(prefix);
+      const decodedCurrentPrefix = decodeURIComponent(currentPrefix);
+      const name = decodedPrefix.slice(decodedCurrentPrefix.length).replace(/\/$/, '');
+      // path 应该是完整路径，包含父目录
+      const fullPath = decodedPrefix.replace(/\/$/, '');
+      files.push({ name, path: '/' + fullPath + '/', isDirectory: true, size: 0 });
     }
 
     // Contents = 文件
@@ -505,13 +517,16 @@ class S3Client {
       if (!key || key === currentPrefix) continue;
       if (key.endsWith('/')) continue; // 目录占位符跳过
 
-      // 去掉当前前缀得到相对路径
-      const relativePath = key.slice(currentPrefix.length);
-      const name = decodeURIComponent(relativePath.split('/').pop());
+      // S3 返回的 key 是 URL 编码的，需要解码
+      const decodedKey = decodeURIComponent(key);
+      const decodedCurrentPrefix = decodeURIComponent(currentPrefix);
+      const relativePath = decodedKey.slice(decodedCurrentPrefix.length);
+      const name = relativePath.split('/').pop();
 
       const size = parseInt(contents[i].getElementsByTagName('Size')[0]?.textContent || '0');
 
-      files.push({ name, path: '/' + relativePath, isDirectory: false, size, lastModified });
+      // path 应该是完整路径
+      files.push({ name, path: '/' + decodedKey, isDirectory: false, size, lastModified });
     }
 
     return files.sort((a, b) => {
@@ -839,21 +854,18 @@ class CloudAttachView extends ItemView {
     const audioExts = ['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a'];
     const docExts = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'];
     
+    // 优先使用自定义域名公共 URL，无签名参数
+    const url = this.client.getFileUrl(file.path);
+
     if (imageExts.includes(ext)) {
-      const url = await this.client.getSignedUrl(file.path);
       return `![${nameWithoutExt}](${url})`;
     } else if (videoExts.includes(ext)) {
-      const url = await this.client.getSignedUrl(file.path);
       return `<video controls width="600" height="400">\n <source src="${url}" type="video/mp4">\n</video>`;
     } else if (audioExts.includes(ext)) {
-      const url = await this.client.getSignedUrl(file.path);
       return `<audio controls>\n <source src="${url}" type="audio/mpeg">\n</audio>`;
     } else if (docExts.includes(ext)) {
-      // iframe 预览用原始 URL（无签名）
-      const url = this.client.getRawUrl(file.path);
       return `<iframe src="${url}" width="100%" height="800px"></iframe>`;
     } else {
-      const url = await this.client.getSignedUrl(file.path);
       return `[${file.name}](${url})`;
     }
   }
@@ -929,7 +941,7 @@ class CloudAttachView extends ItemView {
         item.setTitle('复制链接').onClick(async () => {
           if (!this.client) return;
           try {
-            const url = await this.client.getSignedUrl(file.path);
+            const url = this.client.getFileUrl(file.path);
             await navigator.clipboard.writeText(url);
             new Notice('📋 链接已复制');
           } catch { new Notice('❌ 获取链接失败'); }
@@ -1458,7 +1470,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
 
   async onload() {
-    console.log('CloudAttach v0.1.014 loading...');
+    console.log('CloudAttach v0.1.019 loading...');
     await this.loadSettings();
     this.addStyles();
     this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf, this));
