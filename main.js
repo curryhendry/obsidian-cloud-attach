@@ -748,8 +748,9 @@ class AddAccountModal extends Modal {
       if (this.account) await this.plugin.updateAccount(this.account.id, accountData);
       else await this.plugin.addAccount(accountData);
       
-      this.onSave?.();
       this.close();
+      // 延时确保弹窗关闭后再刷新设置页
+      setTimeout(() => this.onSave?.(), 50);
     };
     
     btnRow.appendChild(cancelBtn);
@@ -792,15 +793,33 @@ class CloudAttachSettingTab extends PluginSettingTab {
     desc.className = 'setting-item-description';
     this.containerEl.appendChild(desc);
 
+    // 刷新按钮 - 移到下面
+
     if (this.plugin.accounts.length > 0) {
       this.plugin.accounts.forEach(account => this.renderAccount(account));
     }
+
+    const btnRow = document.createElement('div');
+    btnRow.style.display = 'flex';
+    btnRow.style.gap = '8px';
+    btnRow.style.marginTop = '16px';
 
     const addBtn = document.createElement('button');
     addBtn.textContent = '+ 添加账户';
     addBtn.className = 'cloud-attach-add-btn';
     addBtn.onclick = () => new AddAccountModal(this.plugin.app, this.plugin, () => this.display()).open();
-    this.containerEl.appendChild(addBtn);
+    btnRow.appendChild(addBtn);
+
+    const refreshBtn = document.createElement('button');
+    refreshBtn.textContent = '🔄 刷新';
+    refreshBtn.className = 'cloud-attach-btn';
+    refreshBtn.onclick = async () => {
+      await this.plugin.loadSettings();
+      this.display();
+    };
+    btnRow.appendChild(refreshBtn);
+
+    this.containerEl.appendChild(btnRow);
   }
 
   renderAccount(account) {
@@ -849,7 +868,8 @@ class CloudAttachSettingTab extends PluginSettingTab {
     delBtn.className = 'cloud-attach-btn';
     delBtn.onclick = async () => {
       await this.plugin.removeAccount(account.id);
-      this.display();
+      // 延时确保删除后刷新
+      setTimeout(() => this.display(), 50);
     };
     
     btnRow.appendChild(editBtn);
