@@ -211,15 +211,16 @@ class OpenListClient {
  * - 兼容 S3 的自建存储（MinIO、Ceph RGW 等）
  */
 class S3Client {
-  constructor(account) {
+  constructor(account, app = null) {
     this.endpoint = account.endpoint?.replace(/\/$/, '') || '';
     this.bucket = account.bucket || '';
     this.region = account.region || '';
     this.accessKey = account.accessKey || '';
     this.secretKey = account.secretKey || '';
     this.publicUrl = account.publicUrl?.replace(/\/$/, '') || '';
-    // prefix 最终带尾斜杠，根目录时为 '/'
     this.prefix = account.prefix ? '/' + account.prefix.replace(/^\/+|\/+$/g, '') + '/' : '/';
+    // app.requestUrl 走 Electron 主进程，绕过 CORS
+    this.app = app;
   }
 
   /**
@@ -346,9 +347,7 @@ class S3Client {
       ...(options.headers || {})
     };
 
-    // 添加签名
     const signedHeaders = await this.signRequest(method, url, headers, dateStr);
-    // signedHeaders 包含完整的 Authorization 头
     const authHeaders = {
       ...signedHeaders,
       'Host': host,
@@ -356,10 +355,40 @@ class S3Client {
       'x-amz-content-sha256': 'UNSIGNED-PAYLOAD'
     };
 
-    // 诊断：打印实际发出去的请求头
-    const entries = {};
-    authHeaders.forEach((v, k) => { entries[k] = v; });
-    console.log('[CloudAttach] S3 fetch headers:', JSON.stringify(entries, null, 2));
+    console.log('[CloudAttach] s3Request URL:', url);
+    console.log('[CloudAttach] s3Request Host header:', authHeaders['Host']);
+
+    // 用 app.requestUrl 走 Electron 主进程，完全绕过 CORS
+    if (this.app && this.app.requestUrl) {
+      try {
+        const resp = await this.app.requestUrl(url, {
+          method,
+          headers: authHeaders,
+          ...options
+        });
+        // 包装成 fetch Response 兼容格式
+        return {
+          ok: resp.status >= 200 && resp.status < 300,
+          status: resp.status,
+          text: async () => resp.text || '',
+          json: async () => resp.json || {},
+          headers: {
+            get: (k) => resp.headers[k] || resp.headers[k.toLowerCase()] || resp.headers[k.toUpperCase()]
+          }
+        };
+      } catch(e) {
+        // 网络错误包装成兼容对象
+        return {
+          ok: false,
+          status: 0,
+          text: async () => e.message || 'Network error',
+          json: async () => ({}),
+          headers: { get: () => null }
+        };
+      }
+    }
+
+    // 兜底：旧的 fetch 方式
     return fetch(url, { method, headers: authHeaders, ...options });
   }
 
@@ -374,12 +403,8 @@ class S3Client {
     signedHeaders['host'] = headers['Host'];
     signedHeaders['x-amz-content-sha256'] = 'UNSIGNED-PAYLOAD';
     signedHeaders['x-amz-date'] = headers['X-Amz-Date'];
-    console.log('[CloudAttach] signRequest - credential:', credential);
-    console.log('[CloudAttach] signRequest - signedHeaderNames:', signedHeaderNames);
-    console.log('[CloudAttach] signRequest - signedHeaders.host:', signedHeaders['host']);
     const signature = await this.computeSignature(method, url, signedHeaders, dateStr);
     signedHeaders['Authorization'] = `AWS4-HMAC-SHA256 Credential=${credential}, SignedHeaders=${signedHeaderNames}, Signature=${signature}`;
-    console.log('[CloudAttach] signRequest - signature:', signature.substring(0, 20) + '...');
     return signedHeaders;
   }
 
@@ -398,8 +423,6 @@ class S3Client {
       .sort((a, b) => a[0].toLowerCase().localeCompare(b[0].toLowerCase()));
     const canonicalHeaders = sortedHeaders.map(([k, v]) => `${k}:${v.trim()}`).join('\n') + '\n';
     const signedHeadersLine = sortedHeaders.map(([k]) => k).join(';');
-    console.log('[CloudAttach] computeSig - canonicalUri:', canonicalUri);
-    console.log('[CloudAttach] computeSig - canonicalHeaders:\n' + canonicalHeaders);
 
     const canonicalRequest = [
       method.toUpperCase(),
@@ -1430,23 +1453,6 @@ class CloudAttachSettingTab extends PluginSettingTab {
     testBtn.textContent = '测试';
     testBtn.className = 'cloud-attach-btn';
     testBtn.onclick = async () => {
-      // 先诊断：测试 Authorization header 是否被正确发送
-      try {
-        const res = await fetch('https://httpbin.org/headers', {
-          method: 'GET',
-          headers: {
-            'Authorization': 'AWS4-HMAC-SHA256 Credential=test/20260414/auto/s3/aws4_request, SignedHeaders=host, Signature=abc123',
-            'Origin': 'app://obsidian.md'
-          }
-        });
-        const data = await res.json();
-        const auth = data.headers && data.headers.Authorization || 'NOT_FOUND';
-        new Notice('Auth header sent: ' + auth.substring(0, 80), 5000);
-        console.log('[CloudAttach] httpbin response:', JSON.stringify(data.headers));
-      } catch(e) {
-        new Notice('httpbin诊断失败: ' + e.message, 5000);
-      }
-      // 再测真实连接
       const client = this.plugin.createClient(account.id);
       if (client) {
         const ok = await client.testConnection();
@@ -1480,7 +1486,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
 
   async onload() {
-    console.log('CloudAttach v0.1.004 loading...');
+    console.log('CloudAttach v0.1.005 loading...');
     await this.loadSettings();
     this.addStyles();
     this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf, this));
@@ -1595,7 +1601,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
   createClient(accountId) {
     const account = this.getAccount(accountId);
     if (!account) return null;
-    if (account.type === 's3') return new S3Client(account);
+    if (account.type === 's3') return new S3Client(account, this.app);
     // 默认走 openlist / WebDAV
     return new OpenListClient(account);
   }
