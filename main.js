@@ -211,7 +211,7 @@ class OpenListClient {
  * - 兼容 S3 的自建存储（MinIO、Ceph RGW 等）
  */
 class S3Client {
-  constructor(account, app = null) {
+  constructor(account) {
     this.endpoint = account.endpoint?.replace(/\/$/, '') || '';
     this.bucket = account.bucket || '';
     this.region = account.region || '';
@@ -219,8 +219,6 @@ class S3Client {
     this.secretKey = account.secretKey || '';
     this.publicUrl = account.publicUrl?.replace(/\/$/, '') || '';
     this.prefix = account.prefix ? '/' + account.prefix.replace(/^\/+|\/+$/g, '') + '/' : '/';
-    // app.requestUrl 走 Electron 主进程，绕过 CORS
-    this.app = app;
   }
 
   /**
@@ -359,35 +357,6 @@ class S3Client {
       'x-amz-content-sha256': 'UNSIGNED-PAYLOAD'
     };
 
-    // 优先用 app.requestUrl（Electron 主进程，绕过 CORS）
-    if (this.app && typeof this.app.requestUrl === 'function') {
-      try {
-        const resp = await this.app.requestUrl(url, {
-          method,
-          headers: authHeaders,
-          ...options
-        });
-        const status = resp.status || 0;
-        const text = resp.text || '';
-        let jsonData = null;
-        if (resp.json !== undefined && resp.json !== null && typeof resp.json !== 'function') {
-          jsonData = resp.json;
-        } else if (text) {
-          try { jsonData = JSON.parse(text); } catch(e) {}
-        }
-        return {
-          ok: status >= 200 && status < 300,
-          status,
-          text: async () => text,
-          json: async () => (jsonData || {}),
-          headers: { get: () => null }
-        };
-      } catch(e) {
-        console.error('[CloudAttach] app.requestUrl error:', e.message);
-      }
-    }
-
-    // 兜底用 fetch（可能 CORS 失败）
     return fetch(url, { method, headers: authHeaders, ...options });
   }
 
@@ -1485,21 +1454,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
 
   async onload() {
-    const diagEl = document.createElement('div');
-    diagEl.style = 'position:fixed;bottom:10px;right:10px;z-index:9999;background:#1a1a2e;color:#0ff;padding:12px;border-radius:8px;font-size:12px;max-width:350px;border:1px solid #0ff;';
-    const appUrlOK = !!(this.app && typeof this.app.requestUrl === 'function');
-    const appNetOK = !!(typeof require !== 'undefined' && require('electron')?.net);
-    diagEl.innerHTML = `<b>CloudAttach v0.1.007</b><br>
-      ✅ Plugin loaded<br>
-      app.requestUrl: <span style="color:${appUrlOK?'#0f0':'#f44'}">${appUrlOK?'YES':'NO'}</span><br>
-      electron.net: <span style="color:${appNetOK?'#0f0':'#f44'}">${appNetOK?'YES':'NO'}</span><br>
-      <b style="color:${appUrlOK?'#0f0':'#ff0'}">${appUrlOK?'✅ Use app.requestUrl (bypass CORS)':'⚠️ Use fetch (CORS issue expected)'}</b>`;
-    document.body.appendChild(diagEl);
-    setTimeout(() => diagEl.remove(), 30000); // 30秒后自动消失
-    
-    console.log('CloudAttach v0.1.008 loading...');
-    console.log('[CloudAttach] app.requestUrl available:', appUrlOK);
-    console.log('[CloudAttach] electron.net available:', appNetOK);
+    console.log('CloudAttach v0.1.009 loading...');
     await this.loadSettings();
     this.addStyles();
     this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf, this));
@@ -1614,7 +1569,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
   createClient(accountId) {
     const account = this.getAccount(accountId);
     if (!account) return null;
-    if (account.type === 's3') return new S3Client(account, this.app);
+    if (account.type === 's3') return new S3Client(account);
     // 默认走 openlist / WebDAV
     return new OpenListClient(account);
   }
