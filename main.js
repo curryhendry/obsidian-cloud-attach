@@ -1538,7 +1538,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
     }));
     // 初始化时也记录当前活跃的
-    const activeLeaf = this.app.workspace.getActiveLeaf();
+    const activeLeaf = this.app.workspace.getMostRecentLeaf();
     if (activeLeaf?.view instanceof MarkdownView && activeLeaf.view.editor) {
       this.activeMarkdownView = activeLeaf.view;
     }

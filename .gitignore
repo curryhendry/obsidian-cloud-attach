@@ -1,3 +1,3 @@
 data.json
-*.bak*
-.DS_Store
+*.bak-*
+*.restored
