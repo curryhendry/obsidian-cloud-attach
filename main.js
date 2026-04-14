@@ -428,7 +428,7 @@ class S3Client {
       ...Object.fromEntries(additionalParams.entries())
     };
 
-    const sortedParams = Object.entries(params).sort((a, b) => a[0].localeCompare(b[0]));
+    const sortedParams = Object.entries(params).sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0);
     const canonicalQueryString = sortedParams.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');
     const canonicalUri = encodeURIComponent(`/${this.bucket}/${objectKey}`).replace(/%2F/g, '/');
     const signedHeaders = `host:${new URL(this.endpoint).host}`;
@@ -1455,7 +1455,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
 
   async onload() {
-    console.log('CloudAttach v0.1.011 loading...');
+    console.log('CloudAttach v0.1.012 loading...');
     await this.loadSettings();
     this.addStyles();
     this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf, this));
