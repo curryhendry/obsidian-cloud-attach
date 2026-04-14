@@ -1,4 +1,3 @@
 data.json
 *.bak-*
 *.restored
-deploy.sh
