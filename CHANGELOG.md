@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [v0.1.028] - 2026-04-15
+## [v0.1.029] - 2026-04-15
 
 ### Added
 - `deploy.sh` 部署脚本，支持自动版本号、manifest.json 更新、git tag 和 push
