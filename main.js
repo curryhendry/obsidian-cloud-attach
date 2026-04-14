@@ -1424,6 +1424,23 @@ class CloudAttachSettingTab extends PluginSettingTab {
     testBtn.textContent = '测试';
     testBtn.className = 'cloud-attach-btn';
     testBtn.onclick = async () => {
+      // 先诊断：测试 Authorization header 是否被正确发送
+      try {
+        const res = await fetch('https://httpbin.org/headers', {
+          method: 'GET',
+          headers: {
+            'Authorization': 'AWS4-HMAC-SHA256 Credential=test/20260414/auto/s3/aws4_request, SignedHeaders=host, Signature=abc123',
+            'Origin': 'app://obsidian.md'
+          }
+        });
+        const data = await res.json();
+        const auth = data.headers && data.headers.Authorization || 'NOT_FOUND';
+        new Notice('Auth header sent: ' + auth.substring(0, 80), 5000);
+        console.log('[CloudAttach] httpbin response:', JSON.stringify(data.headers));
+      } catch(e) {
+        new Notice('httpbin诊断失败: ' + e.message, 5000);
+      }
+      // 再测真实连接
       const client = this.plugin.createClient(account.id);
       if (client) {
         const ok = await client.testConnection();
