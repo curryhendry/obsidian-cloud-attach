@@ -202,6 +202,318 @@ class OpenListClient {
   }
 }
 
+/**
+ * S3 兼容对象存储客户端
+ * 支持所有使用 S3 协议的对象存储服务：
+ * - 腾讯云 COS
+ * - 阿里云 OSS
+ * - AWS S3
+ * - 兼容 S3 的自建存储（MinIO、Ceph RGW 等）
+ */
+class S3Client {
+  constructor(account) {
+    this.endpoint = account.endpoint?.replace(/\/$/, '') || '';
+    this.bucket = account.bucket || '';
+    this.region = account.region || '';
+    this.accessKey = account.accessKey || '';
+    this.secretKey = account.secretKey || '';
+    this.publicUrl = account.publicUrl?.replace(/\/$/, '') || '';
+    // prefix 最终带尾斜杠，根目录时为 '/'
+    this.prefix = account.prefix ? '/' + account.prefix.replace(/^\/+|\/+$/g, '') + '/' : '/';
+  }
+
+  /**
+   * 列出目录内容
+   * @param {string} remotePath - 远程路径，如 "/" 或 "/folder/"
+   * @returns {Promise<Array>} 文件列表
+   */
+  async listDirectory(remotePath = '/') {
+    try {
+      // 规范化路径：去除两端斜杠，转为 prefix 格式
+      const cleanPath = remotePath === '/' ? '' : remotePath.replace(/^\/|\/$/g, '');
+      // S3 prefix：不以 / 结尾，但需要表示目录层级
+      const s3Prefix = cleanPath ? this.prefix.replace(/\/$/, '') + '/' + cleanPath + '/' : this.prefix;
+
+      const params = new URLSearchParams({
+        'list-type': '2',
+        'prefix': s3Prefix,
+        'delimiter': '/',
+        'encoding-type': 'url'
+      });
+
+      const response = await this.s3Request(`/?${params.toString()}`, 'GET');
+
+      if (!response.ok) {
+        throw new Error(`S3 error: ${response.status}`);
+      }
+
+      const text = await response.text();
+      return this.parseListResult(text, s3Prefix);
+    } catch (e) {
+      console.error('[CloudAttach] S3 listDirectory error:', e);
+      throw e;
+    }
+  }
+
+  /**
+   * 构造文件公共访问 URL（无签名，适用于公共读桶）
+   * @param {string} remotePath - 远程路径，如 "/images/photo.jpg"
+   * @returns {string} 公共 URL
+   */
+  getFileUrl(remotePath) {
+    // 去除前缀的尾斜杠，拼到 publicUrl
+    const basePrefix = this.prefix.replace(/\/$/, '');
+    const cleanPath = remotePath.replace(/^\/+/, '');
+    const fullPath = basePrefix ? `${basePrefix}/${cleanPath}` : `/${cleanPath}`;
+    // publicUrl 可能是裸域名（无协议），自动补 https://
+    const base = this.publicUrl.startsWith('http') ? this.publicUrl : `https://${this.publicUrl}`;
+    return `${base}${fullPath}`;
+  }
+
+  /**
+   * 获取文件预签名 URL（适用于私有桶，按需签名）
+   * @param {string} remotePath - 远程路径
+   * @param {number} expires - 过期时间（秒），默认 3600
+   * @returns {Promise<string>} 预签名 URL
+   */
+  async getSignedUrl(remotePath, expires = 3600) {
+    try {
+      const cleanPath = remotePath.replace(/^\/+/, '');
+      const params = new URLSearchParams({ 'X-Amz-Expires': expires.toString() });
+      const signedQuery = await this.signQuery(params, cleanPath);
+      const objectKey = encodeURIComponent(cleanPath);
+      return `${this.endpoint}/${this.bucket}/${objectKey}?${signedQuery}`;
+    } catch (e) {
+      console.error('[CloudAttach] S3 getSignedUrl error:', e);
+      throw e;
+    }
+  }
+
+  /**
+   * 测试连接
+   * @returns {Promise<boolean>}
+   */
+  async testConnection() {
+    try {
+      // 构造诊断 URL 并输出到控制台，方便调试
+      const diagUrl = `${this.endpoint}/${this.bucket}/?list-type=2&max-keys=1`;
+      console.log('[CloudAttach] S3 testConnection URL:', diagUrl);
+      console.log('[CloudAttach] S3 config - endpoint:', this.endpoint, 'bucket:', this.bucket, 'region:', this.region, 'accessKey:', this.accessKey ? '(set)' : '(empty)');
+      const response = await this.s3Request(`/?list-type=2&max-keys=1`, 'GET');
+      const status = response.status;
+      const text = await response.text().catch(() => '');
+      console.log('[CloudAttach] S3 testConnection status:', status, 'body:', text.slice(0, 200));
+      // 403 = 签名正确但无权限，401 = 签名错误，其他 2xx = 成功
+      if (status === 403) return true; // 认证成功，只是无权限
+      if (status === 401) {
+        console.error('[CloudAttach] S3 签名认证失败 - 请检查 AccessKey / SecretKey / Region 是否正确');
+        new Notice('S3 连接失败：签名认证错误，请检查 AccessKey / SecretKey / Region', 5000);
+        return false;
+      }
+      if (status === 404) {
+        console.error('[CloudAttach] S3 bucket 未找到 - 请检查 Endpoint 和 Bucket 名称是否正确');
+        new Notice('S3 连接失败：存储桶未找到，请检查 Endpoint 和 Bucket 名称', 5000);
+        return false;
+      }
+      return response.ok;
+    } catch (e) {
+      console.error('[CloudAttach] S3 testConnection error:', e);
+      new Notice(`S3 连接失败：${e.message}`, 5000);
+      return false;
+    }
+  }
+
+  // ============ 内部方法 ============
+
+  /**
+   * 发送 S3 请求（自动附加 AWS Signature V4 签名）
+   * @param {string} path - 请求路径（相对桶）
+   * @param {string} method - HTTP 方法
+   * @param {Object} options - fetch 选项
+   * @returns {Promise<Response>}
+   */
+  async s3Request(path, method = 'GET', options = {}) {
+    const url = `${this.endpoint}/${this.bucket}${path}`;
+    const host = new URL(this.endpoint).host;
+    const now = new Date();
+    const dateStr = now.toISOString().replace(/[:-]|\.\d{3}/g, ''); // YYYYMMDDTHHmmssZ
+    const dateOnly = dateStr.slice(0, 8); // YYYYMMDD
+
+    const headers = {
+      'Host': host,
+      'X-Amz-Date': dateStr,
+      'x-amz-content-sha256': 'UNSIGNED-PAYLOAD',
+      ...(options.headers || {})
+    };
+
+    // 添加签名
+    const signedHeaders = await this.signRequest(method, url, headers);
+    // signedHeaders 包含完整的 Authorization 头
+    const authHeaders = {
+      ...signedHeaders,
+      'Host': host,
+      'X-Amz-Date': dateStr,
+      'x-amz-content-sha256': 'UNSIGNED-PAYLOAD'
+    };
+
+    return fetch(url, { method, headers: authHeaders, ...options });
+  }
+
+  /**
+   * AWS Signature V4 签名
+   */
+  async signRequest(method, url, headers) {
+    const signedHeaders = {};
+    const credential = `${this.accessKey}/${dateOnly}/${this.region}/s3/aws4_request`;
+    const signedHeaderNames = ['host', 'x-amz-content-sha256', 'x-amz-date'].sort().join(';');
+    signedHeaders['x-amz-content-sha256'] = 'UNSIGNED-PAYLOAD';
+    signedHeaders['X-Amz-Date'] = headers['X-Amz-Date'];
+    signedHeaders['Authorization'] = `AWS4-HMAC-SHA256 Credential=${credential}, SignedHeaders=${signedHeaderNames}, Signature=${await this.computeSignature(method, url, signedHeaders)}`;
+    return signedHeaders;
+  }
+
+  async computeSignature(method, url, signedHeaders) {
+    const dateOnly = signedHeaders['X-Amz-Date'].slice(0, 8);
+    const now = new Date();
+    const dateStr = now.toISOString().replace(/[:-]|\.\d{3}/g, '');
+
+    const urlObj = new URL(url);
+    const canonicalUri = encodeURIComponent(urlObj.pathname.replace(/\/+/g, '/'));
+    const canonicalQueryString = urlObj.search.slice(1).split('&').filter(Boolean).sort().map(p => {
+      const [k, v] = p.split('=');
+      return `${encodeURIComponent(k)}=${encodeURIComponent(v || '')}`;
+    }).join('&');
+
+    const sortedHeaders = Object.entries(signedHeaders)
+      .sort((a, b) => a[0].toLowerCase().localeCompare(b[0].toLowerCase()));
+    const canonicalHeaders = sortedHeaders.map(([k, v]) => `${k.toLowerCase()}:${v.trim()}`).join('\n') + '\n';
+    const signedHeadersLine = sortedHeaders.map(([k]) => k.toLowerCase()).join(';');
+
+    const canonicalRequest = [
+      method.toUpperCase(),
+      '/' + this.bucket + urlObj.pathname.replace(/^\/+|^\\+/, '').replace(/\\/g, '/'),
+      canonicalQueryString,
+      canonicalHeaders,
+      signedHeadersLine,
+      'UNSIGNED-PAYLOAD'
+    ].join('\n');
+
+    const canonicalHash = await this.sha256(canonicalRequest);
+    const stringToSign = [`AWS4-HMAC-SHA256`, dateStr, `${dateOnly}/${this.region}/s3/aws4_request`, canonicalHash].join('\n');
+
+    const kDate = await this.hmacSha256(`AWS4${this.secretKey}`, dateOnly);
+    const kRegion = await this.hmacSha256(kDate, this.region);
+    const kService = await this.hmacSha256(kRegion, 's3');
+    const kSigning = await this.hmacSha256(kService, 'aws4_request');
+    const signature = await this.hmacSha256Hex(kSigning, stringToSign);
+
+    return signature;
+  }
+
+  async signQuery(additionalParams, objectKey) {
+    const now = new Date();
+    const dateStr = now.toISOString().replace(/[:-]|\.\d{3}/g, '');
+    const dateOnly = dateStr.slice(0, 8);
+
+    const params = {
+      'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
+      'X-Amz-Credential': `${this.accessKey}/${dateOnly}/${this.region}/s3/aws4_request`,
+      'X-Amz-Date': dateStr,
+      'X-Amz-Expires': '3600',
+      'X-Amz-SignedHeaders': 'host',
+      ...Object.fromEntries(additionalParams.entries())
+    };
+
+    const sortedParams = Object.entries(params).sort((a, b) => a[0].localeCompare(b[0]));
+    const canonicalQueryString = sortedParams.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');
+    const canonicalUri = encodeURIComponent(`/${this.bucket}/${objectKey}`).replace(/%2F/g, '/');
+    const signedHeaders = `host:${new URL(this.endpoint).host}`;
+
+    const canonicalRequest = ['GET', canonicalUri, canonicalQueryString, `host:${new URL(this.endpoint).host}\n`, 'host', 'UNSIGNED-PAYLOAD'].join('\n');
+    const canonicalHash = await this.sha256(canonicalRequest);
+    const stringToSign = [`AWS4-HMAC-SHA256`, dateStr, `${dateOnly}/${this.region}/s3/aws4_request`, canonicalHash].join('\n');
+
+    const kDate = await this.hmacSha256(`AWS4${this.secretKey}`, dateOnly);
+    const kRegion = await this.hmacSha256(kDate, this.region);
+    const kService = await this.hmacSha256(kRegion, 's3');
+    const kSigning = await this.hmacSha256(kService, 'aws4_request');
+    const signature = await this.hmacSha256Hex(kSigning, stringToSign);
+
+    return canonicalQueryString + `&X-Amz-Signature=${signature}`;
+  }
+
+  async sha256(text) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(text);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  async hmacSha256(key, data) {
+    const encoder = new TextEncoder();
+    const cryptoKey = await crypto.subtle.importKey(
+      'raw', encoder.encode(key), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+    );
+    const signature = await crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(data));
+    return new Uint8Array(signature);
+  }
+
+  async hmacSha256Hex(key, data) {
+    const encoder = new TextEncoder();
+    const cryptoKey = await crypto.subtle.importKey(
+      'raw', key, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+    );
+    const signature = await crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(data));
+    return Array.from(new Uint8Array(signature)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  /**
+   * 解析 ListObjectsV2 XML 响应
+   * @param {string} xmlText - XML 文本
+   * @param {string} currentPrefix - 当前前缀
+   * @returns {Array} 文件列表
+   */
+  parseListResult(xmlText, currentPrefix) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(xmlText, 'application/xml');
+    const files = [];
+
+    // CommonPrefixes = 子目录
+    const commonPrefixes = doc.getElementsByTagName('CommonPrefixes');
+    for (let i = 0; i < commonPrefixes.length; i++) {
+      const prefix = commonPrefixes[i].getElementsByTagName('Prefix')[0]?.textContent || '';
+      const name = prefix.slice(currentPrefix.length).replace(/\/$/, '');
+      files.push({ name, path: '/' + name + '/', isDirectory: true, size: 0 });
+    }
+
+    // Contents = 文件
+    const contents = doc.getElementsByTagName('Contents');
+    for (let i = 0; i < contents.length; i++) {
+      const keyEl = contents[i].getElementsByTagName('Key')[0];
+      const sizeEl = contents[i].getElementsByTagName('LastModified')[0];
+      const key = keyEl?.textContent || '';
+      const lastModified = sizeEl?.textContent || '';
+
+      if (!key || key === currentPrefix) continue;
+      if (key.endsWith('/')) continue; // 目录占位符跳过
+
+      // 去掉当前前缀得到相对路径
+      const relativePath = key.slice(currentPrefix.length);
+      const name = decodeURIComponent(relativePath.split('/').pop());
+
+      const size = parseInt(contents[i].getElementsByTagName('Size')[0]?.textContent || '0');
+
+      files.push({ name, path: '/' + relativePath, isDirectory: false, size, lastModified });
+    }
+
+    return files.sort((a, b) => {
+      if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+  }
+}
+
 class CloudAttachView extends ItemView {
   constructor(leaf, plugin) {
     super(leaf);
@@ -651,15 +963,67 @@ class AddAccountModal extends Modal {
 
     const fields = {};
     
-    const nameDiv = this.createFieldDiv('账户名称', '例如：我的NAS');
+    // ---- 账户类型选择 ----
+    const typeDiv = document.createElement('div');
+    typeDiv.style.margin = '16px 0';
+    const typeLabel = document.createElement('label');
+    typeLabel.style.display = 'block';
+    typeLabel.style.marginBottom = '8px';
+    typeLabel.style.fontSize = '12px';
+    typeLabel.style.color = 'var(--text-muted)';
+    typeLabel.textContent = '存储类型';
+    typeDiv.appendChild(typeLabel);
+    
+    const typeRow = document.createElement('div');
+    typeRow.style.display = 'flex';
+    typeRow.style.gap = '16px';
+    
+    const typeOpenList = document.createElement('label');
+    typeOpenList.style.display = 'flex';
+    typeOpenList.style.alignItems = 'center';
+    typeOpenList.style.gap = '6px';
+    typeOpenList.style.cursor = 'pointer';
+    typeOpenList.style.fontSize = '13px';
+    const radioOpenList = document.createElement('input');
+    radioOpenList.type = 'radio';
+    radioOpenList.name = 'accountType';
+    radioOpenList.value = 'openlist';
+    typeOpenList.appendChild(radioOpenList);
+    typeOpenList.appendChild(document.createTextNode('OpenList / WebDAV'));
+    
+    const typeS3 = document.createElement('label');
+    typeS3.style.display = 'flex';
+    typeS3.style.alignItems = 'center';
+    typeS3.style.gap = '6px';
+    typeS3.style.cursor = 'pointer';
+    typeS3.style.fontSize = '13px';
+    const radioS3 = document.createElement('input');
+    radioS3.type = 'radio';
+    radioS3.name = 'accountType';
+    radioS3.value = 's3';
+    typeS3.appendChild(radioS3);
+    typeS3.appendChild(document.createTextNode('对象存储 (S3)'));
+    
+    typeRow.appendChild(typeOpenList);
+    typeRow.appendChild(typeS3);
+    typeDiv.appendChild(typeRow);
+    this.contentEl.appendChild(typeDiv);
+
+    // ---- 账户名称（通用）----
+    const nameDiv = this.createFieldDiv('账户名称', '例如：我的COS桶');
     const nameInput = document.createElement('input');
     nameInput.type = 'text';
-    nameInput.placeholder = '例如：我的NAS';
+    nameInput.placeholder = '例如：我的COS桶';
     nameInput.value = this.account?.name || '';
     nameInput.className = 'cloud-attach-input';
     nameDiv.appendChild(nameInput);
     fields.name = nameInput;
-    
+    this.contentEl.appendChild(nameDiv);
+
+    // ---- OpenList / WebDAV 字段集 ----
+    const openlistFields = document.createElement('div');
+    openlistFields.id = 'ol-fields';
+
     const urlDiv = this.createFieldDiv('服务器地址', 'http://192.168.62.200:5244');
     const urlInput = document.createElement('input');
     urlInput.type = 'text';
@@ -668,6 +1032,7 @@ class AddAccountModal extends Modal {
     urlInput.className = 'cloud-attach-input';
     urlDiv.appendChild(urlInput);
     fields.url = urlInput;
+    openlistFields.appendChild(urlDiv);
     
     const webdavDiv = this.createFieldDiv('WebDAV 路径', '/dav');
     const webdavInput = document.createElement('input');
@@ -677,6 +1042,7 @@ class AddAccountModal extends Modal {
     webdavInput.className = 'cloud-attach-input';
     webdavDiv.appendChild(webdavInput);
     fields.webdavPath = webdavInput;
+    openlistFields.appendChild(webdavDiv);
     
     const userDiv = this.createFieldDiv('用户名', '');
     const userInput = document.createElement('input');
@@ -685,6 +1051,7 @@ class AddAccountModal extends Modal {
     userInput.className = 'cloud-attach-input';
     userDiv.appendChild(userInput);
     fields.username = userInput;
+    openlistFields.appendChild(userDiv);
     
     const passDiv = this.createFieldDiv('密码', '');
     const passWrapper = document.createElement('div');
@@ -708,8 +1075,9 @@ class AddAccountModal extends Modal {
     passWrapper.appendChild(passToggle);
     passDiv.appendChild(passWrapper);
     fields.password = passInput;
+    openlistFields.appendChild(passDiv);
     
-    const tokenDiv = this.createFieldDiv('Token', '在 OpenList 后台获取');
+    const tokenDiv = this.createFieldDiv('Token（选填）', '在 OpenList 后台获取，不填则不签名');
     const tokenWrapper = document.createElement('div');
     tokenWrapper.style.display = 'flex';
     tokenWrapper.style.gap = '4px';
@@ -731,7 +1099,115 @@ class AddAccountModal extends Modal {
     tokenWrapper.appendChild(tokenToggle);
     tokenDiv.appendChild(tokenWrapper);
     fields.token = tokenInput;
+    openlistFields.appendChild(tokenDiv);
 
+    this.contentEl.appendChild(openlistFields);
+
+    // ---- S3 字段集 ----
+    const s3Fields = document.createElement('div');
+    s3Fields.id = 's3-fields';
+    s3Fields.style.display = 'none';
+
+    const endpointDiv = this.createFieldDiv('端点', 'https://xxx.r2.cloudflarestorage.com');
+    const endpointInput = document.createElement('input');
+    endpointInput.type = 'text';
+    endpointInput.placeholder = 'https://xxx.r2.cloudflarestorage.com';
+    endpointInput.value = this.account?.endpoint || '';
+    endpointInput.className = 'cloud-attach-input';
+    endpointDiv.appendChild(endpointInput);
+    fields.endpoint = endpointInput;
+    s3Fields.appendChild(endpointDiv);
+
+    const bucketDiv = this.createFieldDiv('存储桶', 'my-vault-attach');
+    const bucketInput = document.createElement('input');
+    bucketInput.type = 'text';
+    bucketInput.placeholder = 'my-vault-attach';
+    bucketInput.value = this.account?.bucket || '';
+    bucketInput.className = 'cloud-attach-input';
+    bucketDiv.appendChild(bucketInput);
+    fields.bucket = bucketInput;
+    s3Fields.appendChild(bucketDiv);
+
+    const regionDiv = this.createFieldDiv('地域', 'auto（Cloudflare R2 可留空）');
+    const regionInput = document.createElement('input');
+    regionInput.type = 'text';
+    regionInput.placeholder = 'auto';
+    regionInput.value = this.account?.region || '';
+    regionInput.className = 'cloud-attach-input';
+    regionDiv.appendChild(regionInput);
+    fields.region = regionInput;
+    s3Fields.appendChild(regionDiv);
+
+    const akDiv = this.createFieldDiv('访问密钥 ID', '');
+    const akInput = document.createElement('input');
+    akInput.type = 'text';
+    akInput.value = this.account?.accessKey || '';
+    akInput.className = 'cloud-attach-input';
+    akDiv.appendChild(akInput);
+    fields.accessKey = akInput;
+    s3Fields.appendChild(akDiv);
+
+    const skDiv = this.createFieldDiv('访问密钥', '');
+    const skWrapper = document.createElement('div');
+    skWrapper.style.display = 'flex';
+    skWrapper.style.gap = '4px';
+    const skInput = document.createElement('input');
+    skInput.type = 'password';
+    skInput.value = this.account?.secretKey || '';
+    skInput.className = 'cloud-attach-input';
+    skInput.style.flex = '1';
+    skWrapper.appendChild(skInput);
+    const skToggle = document.createElement('button');
+    skToggle.textContent = '👁️';
+    skToggle.type = 'button';
+    skToggle.style.padding = '6px 8px';
+    skToggle.style.cursor = 'pointer';
+    skToggle.onclick = () => {
+      skInput.type = skInput.type === 'password' ? 'text' : 'password';
+      skToggle.textContent = skInput.type === 'password' ? '👁️' : '🔒';
+    };
+    skWrapper.appendChild(skToggle);
+    skDiv.appendChild(skWrapper);
+    fields.secretKey = skInput;
+    s3Fields.appendChild(skDiv);
+
+    const publicUrlDiv = this.createFieldDiv('自定义主机', 'https://cdn.example.com（选填，用于拼公共访问URL）');
+    const publicUrlInput = document.createElement('input');
+    publicUrlInput.type = 'text';
+    publicUrlInput.placeholder = 'https://cdn.example.com';
+    publicUrlInput.value = this.account?.publicUrl || '';
+    publicUrlInput.className = 'cloud-attach-input';
+    publicUrlDiv.appendChild(publicUrlInput);
+    fields.publicUrl = publicUrlInput;
+    s3Fields.appendChild(publicUrlDiv);
+
+    const prefixDiv = this.createFieldDiv('存储路径（选填）', 'obsidian/，默认根目录');
+    const prefixInput = document.createElement('input');
+    prefixInput.type = 'text';
+    prefixInput.placeholder = 'obsidian/';
+    prefixInput.value = this.account?.prefix || '';
+    prefixInput.className = 'cloud-attach-input';
+    prefixDiv.appendChild(prefixInput);
+    fields.prefix = prefixInput;
+    s3Fields.appendChild(prefixDiv);
+
+    this.contentEl.appendChild(s3Fields);
+
+    // ---- 切换逻辑 ----
+    const switchType = (type) => {
+      openlistFields.style.display = type === 'openlist' ? 'block' : 'none';
+      s3Fields.style.display = type === 's3' ? 'block' : 'none';
+    };
+    radioOpenList.onchange = () => switchType('openlist');
+    radioS3.onchange = () => switchType('s3');
+
+    // 根据已有账户类型初始化
+    const currentType = this.account?.type === 's3' ? 's3' : 'openlist';
+    if (currentType === 's3') radioS3.checked = true;
+    else radioOpenList.checked = true;
+    switchType(currentType);
+
+    // ---- 按钮行 ----
     const btnRow = document.createElement('div');
     btnRow.style.display = 'flex';
     btnRow.style.gap = '8px';
@@ -747,24 +1223,49 @@ class AddAccountModal extends Modal {
     saveBtn.textContent = '保存';
     saveBtn.className = 'cloud-attach-btn mod-cta';
     saveBtn.onclick = async () => {
-      const url = fields.url.value.trim().replace(/\/$/, '');
-      if (!url) { new Notice('请填写服务器地址', 3000); return; }
-      
-      const accountData = {
-        name: fields.name.value.trim() || `账户 ${this.plugin.accounts.length + 1}`,
-        url,
-        webdavPath: fields.webdavPath.value.trim() || '/dav',
-        username: fields.username.value.trim(),
-        password: fields.password.value,
-        token: fields.token.value,
-        isActive: true
-      };
+      const accountType = radioOpenList.checked ? 'openlist' : 's3';
+      let accountData;
+
+      if (accountType === 's3') {
+        // S3 模式校验
+        const endpoint = fields.endpoint.value.trim().replace(/\/$/, '');
+        const bucket = fields.bucket.value.trim();
+        if (!endpoint) { new Notice('请填写端点', 3000); return; }
+        if (!bucket) { new Notice('请填写存储桶', 3000); return; }
+
+        accountData = {
+          type: 's3',
+          name: fields.name.value.trim() || `S3 账户 ${this.plugin.accounts.length + 1}`,
+          endpoint,
+          bucket,
+          region: fields.region.value.trim(),
+          accessKey: fields.accessKey.value.trim(),
+          secretKey: fields.secretKey.value,
+          publicUrl: fields.publicUrl.value.trim(),
+          prefix: fields.prefix.value.trim(),
+          isActive: true
+        };
+      } else {
+        // OpenList 模式校验
+        const url = fields.url.value.trim().replace(/\/$/, '');
+        if (!url) { new Notice('请填写服务器地址', 3000); return; }
+
+        accountData = {
+          type: 'openlist',
+          name: fields.name.value.trim() || `账户 ${this.plugin.accounts.length + 1}`,
+          url,
+          webdavPath: fields.webdavPath.value.trim() || '/dav',
+          username: fields.username.value.trim(),
+          password: fields.password.value,
+          token: fields.token.value,
+          isActive: true
+        };
+      }
       
       if (this.account) await this.plugin.updateAccount(this.account.id, accountData);
       else await this.plugin.addAccount(accountData);
       
       this.close();
-      // 延时确保弹窗关闭后再刷新设置页
       setTimeout(() => this.onSave?.(), 50);
     };
     
@@ -783,7 +1284,6 @@ class AddAccountModal extends Modal {
     lbl.style.fontSize = '12px';
     lbl.style.color = 'var(--text-muted)';
     div.appendChild(lbl);
-    this.contentEl.appendChild(div);
     return div;
   }
 }
@@ -844,22 +1344,62 @@ class CloudAttachSettingTab extends PluginSettingTab {
     const card = document.createElement('div');
     card.className = 'cloud-attach-card';
     
+    const headerRow = document.createElement('div');
+    headerRow.style.display = 'flex';
+    headerRow.style.alignItems = 'center';
+    headerRow.style.justifyContent = 'space-between';
+    headerRow.style.marginBottom = '8px';
+    
     const h3 = document.createElement('h3');
     h3.textContent = account.name;
-    h3.style.margin = '0 0 8px 0';
+    h3.style.margin = '0';
     h3.style.fontSize = '14px';
-    card.appendChild(h3);
+    headerRow.appendChild(h3);
     
-    const p1 = document.createElement('p');
-    p1.textContent = `地址: ${account.url}`;
-    p1.className = 'setting-item-description';
-    card.appendChild(p1);
+    const typeBadge = document.createElement('span');
+    typeBadge.style.fontSize = '10px';
+    typeBadge.style.padding = '2px 6px';
+    typeBadge.style.borderRadius = '10px';
+    typeBadge.style.fontWeight = '600';
+    if (account.type === 's3') {
+      typeBadge.textContent = '对象存储';
+      typeBadge.style.background = '#e8f5e9';
+      typeBadge.style.color = '#2e7d32';
+    } else {
+      typeBadge.textContent = 'WebDAV';
+      typeBadge.style.background = '#e3f2fd';
+      typeBadge.style.color = '#1565c0';
+    }
+    headerRow.appendChild(typeBadge);
+    card.appendChild(headerRow);
     
-    if (account.username) {
+    if (account.type === 's3') {
+      const p1 = document.createElement('p');
+      p1.textContent = `端点: ${account.endpoint}`;
+      p1.className = 'setting-item-description';
+      p1.style.wordBreak = 'break-all';
+      card.appendChild(p1);
       const p2 = document.createElement('p');
-      p2.textContent = `用户: ${account.username}`;
+      p2.textContent = `存储桶: ${account.bucket}`;
       p2.className = 'setting-item-description';
       card.appendChild(p2);
+      if (account.prefix) {
+        const p3 = document.createElement('p');
+        p3.textContent = `存储路径: ${account.prefix}`;
+        p3.className = 'setting-item-description';
+        card.appendChild(p3);
+      }
+    } else {
+      const p1 = document.createElement('p');
+      p1.textContent = `地址: ${account.url}`;
+      p1.className = 'setting-item-description';
+      card.appendChild(p1);
+      if (account.username) {
+        const p2 = document.createElement('p');
+        p2.textContent = `用户: ${account.username}`;
+        p2.className = 'setting-item-description';
+        card.appendChild(p2);
+      }
     }
 
     const btnRow = document.createElement('div');
@@ -911,7 +1451,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
 
   async onload() {
-    console.log('CloudAttach v0.0.017 loading...');
+    console.log('CloudAttach v0.1.001 loading...');
     await this.loadSettings();
     this.addStyles();
     this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf, this));
@@ -1025,6 +1565,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
 
   createClient(accountId) {
     const account = this.getAccount(accountId);
-    return account ? new OpenListClient(account) : null;
+    if (!account) return null;
+    if (account.type === 's3') return new S3Client(account);
+    // 默认走 openlist / WebDAV
+    return new OpenListClient(account);
   }
 };
