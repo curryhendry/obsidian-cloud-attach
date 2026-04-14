@@ -908,17 +908,22 @@ class CloudAttachView extends ItemView {
   findMostRecentMarkdownView() {
     const { workspace } = this.plugin.app;
     
-    // 优先获取当前聚焦的 MarkdownView
+    // 优先使用 activeMarkdownView（实时跟踪，用户最后操作的 Markdown view）
+    if (this.plugin.activeMarkdownView?.editor) {
+      return this.plugin.activeMarkdownView;
+    }
+    
+    // 备用：获取当前聚焦的 MarkdownView
     let view = workspace.getActiveViewOfType(MarkdownView);
     if (view?.editor) return view;
     
-    // 如果没有，获取最近使用的 leaf
+    // 备用：获取最近使用的 leaf
     const recentLeaf = workspace.getMostRecentLeaf();
     if (recentLeaf?.view instanceof MarkdownView && recentLeaf.view.editor) {
       return recentLeaf.view;
     }
     
-    // 遍历所有 markdown leaf
+    // 备用：遍历所有 markdown leaf
     const leaves = workspace.getLeavesOfType('markdown');
     for (const leaf of leaves) {
       if (leaf.view instanceof MarkdownView && leaf.view.editor) {
@@ -1504,7 +1509,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
 
   async onload() {
-    console.log('CloudAttach v0.1.019 loading...');
+    console.log('CloudAttach v0.1.021 loading...');
     await this.loadSettings();
     this.addStyles();
     this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf, this));
