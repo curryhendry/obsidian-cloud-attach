@@ -64,10 +64,7 @@
 
 ![截图](https://img.curryhendry.com/%E4%B9%B1%E4%B8%83%E5%85%AB%E7%B3%9F/obsidian-cloud-attach/%E6%88%AA%E5%9B%BE.png)
 
-演示视频：
-<video controls width="600" height="400">
-  <source src="https://img.curryhendry.com/%E4%B9%B1%E4%B8%83%E5%85%AB%E7%B3%9F/obsidian-cloud-attach/%E6%BC%94%E7%A4%BA%E8%A7%86%E9%A2%91.mov" type="video/mp4">
-</video>
+[演示视频](https://img.curryhendry.com/%E4%B9%B1%E4%B8%83%E5%85%AB%E7%B3%9F/obsidian-cloud-attach/%E6%BC%94%E7%A4%BA%E8%A7%86%E9%A2%91.mov)
 
 ---
 

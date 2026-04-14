@@ -1,7 +1,7 @@
 {
   "id": "cloud-attach",
   "name": "CloudAttach",
-  "version": "0.0.028",
+  "version": "0.0.031",
   "author": "Garry",
   "description": "连接 OpenList 管理云附件，插入带签名的文件链接到笔记",
   "isDesktopOnly": false
