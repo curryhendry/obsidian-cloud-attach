@@ -400,6 +400,21 @@ class CloudAttachView extends ItemView {
     this.batchBarEl.appendChild(clearBtn);
   }
 
+  // 刷新账户下拉框
+  refreshAccountSelect() {
+    const select = this.contentEl.querySelector('select.cloud-attach-select');
+    if (!select) return;
+    
+    select.innerHTML = '<option value="">请选择账户</option>';
+    this.plugin.accounts.forEach(acc => {
+      const opt = document.createElement('option');
+      opt.value = acc.id;
+      opt.textContent = acc.name;
+      if (acc.id === this.accountId) opt.selected = true;
+      select.appendChild(opt);
+    });
+  }
+
   async loadDir() {
     if (!this.accountId) return;
 
@@ -779,6 +794,14 @@ class CloudAttachSettingTab extends PluginSettingTab {
     this.plugin = plugin;
   }
 
+  // 刷新侧边栏视图的下拉框
+  refreshViewSelect() {
+    const view = this.app.workspace.getLeavesOfType('cloud-attach-view')[0]?.view;
+    if (view && view.refreshAccountSelect) {
+      view.refreshAccountSelect();
+    }
+  }
+
   display() { this.render(); }
 
   render() {
@@ -807,17 +830,12 @@ class CloudAttachSettingTab extends PluginSettingTab {
     const addBtn = document.createElement('button');
     addBtn.textContent = '+ 添加账户';
     addBtn.className = 'cloud-attach-add-btn';
-    addBtn.onclick = () => new AddAccountModal(this.plugin.app, this.plugin, () => this.display()).open();
+    addBtn.onclick = () => new AddAccountModal(this.plugin.app, this.plugin, () => {
+      this.containerEl.innerHTML = '';
+      this.render();
+      this.refreshViewSelect();
+    }).open();
     btnRow.appendChild(addBtn);
-
-    const refreshBtn = document.createElement('button');
-    refreshBtn.textContent = '🔄 刷新';
-    refreshBtn.className = 'cloud-attach-btn';
-    refreshBtn.onclick = async () => {
-      await this.plugin.loadSettings();
-      this.display();
-    };
-    btnRow.appendChild(refreshBtn);
 
     this.containerEl.appendChild(btnRow);
   }
@@ -850,7 +868,11 @@ class CloudAttachSettingTab extends PluginSettingTab {
     const editBtn = document.createElement('button');
     editBtn.textContent = '编辑';
     editBtn.className = 'cloud-attach-btn';
-    editBtn.onclick = () => new AddAccountModal(this.plugin.app, this.plugin, () => this.display(), account).open();
+    editBtn.onclick = () => new AddAccountModal(this.plugin.app, this.plugin, () => {
+      this.containerEl.innerHTML = '';
+      this.render();
+      this.refreshViewSelect();
+    }, account).open();
     
     const testBtn = document.createElement('button');
     testBtn.textContent = '测试';
@@ -868,8 +890,10 @@ class CloudAttachSettingTab extends PluginSettingTab {
     delBtn.className = 'cloud-attach-btn';
     delBtn.onclick = async () => {
       await this.plugin.removeAccount(account.id);
-      // 延时确保删除后刷新
-      setTimeout(() => this.display(), 50);
+      // 强制重新渲染
+      this.containerEl.innerHTML = '';
+      this.render();
+      this.refreshViewSelect();
     };
     
     btnRow.appendChild(editBtn);
