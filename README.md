@@ -1,0 +1,122 @@
+# obsidian-cloud-attach
+
+> Obsidian 插件，通过 WebDAV 连接 OpenList 等服务 以及 对象存储服务，在笔记中直接插入云端文件。释放本地空间。
+
+[![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/curryhendry/obsidian-cloud-attach?style=flat-square)](https://github.com/curryhendry/obsidian-cloud-attach/releases/latest)
+[![GitHub stars](https://img.shields.io/github/stars/curryhendry/obsidian-cloud-attach?style=flat-square)](https://github.com/curryhendry/obsidian-cloud-attach)
+[![MIT License](https://img.shields.io/github/license/curryhendry/obsidian-cloud-attach?style=flat-square)](LICENSE)
+
+---
+
+## 项目背景
+
+- 坚定的 Obsidian 笔记库内 0 附件使用者
+- 重度 OpenList 依赖者
+- 前电商从业者，0 代码基础
+- 全程 🦞 龙虾操作，目前消耗 token：📈6500W 左右
+
+---
+
+## 功能特点
+
+- 🌐 **WebDAV 协议** — 兼容 OpenList，理论上支持 Alist / 群晖 / 威联通 QNAP 等所有 WebDAV 服务
+- 🌐 **S3对象存储 协议** - 兼容CloudFlare，理论上支持ASW等大部分对象存储服务
+- 📂 **侧边栏浏览** — 直接在 Obsidian 侧边栏浏览云端目录
+- 📝 **一键插入** — 单击插入 Markdown 链接，支持单选/多选同时插入
+- 🔗 **签名链接** — 自动生成带 sign 签名的 URL
+- 🖼️ **多媒体预览** — 图片预览、视频/音频播放、文档 iframe 预览
+- 👤 **多账号切换** — 同时管理多个 WebDAV 服务
+
+*注：对象存储可能无法使用iframe在线预览，这个取决于各服务商限制，暂时没有更好的兼容办法。建议先用openlist挂载对象存储，在使用iframe预览，曲线救国。
+
+---
+
+## 安装
+
+**方式一：下载 ZIP**
+
+1. 点击本仓库 *Code* → *Download ZIP*
+2. 解压后放入 `<vault>/.obsidian/plugins/cloud-attach/` 目录
+
+**方式二：按版本下载**
+
+前往 [Releases](https://github.com/curryhendry/obsidian-cloud-attach/releases) 下载对应版本。
+
+---
+
+## 配置
+
+插件设置中添加账号：
+
+| 字段 | 说明 |
+|------|------|
+| 服务器地址 | OpenList 的 URL |
+| 用户名 / 密码 | WebDAV 认证信息 |
+| WebDAV 路径 | 通常填 `/dav` |
+| Token | 从 OpenList「设置 → 其他」界面获取 |
+
+---
+
+## 使用
+
+1. 点击侧边栏图标打开云端文件面板
+2. 浏览目录，单击文件名插入链接
+3. 右键有更多操作（预览、复制、删除）
+
+![添加服务](https://img.curryhendry.com/%E4%B9%B1%E4%B8%83%E5%85%AB%E7%B3%9F/obsidian-cloud-attach/%E6%B7%BB%E5%8A%A0%E6%9C%8D%E5%8A%A1.png)
+
+![截图](https://img.curryhendry.com/%E4%B9%B1%E4%B8%83%E5%85%AB%E7%B3%9F/obsidian-cloud-attach/%E6%88%AA%E5%9B%BE.png)
+
+[演示视频](https://img.curryhendry.com/%E4%B9%B1%E4%B8%83%E5%85%AB%E7%B3%9F/obsidian-cloud-attach/%E6%BC%94%E7%A4%BA%E8%A7%86%E9%A2%91.mov)
+
+---
+
+## 后续规划
+
+- [x] 对象存储支持（Cloudflare R2 为主）
+- [ ] 笔记内搜索服务器文件并插入
+- [ ] 附件移动后自动检测并更新失效 sign
+- [ ] 笔记附件半自动上传
+
+---
+
+## 更新日志
+
+### [v0.1.021](https://github.com/curryhendry/obsidian-cloud-attach/releases/tag/v0.1.021)
+
+- [x] 修复 getActiveLeaf → getMostRecentLeaf（适配新版 Obsidian API）
+
+### [v0.1.020](https://github.com/curryhendry/obsidian-cloud-attach/releases/tag/v0.1.020)
+
+- [x] 修复 hmacSha256，正确处理 Uint8Array 类型的 key
+- [x] 修复 canonicalUri，objectKey 为空时不加尾部斜杠
+- [x] 修复签名参数排序，改为字节序替代 localeCompare
+
+### [v0.1.019](https://github.com/curryhendry/obsidian-cloud-attach/releases/tag/v0.1.019)
+
+- [x] 用 presigned URL 替代 Authorization 头，绕过 CORS 限制
+- [x] 修复 presigned URL 拼接，objectKey 为空时正确处理
+- [x] 移除 app.requestUrl，统一使用原生 fetch
+
+### [v0.1.018](https://github.com/curryhendry/obsidian-cloud-attach/releases/tag/v0.1.018)
+
+- [x] 对象存储支持
+- [x] 修复一定的CORS问题
+
+### [v0.0.028](https://github.com/curryhendry/obsidian-cloud-attach/releases/tag/v0.0.028) — 初始版本
+
+- [x] WebDAV 服务添加与管理
+- [x] 多服务切换
+- [x] 单/多个附件插入
+- [x] 多媒体格式识别与预览
+
+---
+
+## 致谢
+
+- [Obsidian](https://obsidian.md)
+- [OpenList](https://github.com/OpenListTeam/OpenList)
+
+---
+
+欢迎提交 Issue 和 Pull Request！
