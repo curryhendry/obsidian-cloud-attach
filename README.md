@@ -60,9 +60,14 @@
 2. 浏览目录，单击文件名插入链接
 3. 右键有更多操作（预览、复制、删除）
 
-![添加服务](https://img.curryhendry.com/obsidian-cloud-attach/添加服务.png)
+![添加服务](https://img.curryhendry.com/%E4%B9%B1%E4%B8%83%E5%85%AB%E7%B3%9F/obsidian-cloud-attach/%E6%B7%BB%E5%8A%A0%E6%9C%8D%E5%8A%A1.png)
 
-![截图](https://img.curryhendry.com/obsidian-cloud-attach/截图.png)
+![截图](https://img.curryhendry.com/%E4%B9%B1%E4%B8%83%E5%85%AB%E7%B3%9F/obsidian-cloud-attach/%E6%88%AA%E5%9B%BE.png)
+
+演示视频：
+<video controls width="600" height="400">
+  <source src="https://img.curryhendry.com/%E4%B9%B1%E4%B8%83%E5%85%AB%E7%B3%9F/obsidian-cloud-attach/%E6%BC%94%E7%A4%BA%E8%A7%86%E9%A2%91.mov" type="video/mp4">
+</video>
 
 ---
 
