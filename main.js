@@ -338,26 +338,17 @@ class S3Client {
    * @returns {Promise<Response>}
    */
   async s3Request(path, method = 'GET', options = {}) {
+    // 用 presigned URL 方式，绕过 CORS
     const url = `${this.endpoint}/${this.bucket}${path}`;
-    const host = new URL(this.endpoint).host;
-    const dateStr = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
-
-    const headers = {
-      'Host': host,
-      'X-Amz-Date': dateStr,
-      'x-amz-content-sha256': 'UNSIGNED-PAYLOAD',
-      ...(options.headers || {})
-    };
-
-    const signedHeaders = await this.signRequest(method, url, headers, dateStr);
-    const authHeaders = {
-      ...signedHeaders,
-      'Host': host,
-      'X-Amz-Date': dateStr,
-      'x-amz-content-sha256': 'UNSIGNED-PAYLOAD'
-    };
-
-    return fetch(url, { method, headers: authHeaders, ...options });
+    const urlObj = new URL(url);
+    const objectKey = urlObj.pathname.slice(this.bucket.length + 2); // 去掉 /bucket/
+    
+    // 构建查询参数
+    const params = new URLSearchParams(urlObj.search);
+    const signedQuery = await this.signQuery(params, objectKey || '');
+    const signedUrl = `${this.endpoint}/${this.bucket}/${objectKey}?${signedQuery}`;
+    
+    return fetch(signedUrl, { method: 'GET', ...options });
   }
 
   /**
@@ -1454,7 +1445,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
 
   async onload() {
-    console.log('CloudAttach v0.1.009 loading...');
+    console.log('CloudAttach v0.1.010 loading...');
     await this.loadSettings();
     this.addStyles();
     this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf, this));
