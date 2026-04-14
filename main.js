@@ -341,12 +341,22 @@ class S3Client {
     // 用 presigned URL 方式，绕过 CORS
     const url = `${this.endpoint}/${this.bucket}${path}`;
     const urlObj = new URL(url);
-    const objectKey = urlObj.pathname.slice(this.bucket.length + 2); // 去掉 /bucket/
+    // pathname = /obsidian-attachments/ 或 /obsidian-attachments/path/to/file
+    // 去掉 bucket 前缀，得到 objectKey
+    const prefix = `/${this.bucket}/`;
+    const objectKey = urlObj.pathname.startsWith(prefix) 
+      ? urlObj.pathname.slice(prefix.length) 
+      : urlObj.pathname.slice(1); // fallback
     
     // 构建查询参数
     const params = new URLSearchParams(urlObj.search);
-    const signedQuery = await this.signQuery(params, objectKey || '');
-    const signedUrl = `${this.endpoint}/${this.bucket}/${objectKey}?${signedQuery}`;
+    const signedQuery = await this.signQuery(params, objectKey);
+    
+    // 拼接 URL：endpoint/bucket/objectKey?signedQuery
+    const baseUrl = objectKey 
+      ? `${this.endpoint}/${this.bucket}/${objectKey}`
+      : `${this.endpoint}/${this.bucket}`;
+    const signedUrl = `${baseUrl}?${signedQuery}`;
     
     return fetch(signedUrl, { method: 'GET', ...options });
   }
@@ -1445,7 +1455,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
 
   async onload() {
-    console.log('CloudAttach v0.1.010 loading...');
+    console.log('CloudAttach v0.1.011 loading...');
     await this.loadSettings();
     this.addStyles();
     this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf, this));
