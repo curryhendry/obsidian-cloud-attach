@@ -374,8 +374,12 @@ class S3Client {
     signedHeaders['host'] = headers['Host'];
     signedHeaders['x-amz-content-sha256'] = 'UNSIGNED-PAYLOAD';
     signedHeaders['x-amz-date'] = headers['X-Amz-Date'];
+    console.log('[CloudAttach] signRequest - credential:', credential);
+    console.log('[CloudAttach] signRequest - signedHeaderNames:', signedHeaderNames);
+    console.log('[CloudAttach] signRequest - signedHeaders.host:', signedHeaders['host']);
     const signature = await this.computeSignature(method, url, signedHeaders, dateStr);
     signedHeaders['Authorization'] = `AWS4-HMAC-SHA256 Credential=${credential}, SignedHeaders=${signedHeaderNames}, Signature=${signature}`;
+    console.log('[CloudAttach] signRequest - signature:', signature.substring(0, 20) + '...');
     return signedHeaders;
   }
 
@@ -394,6 +398,8 @@ class S3Client {
       .sort((a, b) => a[0].toLowerCase().localeCompare(b[0].toLowerCase()));
     const canonicalHeaders = sortedHeaders.map(([k, v]) => `${k}:${v.trim()}`).join('\n') + '\n';
     const signedHeadersLine = sortedHeaders.map(([k]) => k).join(';');
+    console.log('[CloudAttach] computeSig - canonicalUri:', canonicalUri);
+    console.log('[CloudAttach] computeSig - canonicalHeaders:\n' + canonicalHeaders);
 
     const canonicalRequest = [
       method.toUpperCase(),
