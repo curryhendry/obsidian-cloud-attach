@@ -10,12 +10,46 @@ const { Plugin, Notice, Menu, Modal, PluginSettingTab, MarkdownView, ItemView } 
 const VIEW_TYPE_CLOUDATTACH = 'cloud-attach-view';
 
 class OpenListClient {
-  constructor(account) {
+  constructor(account, app) {
     this.serverUrl = account.url.replace(/\/$/, '');
     this.webdavPath = (account.webdavPath || '/dav').replace(/\/$/, '');
     this.token = account.token || '';
     this.username = account.username;
     this.password = account.password;
+    this.app = app;
+  }
+
+  /**
+   * 通过 Obsidian requestUrl 发请求（绕过 CORS，适用于 WebDAV）
+   * 优先使用 app.requestUrl，不可用时回退到原生 fetch
+   * @param {string} url - 目标 URL
+   * @param {Object} options - { method, headers, body }
+   * @returns {Promise<{status: number, text: string, ok: boolean}>}
+   */
+  async requestViaObsidian(url, options = {}) {
+    if (this.app?.requestUrl) {
+      const result = await this.app.requestUrl({
+        url,
+        method: options.method || 'GET',
+        headers: options.headers || {},
+        body: options.body || undefined,
+      });
+      return {
+        status: result.status,
+        text: result.text,
+        ok: result.status >= 200 && result.status < 300,
+      };
+    }
+    const fetchResp = await fetch(url, {
+      method: options.method || 'GET',
+      headers: options.headers || {},
+      body: options.body || undefined,
+    });
+    return {
+      status: fetchResp.status,
+      text: await fetchResp.text(),
+      ok: fetchResp.ok,
+    };
   }
 
   async getSignedUrl(remotePath) {
@@ -79,7 +113,7 @@ class OpenListClient {
     try {
       if (this.webdavPath) {
         const webdavUrl = `${this.serverUrl}${this.webdavPath}/`;
-        const response = await fetch(webdavUrl, {
+        const response = await this.requestViaObsidian(webdavUrl, {
           method: 'PROPFIND',
           headers: {
             'Authorization': 'Basic ' + btoa(`${this.username}:${this.password}`),
@@ -119,7 +153,7 @@ class OpenListClient {
     const webdavUrl = `${this.serverUrl}${this.webdavPath}${remotePath}`;
     const propfindBody = `<?xml version="1.0" encoding="utf-8" ?><D:propfind xmlns:D="DAV:"><D:prop><D:displayname/><D:getcontentlength/><D:getlastmodified/><D:resourcetype/></D:prop></D:propfind>`;
     
-    const response = await fetch(webdavUrl, {
+    const response = await this.requestViaObsidian(webdavUrl, {
       method: 'PROPFIND',
       headers: {
         'Authorization': 'Basic ' + btoa(`${this.username}:${this.password}`),
@@ -131,7 +165,7 @@ class OpenListClient {
 
     if (!response.ok && response.status !== 207) throw new Error(`WebDAV error: ${response.status}`);
 
-    const text = await response.text();
+    const text = response.text;
     const files = [];
     const parser = new DOMParser();
     const doc = parser.parseFromString(text, 'text/xml');
@@ -1477,6 +1511,52 @@ module.exports = class CloudAttachPlugin extends Plugin {
     this.addRibbonIcon('folder-open', '☁️ 云附件', () => this.activateView());
     this.addSettingTab(new CloudAttachSettingTab(this));
     this.addCommand({ id: 'open-browser', name: 'Open CloudAttach Browser', callback: () => this.activateView() });
+    this.addCommand({
+      id: 'reload-plugin',
+      name: 'Reload CloudAttach Plugin',
+      callback: async () => {
+        try {
+          await plugin.app.plugins.disablePlugin('cloud-attach');
+          await plugin.app.plugins.enablePlugin('cloud-attach');
+          new Notice('✅ CloudAttach 已重新加载', 2000);
+        } catch (e) {
+          new Notice('❌ 重载失败: ' + e.message, 4000);
+        }
+      }
+    });
+
+    // 监听活跃 leaf 变化，实时记录当前活跃的 markdown view
+    this.activeMarkdownView = null;
+    this.registerEvent(this.app.workspace.on('active-leaf-change', (leaf) => {
+      if (leaf?.view instanceof MarkdownView && leaf.view.editor) {
+        this.activeMarkdownView = leaf.view;
+      }
+    }));
+    // 初始化时也记录当前活跃的
+    const activeLeaf = this.app.workspace.getActiveLeaf();
+    if (activeLeaf?.view instanceof MarkdownView && activeLeaf.view.editor) {
+      this.activeMarkdownView = activeLeaf.view;
+    }
+
+    // 热更新：监听 main.js 文件变化，自动重新加载插件
+    const plugin = this;
+    this.registerInterval(
+      window.setInterval(() => {
+        try {
+          const modTime = plugin.app.vault.getAbstractFileByPath('.obsidian/plugins/cloud-attach/main.js')?.stat?.mtime;
+          if (modTime && (!plugin._lastMainMtime || modTime > plugin._lastMainMtime)) {
+            plugin._lastMainMtime = modTime;
+            if (plugin._mainMtimeChecked) {
+              plugin.app.plugins.disablePlugin('cloud-attach').then(() => {
+                plugin.app.plugins.enablePlugin('cloud-attach');
+              });
+            }
+            plugin._mainMtimeChecked = true;
+          }
+        } catch {}
+      }, 3000)
+    );
+
     console.log('CloudAttach loaded');
   }
 
@@ -1587,6 +1667,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (!account) return null;
     if (account.type === 's3') return new S3Client(account);
     // 默认走 openlist / WebDAV
-    return new OpenListClient(account);
+    return new OpenListClient(account, this.app);
   }
 };
