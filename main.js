@@ -296,30 +296,36 @@ class S3Client {
    */
   async testConnection() {
     try {
-      // 构造诊断 URL 并输出到控制台，方便调试
       const diagUrl = `${this.endpoint}/${this.bucket}/?list-type=2&max-keys=1`;
+      const usingAppUrl = !!(this.app && this.app.requestUrl);
       console.log('[CloudAttach] S3 testConnection URL:', diagUrl);
-      console.log('[CloudAttach] S3 config - endpoint:', this.endpoint, 'bucket:', this.bucket, 'region:', this.region, 'accessKey:', this.accessKey ? '(set)' : '(empty)');
+      console.log('[CloudAttach] S3 config - endpoint:', this.endpoint, 'bucket:', this.bucket, 'region:', this.region, 'accessKey:', this.accessKey ? '(set)' : '(empty)', '| using app.requestUrl:', usingAppUrl);
       const response = await this.s3Request(`/?list-type=2&max-keys=1`, 'GET');
       const status = response.status;
       const text = await response.text().catch(() => '');
       console.log('[CloudAttach] S3 testConnection status:', status, 'body:', text.slice(0, 200));
       // 403 = 签名正确但无权限，401 = 签名错误，其他 2xx = 成功
-      if (status === 403) return true; // 认证成功，只是无权限
+      if (status === 403) {
+        new Notice(`✅ app.requestUrl连接成功(403无权限)。body: ${text.slice(0, 100)}`, 5000);
+        return true;
+      }
       if (status === 401) {
-        console.error('[CloudAttach] S3 签名认证失败 - 请检查 AccessKey / SecretKey / Region 是否正确');
-        new Notice('S3 连接失败：签名认证错误，请检查 AccessKey / SecretKey / Region', 5000);
+        new Notice(`❌ 签名错误(401)，请检查AccessKey/SecretKey/Region`, 5000);
         return false;
       }
       if (status === 404) {
-        console.error('[CloudAttach] S3 bucket 未找到 - 请检查 Endpoint 和 Bucket 名称是否正确');
-        new Notice('S3 连接失败：存储桶未找到，请检查 Endpoint 和 Bucket 名称', 5000);
+        new Notice(`❌ 存储桶未找到(404)`, 5000);
         return false;
       }
-      return response.ok;
+      if (response.ok) {
+        new Notice(`✅ 连接成功! body: ${text.slice(0, 80)}`, 5000);
+        return true;
+      }
+      new Notice(`❌ 失败 status=${status} body: ${text.slice(0, 80)}`, 5000);
+      return false;
     } catch (e) {
       console.error('[CloudAttach] S3 testConnection error:', e);
-      new Notice(`S3 连接失败：${e.message}`, 5000);
+      new Notice(`❌ 连接异常: ${e.message}`, 5000);
       return false;
     }
   }
@@ -366,23 +372,47 @@ class S3Client {
           headers: authHeaders,
           ...options
         });
-        // 包装成 fetch Response 兼容格式
+        // app.requestUrl 返回格式：{status, headers, text, json}
+        const hasRespJson = resp && typeof resp === 'object';
+        if (!hasRespJson) {
+          new Notice(`app.requestUrl 返回异常: ${JSON.stringify(resp)}`, 5000);
+          throw new Error('app.requestUrl 返回格式错误');
+        }
         let jsonData = null;
-        if (resp.headers && (resp.headers['content-type'] || '').includes('application/json')) {
-          try { jsonData = JSON.parse(resp.text || '{}'); } catch(e) { jsonData = {}; }
+        if (resp.text && typeof resp.text === 'string' && (resp.headers && (
+          (typeof resp.headers.get === 'function' ? resp.headers.get('content-type') : resp.headers['content-type'] || '')
+        ).includes('application/json'))) {
+          try { jsonData = JSON.parse(resp.text); } catch(e) { jsonData = null; }
+        }
+        if (resp.json !== undefined && resp.json !== null && typeof resp.json !== 'function') {
+          jsonData = resp.json;
         }
         return {
           ok: resp.status >= 200 && resp.status < 300,
           status: resp.status,
-          text: async () => resp.text || '',
-          json: async () => jsonData || {},
+          text: async () => (resp.text || ''),
+          json: async () => (jsonData || {}),
           headers: {
-            get: (k) => resp.headers[k] || resp.headers[k.toLowerCase()] || resp.headers[k.toUpperCase()]
+            get: (k) => {
+              if (!resp.headers) return null;
+              if (typeof resp.headers.get === 'function') return resp.headers.get(k);
+              return resp.headers[k] || resp.headers[k.toLowerCase()] || resp.headers[k.toUpperCase()];
+            }
           }
         };
       } catch(e) {
-        // 网络错误包装成兼容对象
+        // 网络错误
+        console.error('[CloudAttach] app.requestUrl error:', e);
+        new Notice(`请求失败: ${e.message}`, 5000);
         return {
+          ok: false,
+          status: 0,
+          text: async () => e.message,
+          json: async () => ({}),
+          headers: { get: () => null }
+        };
+      }
+    }
           ok: false,
           status: 0,
           text: async () => e.message || 'Network error',
@@ -1490,7 +1520,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
 
   async onload() {
-    console.log('CloudAttach v0.1.006 loading...');
+    console.log('CloudAttach v0.1.007 loading...');
     await this.loadSettings();
     this.addStyles();
     this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf, this));
