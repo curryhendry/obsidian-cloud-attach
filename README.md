@@ -38,7 +38,7 @@
 1. 点击本仓库 *Code* → *Download ZIP*
 2. 解压后放入 `<vault>/.obsidian/plugins/cloud-attach/` 目录
 
-**方式二：按版本下载**
+**方式二：按版本下载**（优选）
 
 前往 [Releases](https://github.com/curryhendry/obsidian-cloud-attach/releases) 下载对应版本。
 
