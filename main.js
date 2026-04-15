@@ -27,10 +27,15 @@ class OpenListClient {
    * @returns {Promise<{status: number, text: string, ok: boolean}>}
    */
   async requestViaObsidian(url, options = {}) {
-    // Obsidian requestUrl 是全局函数，需要通过 window 或 global 获取
-    const requestUrl = window.require?.('obsidian')?.requestUrl || 
-                       globalThis.requestUrl ||
-                       this.app?.requestUrl;
+    // Obsidian requestUrl 是全局 require('obsidian').requestUrl
+    let requestUrl = null;
+    try {
+      // Obsidian 环境中 require 是全局的
+      requestUrl = require('obsidian').requestUrl;
+    } catch (e) {
+      // 如果 require 失败，尝试其他方式
+      requestUrl = globalThis.requestUrl || this.app?.requestUrl;
+    }
     
     console.log('[CloudAttach] requestViaObsidian url:', url.substring(0, 80), 'hasRequestUrl:', !!requestUrl);
     
@@ -1934,40 +1939,81 @@ module.exports = class CloudAttachPlugin extends Plugin {
       return;
     }
 
-    // 尝试获取当前行内容
     const cursor = view.editor.getCursor();
-    const line = view.editor.getLine(cursor.line);
+    const fullText = view.editor.getValue();
     const selection = view.editor.getSelection();
 
-    console.log('[CloudAttach] cursor line:', cursor.line, 'line content:', line.substring(0, 100));
-    console.log('[CloudAttach] selection:', selection ? selection.substring(0, 100) : '(none)');
-
-    // 从当前行或选中文本中提取第一个 URL
-    const allText = selection || line;
-    
-    // 先尝试 Markdown 图片/链接语法
-    const imgMatch = allText.match(/!\[([^\]]*)\]\(([^)]+)\)/);
-    const linkMatch = allText.match(/(?<![!])\[([^\]]*)\]\(([^)]+)\)/);
-    const iframeMatch = allText.match(/<iframe[^>]+src=["']([^"']+)["']/i);
-    
+    // 策略1: 如果有选中文本，从选中文本中提取 URL
+    // 策略2: 从光标位置前后扩展，找到最近的 URL
     let url = null;
     let urlType = '';
-    if (imgMatch) { url = imgMatch[2]; urlType = 'image'; }
-    else if (linkMatch) { url = linkMatch[2]; urlType = 'link'; }
-    else if (iframeMatch) { url = iframeMatch[1]; urlType = 'iframe'; }
-    else {
-      // 最后尝试裸 URL
-      const bareMatch = allText.match(/https?:\/\/[^\s<>"\)\]]+/);
-      if (bareMatch) { url = bareMatch[0]; urlType = 'bare'; }
+
+    if (selection) {
+      // 从选中文本中提取
+      const imgMatch = selection.match(/!\[([^\]]*)\]\(([^)]+)\)/);
+      const linkMatch = selection.match(/(?<![!])\[([^\]]*)\]\(([^)]+)\)/);
+      if (imgMatch) { url = imgMatch[2]; urlType = 'image'; }
+      else if (linkMatch) { url = linkMatch[2]; urlType = 'link'; }
+      else {
+        const bareMatch = selection.match(/https?:\/\/[^\s<>"\)\]]+/);
+        if (bareMatch) { url = bareMatch[0]; urlType = 'bare'; }
+      }
     }
 
     if (!url) {
-      new Notice('❌ 当前行/选区未找到 URL', 3000);
-      console.log('[CloudAttach] 未找到 URL，allText:', allText.substring(0, 200));
+      // 从全文中找光标附近的 URL
+      // 将光标位置转换为字符偏移
+      let offset = 0;
+      for (let i = 0; i < cursor.line; i++) {
+        offset += view.editor.getLine(i).length + 1; // +1 for newline
+      }
+      offset += cursor.ch;
+
+      // 在全文中查找所有 URL（Markdown 图片语法和裸 URL）
+      const urlPattern = /(!\[([^\]]*)\]\(([^)]+)\)|\[([^\]]*)\]\(([^)]+)\)|https?:\/\/[^\s<>"\)\]]+)/g;
+      let match;
+      let nearestUrl = null;
+      let nearestDist = Infinity;
+
+      while ((match = urlPattern.exec(fullText)) !== null) {
+        const matchStart = match.index;
+        const matchEnd = matchStart + match[0].length;
+        
+        // 计算光标到这个 URL 的距离
+        const dist = Math.min(Math.abs(offset - matchStart), Math.abs(offset - matchEnd));
+        
+        if (dist < nearestDist) {
+          nearestDist = dist;
+          // 提取 URL
+          if (match[3]) {
+            // 图片语法 ![alt](url)
+            nearestUrl = match[3];
+            urlType = 'image';
+          } else if (match[5]) {
+            // 链接语法 [text](url)
+            nearestUrl = match[5];
+            urlType = 'link';
+          } else {
+            // 裸 URL
+            nearestUrl = match[0];
+            urlType = 'bare';
+          }
+        }
+      }
+
+      // 如果光标附近 500 字符内有 URL，使用它
+      if (nearestDist < 500) {
+        url = nearestUrl;
+      }
+    }
+
+    if (!url) {
+      new Notice('❌ 光标附近未找到 URL', 3000);
+      console.log('[CloudAttach] 未找到 URL，cursor line:', cursor.line, 'ch:', cursor.ch);
       return;
     }
     
-    console.log('[CloudAttach] 找到 URL:', url, 'type:', urlType);
+    console.log('[CloudAttach] 找到 URL:', url.substring(0, 80), 'type:', urlType);
     new Notice(`🔍 检查 URL: ${url.substring(0, 50)}...`, 3000);
     const match = this.matchAccount(url);
 
