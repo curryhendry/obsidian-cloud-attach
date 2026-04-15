@@ -1600,14 +1600,22 @@ module.exports = class CloudAttachPlugin extends Plugin {
     // 编辑器右键菜单
     this.registerEvent(
       this.app.workspace.on('editor-menu', (menu, editor, view) => {
+        // 二级菜单：点击"检查 Sign"后弹出子菜单
         menu.addItem(item => {
-          item.setTitle('检查并刷新当前笔记的 Sign').onClick(() => {
-            this.checkAndRefreshCurrentNote();
-          });
-        });
-        menu.addItem(item => {
-          item.setTitle('检查并刷新当前 URL 的 Sign').onClick(() => {
-            this.checkAndRefreshCurrentUrl();
+          item.setTitle('检查 Sign').onClick(() => {
+            const submenu = new Menu(this.app);
+            submenu.addItem(si => {
+              si.setTitle('检查并刷新当前笔记').onClick(() => {
+                this.checkAndRefreshCurrentNote();
+              });
+            });
+            submenu.addItem(si => {
+              si.setTitle('检查并刷新当前 URL').onClick(() => {
+                this.checkAndRefreshCurrentUrl();
+              });
+            });
+            // 在当前鼠标位置显示子菜单
+            submenu.showAtPosition({ x: 200, y: 200 });
           });
         });
       })
@@ -1796,8 +1804,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const results = { valid: 0, refreshed: 0, refreshedPaths: [], failed: 0, failedUrls: [], skipped: 0 };
 
     for (const url of urls) {
+      console.log('[CloudAttach] 检查 URL:', url);
       const match = this.matchAccount(url);
       if (!match) {
+        console.log('[CloudAttach] 未匹配到账户，跳过');
         results.skipped++;
         continue;
       }
@@ -1817,12 +1827,15 @@ module.exports = class CloudAttachPlugin extends Plugin {
 
       if (url.includes('sign=')) {
         // 有 sign 参数：验证有效性
+        console.log('[CloudAttach] 验证 sign URL...');
         const verify = await client.verifySignUrl(url);
+        console.log('[CloudAttach] 验证结果:', verify);
         if (verify.ok) {
           results.valid++;
         } else if (verify.reason === 'sign_expired') {
           // sign 过期，尝试重建
           const realPath = client.extractRealPath(url);
+          console.log('[CloudAttach] 提取真实路径:', realPath, 'token:', account.token ? '有' : '无');
           if (!realPath || !account.token) {
             results.failed++;
             results.failedUrls.push({ url, reason: '无法提取路径或无 Token' });
