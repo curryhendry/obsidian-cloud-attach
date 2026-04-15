@@ -126,6 +126,12 @@ class OpenListClient {
   // 获取文件的 WebDAV URL（用于插入到笔记）
   getFileUrl(remotePath) {
     const webdavPath = this.webdavPath || '/dav';
+    // 如果有认证信息，在 URL 中带上 Basic Auth
+    if (this.username && this.password) {
+      const encodedCreds = btoa(`${this.username}:${this.password}`);
+      const serverWithoutProtocol = this.serverUrl.replace(/^https?:\/\//, '');
+      return `https://${encodedCreds}@${serverWithoutProtocol}${webdavPath}${remotePath}`;
+    }
     return `${this.serverUrl}${webdavPath}${remotePath}`;
   }
 
@@ -1067,14 +1073,22 @@ class CloudAttachView extends ItemView {
       menu.addItem(item => {
         item.setTitle('插入到笔记').setIcon('link').onClick(() => this.insertFile(file));
       });
-      // 复制链接
+      // 复制链接（多选时复制所有选中文件，否则复制当前文件）
       menu.addItem(item => {
-        item.setTitle('复制链接').onClick(async () => {
+        const isMulti = this.selectedFiles.size > 1;
+        item.setTitle(isMulti ? `复制所有链接 (${this.selectedFiles.size})` : '复制链接');
+        item.onClick(async () => {
           if (!this.client) return;
           try {
-            const url = this.client.getFileUrl(file.path);
-            await navigator.clipboard.writeText(url);
-            new Notice('📋 链接已复制');
+            let urls;
+            if (isMulti) {
+              const selected = this.files.filter(f => this.selectedFiles.has(f.path));
+              urls = selected.map(f => this.client.getFileUrl(f.path));
+            } else {
+              urls = [this.client.getFileUrl(file.path)];
+            }
+            await navigator.clipboard.writeText(urls.join('\n'));
+            new Notice(`📋 已复制 ${urls.length} 个链接`);
           } catch { new Notice('❌ 获取链接失败'); }
         });
       });
@@ -1087,20 +1101,6 @@ class CloudAttachView extends ItemView {
           this.renderBatchBar();
         });
       });
-      // 多选时提供"复制所有选中链接"
-      if (this.selectedFiles.size > 1) {
-        menu.addItem(item => {
-          item.setTitle(`复制所有选中链接 (${this.selectedFiles.size})`).onClick(async () => {
-            if (!this.client) return;
-            try {
-              const selected = this.files.filter(f => this.selectedFiles.has(f.path));
-              const urls = selected.map(f => this.client.getFileUrl(f.path));
-              await navigator.clipboard.writeText(urls.join('\n'));
-              new Notice(`📋 已复制 ${urls.length} 个链接`);
-            } catch { new Notice('❌ 获取链接失败'); }
-          });
-        });
-      }
     }
     if (file.isDirectory) {
       menu.addItem(item => {
