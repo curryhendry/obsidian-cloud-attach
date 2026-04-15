@@ -27,19 +27,27 @@ class OpenListClient {
    * @returns {Promise<{status: number, text: string, ok: boolean}>}
    */
   async requestViaObsidian(url, options = {}) {
+    console.log('[CloudAttach] requestViaObsidian url:', url, 'hasApp:', !!this.app, 'hasRequestUrl:', !!this.app?.requestUrl);
     if (this.app?.requestUrl) {
-      const result = await this.app.requestUrl({
-        url,
-        method: options.method || 'GET',
-        headers: options.headers || {},
-        body: options.body || undefined,
-      });
-      return {
-        status: result.status,
-        text: result.text,
-        ok: result.status >= 200 && result.status < 300,
-      };
+      try {
+        const result = await this.app.requestUrl({
+          url,
+          method: options.method || 'GET',
+          headers: options.headers || {},
+          body: options.body || undefined,
+        });
+        console.log('[CloudAttach] requestUrl result:', result.status);
+        return {
+          status: result.status,
+          text: result.text,
+          ok: result.status >= 200 && result.status < 300,
+        };
+      } catch (e) {
+        console.error('[CloudAttach] requestUrl error:', e);
+        return { ok: false, status: 0, reason: 'request_error', error: e.message };
+      }
     }
+    console.log('[CloudAttach] falling back to fetch');
     const fetchResp = await fetch(url, {
       method: options.method || 'GET',
       headers: options.headers || {},
