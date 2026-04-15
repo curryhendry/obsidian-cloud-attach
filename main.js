@@ -847,7 +847,7 @@ class CloudAttachView extends ItemView {
     insertBtn.onclick = () => this.insertSelectedFiles();
     this.batchBarEl.appendChild(insertBtn);
     
-    // 复制 URL 按钮（多选时复制所有选中文件的 URL）
+    // 复制 URL 按钮（复制所有选中文件的 URL）
     const copyUrlBtn = document.createElement('button');
     copyUrlBtn.className = 'cloud-attach-batch-btn mod-secondary';
     copyUrlBtn.textContent = '复制URL';
@@ -857,7 +857,9 @@ class CloudAttachView extends ItemView {
         return;
       }
       const selected = this.files.filter(f => this.selectedFiles.has(f.path));
-      const urls = selected.map(f => this.client.getFileUrl(f.path));
+      const urls = await Promise.all(selected.map(f =>
+        this.client.getSignedUrl ? this.client.getSignedUrl(f.path) : this.client.getFileUrl(f.path)
+      ));
       await navigator.clipboard.writeText(urls.join('\n'));
       new Notice(`📋 已复制 ${urls.length} 个 URL`);
     };
@@ -984,8 +986,11 @@ class CloudAttachView extends ItemView {
     const audioExts = ['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a'];
     const docExts = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'];
     
-    // 优先使用自定义域名公共 URL，无签名参数
-    const url = this.client.getFileUrl(file.path);
+    // 优先使用 getSignedUrl（S3 私有桶有签名，OpenList 有 raw_url）
+    // WebDAV（无 token）回退到 getFileUrl（带 Basic Auth）
+    const url = await (this.client.getSignedUrl
+      ? this.client.getSignedUrl(file.path)
+      : this.client.getFileUrl(file.path));
 
     if (imageExts.includes(ext)) {
       return `![${nameWithoutExt}](${url})`;
@@ -1075,18 +1080,16 @@ class CloudAttachView extends ItemView {
       });
       // 复制链接（多选时复制所有选中文件，否则复制当前文件）
       menu.addItem(item => {
-        const isMulti = this.selectedFiles.size > 1;
-        item.setTitle(isMulti ? `复制所有链接 (${this.selectedFiles.size})` : '复制链接');
+        item.setTitle('复制链接');
         item.onClick(async () => {
           if (!this.client) return;
           try {
-            let urls;
-            if (isMulti) {
-              const selected = this.files.filter(f => this.selectedFiles.has(f.path));
-              urls = selected.map(f => this.client.getFileUrl(f.path));
-            } else {
-              urls = [this.client.getFileUrl(file.path)];
-            }
+            const files = this.selectedFiles.size > 1
+              ? this.files.filter(f => this.selectedFiles.has(f.path))
+              : [file];
+            const urls = await Promise.all(files.map(f =>
+              this.client.getSignedUrl ? this.client.getSignedUrl(f.path) : this.client.getFileUrl(f.path)
+            ));
             await navigator.clipboard.writeText(urls.join('\n'));
             new Notice(`📋 已复制 ${urls.length} 个链接`);
           } catch { new Notice('❌ 获取链接失败'); }
