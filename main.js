@@ -27,10 +27,16 @@ class OpenListClient {
    * @returns {Promise<{status: number, text: string, ok: boolean}>}
    */
   async requestViaObsidian(url, options = {}) {
-    console.log('[CloudAttach] requestViaObsidian url:', url, 'hasApp:', !!this.app, 'hasRequestUrl:', !!this.app?.requestUrl);
-    if (this.app?.requestUrl) {
+    // Obsidian requestUrl 是全局函数，需要通过 window 或 global 获取
+    const requestUrl = window.require?.('obsidian')?.requestUrl || 
+                       globalThis.requestUrl ||
+                       this.app?.requestUrl;
+    
+    console.log('[CloudAttach] requestViaObsidian url:', url.substring(0, 80), 'hasRequestUrl:', !!requestUrl);
+    
+    if (requestUrl) {
       try {
-        const result = await this.app.requestUrl({
+        const result = await requestUrl({
           url,
           method: options.method || 'GET',
           headers: options.headers || {},
@@ -43,8 +49,10 @@ class OpenListClient {
           ok: result.status >= 200 && result.status < 300,
         };
       } catch (e) {
-        console.error('[CloudAttach] requestUrl error:', e);
-        return { ok: false, status: 0, reason: 'request_error', error: e.message };
+        console.error('[CloudAttach] requestUrl error:', e.message || e);
+        // requestUrl 抛出异常时，可能是网络错误或 CORS
+        // 返回一个错误对象而不是抛出，让调用方处理
+        return { ok: false, status: 0, reason: 'request_error', error: e.message || String(e) };
       }
     }
     console.log('[CloudAttach] falling back to fetch');
@@ -1615,13 +1623,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
           if (!submenu) return;
           
           submenu.addItem(si => {
-            si.setTitle('检查并刷新当前笔记').onClick(() => {
-              this.checkAndRefreshCurrentNote();
+            si.setTitle('刷新当前 URL 签名').onClick(() => {
+              this.checkAndRefreshCurrentUrl();
             });
           });
           submenu.addItem(si => {
-            si.setTitle('检查并刷新当前 URL').onClick(() => {
-              this.checkAndRefreshCurrentUrl();
+            si.setTitle('更新当前笔记所有 URL 签名').onClick(() => {
+              this.checkAndRefreshCurrentNote();
             });
           });
         });
@@ -1920,6 +1928,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
    */
   async checkAndRefreshCurrentUrl() {
     const view = this.activeMarkdownView || this.app.workspace.getActiveViewOfType(MarkdownView);
+    console.log('[CloudAttach] checkAndRefreshCurrentUrl view:', !!view, 'editor:', !!view?.editor);
     if (!view?.editor) {
       new Notice('❌ 请先打开一个笔记', 3000);
       return;
@@ -1930,6 +1939,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const line = view.editor.getLine(cursor.line);
     const selection = view.editor.getSelection();
 
+    console.log('[CloudAttach] cursor line:', cursor.line, 'line content:', line.substring(0, 100));
+    console.log('[CloudAttach] selection:', selection ? selection.substring(0, 100) : '(none)');
+
     // 从当前行或选中文本中提取第一个 URL
     const allText = selection || line;
     
@@ -1939,21 +1951,24 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const iframeMatch = allText.match(/<iframe[^>]+src=["']([^"']+)["']/i);
     
     let url = null;
-    if (imgMatch) url = imgMatch[2];
-    else if (linkMatch) url = linkMatch[2];
-    else if (iframeMatch) url = iframeMatch[1];
+    let urlType = '';
+    if (imgMatch) { url = imgMatch[2]; urlType = 'image'; }
+    else if (linkMatch) { url = linkMatch[2]; urlType = 'link'; }
+    else if (iframeMatch) { url = iframeMatch[1]; urlType = 'iframe'; }
     else {
       // 最后尝试裸 URL
       const bareMatch = allText.match(/https?:\/\/[^\s<>"\)\]]+/);
-      if (bareMatch) url = bareMatch[0];
+      if (bareMatch) { url = bareMatch[0]; urlType = 'bare'; }
     }
 
     if (!url) {
-      new Notice('❌ 未找到 URL', 3000);
+      new Notice('❌ 当前行/选区未找到 URL', 3000);
+      console.log('[CloudAttach] 未找到 URL，allText:', allText.substring(0, 200));
       return;
     }
     
-    console.log('[CloudAttach] 当前 URL:', url);
+    console.log('[CloudAttach] 找到 URL:', url, 'type:', urlType);
+    new Notice(`🔍 检查 URL: ${url.substring(0, 50)}...`, 3000);
     const match = this.matchAccount(url);
 
     if (!match) {
