@@ -123,6 +123,12 @@ class OpenListClient {
     return `${this.serverUrl}/d${encodeURI(remotePath)}`;
   }
 
+  // 获取文件的 WebDAV URL（用于插入到笔记）
+  getFileUrl(remotePath) {
+    const webdavPath = this.webdavPath || '/dav';
+    return `${this.serverUrl}${webdavPath}${remotePath}`;
+  }
+
   // 获取原始 URL（无签名、无 /dav /d 前缀，用于 iframe 预览）
   getRawUrl(remotePath) {
     // 保留中文等 Unicode 原文，仅编码必须转义的字符（空格、%、#、?、& 等）
@@ -1057,9 +1063,11 @@ class CloudAttachView extends ItemView {
     const menu = new Menu(this.plugin.app);
     
     if (!file.isDirectory) {
+      // 插入到笔记
       menu.addItem(item => {
         item.setTitle('插入到笔记').setIcon('link').onClick(() => this.insertFile(file));
       });
+      // 复制链接
       menu.addItem(item => {
         item.setTitle('复制链接').onClick(async () => {
           if (!this.client) return;
@@ -1070,6 +1078,7 @@ class CloudAttachView extends ItemView {
           } catch { new Notice('❌ 获取链接失败'); }
         });
       });
+      // 选择/取消选择
       menu.addItem(item => {
         item.setTitle(this.selectedFiles.has(file.path) ? '取消选择' : '选择').onClick(() => {
           if (this.selectedFiles.has(file.path)) this.selectedFiles.delete(file.path);
@@ -1078,6 +1087,20 @@ class CloudAttachView extends ItemView {
           this.renderBatchBar();
         });
       });
+      // 多选时提供"复制所有选中链接"
+      if (this.selectedFiles.size > 1) {
+        menu.addItem(item => {
+          item.setTitle(`复制所有选中链接 (${this.selectedFiles.size})`).onClick(async () => {
+            if (!this.client) return;
+            try {
+              const selected = this.files.filter(f => this.selectedFiles.has(f.path));
+              const urls = selected.map(f => this.client.getFileUrl(f.path));
+              await navigator.clipboard.writeText(urls.join('\n'));
+              new Notice(`📋 已复制 ${urls.length} 个链接`);
+            } catch { new Notice('❌ 获取链接失败'); }
+          });
+        });
+      }
     }
     if (file.isDirectory) {
       menu.addItem(item => {
