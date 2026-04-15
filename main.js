@@ -1054,18 +1054,6 @@ class CloudAttachView extends ItemView {
       });
     }
 
-    // 检查 Sign 相关操作
-    menu.addItem(item => {
-      item.setTitle('检查并刷新当前笔记的 Sign').onClick(() => {
-        this.plugin.checkAndRefreshCurrentNote();
-      });
-    });
-    menu.addItem(item => {
-      item.setTitle('检查并刷新当前 URL 的 Sign').onClick(() => {
-        this.plugin.checkAndRefreshCurrentUrl();
-      });
-    });
-
     menu.showAtPosition({ x: event.clientX, y: event.clientY });
   }
 }
@@ -1608,6 +1596,22 @@ module.exports = class CloudAttachPlugin extends Plugin {
       name: '检查并刷新当前 URL 的 Sign',
       callback: () => this.checkAndRefreshCurrentUrl()
     });
+
+    // 编辑器右键菜单
+    this.registerEvent(
+      this.app.workspace.on('editor-menu', (menu, editor, view) => {
+        menu.addItem(item => {
+          item.setTitle('检查并刷新当前笔记的 Sign').onClick(() => {
+            this.checkAndRefreshCurrentNote();
+          });
+        });
+        menu.addItem(item => {
+          item.setTitle('检查并刷新当前 URL 的 Sign').onClick(() => {
+            this.checkAndRefreshCurrentUrl();
+          });
+        });
+      })
+    );
 
     // 监听活跃 leaf 变化，实时记录当前活跃的 markdown view
     this.activeMarkdownView = null;
