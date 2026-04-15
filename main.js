@@ -1600,23 +1600,21 @@ module.exports = class CloudAttachPlugin extends Plugin {
     // 编辑器右键菜单
     this.registerEvent(
       this.app.workspace.on('editor-menu', (menu, editor, view) => {
-        // 二级菜单：点击"检查 Sign"后弹出子菜单
+        // 二级菜单：悬停展开
         menu.addItem(item => {
-          item.setTitle('检查 Sign').onClick(() => {
-            const submenu = new Menu(this.app);
-            submenu.addItem(si => {
-              si.setTitle('检查并刷新当前笔记').onClick(() => {
-                this.checkAndRefreshCurrentNote();
-              });
+          item.setTitle('检查 Sign');
+          const submenu = new Menu(this.app);
+          submenu.addItem(si => {
+            si.setTitle('检查并刷新当前笔记').onClick(() => {
+              this.checkAndRefreshCurrentNote();
             });
-            submenu.addItem(si => {
-              si.setTitle('检查并刷新当前 URL').onClick(() => {
-                this.checkAndRefreshCurrentUrl();
-              });
-            });
-            // 在当前鼠标位置显示子菜单
-            submenu.showAtPosition({ x: 200, y: 200 });
           });
+          submenu.addItem(si => {
+            si.setTitle('检查并刷新当前 URL').onClick(() => {
+              this.checkAndRefreshCurrentUrl();
+            });
+          });
+          item.setSubmenu(submenu);
         });
       })
     );
@@ -1924,16 +1922,29 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const selection = view.editor.getSelection();
 
     // 从当前行或选中文本中提取第一个 URL
-    const urlRe = /https?:\/\/[^\s<>"\)\]]+/g;
     const allText = selection || line;
-    const matches = allText.match(urlRe);
+    
+    // 先尝试 Markdown 图片/链接语法
+    const imgMatch = allText.match(/!\[([^\]]*)\]\(([^)]+)\)/);
+    const linkMatch = allText.match(/(?<![!])\[([^\]]*)\]\(([^)]+)\)/);
+    const iframeMatch = allText.match(/<iframe[^>]+src=["']([^"']+)["']/i);
+    
+    let url = null;
+    if (imgMatch) url = imgMatch[2];
+    else if (linkMatch) url = linkMatch[2];
+    else if (iframeMatch) url = iframeMatch[1];
+    else {
+      // 最后尝试裸 URL
+      const bareMatch = allText.match(/https?:\/\/[^\s<>"\)\]]+/);
+      if (bareMatch) url = bareMatch[0];
+    }
 
-    if (!matches || matches.length === 0) {
+    if (!url) {
       new Notice('❌ 未找到 URL', 3000);
       return;
     }
-
-    const url = matches[0];
+    
+    console.log('[CloudAttach] 当前 URL:', url);
     const match = this.matchAccount(url);
 
     if (!match) {
