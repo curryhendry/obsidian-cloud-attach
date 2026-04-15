@@ -835,11 +835,21 @@ class CloudAttachView extends ItemView {
     insertBtn.onclick = () => this.insertSelectedFiles();
     this.batchBarEl.appendChild(insertBtn);
     
-    const clearBtn = document.createElement('button');
-    clearBtn.className = 'cloud-attach-batch-btn mod-secondary';
-    clearBtn.textContent = '清空';
-    clearBtn.onclick = () => { this.selectedFiles.clear(); this.renderFiles(); this.renderBatchBar(); };
-    this.batchBarEl.appendChild(clearBtn);
+    // 复制 URL 按钮（多选时复制所有选中文件的 URL）
+    const copyUrlBtn = document.createElement('button');
+    copyUrlBtn.className = 'cloud-attach-batch-btn mod-secondary';
+    copyUrlBtn.textContent = '复制URL';
+    copyUrlBtn.onclick = async () => {
+      if (!this.client || this.selectedFiles.size === 0) {
+        new Notice('⚠️ 请先选择文件');
+        return;
+      }
+      const selected = this.files.filter(f => this.selectedFiles.has(f.path));
+      const urls = selected.map(f => this.client.getFileUrl(f.path));
+      await navigator.clipboard.writeText(urls.join('\n'));
+      new Notice(`📋 已复制 ${urls.length} 个 URL`);
+    };
+    this.batchBarEl.appendChild(copyUrlBtn);
   }
 
   // 刷新账户下拉框
