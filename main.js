@@ -1600,9 +1600,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
     // 编辑器右键菜单
     this.registerEvent(
       this.app.workspace.on('editor-menu', (menu, editor, view) => {
-        // 二级菜单：悬停展开
         menu.addItem(item => {
-          item.setTitle('检查 Sign');
+          item.setTitle('CloudAttach');
+          item.setIcon('cloud');
           const submenu = new Menu(this.app);
           submenu.addItem(si => {
             si.setTitle('检查并刷新当前笔记').onClick(() => {
@@ -1614,7 +1614,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
               this.checkAndRefreshCurrentUrl();
             });
           });
-          item.setSubmenu(submenu);
+          // Obsidian API: setSubmenu 返回 submenu
+          const returned = item.setSubmenu(submenu);
+          console.log('[CloudAttach] setSubmenu returned:', returned, 'submenu:', submenu);
         });
       })
     );
