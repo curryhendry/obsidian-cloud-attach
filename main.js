@@ -114,13 +114,10 @@ class OpenListClient {
       console.log('[CloudAttach] API call failed:', e.message);
     }
     
-    // 回退到 WebDAV URL（无 sign）
-    if (this.webdavPath && this.webdavPath !== '/') {
-      return `${this.serverUrl}${this.webdavPath}${encodeURI(remotePath)}`;
-    }
-    
-    // 最后手段：直接构造 URL（无 sign）
-    return `${this.serverUrl}/d${encodeURI(remotePath)}`;
+    // 回退：优先用 OpenList /p/ 路径（支持分享链接），次选 /d/ 目录路径
+    // 不再回退到 WebDAV 路径（那是给 WebDAV 客户端用的）
+    const encodedPath = encodeURI(remotePath);
+    return `${this.serverUrl}/p${encodedPath}`;
   }
 
   // 获取文件的 WebDAV URL（用于插入到笔记）
@@ -1074,9 +1071,14 @@ class CloudAttachView extends ItemView {
     const menu = new Menu(this.plugin.app);
     
     if (!file.isDirectory) {
-      // 插入到笔记
+      // 插入到笔记（多选时插入所有选中，否则只插当前）
       menu.addItem(item => {
-        item.setTitle('插入到笔记').setIcon('link').onClick(() => this.insertFile(file));
+        const isMulti = this.selectedFiles.size > 1;
+        item.setTitle(isMulti ? `插入到笔记 (${this.selectedFiles.size})` : '插入到笔记').setIcon('link');
+        item.onClick(() => {
+          if (isMulti) this.insertSelectedFiles();
+          else this.insertFile(file);
+        });
       });
       // 复制链接（多选时复制所有选中文件，否则复制当前文件）
       menu.addItem(item => {
