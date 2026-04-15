@@ -5,8 +5,9 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
-# 自动版本号：v0.1.{commit_count}
-VERSION="v0.1.$(git rev-list --count HEAD)"
+# 自动版本号：v0.1.{3位补零的commit_count}
+COUNT=$(git rev-list --count HEAD)
+VERSION="v0.1.$(printf '%03d' $COUNT)"
 MANIFEST="manifest.json"
 
 echo "==> 更新 manifest.json 版本为 $VERSION"
