@@ -180,8 +180,9 @@ class OpenListClient {
       if (response.ok) {
         return { ok: true, status: response.status, reason: 'valid' };
       }
-      if (response.status === 403) {
-        return { ok: false, status: 403, reason: 'sign_expired' };
+      // OpenList 对无效/过期 sign 返回 401（认证失败），也当作 sign_expired 处理
+      if (response.status === 403 || response.status === 401) {
+        return { ok: false, status: response.status, reason: 'sign_expired' };
       }
       if (response.status === 404) {
         return { ok: false, status: 404, reason: 'file_not_found' };
@@ -1801,8 +1802,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const linkRe = /(?<![!])\[([^\]]*)\]\(([^)]+)\)/g;
     // iframe src: <iframe src="url">
     const iframeRe = /<iframe[^>]+src=["']([^"']+)["']/gi;
-    // 直接裸 URL（宽松匹配）
-    const bareRe = /(?:^|\s)(https?:\/\/[^\s<>"\)\]]+)/gm;
+    // 直接裸 URL（宽松匹配，支持 query string 中的 = 和 &）
+    const bareRe = /(?:^|\s)(https?:\/\/[^\s<>"\)\]&]+)/gm;
 
     let m;
     while ((m = imgRe.exec(text)) !== null) urls.push(m[2]);
@@ -1993,7 +1994,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (imgMatch) { url = imgMatch[2]; urlType = 'image'; }
       else if (linkMatch) { url = linkMatch[2]; urlType = 'link'; }
       else {
-        const bareMatch = selection.match(/https?:\/\/[^\s<>"\)\]]+/);
+        const bareMatch = selection.match(/https?:\/\/[^\s<>"\)\]&]+/);
         if (bareMatch) { url = bareMatch[0]; urlType = 'bare'; }
       }
     }
