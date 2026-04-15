@@ -55,9 +55,19 @@ class OpenListClient {
         };
       } catch (e) {
         console.error('[CloudAttach] requestUrl error:', e.message || e);
-        // requestUrl 抛出异常时，可能是网络错误或 CORS
-        // 返回一个错误对象而不是抛出，让调用方处理
-        return { ok: false, status: 0, reason: 'request_error', error: e.message || String(e) };
+        // Obsidian requestUrl 对非 2xx 响应会抛异常，尝试从异常中解析 status
+        // 常见错误格式: "Request failed, status 401" 或 { status: 401, ... }
+        let status = 0;
+        const errStr = e.message || String(e);
+        const statusMatch = errStr.match(/status\s+(\d+)/i);
+        if (statusMatch) {
+          status = parseInt(statusMatch[1], 10);
+        } else if (typeof e.status === 'number') {
+          status = e.status;
+        } else if (e.response && typeof e.response.status === 'number') {
+          status = e.response.status;
+        }
+        return { ok: false, status, reason: status > 0 ? 'http_error' : 'network_error', error: errStr };
       }
     }
     console.log('[CloudAttach] falling back to fetch');
