@@ -109,6 +109,59 @@ class OpenListClient {
     return `${this.serverUrl}${safePath}`;
   }
 
+  /**
+   * 从 OpenList URL 中提取真实文件路径
+   * URL 格式：https://host:port/p/Local/share/photo.jpg?sign=xxx:0
+   *           或 https://host:port/d/Local/share/photo.jpg?sign=xxx:0
+   * 去掉开头的 /p/ 或 /d/ 前缀，返回真实路径 /Local/share/photo.jpg
+   * @param {string} url - 完整的 OpenList URL
+   * @returns {string|null} 真实文件路径，或 null（不是 OpenList URL）
+   */
+  extractRealPath(url) {
+    try {
+      const urlObj = new URL(url);
+      const path = urlObj.pathname; // e.g. "/p/Local/share/photo.jpg"
+
+      // 检查是否是 OpenList 公开链接格式
+      if (path.startsWith('/p/')) {
+        return '/' + path.slice(3); // 去掉 "/p" 前缀，保留后面的路径
+      }
+      if (path.startsWith('/d/')) {
+        return '/' + path.slice(3); // 去掉 "/d" 前缀，保留后面的路径
+      }
+      return null; // 不是 OpenList URL
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * 验证 OpenList sign URL 是否有效（通过 HEAD 请求）
+   * @param {string} url - 完整的 sign URL
+   * @returns {Promise<{ok: boolean, status: number, reason: string}>}
+   */
+  async verifySignUrl(url) {
+    try {
+      const response = await this.requestViaObsidian(url, {
+        method: 'HEAD',
+        headers: {}
+      });
+
+      if (response.ok) {
+        return { ok: true, status: response.status, reason: 'valid' };
+      }
+      if (response.status === 403) {
+        return { ok: false, status: 403, reason: 'sign_expired' };
+      }
+      if (response.status === 404) {
+        return { ok: false, status: 404, reason: 'file_not_found' };
+      }
+      return { ok: false, status: response.status, reason: 'http_error' };
+    } catch (e) {
+      return { ok: false, status: 0, reason: 'network_error', error: e.message };
+    }
+  }
+
   async testConnection() {
     try {
       if (this.webdavPath) {
@@ -1000,6 +1053,19 @@ class CloudAttachView extends ItemView {
         item.setTitle('打开目录').onClick(() => { this.currentPath = file.path; this.selectedFiles.clear(); this.loadDir(); });
       });
     }
+
+    // 检查 Sign 相关操作
+    menu.addItem(item => {
+      item.setTitle('检查并刷新当前笔记的 Sign').onClick(() => {
+        this.plugin.checkAndRefreshCurrentNote();
+      });
+    });
+    menu.addItem(item => {
+      item.setTitle('检查并刷新当前 URL 的 Sign').onClick(() => {
+        this.plugin.checkAndRefreshCurrentUrl();
+      });
+    });
+
     menu.showAtPosition({ x: event.clientX, y: event.clientY });
   }
 }
@@ -1530,6 +1596,19 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
     });
 
+    // ---- Sign 检查与刷新命令 ----
+    this.addCommand({
+      id: 'check-sign-current-note',
+      name: '检查并刷新当前笔记的 Sign',
+      callback: () => this.checkAndRefreshCurrentNote()
+    });
+
+    this.addCommand({
+      id: 'check-sign-current-url',
+      name: '检查并刷新当前 URL 的 Sign',
+      callback: () => this.checkAndRefreshCurrentUrl()
+    });
+
     // 监听活跃 leaf 变化，实时记录当前活跃的 markdown view
     this.activeMarkdownView = null;
     this.registerEvent(this.app.workspace.on('active-leaf-change', (leaf) => {
@@ -1634,6 +1713,259 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
 
   onunload() { console.log('CloudAttach unloading...'); }
+
+  // ============================================================
+  // Sign 检查与刷新
+  // ============================================================
+
+  /**
+   * 从文本内容中提取所有 URL（Markdown 图片、链接、iframe src）
+   * @param {string} text - 笔记文本
+   * @returns {string[]} URL 列表
+   */
+  extractUrls(text) {
+    const urls = [];
+    // Markdown 图片: ![alt](url)
+    const imgRe = /!\[([^\]]*)\]\(([^)]+)\)/g;
+    // Markdown 链接: [text](url)
+    const linkRe = /(?<![!])\[([^\]]*)\]\(([^)]+)\)/g;
+    // iframe src: <iframe src="url">
+    const iframeRe = /<iframe[^>]+src=["']([^"']+)["']/gi;
+    // 直接裸 URL（宽松匹配）
+    const bareRe = /(?:^|\s)(https?:\/\/[^\s<>"\)\]]+)/gm;
+
+    let m;
+    while ((m = imgRe.exec(text)) !== null) urls.push(m[2]);
+    while ((m = linkRe.exec(text)) !== null) urls.push(m[2]);
+    while ((m = iframeRe.exec(text)) !== null) urls.push(m[1]);
+    while ((m = bareRe.exec(text)) !== null) {
+      const url = m[1].replace(/[),\]]+$/, ''); // 去掉末尾的标点
+      if (url) urls.push(url);
+    }
+
+    // 去重
+    return [...new Set(urls)];
+  }
+
+  /**
+   * 根据 URL 找到匹配的服务器账户
+   * @param {string} url - 待检查的 URL
+   * @returns {{account: Object, client: OpenListClient}|null}
+   */
+  matchAccount(url) {
+    try {
+      const urlObj = new URL(url);
+      const host = urlObj.host; // 包含端口，如 "curryhendry.mycloudnas.com:5555"
+
+      for (const account of this.accounts) {
+        if (account.type === 's3') continue; // S3 暂不处理
+        const accountUrl = account.url?.replace(/\/$/, '') || '';
+        const accountHost = new URL(accountUrl).host;
+        if (host === accountHost) {
+          return { account, client: this.createClient(account.id) };
+        }
+      }
+    } catch {}
+    return null;
+  }
+
+  /**
+   * 检查并刷新当前笔记中所有 sign URL
+   */
+  async checkAndRefreshCurrentNote() {
+    const view = this.activeMarkdownView || this.app.workspace.getActiveViewOfType(MarkdownView);
+    if (!view?.editor) {
+      new Notice('❌ 请先打开一个笔记', 3000);
+      return;
+    }
+
+    const text = view.editor.getValue();
+    const urls = this.extractUrls(text);
+
+    if (urls.length === 0) {
+      new Notice('📭 笔记中未发现任何 URL', 3000);
+      return;
+    }
+
+    new Notice(`🔍 开始检查 ${urls.length} 个 URL...`, 3000);
+
+    const results = { valid: 0, refreshed: 0, refreshedPaths: [], failed: 0, failedUrls: [], skipped: 0 };
+
+    for (const url of urls) {
+      const match = this.matchAccount(url);
+      if (!match) {
+        results.skipped++;
+        continue;
+      }
+
+      const { account, client } = match;
+      const urlObj = new URL(url);
+      const path = urlObj.pathname;
+
+      // 判断是否为 OpenList URL（有 /p/ 或 /d/ 前缀）
+      const isOpenListUrl = path.startsWith('/p/') || path.startsWith('/d/');
+
+      if (!isOpenListUrl) {
+        // 非 OpenList URL，跳过（iframe 等）
+        results.skipped++;
+        continue;
+      }
+
+      if (url.includes('sign=')) {
+        // 有 sign 参数：验证有效性
+        const verify = await client.verifySignUrl(url);
+        if (verify.ok) {
+          results.valid++;
+        } else if (verify.reason === 'sign_expired') {
+          // sign 过期，尝试重建
+          const realPath = client.extractRealPath(url);
+          if (!realPath || !account.token) {
+            results.failed++;
+            results.failedUrls.push({ url, reason: '无法提取路径或无 Token' });
+            continue;
+          }
+          try {
+            const newUrl = await client.getSignedUrl(realPath);
+            if (newUrl && newUrl !== url) {
+              // 替换笔记中的 URL
+              const newText = view.editor.getValue().replace(url, newUrl);
+              view.editor.setValue(newText);
+              results.refreshed++;
+              results.refreshedPaths.push(realPath);
+            } else {
+              results.valid++;
+            }
+          } catch (e) {
+            results.failed++;
+            results.failedUrls.push({ url, reason: `重建失败: ${e.message}` });
+          }
+        } else {
+          results.failed++;
+          results.failedUrls.push({ url, reason: verify.reason });
+        }
+      } else {
+        // 无 sign 参数：检查文件是否存在
+        const verify = await client.verifySignUrl(url);
+        if (verify.ok) {
+          // 文件存在，跳过
+          results.skipped++;
+        } else if (verify.reason === 'sign_expired' && account.token) {
+          // 需要 sign 但没有，补 sign
+          const realPath = client.extractRealPath(url);
+          if (realPath) {
+            try {
+              const newUrl = await client.getSignedUrl(realPath);
+              if (newUrl && newUrl !== url) {
+                const newText = view.editor.getValue().replace(url, newUrl);
+                view.editor.setValue(newText);
+                results.refreshed++;
+                results.refreshedPaths.push(realPath);
+              }
+            } catch (e) {
+              results.failed++;
+              results.failedUrls.push({ url, reason: `补 sign 失败: ${e.message}` });
+            }
+          }
+        } else {
+          results.failed++;
+          results.failedUrls.push({ url, reason: verify.reason });
+        }
+      }
+    }
+
+    // 汇总提示
+    const parts = [];
+    if (results.valid > 0) parts.push(`${results.valid} 个有效`);
+    if (results.refreshed > 0) parts.push(`✅ ${results.refreshed} 个已刷新`);
+    if (results.failed > 0) parts.push(`❌ ${results.failed} 个失败`);
+    if (results.skipped > 0) parts.push(`${results.skipped} 个跳过`);
+
+    if (results.refreshed > 0) {
+      new Notice(`✅ 检查完成：${parts.join('，')}`, 6000);
+    } else {
+      new Notice(`📋 检查完成：${parts.join('，')}`, 4000);
+    }
+
+    if (results.failedUrls.length > 0) {
+      console.log('[CloudAttach] Sign 检查失败列表:', results.failedUrls);
+    }
+  }
+
+  /**
+   * 检查并刷新当前光标所在行/选中的 URL
+   */
+  async checkAndRefreshCurrentUrl() {
+    const view = this.activeMarkdownView || this.app.workspace.getActiveViewOfType(MarkdownView);
+    if (!view?.editor) {
+      new Notice('❌ 请先打开一个笔记', 3000);
+      return;
+    }
+
+    // 尝试获取当前行内容
+    const cursor = view.editor.getCursor();
+    const line = view.editor.getLine(cursor.line);
+    const selection = view.editor.getSelection();
+
+    // 从当前行或选中文本中提取第一个 URL
+    const urlRe = /https?:\/\/[^\s<>"\)\]]+/g;
+    const allText = selection || line;
+    const matches = allText.match(urlRe);
+
+    if (!matches || matches.length === 0) {
+      new Notice('❌ 未找到 URL', 3000);
+      return;
+    }
+
+    const url = matches[0];
+    const match = this.matchAccount(url);
+
+    if (!match) {
+      new Notice('⚠️ 该 URL 不属于已配置的服务器，跳过', 4000);
+      return;
+    }
+
+    const { account, client } = match;
+    const path = new URL(url).pathname;
+
+    if (!path.startsWith('/p/') && !path.startsWith('/d/')) {
+      new Notice('⚠️ 非 OpenList URL，跳过', 3000);
+      return;
+    }
+
+    // 验证 URL
+    const verify = await client.verifySignUrl(url);
+
+    if (verify.ok) {
+      new Notice('✅ Sign 有效，无需刷新', 3000);
+      return;
+    }
+
+    if (verify.reason === 'sign_expired') {
+      const realPath = client.extractRealPath(url);
+      if (!realPath || !account.token) {
+        new Notice('❌ 无法提取路径或无 Token，无法刷新', 4000);
+        return;
+      }
+      try {
+        const newUrl = await client.getSignedUrl(realPath);
+        if (newUrl) {
+          const fullText = view.editor.getValue();
+          const newText = fullText.replace(url, newUrl);
+          view.editor.setValue(newText);
+          new Notice(`✅ Sign 已刷新`, 3000);
+        }
+      } catch (e) {
+        new Notice(`❌ 刷新失败: ${e.message}`, 4000);
+      }
+    } else {
+      const reasonMap = {
+        file_not_found: '文件不存在（可能在服务器上被删除或移动）',
+        network_error: '网络错误',
+        http_error: `HTTP ${verify.status}`
+      };
+      new Notice(`❌ URL 失效：${reasonMap[verify.reason] || verify.reason}`, 5000);
+    }
+  }
 
   async loadSettings() {
     const data = await this.loadData();
