@@ -1601,13 +1601,20 @@ module.exports = class CloudAttachPlugin extends Plugin {
     this.registerEvent(
       this.app.workspace.on('editor-menu', (menu, editor, view) => {
         menu.addItem(item => {
-          item.setTitle('CloudAttach: 检查并刷新当前笔记').onClick(() => {
-            this.checkAndRefreshCurrentNote();
+          item.setTitle('CloudAttach');
+          item.setSubmenu(); // 不传参数，创建空 submenu
+          const submenu = item.submenu;
+          if (!submenu) return;
+          
+          submenu.addItem(si => {
+            si.setTitle('检查并刷新当前笔记').onClick(() => {
+              this.checkAndRefreshCurrentNote();
+            });
           });
-        });
-        menu.addItem(item => {
-          item.setTitle('CloudAttach: 检查并刷新当前 URL').onClick(() => {
-            this.checkAndRefreshCurrentUrl();
+          submenu.addItem(si => {
+            si.setTitle('检查并刷新当前 URL').onClick(() => {
+              this.checkAndRefreshCurrentUrl();
+            });
           });
         });
       })
