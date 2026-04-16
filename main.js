@@ -1633,7 +1633,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
 
   async onload() {
-    console.log('CloudAttach v0.1.021 loading...');
+    console.log('CloudAttach v0.1.052 loading...');
     await this.loadSettings();
     this.addStyles();
     this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf, this));
@@ -1813,7 +1813,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     // iframe src: <iframe src="url">
     const iframeRe = /<iframe[^>]+src=["']([^"']+)["']/gi;
     // 直接裸 URL（宽松匹配，支持 query string 中的 = 和 &）
-    const bareRe = /(?:^|\s)(https?:\/\/[^\s<>"\)\]&]+)/gm;
+    const bareRe = /(?:^|\s)(https?:\/\/[^\s<>"\)\]&?=]+)/gm;
 
     let m;
     while ((m = imgRe.exec(text)) !== null) urls.push(m[2]);
