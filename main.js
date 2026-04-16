@@ -172,16 +172,18 @@ class OpenListClient {
         return null; // 不是 OpenList URL
       }
       
-      // 解码 URL 编码的路径（处理双重编码的情况）
+      // 解码 URL 编码的路径（处理多重编码的情况）
       try {
-        // 先解码一次
-        let decoded = decodeURIComponent(realPath);
-        // 如果解码后还有 % 编码，再解码一次（处理双重编码）
-        if (decoded.includes('%')) {
+        let decoded = realPath;
+        // 循环解码直到没有 % 或者解码失败（最多10次防止死循环）
+        for (let i = 0; i < 10; i++) {
+          if (!decoded.includes('%')) break;
           try {
-            decoded = decodeURIComponent(decoded);
+            const newDecoded = decodeURIComponent(decoded);
+            if (newDecoded === decoded) break; // 没有变化，停止解码
+            decoded = newDecoded;
           } catch {
-            // 第二次解码失败，使用第一次解码的结果
+            break; // 解码失败，停止
           }
         }
         return decoded;
