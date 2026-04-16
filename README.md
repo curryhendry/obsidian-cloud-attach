@@ -38,7 +38,7 @@
 1. 点击本仓库 *Code* → *Download ZIP*
 2. 解压后放入 `<vault>/.obsidian/plugins/cloud-attach/` 目录
 
-**方式二：按版本下载**（优选）
+**方式二：按版本下载**（首选）
 
 前往 [Releases](https://github.com/curryhendry/obsidian-cloud-attach/releases) 下载对应版本。
 
@@ -75,24 +75,14 @@
 
 - [x] 对象存储支持（Cloudflare R2 为主）
 - [ ] 笔记内搜索服务器文件并插入
-- [ ] 附件移动后自动检测并更新失效 sign
+- [x] 手动触发检测并更新失效 sign
 - [ ] 笔记附件半自动上传
 
 ---
 
 ## 更新日志
 
-### [v0.1.018](https://github.com/curryhendry/obsidian-cloud-attach/releases/tag/v0.1.018)
-
-- [x] 对象存储支持
-- [x] 修复一定的CORS问题
-
-### [v0.0.028](https://github.com/curryhendry/obsidian-cloud-attach/releases/tag/v0.0.028) — 初始版本
-
-- [x] WebDAV 服务添加与管理
-- [x] 多服务切换
-- [x] 单/多个附件插入
-- [x] 多媒体格式识别与预览
+[Releases](https://github.com/curryhendry/obsidian-cloud-attach/releases)
 
 ---
 
