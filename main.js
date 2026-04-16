@@ -163,13 +163,32 @@ class OpenListClient {
       const path = urlObj.pathname; // e.g. "/p/Local/share/photo.jpg"
 
       // 检查是否是 OpenList 公开链接格式
+      let realPath = null;
       if (path.startsWith('/p/')) {
-        return '/' + path.slice(3); // 去掉 "/p" 前缀，保留后面的路径
+        realPath = '/' + path.slice(3); // 去掉 "/p" 前缀，保留后面的路径
+      } else if (path.startsWith('/d/')) {
+        realPath = '/' + path.slice(3); // 去掉 "/d" 前缀，保留后面的路径
+      } else {
+        return null; // 不是 OpenList URL
       }
-      if (path.startsWith('/d/')) {
-        return '/' + path.slice(3); // 去掉 "/d" 前缀，保留后面的路径
+      
+      // 解码 URL 编码的路径（处理双重编码的情况）
+      try {
+        // 先解码一次
+        let decoded = decodeURIComponent(realPath);
+        // 如果解码后还有 % 编码，再解码一次（处理双重编码）
+        if (decoded.includes('%')) {
+          try {
+            decoded = decodeURIComponent(decoded);
+          } catch {
+            // 第二次解码失败，使用第一次解码的结果
+          }
+        }
+        return decoded;
+      } catch {
+        // 解码失败，返回原始路径
+        return realPath;
       }
-      return null; // 不是 OpenList URL
     } catch {
       return null;
     }
