@@ -438,6 +438,47 @@ class S3Client {
   constructor(account, app) {
     this.app = app;
     this.endpoint = account.endpoint?.replace(/\/$/, '') || '';
+  }
+
+  /**
+   * 通过 Obsidian requestUrl 发请求，绕过 CORS
+   */
+  async requestViaObsidian(url, options = {}) {
+    let requestUrl = null;
+    try {
+      requestUrl = require('obsidian').requestUrl;
+    } catch {
+      requestUrl = globalThis.requestUrl || this.app?.requestUrl;
+    }
+
+    if (requestUrl) {
+      try {
+        const result = await requestUrl({
+          url,
+          method: options.method || 'GET',
+          headers: options.headers || {},
+          body: options.body || undefined,
+        });
+        return {
+          status: result.status,
+          text: result.text,
+          ok: result.status >= 200 && result.status < 300,
+        };
+      } catch (e) {
+        const errStr = e.message || String(e);
+        const statusMatch = errStr.match(/status\s+(\d+)/i);
+        const status = statusMatch ? parseInt(statusMatch[1], 10) : (e.status || 0);
+        return { ok: false, status, error: errStr };
+      }
+    }
+    // fallback to fetch
+    const resp = await fetch(url, {
+      method: options.method || 'GET',
+      headers: options.headers || {},
+      body: options.body || undefined,
+    });
+    return { status: resp.status, ok: resp.ok, text: await resp.text().catch(() => '') };
+  }
     this.bucket = account.bucket || '';
     this.region = account.region || '';
     this.accessKey = account.accessKey || '';
@@ -543,15 +584,15 @@ class S3Client {
       const objectKey = basePrefix ? `${basePrefix}/${dirClean}${fileName}` : `${dirClean}${fileName}`;
       const remotePath = `${normalizedDir}${fileName}`;
 
-      // 用 presigned URL PUT 上传（绕过 CORS）
+      // 用 presigned URL PUT 上传（通过 requestViaObsidian 绕过 CORS）
       const params = new URLSearchParams({ 'X-Amz-Expires': '3600' });
       const signedQuery = await this.signQuery(params, objectKey);
       const encodedKey = encodeURIComponent(objectKey);
       const uploadUrl = `${this.endpoint}/${this.bucket}/${encodedKey}?${signedQuery}`;
 
-      const response = await fetch(uploadUrl, {
+      const response = await this.requestViaObsidian(uploadUrl, {
         method: 'PUT',
-        headers: { 'Content-Type': require('obsidian').TFile ? this.getMimeType(fileName) : 'application/octet-stream' },
+        headers: { 'Content-Type': this.getMimeType(fileName) },
         body: content
       });
 
@@ -653,7 +694,7 @@ class S3Client {
       : `${this.endpoint}/${this.bucket}`;
     const signedUrl = `${baseUrl}?${signedQuery}`;
     
-    return fetch(signedUrl, { method: 'GET', ...options });
+    return this.requestViaObsidian(signedUrl, { method: 'GET', ...options });
   }
 
   /**

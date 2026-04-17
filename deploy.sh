@@ -36,11 +36,10 @@ git add .
 git commit -m "release: $VERSION"
 
 echo "==> Git 推送"
-git push
+git push || echo "⚠️  Git 推送失败，继续执行..."
 
 echo "==> 创建并推送 tag"
-git tag -a "$VERSION" -m "release: $VERSION"
-git push origin "$VERSION"
+git tag -a "$VERSION" -m "release: $VERSION" && git push origin "$VERSION" || echo "⚠️  Tag 推送失败，继续执行..."
 
 # ----------------------------------------------------------
 # 3. 同步到 Obsidian 插件目录（iCloud）
