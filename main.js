@@ -2660,7 +2660,14 @@ module.exports = class CloudAttachPlugin extends Plugin {
       
       for (const rep of replacements) {
         // 替换 Markdown 语法中的本地路径为新的云端 URL
-        const newSyntax = rep.oldSyntax.replace(/!\[([^\]]*)\]\([^)]+\)/, `![](${rep.newUrl})`);
+        let newSyntax;
+        if (rep.oldSyntax.startsWith('![[')) {
+          // wiki-link 格式: ![[path]] 或 ![[path|alias]]
+          newSyntax = `![](${rep.newUrl})`;
+        } else {
+          // 标准 markdown 格式: ![alt](path)
+          newSyntax = rep.oldSyntax.replace(/!\[([^\]]*)\]\([^)]+\)/, `![](${rep.newUrl})`);
+        }
         text = text.replace(rep.oldSyntax, newSyntax);
         
         // 删除本地文件
