@@ -516,7 +516,7 @@ class S3Client {
         throw new Error(`S3 error: ${response.status}`);
       }
 
-      const text = await response.text();
+      const text = typeof response.text === 'function' ? await response.text() : (response.text || '');
       console.log('[CloudAttach] listDirectory response:', text.substring(0, 500));
       return this.parseListResult(text, s3Prefix);
     } catch (e) {
@@ -634,7 +634,7 @@ class S3Client {
       console.log('[CloudAttach] S3 config - endpoint:', this.endpoint, 'bucket:', this.bucket, 'region:', this.region, 'accessKey:', this.accessKey ? '(set)' : '(empty)', '| using app.requestUrl:', usingAppUrl);
       const response = await this.s3Request(`/?list-type=2&max-keys=1`, 'GET');
       const status = response.status;
-      const text = await response.text().catch(() => '');
+      const text = typeof response.text === 'function' ? await response.text().catch(() => '') : (response.text || '');
       console.log('[CloudAttach] S3 testConnection status:', status, 'body:', text.slice(0, 200));
       // 403 = 签名正确但无权限，401 = 签名错误，其他 2xx = 成功
       if (status === 403) {
