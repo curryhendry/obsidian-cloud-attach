@@ -2342,8 +2342,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
         localPath = imgMatch[2];
         markdownSyntax = imgMatch[0];
       } else {
-        // 尝试匹配 attachments/ 开头的相对路径
-        const attachMatch = line.match(/!?\[([^\]]*)\]\((attachments\/[^)]+)\)/);
+        // 尝试匹配任何本地附件（![] 格式，排除 http/https）
+        const attachMatch = line.match(/!\[([^\]]*)\]\((?!http)([^)#\s?]+)/);
         if (attachMatch) {
           localPath = attachMatch[2];
           markdownSyntax = attachMatch[0];
@@ -2398,8 +2398,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const notePath = view.file?.path || '';
     const noteDir = notePath.substring(0, notePath.lastIndexOf('/') + 1);
     
-    // 匹配所有本地图片/附件（排除 http/https 开头的）
-    const attachmentRegex = /!\[([^\]]*)\]\((attachments\/[^)]+)\)/g;
+    // 匹配所有本地附件（![] 格式，排除 http/https）
+    const attachmentRegex = /!\[([^\]]*)\]\((?!http)([^)#\s?]+)/g;
     const attachments = [];
     let match;
     
