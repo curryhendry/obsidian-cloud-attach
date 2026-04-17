@@ -2287,7 +2287,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (!leaves || leaves.length === 0) {
       return { ok: false, error: '请先打开 CloudAttach 标签页并选择上传目录' };
     }
-    const view = leaves[0];
+    const view = leaves[0].view;
     if (!view.client) {
       return { ok: false, error: '请先选择一个账户' };
     }
