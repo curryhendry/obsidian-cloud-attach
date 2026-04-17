@@ -2558,8 +2558,16 @@ module.exports = class CloudAttachPlugin extends Plugin {
     for (const att of attachments) {
       console.log('[CloudAttach] 上传:', att.localPath);
       
-      // 检查本地文件是否存在
-      const file = this.app.vault.getAbstractFileByPath(att.localPath);
+      // 检查本地文件是否存在（先用精确路径，再尝试模糊匹配）
+      let file = this.app.vault.getAbstractFileByPath(att.localPath);
+      if (!file) {
+        // wiki-link 可能只写了文件名，用 metadataCache 解析
+        const resolved = this.app.metadataCache.getFirstLinkpathDest(att.localPath, '/');
+        if (resolved) {
+          file = resolved;
+          att.localPath = resolved.path;
+        }
+      }
       if (!file) {
         console.log('[CloudAttach] 本地文件不存在:', att.localPath);
         results.skipped++;
