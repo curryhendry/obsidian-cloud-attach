@@ -583,8 +583,9 @@ class S3Client {
       const remotePath = `${normalizedDir}${fileName}`;
 
       // 用 presigned URL PUT 上传（通过 requestViaObsidian 绕过 CORS）
+      const mimeType = this.getMimeType(fileName);
       const params = new URLSearchParams({ 'X-Amz-Expires': '3600' });
-      const signedQuery = await this.signQuery(params, objectKey);
+      const signedQuery = await this.signQuery(params, objectKey, 'PUT', { 'content-type': mimeType });
       const encodedKey = encodeURIComponent(objectKey);
       const uploadUrl = `${this.endpoint}/${this.bucket}/${encodedKey}?${signedQuery}`;
 
@@ -748,17 +749,22 @@ class S3Client {
     return signature;
   }
 
-  async signQuery(additionalParams, objectKey) {
+  async signQuery(additionalParams, objectKey, method = 'GET', extraHeaders = {}) {
     const now = new Date();
     const dateStr = now.toISOString().replace(/[:-]|\.\d{3}/g, '');
     const dateOnly = dateStr.slice(0, 8);
+
+    // 构建签名 headers：host + 额外 headers
+    const hostHeader = { 'host': new URL(this.endpoint).host };
+    const allSignedHeaders = { ...hostHeader, ...extraHeaders };
+    const signedHeaderNames = Object.keys(allSignedHeaders).sort().join(';');
 
     const params = {
       'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
       'X-Amz-Credential': `${this.accessKey}/${dateOnly}/${this.region}/s3/aws4_request`,
       'X-Amz-Date': dateStr,
       'X-Amz-Expires': '3600',
-      'X-Amz-SignedHeaders': 'host',
+      'X-Amz-SignedHeaders': signedHeaderNames,
       ...Object.fromEntries(additionalParams.entries())
     };
 
@@ -767,9 +773,11 @@ class S3Client {
     const canonicalUri = objectKey 
       ? encodeURIComponent(`/${this.bucket}/${objectKey}`).replace(/%2F/g, '/')
       : encodeURIComponent(`/${this.bucket}`).replace(/%2F/g, '/');
-    const signedHeaders = `host:${new URL(this.endpoint).host}`;
 
-    const canonicalRequest = ['GET', canonicalUri, canonicalQueryString, `host:${new URL(this.endpoint).host}\n`, 'host', 'UNSIGNED-PAYLOAD'].join('\n');
+    const sortedHeaderEntries = Object.entries(allSignedHeaders).sort((a, b) => a[0].localeCompare(b[0]));
+    const canonicalHeaders = sortedHeaderEntries.map(([k, v]) => `${k}:${v.trim()}`).join('\n') + '\n';
+
+    const canonicalRequest = [method.toUpperCase(), canonicalUri, canonicalQueryString, canonicalHeaders, signedHeaderNames, 'UNSIGNED-PAYLOAD'].join('\n');
     const canonicalHash = await this.sha256(canonicalRequest);
     const stringToSign = [`AWS4-HMAC-SHA256`, dateStr, `${dateOnly}/${this.region}/s3/aws4_request`, canonicalHash].join('\n');
 
