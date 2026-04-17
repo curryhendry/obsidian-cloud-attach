@@ -264,6 +264,81 @@ class OpenListClient {
     return this.listDirectoryAPI(remotePath);
   }
 
+  /**
+   * 上传文件到远程目录
+   * @param {string} localPath - 本地文件路径（vault 内）
+   * @param {string} remoteDir - 远程目录路径（以 / 开头）
+   * @returns {Promise<{ok: boolean, remotePath: string, url: string, error?: string}>}
+   */
+  async uploadFile(localPath, remoteDir) {
+    try {
+      // 获取 vault 中的文件
+      const file = this.app.vault.getAbstractFileByPath(localPath);
+      if (!file) {
+        return { ok: false, error: '本地文件不存在' };
+      }
+
+      const fileName = file.name;
+      // 确保远程目录以 / 结尾
+      const normalizedDir = remoteDir.endsWith('/') ? remoteDir : remoteDir + '/';
+      const remotePath = normalizedDir + fileName;
+
+      // 读取文件内容
+      let content;
+      if (file instanceof require('obsidian').TFile) {
+        content = await this.app.vault.readBinary(file);
+      } else {
+        return { ok: false, error: '不支持的文件类型' };
+      }
+
+      // 构造上传 URL
+      const uploadUrl = `${this.serverUrl}${this.webdavPath}${remotePath}`;
+
+      console.log('[CloudAttach] 上传文件:', localPath, '->', uploadUrl);
+
+      // 使用 WebDAV PUT 上传
+      const response = await this.requestViaObsidian(uploadUrl, {
+        method: 'PUT',
+        headers: {
+          'Authorization': 'Basic ' + btoa(`${this.username}:${this.password}`),
+          'Content-Type': this.getMimeType(fileName),
+        },
+        body: content
+      });
+
+      if (response.ok || response.status === 201 || response.status === 204) {
+        // 上传成功，获取带签名的 URL
+        let url;
+        try {
+          url = await this.getSignedUrl(remotePath);
+        } catch {
+          // 如果获取签名失败，返回 WebDAV URL
+          url = uploadUrl;
+        }
+        return { ok: true, remotePath, url };
+      } else {
+        return { ok: false, error: `上传失败: HTTP ${response.status}` };
+      }
+    } catch (e) {
+      console.error('[CloudAttach] uploadFile error:', e);
+      return { ok: false, error: e.message };
+    }
+  }
+
+  getMimeType(filename) {
+    const ext = filename.split('.').pop()?.toLowerCase() || '';
+    const mimeTypes = {
+      'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png',
+      'gif': 'image/gif', 'webp': 'image/webp', 'svg': 'image/svg+xml',
+      'pdf': 'application/pdf', 'mp4': 'video/mp4', 'mov': 'video/quicktime',
+      'mp3': 'audio/mpeg', 'wav': 'audio/wav', 'zip': 'application/zip',
+      'doc': 'application/msword', 'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'xls': 'application/vnd.ms-excel', 'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'md': 'text/markdown', 'txt': 'text/plain', 'html': 'text/html',
+    };
+    return mimeTypes[ext] || 'application/octet-stream';
+  }
+
   async listDirectoryWebDAV(remotePath) {
     const webdavUrl = `${this.serverUrl}${this.webdavPath}${remotePath}`;
     const propfindBody = `<?xml version="1.0" encoding="utf-8" ?><D:propfind xmlns:D="DAV:"><D:prop><D:displayname/><D:getcontentlength/><D:getlastmodified/><D:resourcetype/></D:prop></D:propfind>`;
@@ -1688,6 +1763,19 @@ module.exports = class CloudAttachPlugin extends Plugin {
       callback: () => this.checkAndRefreshCurrentUrl()
     });
 
+    // ---- 上传附件命令 ----
+    this.addCommand({
+      id: 'upload-current-attachment',
+      name: '上传当前附件',
+      callback: () => this.uploadCurrentAttachment()
+    });
+
+    this.addCommand({
+      id: 'upload-all-attachments',
+      name: '上传笔记中全部附件',
+      callback: () => this.uploadAllAttachments()
+    });
+
     // 编辑器右键菜单
     this.registerEvent(
       this.app.workspace.on('editor-menu', (menu, editor, view) => {
@@ -1705,6 +1793,20 @@ module.exports = class CloudAttachPlugin extends Plugin {
           submenu.addItem(si => {
             si.setTitle('更新当前笔记所有 URL 签名').onClick(() => {
               this.checkAndRefreshCurrentNote();
+            });
+          });
+          
+          // 上传分隔线
+          submenu.addSeparator();
+          
+          submenu.addItem(si => {
+            si.setTitle('上传当前附件').onClick(() => {
+              this.uploadCurrentAttachment();
+            });
+          });
+          submenu.addItem(si => {
+            si.setTitle('上传笔记中全部附件').onClick(() => {
+              this.uploadAllAttachments();
             });
           });
         });
@@ -2173,5 +2275,314 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (account.type === 's3') return new S3Client(account);
     // 默认走 openlist / WebDAV
     return new OpenListClient(account, this.app);
+  }
+
+  /**
+   * 检查是否可以上传（需要至少一个账户且当前打开了视图并选中了目录）
+   * @returns {{ok: boolean, client: object, remotePath: string, account: object}|null}
+   */
+  getUploadContext() {
+    // 获取当前打开的 CloudAttachView
+    const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_CLOUDATTACH);
+    if (!leaves || leaves.length === 0) {
+      return { ok: false, error: '请先打开 CloudAttach 标签页并选择上传目录' };
+    }
+    const view = leaves[0];
+    if (!view.client) {
+      return { ok: false, error: '请先选择一个账户' };
+    }
+    if (!view.accountId) {
+      return { ok: false, error: '请先选择一个账户' };
+    }
+    if (!view.currentPath || view.currentPath === '/') {
+      return { ok: false, error: '请先在 CloudAttach 标签页中选择上传目录（不能是根目录）' };
+    }
+    return {
+      ok: true,
+      client: view.client,
+      remotePath: view.currentPath,
+      account: this.getAccount(view.accountId)
+    };
+  }
+
+  /**
+   * 上传当前光标/选中的附件
+   */
+  async uploadCurrentAttachment() {
+    const view = this.activeMarkdownView || this.app.workspace.getActiveViewOfType(MarkdownView);
+    if (!view?.editor) {
+      new Notice('❌ 请先打开一个笔记', 3000);
+      return;
+    }
+
+    // 获取光标位置的附件路径
+    const cursor = view.editor.getCursor();
+    const fullText = view.editor.getValue();
+    
+    // 提取光标附近的图片或附件
+    let localPath = null;
+    let markdownSyntax = '';
+    
+    // 策略1: 从选中文本中提取
+    const selection = view.editor.getSelection();
+    if (selection) {
+      const imgMatch = selection.match(/!\[([^\]]*)\]\(([^)]+)\)/);
+      if (imgMatch) {
+        localPath = imgMatch[2];
+        markdownSyntax = selection;
+      }
+    }
+    
+    // 策略2: 从光标所在行提取第一个附件
+    if (!localPath) {
+      const line = view.editor.getLine(cursor.line);
+      // 匹配 ![alt](path) 或 attachments/path
+      const imgMatch = line.match(/!\[([^\]]*)\]\(([^)]+)\)/);
+      if (imgMatch) {
+        localPath = imgMatch[2];
+        markdownSyntax = imgMatch[0];
+      } else {
+        // 尝试匹配 attachments/ 开头的相对路径
+        const attachMatch = line.match(/!?\[([^\]]*)\]\((attachments\/[^)]+)\)/);
+        if (attachMatch) {
+          localPath = attachMatch[2];
+          markdownSyntax = attachMatch[0];
+        }
+      }
+    }
+    
+    // 检查是否为本地文件（不是 URL）
+    if (!localPath || localPath.startsWith('http://') || localPath.startsWith('https://')) {
+      new Notice('⚠️ 当前未选中本地附件', 3000);
+      return;
+    }
+
+    // 解析附件路径（可能是相对路径）
+    const notePath = view.file?.path || '';
+    let absolutePath = localPath;
+    if (!absolutePath.startsWith('/')) {
+      // 相对路径，转换为绝对路径
+      const noteDir = notePath.substring(0, notePath.lastIndexOf('/') + 1);
+      absolutePath = noteDir + localPath;
+    }
+
+    console.log('[CloudAttach] 上传当前附件:', absolutePath);
+    
+    // 检查上传条件
+    const ctx = this.getUploadContext();
+    if (!ctx.ok) {
+      new Notice(`⚠️ ${ctx.error}`, 4000);
+      return;
+    }
+
+    // 确认上传
+    const confirmed = await this.showUploadConfirmModal([{ localPath: absolutePath, syntax: markdownSyntax }], ctx.remotePath);
+    if (!confirmed) return;
+
+    // 执行上传
+    await this.doUpload([{ localPath: absolutePath, syntax: markdownSyntax }], ctx);
+  }
+
+  /**
+   * 上传当前笔记中的所有附件
+   */
+  async uploadAllAttachments() {
+    const view = this.activeMarkdownView || this.app.workspace.getActiveViewOfType(MarkdownView);
+    if (!view?.editor) {
+      new Notice('❌ 请先打开一个笔记', 3000);
+      return;
+    }
+
+    // 提取笔记中所有本地附件
+    const text = view.editor.getValue();
+    const notePath = view.file?.path || '';
+    const noteDir = notePath.substring(0, notePath.lastIndexOf('/') + 1);
+    
+    // 匹配所有本地图片/附件（排除 http/https 开头的）
+    const attachmentRegex = /!\[([^\]]*)\]\((attachments\/[^)]+)\)/g;
+    const attachments = [];
+    let match;
+    
+    while ((match = attachmentRegex.exec(text)) !== null) {
+      const localPath = match[2];
+      // 转换为绝对路径
+      let absolutePath = localPath;
+      if (!absolutePath.startsWith('/')) {
+        absolutePath = noteDir + localPath;
+      }
+      
+      // 检查是否已存在
+      if (!attachments.find(a => a.localPath === absolutePath)) {
+        attachments.push({
+          localPath: absolutePath,
+          syntax: match[0]
+        });
+      }
+    }
+
+    if (attachments.length === 0) {
+      new Notice('📭 笔记中没有本地附件', 3000);
+      return;
+    }
+
+    // 检查上传条件
+    const ctx = this.getUploadContext();
+    if (!ctx.ok) {
+      new Notice(`⚠️ ${ctx.error}`, 4000);
+      return;
+    }
+
+    // 确认上传
+    const confirmed = await this.showUploadConfirmModal(attachments, ctx.remotePath);
+    if (!confirmed) return;
+
+    // 执行上传
+    await this.doUpload(attachments, ctx);
+  }
+
+  /**
+   * 显示上传确认对话框
+   * @param {Array} attachments - 要上传的附件列表
+   * @param {string} remotePath - 远程目录
+   * @returns {Promise<boolean>} 用户是否确认
+   */
+  showUploadConfirmModal(attachments, remotePath) {
+    return new Promise((resolve) => {
+      const modal = new (require('obsidian').Modal)(this.app);
+      modal.titleEl.textContent = '📤 确认上传附件';
+      
+      const content = modal.contentEl;
+      content.style.padding = '16px';
+      
+      // 文件列表
+      const listEl = document.createElement('div');
+      listEl.style.maxHeight = '200px';
+      listEl.style.overflow = 'auto';
+      listEl.style.marginBottom = '16px';
+      listEl.style.border = '1px solid var(--background-modifier-border)';
+      listEl.style.borderRadius = '4px';
+      listEl.style.padding = '8px';
+      
+      attachments.forEach(att => {
+        const fileName = att.localPath.split('/').pop();
+        const item = document.createElement('div');
+        item.style.padding = '4px 0';
+        item.style.fontSize = '13px';
+        item.textContent = `📎 ${fileName}`;
+        listEl.appendChild(item);
+      });
+      content.appendChild(listEl);
+      
+      // 目标目录提示
+      const targetEl = document.createElement('div');
+      targetEl.style.marginBottom = '16px';
+      targetEl.style.fontSize = '13px';
+      targetEl.style.color = 'var(--text-muted)';
+      targetEl.innerHTML = `上传到：<code style="background:var(--background-secondary);padding:2px 6px;border-radius:3px;">${this.escapeHtml(remotePath)}</code>`;
+      content.appendChild(targetEl);
+      
+      // 按钮行
+      const btnRow = document.createElement('div');
+      btnRow.style.display = 'flex';
+      btnRow.style.gap = '8px';
+      btnRow.style.justifyContent = 'flex-end';
+      
+      const cancelBtn = document.createElement('button');
+      cancelBtn.textContent = '取消';
+      cancelBtn.className = 'mod-cta';
+      cancelBtn.style.padding = '8px 16px';
+      cancelBtn.onclick = () => { modal.close(); resolve(false); };
+      
+      const uploadBtn = document.createElement('button');
+      uploadBtn.textContent = `上传 ${attachments.length} 个文件`;
+      uploadBtn.className = 'mod-cta';
+      uploadBtn.style.background = 'var(--interactive-accent)';
+      uploadBtn.style.color = 'var(--text-on-accent)';
+      uploadBtn.style.padding = '8px 16px';
+      uploadBtn.onclick = () => { modal.close(); resolve(true); };
+      
+      btnRow.appendChild(cancelBtn);
+      btnRow.appendChild(uploadBtn);
+      content.appendChild(btnRow);
+      
+      modal.open();
+    });
+  }
+
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  /**
+   * 执行上传
+   * @param {Array} attachments - 要上传的附件列表
+   * @param {Object} ctx - 上下文 {client, remotePath, account}
+   */
+  async doUpload(attachments, ctx) {
+    const { client, remotePath } = ctx;
+    const view = this.activeMarkdownView || this.app.workspace.getActiveViewOfType(MarkdownView);
+    
+    new Notice(`📤 开始上传 ${attachments.length} 个附件...`, 3000);
+    
+    const results = { success: 0, failed: 0, skipped: 0 };
+    const replacements = [];
+    
+    for (const att of attachments) {
+      console.log('[CloudAttach] 上传:', att.localPath);
+      
+      // 检查本地文件是否存在
+      const file = this.app.vault.getAbstractFileByPath(att.localPath);
+      if (!file) {
+        console.log('[CloudAttach] 本地文件不存在:', att.localPath);
+        results.skipped++;
+        continue;
+      }
+      
+      // 上传文件
+      const result = await client.uploadFile(att.localPath, remotePath);
+      
+      if (result.ok) {
+        results.success++;
+        replacements.push({
+          oldSyntax: att.syntax,
+          newUrl: result.url,
+          localPath: att.localPath
+        });
+      } else {
+        results.failed++;
+        console.log('[CloudAttach] 上传失败:', result.error);
+      }
+    }
+    
+    // 更新笔记内容
+    if (replacements.length > 0 && view?.editor) {
+      let text = view.editor.getValue();
+      
+      for (const rep of replacements) {
+        // 替换 Markdown 语法中的本地路径为新的云端 URL
+        const newSyntax = rep.oldSyntax.replace(/!\[([^\]]*)\]\([^)]+\)/, `![](${rep.newUrl})`);
+        text = text.replace(rep.oldSyntax, newSyntax);
+        
+        // 删除本地文件
+        try {
+          await this.app.vault.deleteFile(this.app.vault.getAbstractFileByPath(rep.localPath));
+          console.log('[CloudAttach] 已删除本地文件:', rep.localPath);
+        } catch (e) {
+          console.log('[CloudAttach] 删除本地文件失败:', e.message);
+        }
+      }
+      
+      view.editor.setValue(text);
+    }
+    
+    // 显示结果
+    const parts = [];
+    if (results.success > 0) parts.push(`✅ 上传成功 ${results.success} 个`);
+    if (results.failed > 0) parts.push(`❌ 失败 ${results.failed} 个`);
+    if (results.skipped > 0) parts.push(`⏭️ 跳过 ${results.skipped} 个`);
+    
+    new Notice(`📤 上传完成：${parts.join('，')}`, 5000);
   }
 };
