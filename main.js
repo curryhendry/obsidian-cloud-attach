@@ -438,6 +438,12 @@ class S3Client {
   constructor(account, app) {
     this.app = app;
     this.endpoint = account.endpoint?.replace(/\/$/, '') || '';
+    this.bucket = account.bucket || '';
+    this.region = account.region || '';
+    this.accessKey = account.accessKey || '';
+    this.secretKey = account.secretKey || '';
+    this.publicUrl = account.publicUrl?.replace(/\/$/, '') || '';
+    this.prefix = account.prefix ? account.prefix.replace(/^\/+|\/+$/g, '') + '/' : '';
   }
 
   /**
@@ -478,14 +484,6 @@ class S3Client {
       body: options.body || undefined,
     });
     return { status: resp.status, ok: resp.ok, text: await resp.text().catch(() => '') };
-  }
-    this.bucket = account.bucket || '';
-    this.region = account.region || '';
-    this.accessKey = account.accessKey || '';
-    this.secretKey = account.secretKey || '';
-    this.publicUrl = account.publicUrl?.replace(/\/$/, '') || '';
-    // S3 prefix 不应该以 / 开头，应该是相对于 bucket 的路径
-    this.prefix = account.prefix ? account.prefix.replace(/^\/+|\/+$/g, '') + '/' : '';
   }
 
   /**
