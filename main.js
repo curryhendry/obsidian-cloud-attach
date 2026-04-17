@@ -435,7 +435,8 @@ class OpenListClient {
  * - 兼容 S3 的自建存储（MinIO、Ceph RGW 等）
  */
 class S3Client {
-  constructor(account) {
+  constructor(account, app) {
+    this.app = app;
     this.endpoint = account.endpoint?.replace(/\/$/, '') || '';
     this.bucket = account.bucket || '';
     this.region = account.region || '';
@@ -517,6 +518,69 @@ class S3Client {
       console.error('[CloudAttach] S3 getSignedUrl error:', e);
       throw e;
     }
+  }
+
+  /**
+   * 上传文件到 S3
+   * @param {string} localPath - vault 内文件路径
+   * @param {string} remoteDir - 远程目录路径（以 / 开头）
+   * @returns {Promise<{ok: boolean, remotePath: string, url: string, error?: string}>}
+   */
+  async uploadFile(localPath, remoteDir) {
+    try {
+      const file = this.app.vault.getAbstractFileByPath(localPath);
+      if (!file) return { ok: false, error: '本地文件不存在' };
+
+      const fileName = file.name;
+      const TFile = require('obsidian').TFile;
+      if (!(file instanceof TFile)) return { ok: false, error: '不支持的文件类型' };
+
+      const content = await this.app.vault.readBinary(file);
+      const normalizedDir = remoteDir.endsWith('/') ? remoteDir : remoteDir + '/';
+      // 拼接 S3 object key: prefix + remoteDir + fileName
+      const basePrefix = this.prefix ? this.prefix.replace(/\/$/, '') : '';
+      const dirClean = normalizedDir.replace(/^\/+/, '');
+      const objectKey = basePrefix ? `${basePrefix}/${dirClean}${fileName}` : `${dirClean}${fileName}`;
+      const remotePath = `${normalizedDir}${fileName}`;
+
+      // 用 presigned URL PUT 上传（绕过 CORS）
+      const params = new URLSearchParams({ 'X-Amz-Expires': '3600' });
+      const signedQuery = await this.signQuery(params, objectKey);
+      const encodedKey = encodeURIComponent(objectKey);
+      const uploadUrl = `${this.endpoint}/${this.bucket}/${encodedKey}?${signedQuery}`;
+
+      const response = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': require('obsidian').TFile ? this.getMimeType(fileName) : 'application/octet-stream' },
+        body: content
+      });
+
+      if (response.ok || response.status === 200) {
+        const url = this.getFileUrl(remotePath);
+        return { ok: true, remotePath, url };
+      } else {
+        return { ok: false, error: `S3 上传失败: HTTP ${response.status}` };
+      }
+    } catch (e) {
+      console.error('[CloudAttach] S3 uploadFile error:', e);
+      return { ok: false, error: e.message };
+    }
+  }
+
+  getMimeType(filename) {
+    const ext = filename.split('.').pop()?.toLowerCase() || '';
+    const mimeTypes = {
+      'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png',
+      'gif': 'image/gif', 'webp': 'image/webp', 'svg': 'image/svg+xml',
+      'pdf': 'application/pdf', 'mp4': 'video/mp4', 'mov': 'video/quicktime',
+      'mp3': 'audio/mpeg', 'wav': 'audio/wav', 'zip': 'application/zip',
+      'doc': 'application/msword', 'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'xls': 'application/vnd.ms-excel', 'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'ppt': 'application/vnd.ms-powerpoint', 'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'txt': 'text/plain', 'md': 'text/markdown', 'html': 'text/html',
+      'json': 'application/json', 'csv': 'text/csv'
+    };
+    return mimeTypes[ext] || 'application/octet-stream';
   }
 
   /**
@@ -2272,7 +2336,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
   createClient(accountId) {
     const account = this.getAccount(accountId);
     if (!account) return null;
-    if (account.type === 's3') return new S3Client(account);
+    if (account.type === 's3') return new S3Client(account, this.app);
     // 默认走 openlist / WebDAV
     return new OpenListClient(account, this.app);
   }
