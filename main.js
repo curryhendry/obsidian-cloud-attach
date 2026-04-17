@@ -2336,7 +2336,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     // 策略2: 从光标所在行提取第一个附件
     if (!localPath) {
       const line = view.editor.getLine(cursor.line);
-      // 匹配 ![alt](path) 或 attachments/path
+      // 匹配 ![alt](path) 格式
       const imgMatch = line.match(/!\[([^\]]*)\]\(([^)]+)\)/);
       if (imgMatch) {
         localPath = imgMatch[2];
@@ -2347,6 +2347,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
         if (attachMatch) {
           localPath = attachMatch[2];
           markdownSyntax = attachMatch[0];
+        } else {
+          // 尝试匹配 wiki-link 格式 ![[path]]
+          const wikiMatch = line.match(/!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/);
+          if (wikiMatch) {
+            localPath = wikiMatch[1];
+            markdownSyntax = wikiMatch[0];
+          }
         }
       }
     }
@@ -2405,6 +2412,25 @@ module.exports = class CloudAttachPlugin extends Plugin {
     
     while ((match = attachmentRegex.exec(text)) !== null) {
       const localPath = match[2];
+      // 转换为绝对路径
+      let absolutePath = localPath;
+      if (!absolutePath.startsWith('/')) {
+        absolutePath = noteDir + localPath;
+      }
+      
+      // 检查是否已存在
+      if (!attachments.find(a => a.localPath === absolutePath)) {
+        attachments.push({
+          localPath: absolutePath,
+          syntax: match[0]
+        });
+      }
+    }
+    
+    // 匹配 wiki-link 格式 ![[path]]
+    const wikiRegex = /!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g;
+    while ((match = wikiRegex.exec(text)) !== null) {
+      const localPath = match[1];
       // 转换为绝对路径
       let absolutePath = localPath;
       if (!absolutePath.startsWith('/')) {
