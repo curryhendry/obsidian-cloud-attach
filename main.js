@@ -2601,7 +2601,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         
         // 删除本地文件
         try {
-          await this.app.vault.deleteFile(this.app.vault.getAbstractFileByPath(rep.localPath));
+          await this.app.vault.delete(this.app.vault.getAbstractFileByPath(rep.localPath));
           console.log('[CloudAttach] 已删除本地文件:', rep.localPath);
         } catch (e) {
           console.log('[CloudAttach] 删除本地文件失败:', e.message);
