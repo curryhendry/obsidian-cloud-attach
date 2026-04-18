@@ -67,7 +67,8 @@
 
 ![截图](https://img.curryhendry.com/%E4%B9%B1%E4%B8%83%E5%85%AB%E7%B3%9F/obsidian-cloud-attach/%E6%88%AA%E5%9B%BE.png)
 
-[演示视频](https://img.curryhendry.com/%E4%B9%B1%E4%B8%83%E5%85%AB%E7%B3%9F/obsidian-cloud-attach/%E6%BC%94%E7%A4%BA%E8%A7%86%E9%A2%91.mov)
+插入资源到笔记：
+<img width="1280" height="800" alt="插入资源-720p" src="https://github.com/user-attachments/assets/3378be76-0317-4b55-85a5-eaa1c0eb7d2d" />
 
 上传附件到服务器：
 <img width="1280" height="800" alt="上传附件-720p" src="https://github.com/user-attachments/assets/15261330-aeca-42bf-aa2d-67dbac244abf" />
