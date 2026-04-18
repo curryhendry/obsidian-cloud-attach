@@ -1201,11 +1201,20 @@ class CloudAttachView extends ItemView {
     const audioExts = ['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a'];
     const docExts = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'];
     
-    // 优先使用 getSignedUrl（S3 私有桶有签名，OpenList 有 raw_url）
-    // WebDAV（无 token）回退到 getFileUrl（带 Basic Auth）
-    const url = await (this.client.getSignedUrl
-      ? this.client.getSignedUrl(file.path)
-      : this.client.getFileUrl(file.path));
+    // 文档类型（iframe 预览）使用原始 URL（无 /d/、无 sign）
+    const useRawUrl = docExts.includes(ext);
+    let url;
+    if (useRawUrl) {
+      // iframe 预览：用 getRawUrl（OpenList）或 getFileUrl（S3），不带签名
+      url = this.client.getRawUrl
+        ? this.client.getRawUrl(file.path)
+        : this.client.getFileUrl(file.path);
+    } else {
+      // 图片/链接：优先使用 getSignedUrl
+      url = await (this.client.getSignedUrl
+        ? this.client.getSignedUrl(file.path)
+        : this.client.getFileUrl(file.path));
+    }
 
     if (imageExts.includes(ext)) {
       return `![${nameWithoutExt}](${url})`;
