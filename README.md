@@ -23,6 +23,7 @@
 - 🌐 **S3对象存储 协议** - 兼容CloudFlare，理论上支持ASW等大部分对象存储服务
 - 📂 **侧边栏浏览** — 直接在 Obsidian 侧边栏浏览云端目录
 - 📝 **一键插入** — 单击插入 Markdown 链接，支持单选/多选同时插入
+- ⬆️ **上传附件** - 直接上传附件到服务器并修改饮用方式 节约本地空间
 - 🔗 **签名链接** — 自动生成带 sign 签名的 URL
 - 🖼️ **多媒体预览** — 图片预览、视频/音频播放、文档 iframe 预览
 - 👤 **多账号切换** — 同时管理多个 WebDAV 服务
@@ -56,6 +57,9 @@
 | WebDAV 路径 | 通常填 `/dav` |
 | Token | 从 OpenList「设置 → 其他」界面获取 |
 
+对象存储：
+![截图](https://img.curryhendry.com/%E4%B9%B1%E4%B8%83%E5%85%AB%E7%B3%9F/obsidian-cloud-attach/%E6%88%AA%E5%9B%BE.png)
+
 ---
 
 ## 使用
@@ -66,12 +70,11 @@
 
 ![添加服务](https://img.curryhendry.com/%E4%B9%B1%E4%B8%83%E5%85%AB%E7%B3%9F/obsidian-cloud-attach/%E6%B7%BB%E5%8A%A0%E6%9C%8D%E5%8A%A1.png)
 
-![截图](https://img.curryhendry.com/%E4%B9%B1%E4%B8%83%E5%85%AB%E7%B3%9F/obsidian-cloud-attach/%E6%88%AA%E5%9B%BE.png)
 
-插入资源到笔记：
+**插入资源到笔记：**
 <img width="1280" height="800" alt="插入资源-720p" src="https://github.com/user-attachments/assets/3378be76-0317-4b55-85a5-eaa1c0eb7d2d" />
 
-上传附件到服务器：
+**上传附件到服务器：**
 <img width="1280" height="800" alt="上传附件-720p" src="https://github.com/user-attachments/assets/15261330-aeca-42bf-aa2d-67dbac244abf" />
 
 ---
