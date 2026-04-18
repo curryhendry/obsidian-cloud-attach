@@ -1,11 +1,8 @@
 {
   "id": "cloud-attach",
   "name": "CloudAttach",
-  "version": "0.1.68",
-  "minAppVersion": "1.0.0",
-  "description": "连接 OpenList 管理云附件，插入带签名的文件链接到笔记",
+  "version": "v0.1.068",
   "author": "Garry",
-  "authorUrl": "https://github.com/curryhendry",
-  "repo": "curryhendry/obsidian-cloud-attach",
+  "description": "连接 OpenList 管理云附件，插入带签名的文件链接到笔记",
   "isDesktopOnly": false
 }
