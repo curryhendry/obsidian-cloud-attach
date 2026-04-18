@@ -13,7 +13,7 @@
 - 坚定的 Obsidian 库内 0 附件使用者
 - 重度 OpenList 依赖者
 - 前电商从业者，0 代码基础
-- 全程 🦞 龙虾操作，目前消耗 token：📈7000W 左右
+- 全程 🦞 龙虾操作，目前消耗 token：📈8000W 左右
 
 ---
 
@@ -27,7 +27,7 @@
 - 🖼️ **多媒体预览** — 图片预览、视频/音频播放、文档 iframe 预览
 - 👤 **多账号切换** — 同时管理多个 WebDAV 服务
 
-*注：对象存储可能无法使用iframe在线预览，这个取决于各服务商限制，暂时没有更好的兼容办法。建议先用openlist挂载对象存储，在使用iframe预览，曲线救国。
+*注：对象存储可能无法使用iframe在线预览，这个取决于各服务商限制，暂时没有更好的兼容办法。建议先用openlist挂载对象存储，再使用OpenList的iframe预览，曲线救国。
 
 ---
 
@@ -37,6 +37,7 @@
 
 1. 点击本仓库 *Code* → *Download ZIP*
 2. 解压后放入 `<vault>/.obsidian/plugins/cloud-attach/` 目录
+
 
 **方式二：按版本下载**（首选）
 
@@ -82,13 +83,14 @@
 - [x] 手动触发检测并更新失效 sign
 - [x] 笔记附件半自动上传
 - [x] command+P命令菜单
-- [ ] 上架obsidian商店
+- [ ] 上架Obsidian商店
 
 ---
 
 ## 更新日志
 
 [Releases](https://github.com/curryhendry/obsidian-cloud-attach/releases)
+
 
 ---
 
