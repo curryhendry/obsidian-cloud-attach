@@ -12,7 +12,7 @@ English | [中文](README.md)
 
 ## Background
 
-- A firm believer in zero-attachment vaults in Obsidian
+- A firm believer in the 'Zero-Attachment' workflow in Obsidian.
 - Heavy OpenList user
 - Former e-commerce practitioner, zero coding background
 - Built entirely with 🦞 (AI-assisted), token consumption: ~80M and counting
