@@ -9,6 +9,383 @@ const { Plugin, Notice, Menu, Modal, PluginSettingTab, MarkdownView, ItemView } 
 
 const VIEW_TYPE_CLOUDATTACH = 'cloud-attach-view';
 
+// 国际化系统
+// ============================================================
+
+const I18n = {
+  currentLang: 'zh',
+  translations: {
+    zh: {},
+    en: {}
+  },
+  setLang(lang) {
+    this.currentLang = lang in this.translations ? lang : 'zh';
+  },
+  t(key) {
+    return this.translations[this.currentLang][key] || this.translations['zh'][key] || key;
+  }
+};
+
+// 注册所有翻译
+Object.assign(I18n.translations.zh, {
+  // Notice 消息
+  'notice.sign_expired_403': '⚠️ Sign 已过期，请刷新',
+  'notice.sign_invalid': '❌ Sign 无效',
+  'notice.sign_ok': '✅ Sign 有效，无需刷新',
+  'notice.check_start': '🔍 开始检查 {count} 个 URL...',
+  'notice.check_complete': '✅ 检查完成：{parts}',
+  'notice.check_complete_partial': '📋 检查完成：{parts}',
+  'notice.no_urls_in_note': '📭 笔记中未发现任何 URL',
+  'notice.no_attachment': '⚠️ 当前光标附近未找到附件',
+  'notice.no_url_near_cursor': '❌ 光标附近未找到 URL',
+  'notice.open_note_first': '❌ 请先打开一个笔记',
+  'notice.no_file_selected': '⚠️ 请先选择文件',
+  'notice.file_not_found': '⚠️ 文件不存在（可能在服务器上被删除或移动）',
+  'notice.cannot_extract_path': '❌ 无法提取路径或无 Token',
+  'notice.cannot_refresh': '❌ 无法提取路径或无 Token，无法刷新',
+  'notice.select_account_first': '❌ 请先选择一个账户',
+  'notice.select_dir_first': '⚠️ 请先在 CloudAttach 标签页中选择上传目录（不能是根目录）',
+  'notice.upload_start': '📤 开始上传 {count} 个附件...',
+  'notice.upload_success': '✅ 上传成功 {count} 个',
+  'notice.upload_partial': '⚠️ 部分成功：{success} 成功，{failed} 失败',
+  'notice.upload_all_failed': '❌ 上传全部失败',
+  'notice.upload_failed': '❌ 上传失败: {error}',
+  'notice.file_deleted': '✅ 已删除本地文件: {path}',
+  'notice.file_delete_failed': '❌ 删除本地文件失败: {error}',
+  'notice.local_file_not_found': '❌ 本地文件不存在: {path}',
+  'notice.copied_count': '📋 已复制 {count} 个 URL',
+  'notice.copied_count_links': '📋 已复制 {count} 个链接',
+  'notice.copy_link_failed': '❌ 获取链接失败',
+  'notice.inserted': '✅ 已插入: {name}',
+  'notice.inserted_count': '✅ 已插入 {count} 个文件',
+  'notice.open_note_first_insert': '❌ 请先打开一个笔记',
+  'notice.check_url': '🔍 检查 URL: {url}...',
+  'notice.no_openlist_url': '⚠️ 非 OpenList URL，跳过',
+  'notice.not_my_url_skip': '⚠️ 未匹配到账户，跳过',
+  'notice.s3_upload_success': '✅ 上传成功: {path}',
+  'notice.s3_upload_failed': '❌ S3 上传失败: {error}',
+  'notice.s3_test_403': '✅ 连接成功(403无权限，但签名正确)',
+  'notice.s3_test_401': '❌ 签名错误(401)，请检查AccessKey/SecretKey/Region',
+  'notice.s3_test_404': '❌ 存储桶未找到(404)',
+  'notice.s3_test_ok': '✅ 连接成功!',
+  'notice.s3_test_failed': '❌ 失败 status={status}',
+  'notice.s3_test_error': '❌ 连接异常: {error}',
+  'notice.plugin_reloaded': '✅ CloudAttach 已重新加载',
+  'notice.reload_failed': '❌ 重载失败: {error}',
+  'notice.connect_success': '✅ 连接成功',
+  'notice.connect_failed': '❌ 连接失败',
+
+  // 设置页面
+  'settings.title': 'CloudAttach 设置',
+  'settings.account_name': '账户名称',
+  'settings.add_account': '添加账户',
+  'settings.save': '保存',
+  'settings.test': '测试',
+  'settings.edit': '编辑',
+  'settings.delete': '删除',
+  'settings.cancel': '取消',
+  'settings.server_address': '服务器地址',
+  'settings.endpoint': '端点',
+  'settings.bucket': '存储桶',
+  'settings.region': '地域',
+  'settings.prefix': '存储路径（选填）',
+  'settings.prefix_placeholder': 'obsidian/，默认根目录',
+  'settings.username': '用户名',
+  'settings.password': '密码',
+  'settings.token': 'Token（选填）',
+  'settings.token_hint': '在 OpenList 后台获取，不填则不签名',
+  'settings.access_key': '访问密钥 ID',
+  'settings.secret_key': '访问密钥',
+  'settings.public_url': '自定义主机',
+  'settings.public_url_hint': 'auto（Cloudflare R2 可留空）',
+  'settings.cdn_url': 'CDN 加速地址（选填）',
+  'settings.cdn_url_hint': 'https://cdn.example.com（选填，用于拼公共访问URL）',
+  'settings.storage_type': '存储类型',
+  'settings.openlist': '对象存储',
+  'settings.openlist_desc': '连接 OpenList 管理云附件',
+  'settings.s3': '对象存储 (S3)',
+  'settings.s3_desc': '支持 S3 协议的对象存储',
+  'settings.account_name_placeholder': '例如：我的COS桶',
+  'settings.folder_required': '⚠️ 请选择上传到的文件夹，不能是根目录',
+
+  // 视图界面
+  'view.select_account': '选择账户',
+  'view.no_account': '请先在设置中添加账户',
+  'view.loading': '⏳ 加载中...',
+  'view.no_account_selected': '❌ 未选择账户',
+  'view.connect_failed': '❌ 连接失败: {error}',
+  'view.error': '❌ 错误: {error}',
+  'view.empty_dir': '📂 空目录',
+  'view.root': '📁 根目录',
+  'view.open_dir': '打开目录',
+  'view.insert': '插入',
+  'view.copy_url': '复制URL',
+  'view.refresh': '🔄',
+  'view.file_count': '{count}/{total} 项已选',
+  'view.select_all': '全选',
+  'view.select_invert': '反选',
+  'view.upload_confirm_title': '📤 确认上传附件',
+  'view.upload_confirm_msg': '将上传 {count} 个附件到 {target}，本地文件将被删除。',
+  'view.confirm_upload': '确认上传',
+  'view.cancel': '取消',
+  'view.upload_btn': '上传 {count} 个文件',
+  'view.unsupported_type': '不支持的文件类型',
+  'view.browse_files': '浏览文件',
+  'view.sign_check': 'Sign 检查',
+  'view.sign_check_note': '检查并刷新当前笔记的 Sign',
+  'view.sign_check_url': '检查当前 URL 的 Sign',
+  'view.sign_fail_list': 'CloudAttach Sign 检查失败列表:',
+  'view.account': '账户',
+  'view.path': '路径',
+  'view.account_user': '用户',
+  'view.account_storage_path': '存储路径',
+  'view.account_address': '地址',
+  'view.account_bucket': '存储桶',
+  'view.account_endpoint': '端点',
+  'view.account_prefix': '存储路径',
+  'view.network_error': '网络错误',
+
+  // 命令菜单
+  'cmd.upload_current': '上传当前附件',
+  'cmd.upload_all': '上传笔记中全部附件',
+  'cmd.check_sign': '检查并刷新当前 URL 的 Sign',
+  'cmd.check_sign_note': '检查并刷新当前笔记的 Sign',
+
+  // 右键菜单
+  'menu.insert_note': '插入到笔记',
+  'menu.insert_note_multi': '插入到笔记 ({count})',
+  'menu.copy_link': '复制链接',
+  'menu.select': '选中',
+  'menu.deselect': '取消选中',
+
+  // 工具栏
+  'toolbar.refresh_account': '刷新账户',
+  'cmd.open_browser': '☁️ 云附件',
+  'cmd.open_cloud_attach': '打开云附件浏览器',
+  'settings.s3_type_label': '对象存储 (S3)',
+  'settings.please_fill_endpoint': '请填写端点',
+  'settings.please_fill_bucket': '请填写存储桶',
+  'settings.please_fill_server': '请填写服务器地址',
+  'settings.please_fill_name': '请填写账户名称',
+  'settings.no_account_selected': '请先选择一个账户',
+  'settings.no_folder_selected': '请先选择上传目录',
+  'settings.s3_account_label': 'S3 账户 {n}',
+  'settings.account_label': '账户 {n}',
+  'notice.sign_refreshed': '✅ Sign 已刷新',
+  'notice.refresh_failed': '❌ 刷新失败: {error}',
+  'notice.url_invalid': '❌ URL 失效：{reason}',
+  'notice.no_attachment_found': '📭 笔记中没有本地附件',
+  'notice.upload_complete': '📤 上传完成：{parts}',
+  'notice.url_parts_valid': '{count} 个有效',
+  'notice.urls_refreshed': '✅ {count} 个已刷新',
+  'notice.urls_failed': '❌ {count} 个失败',
+  'notice.urls_skipped': '{count} 个跳过',
+  'notice.upload_success_count': '✅ 上传成功 {count} 个',
+  'notice.upload_failed_count': '❌ 失败 {count} 个',
+  'notice.upload_skipped_count': '⏭️ 跳过 {count} 个',
+  'error.local_file_not_found': '本地文件不存在',
+  'error.unsupported_type': '不支持的文件类型',
+  'error.upload_failed': '上传失败: HTTP {status}',
+  'error.s3_upload_failed': 'S3 上传失败: HTTP {status}',
+  'error.file_not_found': '文件不存在（可能在服务器上被删除或移动）',
+  'error.network_error': '网络错误',
+  'error.no_view_or_folder': '请先打开 CloudAttach 标签页并选择上传目录',
+  'error.no_account': '请先选择一个账户',
+  'view.loading': '⏳ 加载中...',
+  'view.no_account_hint': '请先在设置中添加账户',
+  'view.select_account_hint': '选择账户后开始浏览',
+  'view.no_account_selected': '❌ 未选择账户',
+  'view.empty_dir': '📂 空目录',
+  'settings.server_address_placeholder': 'http://192.168.62.200:5244',
+  'settings.webdav_path_placeholder': '/dav',
+  'settings.endpoint_placeholder': 'https://xxx.r2.cloudflarestorage.com',
+  'settings.bucket_placeholder': 'my-vault-attach',
+  'settings.region_placeholder': 'auto（Cloudflare R2 可留空）',
+  'settings.cdn_url_placeholder': 'https://cdn.example.com（选填，用于拼公共访问URL）',
+  'view.upload_to': '上传到：<code style="background:var(--background-secondary);padding:2px 6px;border-radius:3px;">{path}</code>',
+  'error.rebuild_failed': '重建失败: {error}',
+  'error.sign_rebuild_failed': '补 sign 失败: {error}',
+  'settings.check_account_settings': '请检查账户设置',
+});
+
+Object.assign(I18n.translations.en, {
+  'notice.sign_expired_403': '⚠️ Sign expired, please refresh',
+  'notice.sign_invalid': '❌ Sign invalid',
+  'notice.sign_ok': '✅ Sign valid, no refresh needed',
+  'notice.check_start': '🔍 Checking {count} URLs...',
+  'notice.check_complete': '✅ Check complete: {parts}',
+  'notice.check_complete_partial': '📋 Check complete: {parts}',
+  'notice.no_urls_in_note': '📭 No URLs found in note',
+  'notice.no_attachment': '⚠️ No attachment found near cursor',
+  'notice.no_url_near_cursor': '❌ No URL found near cursor',
+  'notice.open_note_first': '❌ Please open a note first',
+  'notice.no_file_selected': '⚠️ Please select a file first',
+  'notice.file_not_found': '⚠️ File not found (may have been deleted or moved on server)',
+  'notice.cannot_extract_path': '❌ Cannot extract path or no Token',
+  'notice.cannot_refresh': '❌ Cannot extract path or no Token, cannot refresh',
+  'notice.select_account_first': '❌ Please select an account first',
+  'notice.select_dir_first': '⚠️ Please select an upload folder in CloudAttach tab (cannot be root)',
+  'notice.upload_start': '📤 Uploading {count} attachments...',
+  'notice.upload_success': '✅ Uploaded {count} files',
+  'notice.upload_partial': '⚠️ Partial success: {success} ok, {failed} failed',
+  'notice.upload_all_failed': '❌ All uploads failed',
+  'notice.upload_failed': '❌ Upload failed: {error}',
+  'notice.file_deleted': '✅ Deleted local file: {path}',
+  'notice.file_delete_failed': '❌ Failed to delete local file: {error}',
+  'notice.local_file_not_found': '❌ Local file not found: {path}',
+  'notice.copied_count': '📋 Copied {count} URLs',
+  'notice.copied_count_links': '📋 Copied {count} links',
+  'notice.copy_link_failed': '❌ Failed to get link',
+  'notice.inserted': '✅ Inserted: {name}',
+  'notice.inserted_count': '✅ Inserted {count} files',
+  'notice.open_note_first_insert': '❌ Please open a note first',
+  'notice.check_url': '🔍 Checking URL: {url}...',
+  'notice.no_openlist_url': '⚠️ Not an OpenList URL, skip',
+  'notice.not_my_url_skip': '⚠️ No matching account, skip',
+  'notice.s3_upload_success': '✅ Upload success: {path}',
+  'notice.s3_upload_failed': '❌ S3 upload failed: {error}',
+  'notice.s3_test_403': '✅ Connection OK (403 = no permission but signature valid)',
+  'notice.s3_test_401': '❌ Signature error (401), check AccessKey/SecretKey/Region',
+  'notice.s3_test_404': '❌ Bucket not found (404)',
+  'notice.s3_test_ok': '✅ Connection successful!',
+  'notice.s3_test_failed': '❌ Failed status={status}',
+  'notice.s3_test_error': '❌ Connection error: {error}',
+  'notice.plugin_reloaded': '✅ CloudAttach reloaded',
+  'notice.reload_failed': '❌ Reload failed: {error}',
+  'notice.connect_success': '✅ Connection successful',
+  'notice.connect_failed': '❌ Connection failed',
+
+  'settings.title': 'CloudAttach Settings',
+  'settings.account_name': 'Account Name',
+  'settings.add_account': 'Add Account',
+  'settings.save': 'Save',
+  'settings.test': 'Test',
+  'settings.edit': 'Edit',
+  'settings.delete': 'Delete',
+  'settings.cancel': 'Cancel',
+  'settings.server_address': 'Server Address',
+  'settings.endpoint': 'Endpoint',
+  'settings.bucket': 'Bucket',
+  'settings.region': 'Region',
+  'settings.prefix': 'Storage Path (optional)',
+  'settings.prefix_placeholder': 'obsidian/, root by default',
+  'settings.username': 'Username',
+  'settings.password': 'Password',
+  'settings.token': 'Token (optional)',
+  'settings.token_hint': 'Get from OpenList admin panel, leave blank for no signing',
+  'settings.access_key': 'Access Key ID',
+  'settings.secret_key': 'Secret Key',
+  'settings.public_url': 'Custom Host',
+  'settings.public_url_hint': 'auto (Cloudflare R2 can leave blank)',
+  'settings.cdn_url': 'CDN URL (optional)',
+  'settings.cdn_url_hint': 'https://cdn.example.com (optional, for public access URL)',
+  'settings.storage_type': 'Storage Type',
+  'settings.openlist': 'Object Storage',
+  'settings.openlist_desc': 'Connect OpenList to manage cloud attachments',
+  'settings.s3': 'Object Storage (S3)',
+  'settings.s3_desc': 'S3-compatible object storage',
+  'settings.account_name_placeholder': 'e.g.: My COS Bucket',
+  'settings.folder_required': '⚠️ Please select a folder to upload to, cannot be root',
+
+  'view.select_account': 'Select Account',
+  'view.no_account': 'Please add an account in Settings first',
+  'view.loading': '⏳ Loading...',
+  'view.no_account_selected': '❌ No account selected',
+  'view.connect_failed': '❌ Connection failed: {error}',
+  'view.error': '❌ Error: {error}',
+  'view.empty_dir': '📂 Empty directory',
+  'view.root': '📁 Root',
+  'view.open_dir': 'Open',
+  'view.insert': 'Insert',
+  'view.copy_url': 'Copy URL',
+  'view.refresh': '🔄',
+  'view.file_count': '{count}/{total} selected',
+  'view.select_all': 'Select All',
+  'view.select_invert': 'Invert',
+  'view.upload_confirm_title': '📤 Confirm Upload',
+  'view.upload_confirm_msg': 'Will upload {count} attachments to {target}, local files will be deleted.',
+  'view.confirm_upload': 'Confirm Upload',
+  'view.cancel': 'Cancel',
+  'view.upload_btn': 'Upload {count} files',
+  'view.unsupported_type': 'Unsupported file type',
+  'view.browse_files': 'Browse Files',
+  'view.sign_check': 'Sign Check',
+  'view.sign_check_note': 'Check and refresh Sign in current note',
+  'view.sign_check_url': 'Check current URL Sign',
+  'view.sign_fail_list': 'CloudAttach Sign check failure list:',
+  'view.account': 'Account',
+  'view.path': 'Path',
+  'view.account_user': 'User',
+  'view.account_storage_path': 'Storage Path',
+  'view.account_address': 'Address',
+  'view.account_bucket': 'Bucket',
+  'view.account_endpoint': 'Endpoint',
+  'view.account_prefix': 'Storage Path',
+  'view.network_error': 'Network Error',
+
+  'cmd.upload_current': 'Upload Current Attachment',
+  'cmd.upload_all': 'Upload All Attachments in Note',
+  'cmd.check_sign': 'Check and refresh current URL Sign',
+  'cmd.check_sign_note': 'Check and refresh current note Sign',
+
+  'menu.insert_note': 'Insert into Note',
+  'menu.insert_note_multi': 'Insert into Note ({count})',
+  'menu.copy_link': 'Copy Link',
+  'menu.select': 'Select',
+  'menu.deselect': 'Deselect',
+
+  'toolbar.refresh_account': 'Refresh Account',
+  'settings.s3_type_label': 'Object Storage (S3)',
+  'settings.please_fill_endpoint': 'Please fill in the endpoint',
+  'settings.please_fill_bucket': 'Please fill in the bucket',
+  'settings.please_fill_server': 'Please fill in the server address',
+  'settings.please_fill_name': 'Please fill in the account name',
+  'settings.no_account_selected': 'Please select an account first',
+  'settings.no_folder_selected': 'Please select an upload folder first',
+  'settings.s3_account_label': 'S3 Account {n}',
+  'settings.account_label': 'Account {n}',
+  'notice.sign_refreshed': '✅ Sign refreshed',
+  'notice.refresh_failed': '❌ Refresh failed: {error}',
+  'notice.url_invalid': '❌ URL invalid: {reason}',
+  'notice.no_attachment_found': '📭 No attachments found in note',
+  'notice.upload_complete': '📤 Upload complete: {parts}',
+  'notice.url_parts_valid': '{count} valid',
+  'notice.urls_refreshed': '✅ {count} refreshed',
+  'notice.urls_failed': '❌ {count} failed',
+  'notice.urls_skipped': '{count} skipped',
+  'notice.upload_success_count': '✅ Uploaded {count} files',
+  'notice.upload_failed_count': '❌ Failed {count}',
+  'notice.upload_skipped_count': '⏭️ Skipped {count}',
+  'error.local_file_not_found': 'Local file not found',
+  'error.unsupported_type': 'Unsupported file type',
+  'error.upload_failed': 'Upload failed: HTTP {status}',
+  'error.s3_upload_failed': 'S3 upload failed: HTTP {status}',
+  'error.file_not_found': 'File not found (may have been deleted or moved on server)',
+  'error.network_error': 'Network error',
+  'error.no_view_or_folder': 'Please open CloudAttach tab and select an upload folder',
+  'error.no_account': 'Please select an account first',
+  'view.loading': '⏳ Loading...',
+  'view.no_account_hint': 'Please add an account in Settings first',
+  'view.select_account_hint': 'Select an account to start browsing',
+  'view.no_account_selected': '❌ No account selected',
+  'view.empty_dir': '📂 Empty directory',
+  'settings.server_address_placeholder': 'http://192.168.62.200:5244',
+  'settings.webdav_path_placeholder': '/dav',
+  'settings.endpoint_placeholder': 'https://xxx.r2.cloudflarestorage.com',
+  'settings.bucket_placeholder': 'my-vault-attach',
+  'settings.region_placeholder': 'auto (can leave blank for Cloudflare R2)',
+  'settings.cdn_url_placeholder': 'https://cdn.example.com (optional)',
+});
+
+// 辅助函数：格式化翻译字符串（替换 {placeholder}）
+function t(key, params = {}) {
+  let str = I18n.t(key);
+  for (const [k, v] of Object.entries(params)) {
+    str = str.replace(new RegExp(`\\{${k}\\}`, 'g'), v);
+  }
+  return str;
+}
+
 class OpenListClient {
   constructor(account, app) {
     this.serverUrl = account.url.replace(/\/$/, '');
@@ -275,7 +652,7 @@ class OpenListClient {
       // 获取 vault 中的文件
       const file = this.app.vault.getAbstractFileByPath(localPath);
       if (!file) {
-        return { ok: false, error: '本地文件不存在' };
+        return { ok: false, error: t('error.local_file_not_found') };
       }
 
       const fileName = file.name;
@@ -288,7 +665,7 @@ class OpenListClient {
       if (file instanceof require('obsidian').TFile) {
         content = await this.app.vault.readBinary(file);
       } else {
-        return { ok: false, error: '不支持的文件类型' };
+        return { ok: false, error: t('error.unsupported_type') };
       }
 
       // 构造上传 URL
@@ -317,7 +694,7 @@ class OpenListClient {
         }
         return { ok: true, remotePath, url };
       } else {
-        return { ok: false, error: `上传失败: HTTP ${response.status}` };
+        return { ok: false, error: t('error.upload_failed', {status: response.status}) };
       }
     } catch (e) {
       console.error('[CloudAttach] uploadFile error:', e);
@@ -568,11 +945,11 @@ class S3Client {
   async uploadFile(localPath, remoteDir) {
     try {
       const file = this.app.vault.getAbstractFileByPath(localPath);
-      if (!file) return { ok: false, error: '本地文件不存在' };
+      if (!file) return { ok: false, error: t('error.local_file_not_found') };
 
       const fileName = file.name;
       const TFile = require('obsidian').TFile;
-      if (!(file instanceof TFile)) return { ok: false, error: '不支持的文件类型' };
+      if (!(file instanceof TFile)) return { ok: false, error: t('error.unsupported_type') };
 
       const content = await this.app.vault.readBinary(file);
       const normalizedDir = remoteDir.endsWith('/') ? remoteDir : remoteDir + '/';
@@ -599,7 +976,7 @@ class S3Client {
         const url = this.getFileUrl(remotePath);
         return { ok: true, remotePath, url };
       } else {
-        return { ok: false, error: `S3 上传失败: HTTP ${response.status}` };
+        return { ok: false, error: t('error.s3_upload_failed', {status: response.status}) };
       }
     } catch (e) {
       console.error('[CloudAttach] S3 uploadFile error:', e);
@@ -639,26 +1016,26 @@ class S3Client {
       console.log('[CloudAttach] S3 testConnection status:', status, 'body:', text.slice(0, 200));
       // 403 = 签名正确但无权限，401 = 签名错误，其他 2xx = 成功
       if (status === 403) {
-        new Notice(`✅ app.requestUrl连接成功(403无权限)。body: ${text.slice(0, 100)}`, 5000);
+        new Notice(t('notice.s3_test_403') + ` body: ${text.slice(0, 100)}`, 5000);
         return true;
       }
       if (status === 401) {
-        new Notice(`❌ 签名错误(401)，请检查AccessKey/SecretKey/Region`, 5000);
+        new Notice(t('notice.s3_test_401'), 5000);
         return false;
       }
       if (status === 404) {
-        new Notice(`❌ 存储桶未找到(404)`, 5000);
+        new Notice(t('notice.s3_test_404'), 5000);
         return false;
       }
       if (response.ok) {
-        new Notice(`✅ 连接成功! body: ${text.slice(0, 80)}`, 5000);
+        new Notice(`t('notice.s3_test_ok') body: ${text.slice(0, 80)}`, 5000);
         return true;
       }
-      new Notice(`❌ 失败 status=${status} body: ${text.slice(0, 80)}`, 5000);
+      new Notice(t('notice.s3_test_failed', {status}) + ` body: ${text.slice(0, 80)}`, 5000);
       return false;
     } catch (e) {
       console.error('[CloudAttach] S3 testConnection error:', e);
-      new Notice(`❌ 连接异常: ${e.message}`, 5000);
+      new Notice(t('notice.s3_test_error', {error: e.message}), 5000);
       return false;
     }
   }
@@ -883,12 +1260,12 @@ class CloudAttachView extends ItemView {
   }
 
   getViewType() { return VIEW_TYPE_CLOUDATTACH; }
-  getDisplayText() { return '☁️ 云附件'; }
+  getDisplayText() { return t('cmd.open_cloud_attach'); }
   getIcon() { return 'folder-open'; }
 
   async onOpen() {
     console.log('[CloudAttach] onOpen called');
-    this.contentEl.innerHTML = '<div style="padding:20px">加载中...</div>';
+    this.contentEl.innerHTML = '<div style="padding:20px">' + t('view.loading') + '</div>';
     this.render();
   }
 
@@ -904,7 +1281,7 @@ class CloudAttachView extends ItemView {
       this.contentEl.appendChild(header);
 
       if (this.plugin.accounts.length === 0) {
-        this.contentEl.innerHTML += '<p class="cloud-attach-hint">请先在设置中添加账户</p>';
+        this.contentEl.innerHTML += '<p class="cloud-attach-hint">' + t('view.no_account_hint') + '</p>';
         return;
       }
 
@@ -920,7 +1297,7 @@ class CloudAttachView extends ItemView {
       selectArea.className = 'cloud-attach-select-area';
       const select = document.createElement('select');
       select.className = 'cloud-attach-select';
-      select.innerHTML = '<option value="">请选择账户</option>';
+      select.innerHTML = '<option value="">' + t('view.select_account_hint') + '</option>';
       
       this.plugin.accounts.forEach(acc => {
         const opt = document.createElement('option');
@@ -958,13 +1335,13 @@ class CloudAttachView extends ItemView {
       if (this.accountId && this.client) {
         await this.loadDir();
       } else {
-        this.breadcrumbEl.innerHTML = '<span style="color:var(--text-muted);padding:10px;">选择账户后开始浏览</span>';
+        this.breadcrumbEl.innerHTML = '<span style="color:var(--text-muted);padding:10px;">' + t('view.select_account_hint') + '</span>';
       }
       
       console.log('[CloudAttach] render completed');
     } catch (e) {
       console.error('[CloudAttach] render error:', e);
-      this.contentEl.innerHTML = `<p class="cloud-attach-error">❌ 错误: ${e.message}</p>`;
+      this.contentEl.innerHTML = `<p class="cloud-attach-error">${t('view.error', {error: e.message})}</p>`;
     }
   }
 
@@ -974,7 +1351,7 @@ class CloudAttachView extends ItemView {
 
     const root = document.createElement('button');
     root.className = 'cloud-attach-breadcrumb-btn';
-    root.textContent = '📁 根目录';
+    root.textContent = t('view.root');
     root.onclick = () => { this.navigateTo('/'); };
     this.breadcrumbEl.appendChild(root);
 
@@ -1035,13 +1412,13 @@ class CloudAttachView extends ItemView {
     
     const span = document.createElement('span');
     span.className = 'cloud-attach-batch-count';
-    span.textContent = `${count}/${fileCount} 项已选`;
+    span.textContent = t('view.file_count', {count, total: fileCount});
     this.batchBarEl.appendChild(span);
     
     // 全选按钮
     const selectAllBtn = document.createElement('button');
     selectAllBtn.className = 'cloud-attach-batch-btn mod-secondary';
-    selectAllBtn.textContent = '全选';
+    selectAllBtn.textContent = t('view.select_all');
     selectAllBtn.onclick = () => {
       this.files.forEach(f => { if (!f.isDirectory) this.selectedFiles.add(f.path); });
       this.renderFiles();
@@ -1052,23 +1429,23 @@ class CloudAttachView extends ItemView {
     // 取消全选按钮
     const deselectBtn = document.createElement('button');
     deselectBtn.className = 'cloud-attach-batch-btn mod-secondary';
-    deselectBtn.textContent = '取消';
+    deselectBtn.textContent = t('view.cancel');
     deselectBtn.onclick = () => { this.selectedFiles.clear(); this.renderFiles(); this.renderBatchBar(); };
     this.batchBarEl.appendChild(deselectBtn);
     
     const insertBtn = document.createElement('button');
     insertBtn.className = 'cloud-attach-batch-btn';
-    insertBtn.textContent = '插入';
+    insertBtn.textContent = t('view.insert');
     insertBtn.onclick = () => this.insertSelectedFiles();
     this.batchBarEl.appendChild(insertBtn);
     
     // 复制 URL 按钮（复制所有选中文件的 URL）
     const copyUrlBtn = document.createElement('button');
     copyUrlBtn.className = 'cloud-attach-batch-btn mod-secondary';
-    copyUrlBtn.textContent = '复制URL';
+    copyUrlBtn.textContent = t('view.copy_url');
     copyUrlBtn.onclick = async () => {
       if (!this.client || this.selectedFiles.size === 0) {
-        new Notice('⚠️ 请先选择文件');
+        new Notice(t('notice.no_file_selected'));
         return;
       }
       const selected = this.files.filter(f => this.selectedFiles.has(f.path));
@@ -1076,7 +1453,7 @@ class CloudAttachView extends ItemView {
         this.client.getSignedUrl ? this.client.getSignedUrl(f.path) : this.client.getFileUrl(f.path)
       ));
       await navigator.clipboard.writeText(urls.join('\n'));
-      new Notice(`📋 已复制 ${urls.length} 个 URL`);
+      new Notice(t('notice.copied_count', {count: urls.length}));
     };
     this.batchBarEl.appendChild(copyUrlBtn);
   }
@@ -1086,7 +1463,7 @@ class CloudAttachView extends ItemView {
     const select = this.contentEl.querySelector('select.cloud-attach-select');
     if (!select) return;
     
-    select.innerHTML = '<option value="">请选择账户</option>';
+    select.innerHTML = '<option value="">' + t('view.select_account_hint') + '</option>';
     this.plugin.accounts.forEach(acc => {
       const opt = document.createElement('option');
       opt.value = acc.id;
@@ -1101,13 +1478,13 @@ class CloudAttachView extends ItemView {
 
     this.renderBreadcrumb();
     if (!this.fileListEl) return;
-    this.fileListEl.innerHTML = '<p class="cloud-attach-loading">⏳ 加载中...</p>';
+    this.fileListEl.innerHTML = '<p class="cloud-attach-loading">' + t('view.loading') + '</p>';
 
     if (!this.client) {
       this.client = this.plugin.createClient(this.accountId);
     }
     if (!this.client) {
-      this.fileListEl.innerHTML = '<p class="cloud-attach-error">❌ 未选择账户</p>';
+      this.fileListEl.innerHTML = '<p class="cloud-attach-error">' + t('view.no_account_selected') + '</p>';
       return;
     }
 
@@ -1117,7 +1494,7 @@ class CloudAttachView extends ItemView {
       this.renderFiles();
     } catch (e) {
       console.error('[CloudAttach] loadDir error:', e);
-      this.fileListEl.innerHTML = `<p class="cloud-attach-error">❌ 连接失败: ${e.message}</p><p class="cloud-attach-hint">请检查账户设置</p>`;
+      this.fileListEl.innerHTML = `<p class="cloud-attach-error">${t('view.connect_failed', {error: e.message})}</p><p class="cloud-attach-hint">${t('settings.check_account_settings')}</p>`;
     }
   }
 
@@ -1127,7 +1504,7 @@ class CloudAttachView extends ItemView {
     console.log('[CloudAttach] rendering files, count:', this.files.length);
     
     if (this.files.length === 0) {
-      this.fileListEl.innerHTML = '<p class="cloud-attach-empty">📂 空目录</p>';
+      this.fileListEl.innerHTML = '<p class="cloud-attach-empty">' + t('view.empty_dir') + '</p>';
       return;
     }
 
@@ -1267,9 +1644,9 @@ class CloudAttachView extends ItemView {
     if (view?.editor) {
       const cursor = view.editor.getCursor();
       view.editor.replaceRange(md + '\n', cursor);
-      new Notice(`✅ 已插入: ${file.name}`);
+      new Notice(t('notice.inserted', {name: file.name}));
     } else {
-      new Notice('❌ 请先打开一个笔记');
+      new Notice(t('notice.open_note_first'));
     }
   }
 
@@ -1284,9 +1661,9 @@ class CloudAttachView extends ItemView {
     if (view?.editor) {
       const cursor = view.editor.getCursor();
       view.editor.replaceRange(mds.join('\n\n') + '\n', cursor);
-      new Notice(`✅ 已插入 ${selected.length} 个文件`);
+      new Notice(t('notice.inserted_count', {count: selected.length}));
     } else {
-      new Notice('❌ 请先打开一个笔记');
+      new Notice(t('notice.open_note_first'));
     }
     
     this.selectedFiles.clear();
@@ -1301,7 +1678,7 @@ class CloudAttachView extends ItemView {
       // 插入到笔记（多选时插入所有选中，否则只插当前）
       menu.addItem(item => {
         const isMulti = this.selectedFiles.size > 1;
-        item.setTitle(isMulti ? `插入到笔记 (${this.selectedFiles.size})` : '插入到笔记').setIcon('link');
+        item.setTitle(isMulti ? t('menu.insert_note_multi', {count: this.selectedFiles.size}) : t('menu.insert_note')).setIcon('link');
         item.onClick(() => {
           if (isMulti) this.insertSelectedFiles();
           else this.insertFile(file);
@@ -1309,7 +1686,7 @@ class CloudAttachView extends ItemView {
       });
       // 复制链接（多选时复制所有选中文件，否则复制当前文件）
       menu.addItem(item => {
-        item.setTitle('复制链接');
+        item.setTitle(t('menu.copy_link'));
         item.onClick(async () => {
           if (!this.client) return;
           try {
@@ -1320,13 +1697,13 @@ class CloudAttachView extends ItemView {
               this.client.getSignedUrl ? this.client.getSignedUrl(f.path) : this.client.getFileUrl(f.path)
             ));
             await navigator.clipboard.writeText(urls.join('\n'));
-            new Notice(`📋 已复制 ${urls.length} 个链接`);
-          } catch { new Notice('❌ 获取链接失败'); }
+            new Notice(t('notice.copied_count_links', {count: urls.length}));
+          } catch { new Notice(t('notice.copy_link_failed')); }
         });
       });
       // 选择/取消选择
       menu.addItem(item => {
-        item.setTitle(this.selectedFiles.has(file.path) ? '取消选择' : '选择').onClick(() => {
+        item.setTitle(this.selectedFiles.has(file.path) ? t('menu.deselect') : t('menu.select')).onClick(() => {
           if (this.selectedFiles.has(file.path)) this.selectedFiles.delete(file.path);
           else this.selectedFiles.add(file.path);
           this.renderFiles();
@@ -1336,7 +1713,7 @@ class CloudAttachView extends ItemView {
     }
     if (file.isDirectory) {
       menu.addItem(item => {
-        item.setTitle('打开目录').onClick(() => { this.currentPath = file.path; this.selectedFiles.clear(); this.loadDir(); });
+        item.setTitle(t('view.open_dir')).onClick(() => { this.currentPath = file.path; this.selectedFiles.clear(); this.loadDir(); });
       });
     }
 
@@ -1356,7 +1733,7 @@ class AddAccountModal extends Modal {
     this.contentEl.innerHTML = '';
     
     const title = document.createElement('h2');
-    title.textContent = this.account ? '编辑账户' : '添加账户';
+    title.textContent = this.account ? t('settings.edit_account') : t('settings.add_account');
     this.contentEl.appendChild(title);
 
     const fields = {};
@@ -1369,7 +1746,7 @@ class AddAccountModal extends Modal {
     typeLabel.style.marginBottom = '8px';
     typeLabel.style.fontSize = '12px';
     typeLabel.style.color = 'var(--text-muted)';
-    typeLabel.textContent = '存储类型';
+    typeLabel.textContent = t('settings.storage_type');
     typeDiv.appendChild(typeLabel);
     
     const typeRow = document.createElement('div');
@@ -1400,7 +1777,7 @@ class AddAccountModal extends Modal {
     radioS3.name = 'accountType';
     radioS3.value = 's3';
     typeS3.appendChild(radioS3);
-    typeS3.appendChild(document.createTextNode('对象存储 (S3)'));
+    typeS3.appendChild(document.createTextNode(t('settings.s3_type_label')));
     
     typeRow.appendChild(typeOpenList);
     typeRow.appendChild(typeS3);
@@ -1408,10 +1785,10 @@ class AddAccountModal extends Modal {
     this.contentEl.appendChild(typeDiv);
 
     // ---- 账户名称（通用）----
-    const nameDiv = this.createFieldDiv('账户名称', '例如：我的COS桶');
+    const nameDiv = this.createFieldDiv(t('settings.account_name'), t('settings.account_name_placeholder'));
     const nameInput = document.createElement('input');
     nameInput.type = 'text';
-    nameInput.placeholder = '例如：我的COS桶';
+    nameInput.placeholder = t('settings.account_name_placeholder');
     nameInput.value = this.account?.name || '';
     nameInput.className = 'cloud-attach-input';
     nameDiv.appendChild(nameInput);
@@ -1422,7 +1799,7 @@ class AddAccountModal extends Modal {
     const openlistFields = document.createElement('div');
     openlistFields.id = 'ol-fields';
 
-    const urlDiv = this.createFieldDiv('服务器地址', 'http://192.168.62.200:5244');
+    const urlDiv = this.createFieldDiv(t('settings.server_address'), t('settings.server_address_placeholder'));
     const urlInput = document.createElement('input');
     urlInput.type = 'text';
     urlInput.placeholder = 'http://192.168.62.200:5244';
@@ -1432,7 +1809,7 @@ class AddAccountModal extends Modal {
     fields.url = urlInput;
     openlistFields.appendChild(urlDiv);
     
-    const webdavDiv = this.createFieldDiv('WebDAV 路径', '/dav');
+    const webdavDiv = this.createFieldDiv(t('settings.webdav_path_label'), t('settings.webdav_path_placeholder'));
     const webdavInput = document.createElement('input');
     webdavInput.type = 'text';
     webdavInput.placeholder = '/dav';
@@ -1442,7 +1819,7 @@ class AddAccountModal extends Modal {
     fields.webdavPath = webdavInput;
     openlistFields.appendChild(webdavDiv);
     
-    const userDiv = this.createFieldDiv('用户名', '');
+    const userDiv = this.createFieldDiv(t('settings.username'), '');
     const userInput = document.createElement('input');
     userInput.type = 'text';
     userInput.value = this.account?.username || '';
@@ -1451,7 +1828,7 @@ class AddAccountModal extends Modal {
     fields.username = userInput;
     openlistFields.appendChild(userDiv);
     
-    const passDiv = this.createFieldDiv('密码', '');
+    const passDiv = this.createFieldDiv(t('settings.password'), '');
     const passWrapper = document.createElement('div');
     passWrapper.style.display = 'flex';
     passWrapper.style.gap = '4px';
@@ -1475,7 +1852,7 @@ class AddAccountModal extends Modal {
     fields.password = passInput;
     openlistFields.appendChild(passDiv);
     
-    const tokenDiv = this.createFieldDiv('Token（选填）', '在 OpenList 后台获取，不填则不签名');
+    const tokenDiv = this.createFieldDiv(t('settings.token'), t('settings.token_hint'));
     const tokenWrapper = document.createElement('div');
     tokenWrapper.style.display = 'flex';
     tokenWrapper.style.gap = '4px';
@@ -1506,7 +1883,7 @@ class AddAccountModal extends Modal {
     s3Fields.id = 's3-fields';
     s3Fields.style.display = 'none';
 
-    const endpointDiv = this.createFieldDiv('端点', 'https://xxx.r2.cloudflarestorage.com');
+    const endpointDiv = this.createFieldDiv(t('settings.endpoint'), t('settings.endpoint_placeholder'));
     const endpointInput = document.createElement('input');
     endpointInput.type = 'text';
     endpointInput.placeholder = 'https://xxx.r2.cloudflarestorage.com';
@@ -1516,7 +1893,7 @@ class AddAccountModal extends Modal {
     fields.endpoint = endpointInput;
     s3Fields.appendChild(endpointDiv);
 
-    const bucketDiv = this.createFieldDiv('存储桶', 'my-vault-attach');
+    const bucketDiv = this.createFieldDiv(t('settings.bucket'), t('settings.bucket_placeholder'));
     const bucketInput = document.createElement('input');
     bucketInput.type = 'text';
     bucketInput.placeholder = 'my-vault-attach';
@@ -1526,7 +1903,7 @@ class AddAccountModal extends Modal {
     fields.bucket = bucketInput;
     s3Fields.appendChild(bucketDiv);
 
-    const regionDiv = this.createFieldDiv('地域', 'auto（Cloudflare R2 可留空）');
+    const regionDiv = this.createFieldDiv(t('settings.region'), t('settings.region_placeholder'));
     const regionInput = document.createElement('input');
     regionInput.type = 'text';
     regionInput.placeholder = 'auto';
@@ -1536,7 +1913,7 @@ class AddAccountModal extends Modal {
     fields.region = regionInput;
     s3Fields.appendChild(regionDiv);
 
-    const akDiv = this.createFieldDiv('访问密钥 ID', '');
+    const akDiv = this.createFieldDiv(t('settings.access_key'), '');
     const akInput = document.createElement('input');
     akInput.type = 'text';
     akInput.value = this.account?.accessKey || '';
@@ -1545,7 +1922,7 @@ class AddAccountModal extends Modal {
     fields.accessKey = akInput;
     s3Fields.appendChild(akDiv);
 
-    const skDiv = this.createFieldDiv('访问密钥', '');
+    const skDiv = this.createFieldDiv(t('settings.secret_key'), '');
     const skWrapper = document.createElement('div');
     skWrapper.style.display = 'flex';
     skWrapper.style.gap = '4px';
@@ -1569,7 +1946,7 @@ class AddAccountModal extends Modal {
     fields.secretKey = skInput;
     s3Fields.appendChild(skDiv);
 
-    const publicUrlDiv = this.createFieldDiv('自定义主机', 'https://cdn.example.com（选填，用于拼公共访问URL）');
+    const publicUrlDiv = this.createFieldDiv(t('settings.public_url'), t('settings.cdn_url_placeholder'));
     const publicUrlInput = document.createElement('input');
     publicUrlInput.type = 'text';
     publicUrlInput.placeholder = 'https://cdn.example.com';
@@ -1579,7 +1956,7 @@ class AddAccountModal extends Modal {
     fields.publicUrl = publicUrlInput;
     s3Fields.appendChild(publicUrlDiv);
 
-    const prefixDiv = this.createFieldDiv('存储路径（选填）', 'obsidian/，默认根目录');
+    const prefixDiv = this.createFieldDiv(t('settings.prefix'), t('settings.prefix_placeholder'));
     const prefixInput = document.createElement('input');
     prefixInput.type = 'text';
     prefixInput.placeholder = 'obsidian/';
@@ -1613,12 +1990,12 @@ class AddAccountModal extends Modal {
     btnRow.style.marginTop = '16px';
     
     const cancelBtn = document.createElement('button');
-    cancelBtn.textContent = '取消';
+    cancelBtn.textContent = t('view.cancel');
     cancelBtn.className = 'cloud-attach-btn';
     cancelBtn.onclick = () => this.close();
     
     const saveBtn = document.createElement('button');
-    saveBtn.textContent = '保存';
+    saveBtn.textContent = t('settings.save');
     saveBtn.className = 'cloud-attach-btn mod-cta';
     saveBtn.onclick = async () => {
       const accountType = radioOpenList.checked ? 'openlist' : 's3';
@@ -1628,12 +2005,12 @@ class AddAccountModal extends Modal {
         // S3 模式校验
         const endpoint = fields.endpoint.value.trim().replace(/\/$/, '');
         const bucket = fields.bucket.value.trim();
-        if (!endpoint) { new Notice('请填写端点', 3000); return; }
-        if (!bucket) { new Notice('请填写存储桶', 3000); return; }
+        if (!endpoint) { new Notice(t('settings.please_fill_endpoint'), 3000); return; }
+        if (!bucket) { new Notice(t('settings.please_fill_bucket'), 3000); return; }
 
         accountData = {
           type: 's3',
-          name: fields.name.value.trim() || `S3 账户 ${this.plugin.accounts.length + 1}`,
+          name: fields.name.value.trim() || t('settings.s3_account_label', {n: this.plugin.accounts.length + 1}),
           endpoint,
           bucket,
           region: fields.region.value.trim(),
@@ -1646,11 +2023,11 @@ class AddAccountModal extends Modal {
       } else {
         // OpenList 模式校验
         const url = fields.url.value.trim().replace(/\/$/, '');
-        if (!url) { new Notice('请填写服务器地址', 3000); return; }
+        if (!url) { new Notice(t('settings.please_fill_server'), 3000); return; }
 
         accountData = {
           type: 'openlist',
-          name: fields.name.value.trim() || `账户 ${this.plugin.accounts.length + 1}`,
+          name: fields.name.value.trim() || t('settings.account_label', {n: this.plugin.accounts.length + 1}),
           url,
           webdavPath: fields.webdavPath.value.trim() || '/dav',
           username: fields.username.value.trim(),
@@ -1706,11 +2083,11 @@ class CloudAttachSettingTab extends PluginSettingTab {
     this.containerEl.innerHTML = '';
     
     const title = document.createElement('h2');
-    title.textContent = 'CloudAttach 设置';
+    title.textContent = t('settings.title');
     this.containerEl.appendChild(title);
     
     const desc = document.createElement('p');
-    desc.textContent = '连接 OpenList 管理云附件';
+    desc.textContent = t('settings.openlist_desc');
     desc.className = 'setting-item-description';
     this.containerEl.appendChild(desc);
 
@@ -1726,7 +2103,7 @@ class CloudAttachSettingTab extends PluginSettingTab {
     btnRow.style.marginTop = '16px';
 
     const addBtn = document.createElement('button');
-    addBtn.textContent = '+ 添加账户';
+    addBtn.textContent = '+ ' + t('settings.add_account');
     addBtn.className = 'cloud-attach-add-btn';
     addBtn.onclick = () => new AddAccountModal(this.plugin.app, this.plugin, () => {
       this.containerEl.innerHTML = '';
@@ -1760,7 +2137,7 @@ class CloudAttachSettingTab extends PluginSettingTab {
     typeBadge.style.borderRadius = '10px';
     typeBadge.style.fontWeight = '600';
     if (account.type === 's3') {
-      typeBadge.textContent = '对象存储';
+      typeBadge.textContent = t('settings.openlist');
       typeBadge.style.background = '#e8f5e9';
       typeBadge.style.color = '#2e7d32';
     } else {
@@ -1773,28 +2150,28 @@ class CloudAttachSettingTab extends PluginSettingTab {
     
     if (account.type === 's3') {
       const p1 = document.createElement('p');
-      p1.textContent = `端点: ${account.endpoint}`;
+      p1.textContent = `${t('view.account_endpoint')}: ${account.endpoint}`;
       p1.className = 'setting-item-description';
       p1.style.wordBreak = 'break-all';
       card.appendChild(p1);
       const p2 = document.createElement('p');
-      p2.textContent = `存储桶: ${account.bucket}`;
+      p2.textContent = `${t('view.account_bucket')}: ${account.bucket}`;
       p2.className = 'setting-item-description';
       card.appendChild(p2);
       if (account.prefix) {
         const p3 = document.createElement('p');
-        p3.textContent = `存储路径: ${account.prefix}`;
+        p3.textContent = `${t('view.account_prefix')}: ${account.prefix}`;
         p3.className = 'setting-item-description';
         card.appendChild(p3);
       }
     } else {
       const p1 = document.createElement('p');
-      p1.textContent = `地址: ${account.url}`;
+      p1.textContent = `${t('view.account_address')}: ${account.url}`;
       p1.className = 'setting-item-description';
       card.appendChild(p1);
       if (account.username) {
         const p2 = document.createElement('p');
-        p2.textContent = `用户: ${account.username}`;
+        p2.textContent = `${t('view.account_user')}: ${account.username}`;
         p2.className = 'setting-item-description';
         card.appendChild(p2);
       }
@@ -1804,7 +2181,7 @@ class CloudAttachSettingTab extends PluginSettingTab {
     btnRow.className = 'cloud-attach-card-btns';
     
     const editBtn = document.createElement('button');
-    editBtn.textContent = '编辑';
+    editBtn.textContent = t('settings.edit');
     editBtn.className = 'cloud-attach-btn';
     editBtn.onclick = () => new AddAccountModal(this.plugin.app, this.plugin, () => {
       this.containerEl.innerHTML = '';
@@ -1813,18 +2190,18 @@ class CloudAttachSettingTab extends PluginSettingTab {
     }, account).open();
     
     const testBtn = document.createElement('button');
-    testBtn.textContent = '测试';
+    testBtn.textContent = t('settings.test');
     testBtn.className = 'cloud-attach-btn';
     testBtn.onclick = async () => {
       const client = this.plugin.createClient(account.id);
       if (client) {
         const ok = await client.testConnection();
-        new Notice(ok ? '✅ 连接成功' : '❌ 连接失败', 3000);
+        new Notice(ok ? t('notice.connect_success') : t('notice.connect_failed'), 3000);
       }
     };
     
     const delBtn = document.createElement('button');
-    delBtn.textContent = '删除';
+    delBtn.textContent = t('settings.delete');
     delBtn.className = 'cloud-attach-btn';
     delBtn.onclick = async () => {
       await this.plugin.removeAccount(account.id);
@@ -1849,11 +2226,15 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
 
   async onload() {
-    console.log('CloudAttach v0.1.052 loading...');
+    // 初始化语言
+    const lang = this.app.vault.config.language;
+    I18n.setLang(lang);
+    console.log('CloudAttach loading, language:', I18n.currentLang);
+
     await this.loadSettings();
     this.addStyles();
     this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf, this));
-    this.addRibbonIcon('folder-open', '☁️ 云附件', () => this.activateView());
+    this.addRibbonIcon('folder-open', t('cmd.open_browser'), () => this.activateView());
     this.addSettingTab(new CloudAttachSettingTab(this));
     this.addCommand({ id: 'open-browser', name: 'Open CloudAttach Browser', callback: () => this.activateView() });
     this.addCommand({
@@ -1863,9 +2244,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
         try {
           await plugin.app.plugins.disablePlugin('cloud-attach');
           await plugin.app.plugins.enablePlugin('cloud-attach');
-          new Notice('✅ CloudAttach 已重新加载', 2000);
+          new Notice(t('notice.plugin_reloaded'), 2000);
         } catch (e) {
-          new Notice('❌ 重载失败: ' + e.message, 4000);
+          new Notice(t('notice.reload_failed', { error: e.message }), 4000);
         }
       }
     });
@@ -1873,26 +2254,26 @@ module.exports = class CloudAttachPlugin extends Plugin {
     // ---- Sign 检查与刷新命令 ----
     this.addCommand({
       id: 'check-sign-current-note',
-      name: '检查并刷新当前笔记的 Sign',
+      name: t('cmd.check_and_refresh_note_sign'),
       callback: () => this.checkAndRefreshCurrentNote()
     });
 
     this.addCommand({
       id: 'check-sign-current-url',
-      name: '检查并刷新当前 URL 的 Sign',
+      name: t('cmd.check_and_refresh_url_sign'),
       callback: () => this.checkAndRefreshCurrentUrl()
     });
 
     // ---- 上传附件命令 ----
     this.addCommand({
       id: 'upload-current-attachment',
-      name: '上传当前附件',
+      name: t('cmd.upload_current_attachment'),
       callback: () => this.uploadCurrentAttachment()
     });
 
     this.addCommand({
       id: 'upload-all-attachments',
-      name: '上传笔记中全部附件',
+      name: t('cmd.upload_all_in_note'),
       callback: () => this.uploadAllAttachments()
     });
 
@@ -1906,12 +2287,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
           if (!submenu) return;
           
           submenu.addItem(si => {
-            si.setTitle('刷新当前 URL 签名').onClick(() => {
+            si.setTitle(t('menu.refresh_current_url_sign')).onClick(() => {
               this.checkAndRefreshCurrentUrl();
             });
           });
           submenu.addItem(si => {
-            si.setTitle('更新当前笔记所有 URL 签名').onClick(() => {
+            si.setTitle(t('menu.refresh_all_note_sign')).onClick(() => {
               this.checkAndRefreshCurrentNote();
             });
           });
@@ -1920,12 +2301,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
           submenu.addSeparator();
           
           submenu.addItem(si => {
-            si.setTitle('上传当前附件').onClick(() => {
+            si.setTitle(t('menu.upload_current_attach')).onClick(() => {
               this.uploadCurrentAttachment();
             });
           });
           submenu.addItem(si => {
-            si.setTitle('上传笔记中全部附件').onClick(() => {
+            si.setTitle(t('menu.upload_all_attach')).onClick(() => {
               this.uploadAllAttachments();
             });
           });
@@ -2099,7 +2480,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
   async checkAndRefreshCurrentNote() {
     const view = this.activeMarkdownView || this.app.workspace.getActiveViewOfType(MarkdownView);
     if (!view?.editor) {
-      new Notice('❌ 请先打开一个笔记', 3000);
+      new Notice(t('notice.open_note_first'), 3000);
       return;
     }
 
@@ -2107,11 +2488,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const urls = this.extractUrls(text);
 
     if (urls.length === 0) {
-      new Notice('📭 笔记中未发现任何 URL', 3000);
+      new Notice(t('notice.no_urls_in_note'), 3000);
       return;
     }
 
-    new Notice(`🔍 开始检查 ${urls.length} 个 URL...`, 3000);
+    new Notice(t('notice.check_start', {count: urls.length}), 3000);
 
     const results = { valid: 0, refreshed: 0, refreshedPaths: [], failed: 0, failedUrls: [], skipped: 0 };
 
@@ -2119,7 +2500,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       console.log('[CloudAttach] 检查 URL:', url);
       const match = this.matchAccount(url);
       if (!match) {
-        console.log('[CloudAttach] 未匹配到账户，跳过');
+        // No matching account, skip
         results.skipped++;
         continue;
       }
@@ -2150,7 +2531,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
           console.log('[CloudAttach] 提取真实路径:', realPath, 'token:', account.token ? '有' : '无');
           if (!realPath || !account.token) {
             results.failed++;
-            results.failedUrls.push({ url, reason: '无法提取路径或无 Token' });
+            results.failedUrls.push({ url, reason: t('error.cannot_extract_path') });
             continue;
           }
           try {
@@ -2166,7 +2547,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
             }
           } catch (e) {
             results.failed++;
-            results.failedUrls.push({ url, reason: `重建失败: ${e.message}` });
+            results.failedUrls.push({ url, reason: t('error.rebuild_failed', {error: e.message}) });
           }
         } else {
           results.failed++;
@@ -2192,7 +2573,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
               }
             } catch (e) {
               results.failed++;
-              results.failedUrls.push({ url, reason: `补 sign 失败: ${e.message}` });
+              results.failedUrls.push({ url, reason: t('error.sign_rebuild_failed', {error: e.message}) });
             }
           }
         } else {
@@ -2204,19 +2585,19 @@ module.exports = class CloudAttachPlugin extends Plugin {
 
     // 汇总提示
     const parts = [];
-    if (results.valid > 0) parts.push(`${results.valid} 个有效`);
-    if (results.refreshed > 0) parts.push(`✅ ${results.refreshed} 个已刷新`);
-    if (results.failed > 0) parts.push(`❌ ${results.failed} 个失败`);
-    if (results.skipped > 0) parts.push(`${results.skipped} 个跳过`);
+    if (results.valid > 0) parts.push(t('notice.url_parts_valid', {count: results.valid}));
+    if (results.refreshed > 0) parts.push(t('notice.urls_refreshed', {count: results.refreshed}));
+    if (results.failed > 0) parts.push(t('notice.urls_failed', {count: results.failed}));
+    if (results.skipped > 0) parts.push(t('notice.urls_skipped', {count: results.skipped}));
 
     if (results.refreshed > 0) {
-      new Notice(`✅ 检查完成：${parts.join('，')}`, 6000);
+      new Notice(t('notice.check_complete', {parts: parts.join(', ')}), 6000);
     } else {
-      new Notice(`📋 检查完成：${parts.join('，')}`, 4000);
+      new Notice(t('notice.check_complete_partial', {parts: parts.join(', ')}), 4000);
     }
 
     if (results.failedUrls.length > 0) {
-      console.log('[CloudAttach] Sign 检查失败列表:', results.failedUrls);
+      // Sign check complete
     }
   }
 
@@ -2227,7 +2608,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const view = this.activeMarkdownView || this.app.workspace.getActiveViewOfType(MarkdownView);
     console.log('[CloudAttach] checkAndRefreshCurrentUrl view:', !!view, 'editor:', !!view?.editor);
     if (!view?.editor) {
-      new Notice('❌ 请先打开一个笔记', 3000);
+      new Notice(t('notice.open_note_first'), 3000);
       return;
     }
 
@@ -2300,17 +2681,17 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
 
     if (!url) {
-      new Notice('❌ 光标附近未找到 URL', 3000);
-      console.log('[CloudAttach] 未找到 URL，cursor line:', cursor.line, 'ch:', cursor.ch);
+      new Notice(t('notice.no_url_near_cursor'), 3000);
+      // No URL found near cursor
       return;
     }
     
     console.log('[CloudAttach] 找到 URL:', url.substring(0, 80), 'type:', urlType);
-    new Notice(`🔍 检查 URL: ${url.substring(0, 50)}...`, 3000);
+    new Notice(t('notice.check_url', {url: url.substring(0, 50)}), 3000);
     const match = this.matchAccount(url);
 
     if (!match) {
-      new Notice('⚠️ 该 URL 不属于已配置的服务器，跳过', 4000);
+      new Notice(t('notice.not_my_url_skip'), 4000);
       return;
     }
 
@@ -2318,7 +2699,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const path = new URL(url).pathname;
 
     if (!path.startsWith('/p/') && !path.startsWith('/d/')) {
-      new Notice('⚠️ 非 OpenList URL，跳过', 3000);
+      new Notice(t('notice.no_openlist_url'), 3000);
       return;
     }
 
@@ -2326,14 +2707,14 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const verify = await client.verifySignUrl(url);
 
     if (verify.ok) {
-      new Notice('✅ Sign 有效，无需刷新', 3000);
+      new Notice(t('notice.sign_ok'), 3000);
       return;
     }
 
     if (verify.reason === 'sign_expired') {
       const realPath = client.extractRealPath(url);
       if (!realPath || !account.token) {
-        new Notice('❌ 无法提取路径或无 Token，无法刷新', 4000);
+        new Notice(t('notice.cannot_refresh'), 4000);
         return;
       }
       try {
@@ -2342,18 +2723,18 @@ module.exports = class CloudAttachPlugin extends Plugin {
           const fullText = view.editor.getValue();
           const newText = fullText.replace(url, newUrl);
           view.editor.setValue(newText);
-          new Notice(`✅ Sign 已刷新`, 3000);
+          new Notice(t('notice.sign_refreshed'), 3000);
         }
       } catch (e) {
-        new Notice(`❌ 刷新失败: ${e.message}`, 4000);
+        new Notice(t('notice.refresh_failed', {error: e.message}), 4000);
       }
     } else {
       const reasonMap = {
-        file_not_found: '文件不存在（可能在服务器上被删除或移动）',
-        network_error: '网络错误',
+        file_not_found: t('error.file_not_found'),
+        network_error: t('error.network_error'),
         http_error: `HTTP ${verify.status}`
       };
-      new Notice(`❌ URL 失效：${reasonMap[verify.reason] || verify.reason}`, 5000);
+      new Notice(t('notice.url_invalid', {reason: reasonMap[verify.reason] || verify.reason}), 5000);
     }
   }
 
@@ -2405,17 +2786,17 @@ module.exports = class CloudAttachPlugin extends Plugin {
     // 获取当前打开的 CloudAttachView
     const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_CLOUDATTACH);
     if (!leaves || leaves.length === 0) {
-      return { ok: false, error: '请先打开 CloudAttach 标签页并选择上传目录' };
+      return { ok: false, error: t('error.no_view_or_folder') };
     }
     const view = leaves[0].view;
     if (!view.client) {
-      return { ok: false, error: '请先选择一个账户' };
+      return { ok: false, error: t('error.no_account') };
     }
     if (!view.accountId) {
-      return { ok: false, error: '请先选择一个账户' };
+      return { ok: false, error: t('error.no_account') };
     }
     if (!view.currentPath || view.currentPath === '/') {
-      return { ok: false, error: '请先在 CloudAttach 标签页中选择上传目录（不能是根目录）' };
+      return { ok: false, error: t('settings.folder_required') };
     }
     return {
       ok: true,
@@ -2431,7 +2812,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
   async uploadCurrentAttachment() {
     const view = this.activeMarkdownView || this.app.workspace.getActiveViewOfType(MarkdownView);
     if (!view?.editor) {
-      new Notice('❌ 请先打开一个笔记', 3000);
+      new Notice(t('notice.open_note_first'), 3000);
       return;
     }
 
@@ -2480,7 +2861,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     
     // 检查是否为本地文件（不是 URL）
     if (!localPath || localPath.startsWith('http://') || localPath.startsWith('https://')) {
-      new Notice('⚠️ 当前未选中本地附件', 3000);
+      new Notice(t('notice.no_attachment'), 3000);
       return;
     }
 
@@ -2493,7 +2874,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       absolutePath = noteDir + localPath;
     }
 
-    console.log('[CloudAttach] 上传当前附件:', absolutePath);
+    // Upload current attachment
     
     // 检查上传条件
     const ctx = this.getUploadContext();
@@ -2516,7 +2897,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
   async uploadAllAttachments() {
     const view = this.activeMarkdownView || this.app.workspace.getActiveViewOfType(MarkdownView);
     if (!view?.editor) {
-      new Notice('❌ 请先打开一个笔记', 3000);
+      new Notice(t('notice.open_note_first'), 3000);
       return;
     }
 
@@ -2567,7 +2948,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
 
     if (attachments.length === 0) {
-      new Notice('📭 笔记中没有本地附件', 3000);
+      new Notice(t('notice.no_attachment_found'), 3000);
       return;
     }
 
@@ -2595,7 +2976,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
   showUploadConfirmModal(attachments, remotePath) {
     return new Promise((resolve) => {
       const modal = new (require('obsidian').Modal)(this.app);
-      modal.titleEl.textContent = '📤 确认上传附件';
+      modal.titleEl.textContent = t('view.upload_confirm_title');
       
       const content = modal.contentEl;
       content.style.padding = '16px';
@@ -2624,7 +3005,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       targetEl.style.marginBottom = '16px';
       targetEl.style.fontSize = '13px';
       targetEl.style.color = 'var(--text-muted)';
-      targetEl.innerHTML = `上传到：<code style="background:var(--background-secondary);padding:2px 6px;border-radius:3px;">${this.escapeHtml(remotePath)}</code>`;
+      targetEl.innerHTML = t('view.upload_to', {path: this.escapeHtml(remotePath)});
       content.appendChild(targetEl);
       
       // 按钮行
@@ -2634,13 +3015,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
       btnRow.style.justifyContent = 'flex-end';
       
       const cancelBtn = document.createElement('button');
-      cancelBtn.textContent = '取消';
+      cancelBtn.textContent = t('view.cancel');
       cancelBtn.className = 'mod-cta';
       cancelBtn.style.padding = '8px 16px';
       cancelBtn.onclick = () => { modal.close(); resolve(false); };
       
       const uploadBtn = document.createElement('button');
-      uploadBtn.textContent = `上传 ${attachments.length} 个文件`;
+      uploadBtn.textContent = t('view.upload_btn', {count: attachments.length});
       uploadBtn.className = 'mod-cta';
       uploadBtn.style.background = 'var(--interactive-accent)';
       uploadBtn.style.color = 'var(--text-on-accent)';
@@ -2670,7 +3051,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const { client, remotePath } = ctx;
     const view = this.activeMarkdownView || this.app.workspace.getActiveViewOfType(MarkdownView);
     
-    new Notice(`📤 开始上传 ${attachments.length} 个附件...`, 3000);
+    new Notice(t('notice.upload_start', {count: attachments.length}), 3000);
     
     const results = { success: 0, failed: 0, skipped: 0 };
     const replacements = [];
@@ -2706,7 +3087,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         });
       } else {
         results.failed++;
-        console.log('[CloudAttach] 上传失败:', result.error);
+        // Upload failed
       }
     }
     
@@ -2740,10 +3121,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
     
     // 显示结果
     const parts = [];
-    if (results.success > 0) parts.push(`✅ 上传成功 ${results.success} 个`);
-    if (results.failed > 0) parts.push(`❌ 失败 ${results.failed} 个`);
-    if (results.skipped > 0) parts.push(`⏭️ 跳过 ${results.skipped} 个`);
+    if (results.success > 0) parts.push(t('notice.upload_success_count', {count: results.success}));
+    if (results.failed > 0) parts.push(t('notice.upload_failed_count', {count: results.failed}));
+    if (results.skipped > 0) parts.push(t('notice.upload_skipped_count', {count: results.skipped}));
     
-    new Notice(`📤 上传完成：${parts.join('，')}`, 5000);
+    new Notice(t('notice.upload_complete', {parts: parts.join(', ')}), 5000);
   }
 };
