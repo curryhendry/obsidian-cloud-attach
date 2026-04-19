@@ -60,7 +60,7 @@
 | Token | 从 OpenList「设置 → 其他」界面获取 |
 
 对象存储：
-![添加服务](https://img.curryhendry.com/%E4%B9%B1%E4%B8%83%E5%85%AB%E7%B3%9F/obsidian-cloud-attach/%E6%B7%BB%E5%8A%A0%E6%9C%8D%E5%8A%A1.png)
+<img width="1075" height="761" alt="68747470733a2f2f696d672e637572727968656e6472792e636f6d2f2545342542392542312545342542382538332545352538352541422545372542332539462f6f6273696469616e2d636c6f75642d6174746163682f2545362542372542422545352538412541302545362539432538442545352538412541312…" src="https://github.com/user-attachments/assets/6866656b-9e84-4b07-851d-3c892f06f6c0" />
 
 ---
 
@@ -70,11 +70,13 @@
 2. 浏览目录，单击文件名插入链接
 3. 右键有更多操作（预览、复制、删除）
 
-![截图](https://img.curryhendry.com/%E4%B9%B1%E4%B8%83%E5%85%AB%E7%B3%9F/obsidian-cloud-attach/%E6%88%AA%E5%9B%BE.png)
-
+<img width="1075" height="761" alt="68747470733a2f2f696d672e637572727968656e6472792e636f6d2f2545342542392542312545342542382538332545352538352541422545372542332539462f6f6273696469616e2d636c6f75642d6174746163682f2545362542372542422545352538412541302545362539432538442545352538412541312…" src="https://github.com/user-attachments/assets/eb981cf0-38d9-4d72-aa27-6a94254b65c6" />
+<br>
 
 **插入资源到笔记：**
 <img width="1280" height="800" alt="插入资源-720p" src="https://github.com/user-attachments/assets/3378be76-0317-4b55-85a5-eaa1c0eb7d2d" />
+<br>
+
 
 **上传附件到服务器：**
 <img width="1280" height="800" alt="上传附件-720p" src="https://github.com/user-attachments/assets/15261330-aeca-42bf-aa2d-67dbac244abf" />
