@@ -6,6 +6,5 @@
   "description": "Connect to OpenList and manage cloud attachments, insert signed file links into notes.",
   "author": "Garry",
   "authorUrl": "https://github.com/curryhendry",
-  "repo": "curryhendry/obsidian-cloud-attach",
   "isDesktopOnly": false
 }
