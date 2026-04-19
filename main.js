@@ -19,7 +19,10 @@ const I18n = {
     en: {}
   },
   setLang(lang) {
-    this.currentLang = lang in this.translations ? lang : 'zh';
+    // 规范化 locale：zh-cn / zh-tw → zh, en-us / en-gb → en
+    if (!lang) lang = 'zh';
+    const normalized = lang.toLowerCase().split('-')[0];
+    this.currentLang = normalized in this.translations ? normalized : 'zh';
   },
   t(key) {
     return this.translations[this.currentLang][key] || this.translations['zh'][key] || key;
@@ -2226,10 +2229,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
 
   async onload() {
-    // 初始化语言
-    const lang = this.app.vault.config.language;
+    // 初始化语言（Obsidian 界面语言是应用级设置，不在 vault config 里）
+    // 优先使用 moment.locale()，这是 Obsidian 内置的国际化方案
+    const momentLocale = (window.moment || moment).locale();
+    const lang = this.app.vault.config?.language || momentLocale || 'zh';
     I18n.setLang(lang);
-    console.log('CloudAttach loading, language:', I18n.currentLang);
+    console.log('CloudAttach loading, language:', I18n.currentLang, 'momentLocale:', momentLocale);
 
     await this.loadSettings();
     this.addStyles();
