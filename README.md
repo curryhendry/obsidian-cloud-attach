@@ -1,3 +1,5 @@
+[English](README_EN.md) | 中文
+
 # obsidian-cloud-attach
 
 > Obsidian 插件，通过 WebDAV 连接 OpenList 等服务 以及 对象存储服务，在笔记中直接插入云端文件。释放本地空间。
