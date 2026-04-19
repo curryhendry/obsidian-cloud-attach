@@ -59,7 +59,8 @@ Add accounts in plugin settings:
 | Token | Get from OpenList Settings → Other |
 
 Object storage:
-![Add Service](https://img.curryhendry.com/%E4%B9%B1%E4%B8%83%E5%85%AB%E7%B3%9F/obsidian-cloud-attach/%E6%B7%BB%E5%8A%A0%E6%9C%8D%E5%8A%A1.png)
+<img width="1036" height="752" alt="截屏2026-04-19 17 42 12" src="https://github.com/user-attachments/assets/62bead10-1bf8-44a6-bb93-567bc748e97a" />
+
 
 ---
 
