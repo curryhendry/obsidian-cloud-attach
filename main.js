@@ -2878,13 +2878,24 @@ module.exports = class CloudAttachPlugin extends Plugin {
       return;
     }
 
-    // 解析附件路径（可能是相对路径）
+    // 解析附件路径
+    // wiki-link 可能包含相对路径（如 ../xxx/yyy.pdf）或绝对路径（如 家庭/xxx.pdf）
+    // 用 metadataCache.getFirstLinkpathDest 做正确解析，fallback 到手动拼接
+    let absolutePath;
     const notePath = view.file?.path || '';
-    let absolutePath = localPath;
-    if (!absolutePath.startsWith('/')) {
-      // 相对路径，转换为绝对路径
-      const noteDir = notePath.substring(0, notePath.lastIndexOf('/') + 1);
-      absolutePath = noteDir + localPath;
+    const noteDir = notePath.substring(0, notePath.lastIndexOf('/') + 1);
+    
+    // 先用 metadataCache 解析（支持相对路径、绝对路径、../ 导航）
+    const cacheResolved = this.app.metadataCache.getFirstLinkpathDest(localPath, notePath);
+    if (cacheResolved && cacheResolved.path) {
+      absolutePath = cacheResolved.path;
+    } else {
+      // fallback：手动拼接（相对路径基于 noteDir，绝对路径直接用）
+      if (localPath.startsWith('/')) {
+        absolutePath = localPath.substring(1); // 去掉开头的 /
+      } else {
+        absolutePath = noteDir + localPath;
+      }
     }
 
     // Upload current attachment
@@ -3074,14 +3085,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
       
       // 检查本地文件是否存在（先用精确路径，再尝试模糊匹配）
       let file = this.app.vault.getAbstractFileByPath(att.localPath);
-      if (!file) {
-        // wiki-link 可能只写了文件名，用 metadataCache 解析（注意第二个参数是当前笔记路径，用于相对路径解析）
-        const resolved = this.app.metadataCache.getFirstLinkpathDest(att.localPath, notePath);
-        if (resolved) {
-          file = resolved;
-          att.localPath = resolved.path;
-        }
-      }
+      // 注意：localPath 已在 uploadCurrentAttachment / uploadAllAttachments 中解析为绝对路径
+      // 如果仍找不到文件（可能文件被删除或路径错误），直接跳过
       if (!file) {
         console.log('[CloudAttach] 本地文件不存在:', att.localPath);
         results.skipped++;
