@@ -723,10 +723,11 @@ class OpenListClient {
   async delete(paths) {
     const results = { success: [], failed: [] };
     for (const fullPath of paths) {
-      const dir = fullPath.substring(0, fullPath.lastIndexOf('/') + 1) || '/';
+      const dir = fullPath.substring(0, fullPath.lastIndexOf("/")).replace(/\/$/, "") || '/';
       const name = fullPath.substring(fullPath.lastIndexOf('/') + 1);
       try {
         const url = `${this.baseUrl}/api/fs/remove`;
+        console.log("[CloudAttach] delete API:", url, "dir:", dir, "names:", [name]);
         const response = await this.requestViaObsidian(url, {
           method: 'POST',
           headers: {
@@ -755,7 +756,8 @@ class OpenListClient {
    * @returns {Promise<void>}
    */
   async rename(path, newName) {
-    const dst = path.substring(0, path.lastIndexOf('/') + 1) + newName;
+    const dst = path.substring(0, path.lastIndexOf("/") + 1).replace(/\/$/, "") + "/" + newName;
+    console.log("[CloudAttach] rename API:", `${this.baseUrl}/api/fs/rename`, "src:", path, "dst:", dst);
     const response = await this.requestViaObsidian(`${this.baseUrl}/api/fs/rename`, {
       method: 'POST',
       headers: {
