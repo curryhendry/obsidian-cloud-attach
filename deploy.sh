@@ -15,7 +15,12 @@ cd "$SCRIPT_DIR"
 # ----------------------------------------------------------
 # 1. 自动版本号
 # ----------------------------------------------------------
-COUNT=$(git rev-list --count HEAD)
+# 手动指定版本号（可选）
+VERSION=${VERSION:-}
+if [ -z "$VERSION" ]; then
+  COUNT=$(git rev-list --count HEAD)
+  VERSION="v0.1.$(printf "%03d" $COUNT)"
+fi
 VERSION="v0.1.$(printf '%03d' $COUNT)"
 
 echo "==> 版本: $VERSION"
