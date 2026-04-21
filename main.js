@@ -514,20 +514,23 @@ class OpenListClient {
     
     // 回退：优先用 OpenList /p/ 路径（支持分享链接），次选 /d/ 目录路径
     // 不再回退到 WebDAV 路径（那是给 WebDAV 客户端用的）
-    const encodedPath = encodeURI(remotePath);
-    return `${this.serverUrl}/p${encodedPath}`;
+    // 编码规则：保留中文原文，仅编码必须转义的字符（空格、%、#、?、& 等）
+    const safePath = remotePath.replace(/[%\s#?&<>"'\\|{}]/g, c => encodeURIComponent(c));
+    return `${this.serverUrl}/p${safePath}`;
   }
 
   // 获取文件的 WebDAV URL（用于插入到笔记）
   getFileUrl(remotePath) {
     const webdavPath = this.webdavPath || '/dav';
+    // 编码规则：保留中文原文，仅编码必须转义的字符
+    const safePath = remotePath.replace(/[%\s#?&<>"'\\|{}]/g, c => encodeURIComponent(c));
     // 如果有认证信息，在 URL 中带上 Basic Auth
     if (this.username && this.password) {
       const encodedCreds = btoa(`${this.username}:${this.password}`);
       const serverWithoutProtocol = this.serverUrl.replace(/^https?:\/\//, '');
-      return `https://${encodedCreds}@${serverWithoutProtocol}${webdavPath}${remotePath}`;
+      return `https://${encodedCreds}@${serverWithoutProtocol}${webdavPath}${safePath}`;
     }
-    return `${this.serverUrl}${webdavPath}${remotePath}`;
+    return `${this.serverUrl}${webdavPath}${safePath}`;
   }
 
   // 获取原始 URL（无签名、无 /dav /d 前缀，用于 iframe 预览）
@@ -923,9 +926,11 @@ class S3Client {
     const basePrefix = this.prefix ? this.prefix.replace(/\/$/, '') : '';
     const cleanPath = remotePath.replace(/^\/+/, '');
     const fullPath = basePrefix ? `${basePrefix}/${cleanPath}` : cleanPath;
+    // 编码规则：保留中文原文，仅编码必须转义的字符
+    const safePath = fullPath.replace(/[%\s#?&<>"'\\|{}]/g, c => encodeURIComponent(c));
     // publicUrl 可能是裸域名（无协议），自动补 https://
     const base = this.publicUrl.startsWith('http') ? this.publicUrl : `https://${this.publicUrl}`;
-    return `${base}/${fullPath}`;
+    return `${base}/${safePath}`;
   }
 
   /**
