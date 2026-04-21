@@ -541,6 +541,38 @@ class OpenListClient {
     };
   }
 
+  /**
+   * 带认证的 API 请求（token 优先，401 fallback 到 login）
+   */
+  async authFetch(path, options = {}) {
+    // 确保有 token
+    if (!this.token && !(await this.login())) {
+      return { status: 401, text: '{"code":401,"message":"Authentication required"}', ok: false };
+    }
+    
+    const url = `${this.baseUrl}${path}`;
+    const headers = {
+      ...options.headers,
+      'Authorization': `Bearer ${this.token}`,
+    };
+    
+    let response = await this.requestViaObsidian(url, { ...options, headers });
+    
+    // 401 → token 过期，尝试重新登录
+    if (response.status === 401 && this.username && this.password) {
+      console.log('[CloudAttach] token expired, re-login');
+      this.token = '';
+      if (await this.login()) {
+        response = await this.requestViaObsidian(url, {
+          ...options,
+          headers: { ...options.headers, 'Authorization': `Bearer ${this.token}` },
+        });
+      }
+    }
+    
+    return response;
+  }
+
   async getSignedUrl(remotePath) {
     // 优先使用 OpenList API 获取带签名的 URL
     const apiUrl = `${this.serverUrl}/api/fs/get`;
@@ -754,25 +786,20 @@ class OpenListClient {
    */
   async delete(paths) {
     const results = { success: [], failed: [] };
-    await this.login();
     for (const fullPath of paths) {
-      const dir = fullPath.substring(0, fullPath.lastIndexOf("/")).replace(/\/$/, "") || '/';
+      const dir = fullPath.substring(0, fullPath.lastIndexOf("/")).replace(/\/\/$/, "") || '/';
       const name = fullPath.substring(fullPath.lastIndexOf('/') + 1);
       try {
-        const url = `${this.baseUrl}/api/fs/remove`;
-        console.log("[CloudAttach] delete API:", url, "dir:", dir, "names:", [name]);
-        const response = await this.requestViaObsidian(url, {
+        console.log("[CloudAttach] delete API:", dir, "names:", [name]);
+        const response = await this.authFetch('/api/fs/remove', {
           method: 'POST',
-          headers: {
-            'Authorization': this.token ? `Bearer ${this.token}` : '',
-            'Content-Type': 'application/json'
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ dir, names: [name] })
         });
         if (response.ok) {
           results.success.push(fullPath);
         } else {
-          const err = await response.text();
+          const err = response.text;
           results.failed.push({ path: fullPath, error: err });
         }
       } catch (e) {
@@ -781,27 +808,22 @@ class OpenListClient {
     }
     return results;
   }
-
-  /**
-   * 重命名文件或文件夹
    * @param {string} path - 原路径
    * @param {string} newName - 新文件名
    * @returns {Promise<void>}
    */
   async rename(path, newName) {
-    const dst = path.substring(0, path.lastIndexOf("/") + 1).replace(/\/$/, "") + "/" + newName;
-    await this.login();
-    console.log("[CloudAttach] rename API:", `${this.baseUrl}/api/fs/rename`, "src:", path, "dst:", dst);
-    const response = await this.requestViaObsidian(`${this.baseUrl}/api/fs/rename`, {
+    const dst = path.substring(0, path.lastIndexOf('/') + 1).replace(/\/\/$/, "") + '/' + newName;
+    console.log("[CloudAttach] rename API: src:", path, "dst:", dst);
+    const response = await this.authFetch('/api/fs/rename', {
       method: 'POST',
-      headers: {
-        'Authorization': this.token ? `Bearer ${this.token}` : '',
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ src: path, dst })
     });
     if (!response.ok) {
-      const err = await response.text();
+      throw new Error(response.text || 'Rename failed');
+    }
+  }
       throw new Error(err || response.statusText);
     }
   }
