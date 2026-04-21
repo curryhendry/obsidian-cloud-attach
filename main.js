@@ -588,6 +588,33 @@ class OpenListClient {
   }
 
   /**
+   * 解码 URL 中的中文字符（处理 encodeURI / encodeURIComponent / safeEncodePath 各种形式）
+   * safeEncodePath 只编码特殊字符保留中文，所以解码只需处理 %XX
+   * @param {string} url
+   * @returns {string} 解码后的 URL
+   */
+  static safeDecodeUrl(url) {
+    if (!url || typeof url !== 'string') return url || '';
+    try {
+      let decoded = url;
+      // 循环解码直到没有 % 或解码失败（最多10次，防止多重编码）
+      for (let i = 0; i < 10; i++) {
+        if (!decoded.includes('%')) break;
+        try {
+          const next = decodeURIComponent(decoded);
+          if (next === decoded) break;
+          decoded = next;
+        } catch {
+          break;
+        }
+      }
+      return decoded;
+    } catch {
+      return url;
+    }
+  }
+
+  /**
    * 验证 OpenList sign URL 是否有效（通过 HEAD 请求）
    * @param {string} url - 完整的 sign URL
    * @returns {Promise<{ok: boolean, status: number, reason: string}>}
