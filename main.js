@@ -437,6 +437,7 @@ function t(key, params = {}) {
 class OpenListClient {
   constructor(account, app) {
     this.serverUrl = account.url.replace(/\/$/, '');
+    this.baseUrl = this.serverUrl;
     this.webdavPath = (account.webdavPath || '/dav').replace(/\/$/, '');
     this.token = account.token || '';
     this.username = account.username;
@@ -726,7 +727,7 @@ class OpenListClient {
       const name = fullPath.substring(fullPath.lastIndexOf('/') + 1);
       try {
         const url = `${this.baseUrl}/api/fs/remove`;
-        const response = await fetch(url, {
+        const response = await this.requestViaObsidian(url, {
           method: 'POST',
           headers: {
             'Authorization': this.token ? `Bearer ${this.token}` : '',
@@ -755,7 +756,7 @@ class OpenListClient {
    */
   async rename(path, newName) {
     const dst = path.substring(0, path.lastIndexOf('/') + 1) + newName;
-    const response = await fetch(`${this.baseUrl}/api/fs/rename`, {
+    const response = await this.requestViaObsidian(`${this.baseUrl}/api/fs/rename`, {
       method: 'POST',
       headers: {
         'Authorization': this.token ? `Bearer ${this.token}` : '',
@@ -2712,7 +2713,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       .cloud-attach-breadcrumb-current { color: var(--text-muted); padding: 3px 6px; font-size: 12px; }
       .cloud-attach-refresh { margin-left: auto; background: transparent; border: 1px solid var(--background-modifier-border); color: var(--text-muted); cursor: pointer; padding: 3px 8px; border-radius: 3px; font-size: 11px; }
       .cloud-attach-refresh:hover { background: var(--background-modifier-hover); }
-      .cloud-attach-batch-bar { padding: 6px 8px; background: var(--background-secondary); border-bottom: 1px solid var(--background-modifier-border); display: flex; align-items: center; gap: 8px; }
+      .cloud-attach-batch-bar { padding: 6px 8px; background: var(--background-secondary); border-bottom: 1px solid var(--background-modifier-border); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
       .cloud-attach-batch-count { font-size: 12px; color: var(--text-muted); }
       .cloud-attach-batch-btn { padding: 4px 10px; font-size: 12px; border: 1px solid var(--background-modifier-border); border-radius: 4px; background: var(--interactive-accent); color: var(--text-on-accent); cursor: pointer; }
       .cloud-attach-batch-btn:hover { opacity: 0.9; }
