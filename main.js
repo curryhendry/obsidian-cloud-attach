@@ -3101,7 +3101,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
         replacements.push({
           oldSyntax: att.syntax,
           newUrl: result.url,
-          localPath: att.localPath
+          localPath: att.localPath,
+          remotePath: result.remotePath
         });
       } else {
         results.failed++;
@@ -3113,44 +3114,65 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (replacements.length > 0 && view?.editor) {
       let text = view.editor.getValue();
       
+      // 文件类型分类（与插入逻辑一致）
+      const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico'];
+      const videoExts = ['mp4', 'mov', 'avi', 'mkv', 'webm', 'flv'];
+      const audioExts = ['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a'];
+      const docExts = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'];
+      
       for (const rep of replacements) {
-        // 替换 Markdown 语法中的本地路径为新的云端 URL
-        // 根据文件扩展名决定引用格式：图片用 ![](url)，其他用 [文件名](url)
-        const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico'];
         const ext = rep.localPath.split('.').pop().toLowerCase();
-        const isImage = imageExts.includes(ext);
-        
-        // 提取原始文件名（不带路径）
         const fileName = rep.localPath.split('/').pop();
+        const nameWithoutExt = fileName.replace(/\.[^.]+$/, '');
+        
+        // 根据文件类型选择 URL（文档类型用不带签名的原始 URL）
+        let url;
+        if (docExts.includes(ext)) {
+          // 文档类型（iframe 预览）：用 getRawUrl（OpenList）或 getFileUrl（S3），不带签名
+          url = client.getRawUrl
+            ? client.getRawUrl(rep.remotePath)
+            : client.getFileUrl(rep.remotePath);
+        } else {
+          // 图片/链接：使用上传返回的签名 URL
+          url = rep.newUrl;
+        }
         
         let newSyntax;
         if (rep.oldSyntax.startsWith('![[')) {
           // wiki-link 格式: ![[path]] 或 ![[path|alias]]
-          // 提取别名（如果有）
           const aliasMatch = rep.oldSyntax.match(/!\[\[([^\]|]+)(?:\|([^\]]*))?\]\]/);
-          const alias = aliasMatch?.[2] || fileName;
+          const alias = aliasMatch?.[2] || nameWithoutExt;
           
-          if (isImage) {
-            newSyntax = `![${alias}](${rep.newUrl})`;
+          if (imageExts.includes(ext)) {
+            newSyntax = `![${alias}](${url})`;
+          } else if (videoExts.includes(ext)) {
+            newSyntax = `<video controls width="600" height="400">\n <source src="${url}" type="video/mp4">\n</video>`;
+          } else if (audioExts.includes(ext)) {
+            newSyntax = `<audio controls>\n <source src="${url}" type="audio/mpeg">\n</audio>`;
+          } else if (docExts.includes(ext)) {
+            newSyntax = `<iframe src="${url}" width="100%" height="800px"></iframe>`;
           } else {
-            // PDF 等非图片文件，转为普通链接
-            newSyntax = `[${alias}](${rep.newUrl})`;
+            newSyntax = `[${alias}](${url})`;
           }
         } else if (rep.oldSyntax.startsWith('![')) {
           // 标准 markdown 图片格式: ![alt](path)
-          // 提取 alt 文本
           const altMatch = rep.oldSyntax.match(/!\[([^\]]*)\]\(/);
-          const alt = altMatch?.[1] || '';
+          const alt = altMatch?.[1] || nameWithoutExt;
           
-          if (isImage) {
-            newSyntax = `![${alt}](${rep.newUrl})`;
+          if (imageExts.includes(ext)) {
+            newSyntax = `![${alt}](${url})`;
+          } else if (videoExts.includes(ext)) {
+            newSyntax = `<video controls width="600" height="400">\n <source src="${url}" type="video/mp4">\n</video>`;
+          } else if (audioExts.includes(ext)) {
+            newSyntax = `<audio controls>\n <source src="${url}" type="audio/mpeg">\n</audio>`;
+          } else if (docExts.includes(ext)) {
+            newSyntax = `<iframe src="${url}" width="100%" height="800px"></iframe>`;
           } else {
-            // 非图片但用了 ![...] 格式，转为普通链接
-            newSyntax = `[${alt || fileName}](${rep.newUrl})`;
+            newSyntax = `[${alt}](${url})`;
           }
         } else {
           // 其他格式，保持原样替换 URL
-          newSyntax = rep.oldSyntax.replace(/file:\S+/, rep.newUrl);
+          newSyntax = rep.oldSyntax.replace(/file:\S+/, url);
         }
         text = text.replace(rep.oldSyntax, newSyntax);
         
