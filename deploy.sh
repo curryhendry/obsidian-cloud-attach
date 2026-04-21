@@ -84,6 +84,7 @@ else
     
     echo "   ✓ 已同步 main.js 和 manifest.json"
     echo "   ✓ data.json 保持不变"
+    
 fi
 
 echo ""

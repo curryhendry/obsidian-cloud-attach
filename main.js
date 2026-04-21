@@ -259,6 +259,7 @@ Object.assign(I18n.translations.en, {
   'notice.s3_test_error': '❌ Connection error: {error}',
   'notice.plugin_reloaded': '✅ CloudAttach reloaded',
   'notice.reload_failed': '❌ Reload failed: {error}',
+  'notice.reload_failed': '❌ Reload failed: {error}',
   'notice.connect_success': '✅ Connection successful',
   'notice.connect_failed': '❌ Connection failed',
 
@@ -2295,6 +2296,37 @@ module.exports = class CloudAttachPlugin extends Plugin {
         }
       }
     });
+
+    // ---- 开发模式：监听 main.js 变化自动重载 ----
+    if (this.app.isMobile === false) {
+      try {
+        const { watch } = require('fs');
+        const pluginDir = this.manifestDir || this.app.vault.pluginManifests?.cloud-attach?.dir;
+        if (pluginDir) {
+          const mainJsPath = require('path').join(pluginDir, 'main.js');
+          let reloadTimer = null;
+          const watcher = watch(mainJsPath, (eventType) => {
+            if (eventType === 'change') {
+              // 防抖：500ms 内多次变更只触发一次
+              if (reloadTimer) clearTimeout(reloadTimer);
+              reloadTimer = setTimeout(async () => {
+                console.log('[CloudAttach] main.js changed, auto-reloading...');
+                new Notice('🔄 CloudAttach auto-reloading...', 2000);
+                try {
+                  await this.app.plugins.disablePlugin('cloud-attach');
+                  await this.app.plugins.enablePlugin('cloud-attach');
+                } catch (e) {
+                  console.error('[CloudAttach] auto-reload failed:', e);
+                }
+              }, 500);
+            }
+          });
+          this.register(() => watcher.close());
+        }
+      } catch (e) {
+        // fs/watch 不可用时静默忽略
+      }
+    }
 
     // ---- Sign 检查与刷新命令 ----
     this.addCommand({
