@@ -160,6 +160,10 @@ Object.assign(I18n.translations.zh, {
   'menu.copy_link': '复制链接',
   'menu.select': '选中',
   'menu.deselect': '取消选中',
+  'menu.refresh_current_url_sign': '刷新当前 URL Sign',
+  'menu.refresh_all_note_sign': '刷新笔记所有 Sign',
+  'menu.upload_current_attach': '上传当前附件',
+  'menu.upload_all_attach': '上传笔记全部附件',
 
   // 工具栏
   'toolbar.refresh_account': '刷新账户',
@@ -336,6 +340,10 @@ Object.assign(I18n.translations.en, {
   'menu.copy_link': 'Copy Link',
   'menu.select': 'Select',
   'menu.deselect': 'Deselect',
+  'menu.refresh_current_url_sign': 'Refresh Current URL Sign',
+  'menu.refresh_all_note_sign': 'Refresh All Sign in Note',
+  'menu.upload_current_attach': 'Upload Current Attachment',
+  'menu.upload_all_attach': 'Upload All Attachments in Note',
 
   'toolbar.refresh_account': 'Refresh Account',
   'settings.s3_type_label': 'Object Storage (S3)',
@@ -3067,8 +3075,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
       // 检查本地文件是否存在（先用精确路径，再尝试模糊匹配）
       let file = this.app.vault.getAbstractFileByPath(att.localPath);
       if (!file) {
-        // wiki-link 可能只写了文件名，用 metadataCache 解析
-        const resolved = this.app.metadataCache.getFirstLinkpathDest(att.localPath, '/');
+        // wiki-link 可能只写了文件名，用 metadataCache 解析（注意第二个参数是当前笔记路径，用于相对路径解析）
+        const resolved = this.app.metadataCache.getFirstLinkpathDest(att.localPath, notePath);
         if (resolved) {
           file = resolved;
           att.localPath = resolved.path;
