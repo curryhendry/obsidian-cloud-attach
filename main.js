@@ -3115,13 +3115,42 @@ module.exports = class CloudAttachPlugin extends Plugin {
       
       for (const rep of replacements) {
         // 替换 Markdown 语法中的本地路径为新的云端 URL
+        // 根据文件扩展名决定引用格式：图片用 ![](url)，其他用 [文件名](url)
+        const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico'];
+        const ext = rep.localPath.split('.').pop().toLowerCase();
+        const isImage = imageExts.includes(ext);
+        
+        // 提取原始文件名（不带路径）
+        const fileName = rep.localPath.split('/').pop();
+        
         let newSyntax;
         if (rep.oldSyntax.startsWith('![[')) {
           // wiki-link 格式: ![[path]] 或 ![[path|alias]]
-          newSyntax = `![](${rep.newUrl})`;
+          // 提取别名（如果有）
+          const aliasMatch = rep.oldSyntax.match(/!\[\[([^\]|]+)(?:\|([^\]]*))?\]\]/);
+          const alias = aliasMatch?.[2] || fileName;
+          
+          if (isImage) {
+            newSyntax = `![${alias}](${rep.newUrl})`;
+          } else {
+            // PDF 等非图片文件，转为普通链接
+            newSyntax = `[${alias}](${rep.newUrl})`;
+          }
+        } else if (rep.oldSyntax.startsWith('![')) {
+          // 标准 markdown 图片格式: ![alt](path)
+          // 提取 alt 文本
+          const altMatch = rep.oldSyntax.match(/!\[([^\]]*)\]\(/);
+          const alt = altMatch?.[1] || '';
+          
+          if (isImage) {
+            newSyntax = `![${alt}](${rep.newUrl})`;
+          } else {
+            // 非图片但用了 ![...] 格式，转为普通链接
+            newSyntax = `[${alt || fileName}](${rep.newUrl})`;
+          }
         } else {
-          // 标准 markdown 格式: ![alt](path)
-          newSyntax = rep.oldSyntax.replace(/!\[([^\]]*)\]\([^)]+\)/, `![](${rep.newUrl})`);
+          // 其他格式，保持原样替换 URL
+          newSyntax = rep.oldSyntax.replace(/file:\S+/, rep.newUrl);
         }
         text = text.replace(rep.oldSyntax, newSyntax);
         
