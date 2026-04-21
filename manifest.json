@@ -1,7 +1,7 @@
 {
   "id": "cloud-attach",
   "name": "CloudAttach",
-  "version": "v0.1.088",
+  "version": "v0.1.090",
   "minAppVersion": "1.0.0",
   "description": "Connect to OpenList and manage cloud attachments, insert signed file links into notes.",
   "author": "Garry",
