@@ -444,6 +444,38 @@ class OpenListClient {
     this.password = account.password;
     this.app = app;
   }
+  /**
+   * 登录获取 token（用于 API 操作）
+   * @returns {Promise<boolean>}
+   */
+  async login() {
+    if (this.token) return true;
+    if (!this.username || !this.password) return false;
+    
+    try {
+      const url = `${this.serverUrl}/api/auth/login`;
+      const response = await this.requestViaObsidian(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: this.username, password: this.password })
+      });
+      
+      if (response.ok) {
+        const data = JSON.parse(response.text);
+        if (data.code === 200 && data.data?.token) {
+          this.token = data.data.token;
+          console.log('[CloudAttach] login success, token obtained');
+          return true;
+        }
+      }
+      console.log('[CloudAttach] login failed:', response.text);
+      return false;
+    } catch (e) {
+      console.log('[CloudAttach] login error:', e.message);
+      return false;
+    }
+  }
+
 
   /**
    * 通过 Obsidian requestUrl 发请求（绕过 CORS，适用于 WebDAV）
@@ -722,6 +754,7 @@ class OpenListClient {
    */
   async delete(paths) {
     const results = { success: [], failed: [] };
+    await this.login();
     for (const fullPath of paths) {
       const dir = fullPath.substring(0, fullPath.lastIndexOf("/")).replace(/\/$/, "") || '/';
       const name = fullPath.substring(fullPath.lastIndexOf('/') + 1);
@@ -757,6 +790,7 @@ class OpenListClient {
    */
   async rename(path, newName) {
     const dst = path.substring(0, path.lastIndexOf("/") + 1).replace(/\/$/, "") + "/" + newName;
+    await this.login();
     console.log("[CloudAttach] rename API:", `${this.baseUrl}/api/fs/rename`, "src:", path, "dst:", dst);
     const response = await this.requestViaObsidian(`${this.baseUrl}/api/fs/rename`, {
       method: 'POST',
