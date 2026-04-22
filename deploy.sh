@@ -16,12 +16,12 @@ cd "$SCRIPT_DIR"
 # 1. 自动版本号
 # ----------------------------------------------------------
 # 手动指定版本号（可选）
+# 不指定时使用 manifest.json 中的版本号
 VERSION=${VERSION:-}
 if [ -z "$VERSION" ]; then
-  COUNT=$(git rev-list --count HEAD)
-  VERSION="v0.1.$(printf "%03d" $COUNT)"
+  # 读取 manifest.json 中的 version
+  VERSION=$(node -e "console.log(require('./manifest.json').version)")
 fi
-VERSION="v0.1.$(printf '%03d' $COUNT)"
 
 echo "==> 版本: $VERSION"
 
