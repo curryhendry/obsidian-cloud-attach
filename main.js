@@ -824,12 +824,1094 @@ class OpenListClient {
             // 非 JSON，忽略
           }
           results.success.push(fullPath);
+        } else {
+        console.log("[CloudAttach] delete response:", response.status, response.text);
+        if (response.ok) {
+          // 检查响应体是否有错误
+          try {
+            const data = JSON.parse(response.text);
+            if (data.code !== 200) {
+              results.failed.push({ path: fullPath, error: data.message || JSON.stringify(data) });
+              continue;
+            }
+          } catch (e) {
+            // 非 JSON，忽略
+          }
+          results.success.push(fullPath);
+        } else {
+        console.log("[CloudAttach] delete response:", response.status, response.text);
+        if (response.ok) {
+          // 检查响应体是否有错误
+          try {
+            const data = JSON.parse(response.text);
+            if (data.code !== 200) {
+              results.failed.push({ path: fullPath, error: data.message || JSON.stringify(data) });
+              continue;
+            }
+          } catch (e) {
+            // 非 JSON，忽略
+          }
+          results.success.push(fullPath);
+        } else {
+        console.log("[CloudAttach] delete response:", response.status, response.text);
+        if (response.ok) {
+          // 检查响应体是否有错误
+          try {
+            const data = JSON.parse(response.text);
+            if (data.code !== 200) {
+              results.failed.push({ path: fullPath, error: data.message || JSON.stringify(data) });
+              continue;
+            }
+          } catch (e) {
+            // 非 JSON，忽略
+          }
+          results.success.push(fullPath);
+        } else {
+        console.log("[CloudAttach] delete response:", response.status, response.text);
+        if (response.ok) {
+          // 检查响应体是否有错误
+          try {
+            const data = JSON.parse(response.text);
+            if (data.code !== 200) {
+              results.failed.push({ path: fullPath, error: data.message || JSON.stringify(data) });
+              continue;
+            }
+          } catch (e) {
+            // 非 JSON，忽略
+          }
+          results.success.push(fullPath);
+        } else {
+        console.log("[CloudAttach] delete response:", response.status, response.text);
+        if (response.ok) {
+          // 检查响应体是否有错误
+          try {
+            const data = JSON.parse(response.text);
+            if (data.code !== 200) {
+              results.failed.push({ path: fullPath, error: data.message || JSON.stringify(data) });
+              continue;
+            }
+          } catch (e) {
+            // 非 JSON，忽略
+          }
+          results.success.push(fullPath);
+        } else {
+        console.log("[CloudAttach] delete response:", response.status, response.text);
+        if (response.ok) {
+          // 检查响应体是否有错误
+          try {
+            const data = JSON.parse(response.text);
+            if (data.code !== 200) {
+              results.failed.push({ path: fullPath, error: data.message || JSON.stringify(data) });
+              continue;
+            }
+          } catch (e) {
+            // 非 JSON，忽略
+          }
+          results.success.push(fullPath);
+        } else {
+        console.log("[CloudAttach] delete response:", response.status, response.text);
+        if (response.ok) {
+          // 检查响应体是否有错误
+          try {
+            const data = JSON.parse(response.text);
+            if (data.code !== 200) {
+              results.failed.push({ path: fullPath, error: data.message || JSON.stringify(data) });
+              continue;
+            }
+          } catch (e) {
+            // 非 JSON，忽略
+          }
+          results.success.push(fullPath);
+        } else {
+  }
+
+  /**
+   * @param {string} path - 原路径
+   * @param {string} newName - 新文件名
+   * @returns {Promise<void>}
+   */
+  async rename(path, newName) {
+    const dst = path.substring(0, path.lastIndexOf('/')) + '/' + newName;
+    console.log("[CloudAttach] rename API: src:", path, "dst:", dst);
+    const response = await this.authFetch('/api/fs/rename', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ src: path, dst })
+    });
+    console.log("[CloudAttach] rename response:", response.status, response.text);
+    // Alist API 返回 {code: 200, message: "success", data: null}
+    try {
+      const data = JSON.parse(response.text);
+      if (data.code !== 200) {
+        throw new Error(data.message || JSON.stringify(data));
+      }
+    } catch (e) {
+      if (e.message.includes("JSON")) throw e;
+    }
+    if (!response.ok) {
+      throw new Error(response.text || "Rename failed");
+    }
+  }
+
+  async listDirectory(remotePath = '/') {
+    if (this.webdavPath) return this.listDirectoryWebDAV(remotePath);
+    return this.listDirectoryAPI(remotePath);
+  }
+
+  /**
+   * 上传文件到远程目录
+   * @param {string} localPath - 本地文件路径（vault 内）
+   * @param {string} remoteDir - 远程目录路径（以 / 开头）
+   * @returns {Promise<{ok: boolean, remotePath: string, url: string, error?: string}>}
+   */
+  async uploadFile(localPath, remoteDir) {
+    try {
+      // 获取 vault 中的文件
+      const file = this.app.vault.getAbstractFileByPath(localPath);
+      if (!file) {
+        return { ok: false, error: t('error.local_file_not_found') };
+      }
+
+      const fileName = file.name;
+      // 确保远程目录以 / 结尾
+      const normalizedDir = remoteDir.endsWith('/') ? remoteDir : remoteDir + '/';
+      const remotePath = normalizedDir + fileName;
+
+      // 读取文件内容
+      let content;
+      if (file instanceof require('obsidian').TFile) {
+        content = await this.app.vault.readBinary(file);
+      } else {
+        return { ok: false, error: t('error.unsupported_type') };
+      }
+
+      // 构造上传 URL
+      const uploadUrl = `${this.serverUrl}${this.webdavPath}${remotePath}`;
+
+      console.log('[CloudAttach] 上传文件:', localPath, '->', uploadUrl);
+
+      // 使用 WebDAV PUT 上传
+      const response = await this.requestViaObsidian(uploadUrl, {
+        method: 'PUT',
+        headers: {
+          'Authorization': 'Basic ' + btoa(`${this.username}:${this.password}`),
+          'Content-Type': this.getMimeType(fileName),
+        },
+        body: content
+      });
+
+      if (response.ok || response.status === 201 || response.status === 204) {
+        // 上传成功，获取带签名的 URL
+        let url;
+        try {
+          url = await this.getSignedUrl(remotePath);
+        } catch {
+          // 如果获取签名失败，返回 WebDAV URL
+          url = uploadUrl;
         }
+        return { ok: true, remotePath, url };
+      } else {
+        return { ok: false, error: t('error.upload_failed', {status: response.status}) };
+      }
+    } catch (e) {
+      console.error('[CloudAttach] uploadFile error:', e);
+      return { ok: false, error: e.message };
+    }
+  }
+
+  getMimeType(filename) {
+    const ext = filename.split('.').pop()?.toLowerCase() || '';
+    const mimeTypes = {
+      'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png',
+      'gif': 'image/gif', 'webp': 'image/webp', 'svg': 'image/svg+xml',
+      'pdf': 'application/pdf', 'mp4': 'video/mp4', 'mov': 'video/quicktime',
+      'mp3': 'audio/mpeg', 'wav': 'audio/wav', 'zip': 'application/zip',
+      'doc': 'application/msword', 'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'xls': 'application/vnd.ms-excel', 'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'md': 'text/markdown', 'txt': 'text/plain', 'html': 'text/html',
+    };
+    return mimeTypes[ext] || 'application/octet-stream';
+  }
+
+  async listDirectoryWebDAV(remotePath) {
+    const webdavUrl = `${this.serverUrl}${this.webdavPath}${remotePath}`;
+    const propfindBody = `<?xml version="1.0" encoding="utf-8" ?><D:propfind xmlns:D="DAV:"><D:prop><D:displayname/><D:getcontentlength/><D:getlastmodified/><D:resourcetype/></D:prop></D:propfind>`;
+    
+    const response = await this.requestViaObsidian(webdavUrl, {
+      method: 'PROPFIND',
+      headers: {
+        'Authorization': 'Basic ' + btoa(`${this.username}:${this.password}`),
+        'Content-Type': 'application/xml',
+        'Depth': '1'
+      },
+      body: propfindBody
+    });
+
+    if (!response.ok && response.status !== 207) throw new Error(`WebDAV error: ${response.status}`);
+
+    const text = response.text;
+    const files = [];
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(text, 'text/xml');
+    const responses = doc.getElementsByTagName('D:response');
+    
+    for (let i = 0; i < responses.length; i++) {
+      const resp = responses[i];
+      const href = resp.getElementsByTagName('D:href')[0]?.textContent || '';
+      const displayName = resp.getElementsByTagName('D:displayname')[0]?.textContent || '';
+      const contentLength = parseInt(resp.getElementsByTagName('D:getcontentlength')[0]?.textContent || '0');
+      const isDirectory = resp.getElementsByTagName('D:collection')[0] !== undefined;
+      const decodedHref = decodeURIComponent(href);
+      const name = displayName || decodedHref.split('/').pop();
+      
+      let relativePath = decodedHref;
+      if (relativePath.startsWith(this.webdavPath)) {
+        relativePath = relativePath.slice(this.webdavPath.length) || '/';
+      }
+      
+      if (relativePath === remotePath || relativePath === remotePath + '/') continue;
+      
+      files.push({ name, path: relativePath, isDirectory, size: contentLength });
+    }
+
+    return files.sort((a, b) => {
+      if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+  }
+
+  async listDirectoryAPI(remotePath = '/') {
+    const apiUrl = `${this.serverUrl}/api/fs/list`;
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': this.token ? `Bearer ${this.token}` : ''
+      },
+      body: JSON.stringify({
+        path: remotePath,
+        password: this.password || '',
+        username: this.username || '',
+        page: 1,
+        per_page: 0
+      })
+    });
+
+    if (!response.ok) throw new Error(`API error: ${response.status}`);
+    const data = await response.json();
+    console.log('[CloudAttach] listDirectory response:', data);
+    const files = [];
+
+    if (data.data?.files) {
+      for (const file of data.data.files) {
+        files.push({
+          name: file.name,
+          path: file.path,
+          isDirectory: file.is_dir,
+          size: file.size || 0
+        });
+      }
+    }
+
+    return files.sort((a, b) => {
+      if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+  }
+}
+
+/**
+ * S3 兼容对象存储客户端
+ * 支持所有使用 S3 协议的对象存储服务：
+ * - 腾讯云 COS
+ * - 阿里云 OSS
+ * - AWS S3
+ * - 兼容 S3 的自建存储（MinIO、Ceph RGW 等）
+ */
+class S3Client {
+  constructor(account, app) {
+    this.app = app;
+    this.endpoint = account.endpoint?.replace(/\/$/, '') || '';
+    this.bucket = account.bucket || '';
+    this.region = account.region || '';
+    this.accessKey = account.accessKey || '';
+    this.secretKey = account.secretKey || '';
+    this.publicUrl = account.publicUrl?.replace(/\/$/, '') || '';
+    this.prefix = account.prefix ? account.prefix.replace(/^\/+|\/+$/g, '') + '/' : '';
+  }
+
+  /**
+   * 通过 Obsidian requestUrl 发请求，绕过 CORS
+   */
+  async requestViaObsidian(url, options = {}) {
+    let requestUrl = null;
+    try {
+      requestUrl = require('obsidian').requestUrl;
+    } catch {
+      requestUrl = globalThis.requestUrl || this.app?.requestUrl;
+    }
+
+    if (requestUrl) {
+      try {
+        const result = await requestUrl({
+          url,
+          method: options.method || 'GET',
+          headers: options.headers || {},
+          body: options.body || undefined,
+        });
+        return {
+          status: result.status,
+          text: result.text,
+          ok: result.status >= 200 && result.status < 300,
+        };
+      } catch (e) {
+        const errStr = e.message || String(e);
+        const statusMatch = errStr.match(/status\s+(\d+)/i);
+        const status = statusMatch ? parseInt(statusMatch[1], 10) : (e.status || 0);
+        return { ok: false, status, error: errStr };
+      }
+    }
+    // fallback to fetch
+    const resp = await fetch(url, {
+      method: options.method || 'GET',
+      headers: options.headers || {},
+      body: options.body || undefined,
+    });
+    return { status: resp.status, ok: resp.ok, text: await resp.text().catch(() => '') };
+  }
+
+  /**
+   * 列出目录内容
+   * @param {string} remotePath - 远程路径，如 "/" 或 "/folder/"
+   * @returns {Promise<Array>} 文件列表
+   */
+  async listDirectory(remotePath = '/') {
+    try {
+      // 规范化路径：去除两端斜杠，转为 prefix 格式
+      const cleanPath = remotePath === '/' ? '' : remotePath.replace(/^\/|\/$/g, '');
+      // S3 prefix：拼接 base prefix + 当前路径（不以 / 开头）
+      const basePrefix = this.prefix ? this.prefix.replace(/\/$/, '') : '';
+      const s3Prefix = cleanPath 
+        ? (basePrefix ? basePrefix + '/' + cleanPath + '/' : cleanPath + '/')
+        : (basePrefix ? basePrefix + '/' : '');
+
+      console.log('[CloudAttach] listDirectory remotePath:', remotePath, 'cleanPath:', cleanPath, 's3Prefix:', s3Prefix);
+
+      const params = new URLSearchParams({
+        'list-type': '2',
+        'prefix': s3Prefix,
+        'delimiter': '/',
+        'encoding-type': 'url'
+      });
+
+      const response = await this.s3Request(`/?${params.toString()}`, 'GET');
+
+      if (!response.ok) {
+        throw new Error(`S3 error: ${response.status}`);
+      }
+
+      const text = typeof response.text === 'function' ? await response.text() : (response.text || '');
+      console.log('[CloudAttach] listDirectory response:', text.substring(0, 500));
+      return this.parseListResult(text, s3Prefix);
+    } catch (e) {
+      console.error('[CloudAttach] S3 listDirectory error:', e);
+      throw e;
+    }
+  }
+
+  /**
+   * 构造文件公共访问 URL（无签名，适用于公共读桶）
+   * @param {string} remotePath - 远程路径，如 "/images/photo.jpg"
+   * @returns {string} 公共 URL
+   */
+  getFileUrl(remotePath) {
+    // 去除前缀的尾斜杠，拼到 publicUrl
+    const basePrefix = this.prefix ? this.prefix.replace(/\/$/, '') : '';
+    const cleanPath = remotePath.replace(/^\/+/, '');
+    const fullPath = basePrefix ? `${basePrefix}/${cleanPath}` : cleanPath;
+    // 编码规则：保留中文原文，仅编码必须转义的字符
+    const safePath = fullPath.replace(/[%\s#?&<>"'\\|{}]/g, c => encodeURIComponent(c));
+    // publicUrl 可能是裸域名（无协议），自动补 https://
+    const base = this.publicUrl.startsWith('http') ? this.publicUrl : `https://${this.publicUrl}`;
+    return `${base}/${safePath}`;
+  }
+
+  /**
+   * 获取文件预签名 URL（适用于私有桶，按需签名）
+   * @param {string} remotePath - 远程路径
+   * @param {number} expires - 过期时间（秒），默认 3600
+   * @returns {Promise<string>} 预签名 URL
+   */
+  async getSignedUrl(remotePath, expires = 3600) {
+    try {
+      const cleanPath = remotePath.replace(/^\/+/, '');
+      const params = new URLSearchParams({ 'X-Amz-Expires': expires.toString() });
+      const signedQuery = await this.signQuery(params, cleanPath);
+      const objectKey = encodeURIComponent(cleanPath);
+      return `${this.endpoint}/${this.bucket}/${objectKey}?${signedQuery}`;
+    } catch (e) {
+      console.error('[CloudAttach] S3 getSignedUrl error:', e);
+      throw e;
+    }
+  }
+
+  /**
+   * 上传文件到 S3
+   * @param {string} localPath - vault 内文件路径
+   * @param {string} remoteDir - 远程目录路径（以 / 开头）
+   * @returns {Promise<{ok: boolean, remotePath: string, url: string, error?: string}>}
+   */
+  async uploadFile(localPath, remoteDir) {
+    try {
+      const file = this.app.vault.getAbstractFileByPath(localPath);
+      if (!file) return { ok: false, error: t('error.local_file_not_found') };
+
+      const fileName = file.name;
+      const TFile = require('obsidian').TFile;
+      if (!(file instanceof TFile)) return { ok: false, error: t('error.unsupported_type') };
+
+      const content = await this.app.vault.readBinary(file);
+      const normalizedDir = remoteDir.endsWith('/') ? remoteDir : remoteDir + '/';
+      // 拼接 S3 object key: prefix + remoteDir + fileName
+      const basePrefix = this.prefix ? this.prefix.replace(/\/$/, '') : '';
+      const dirClean = normalizedDir.replace(/^\/+/, '');
+      const objectKey = basePrefix ? `${basePrefix}/${dirClean}${fileName}` : `${dirClean}${fileName}`;
+      const remotePath = `${normalizedDir}${fileName}`;
+
+      // 用 presigned URL PUT 上传（通过 requestViaObsidian 绕过 CORS）
+      const mimeType = this.getMimeType(fileName);
+      const params = new URLSearchParams({ 'X-Amz-Expires': '3600' });
+      const signedQuery = await this.signQuery(params, objectKey, 'PUT', { 'content-type': mimeType });
+      const encodedKey = encodeURIComponent(objectKey);
+      const uploadUrl = `${this.endpoint}/${this.bucket}/${encodedKey}?${signedQuery}`;
+
+      const response = await this.requestViaObsidian(uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': this.getMimeType(fileName) },
+        body: content
+      });
+
+      if (response.ok || response.status === 200) {
+        const url = this.getFileUrl(remotePath);
+        return { ok: true, remotePath, url };
+      } else {
+        return { ok: false, error: t('error.s3_upload_failed', {status: response.status}) };
+      }
+    } catch (e) {
+      console.error('[CloudAttach] S3 uploadFile error:', e);
+      return { ok: false, error: e.message };
+    }
+  }
+
+  getMimeType(filename) {
+    const ext = filename.split('.').pop()?.toLowerCase() || '';
+    const mimeTypes = {
+      'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png',
+      'gif': 'image/gif', 'webp': 'image/webp', 'svg': 'image/svg+xml',
+      'pdf': 'application/pdf', 'mp4': 'video/mp4', 'mov': 'video/quicktime',
+      'mp3': 'audio/mpeg', 'wav': 'audio/wav', 'zip': 'application/zip',
+      'doc': 'application/msword', 'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'xls': 'application/vnd.ms-excel', 'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'ppt': 'application/vnd.ms-powerpoint', 'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'txt': 'text/plain', 'md': 'text/markdown', 'html': 'text/html',
+      'json': 'application/json', 'csv': 'text/csv'
+    };
+    return mimeTypes[ext] || 'application/octet-stream';
+  }
+
+  /**
+   * 测试连接
+   * @returns {Promise<boolean>}
+   */
+  async testConnection() {
+    try {
+      const diagUrl = `${this.endpoint}/${this.bucket}/?list-type=2&max-keys=1`;
+      const usingAppUrl = !!(this.app && this.app.requestUrl);
+      console.log('[CloudAttach] S3 testConnection URL:', diagUrl);
+      console.log('[CloudAttach] S3 config - endpoint:', this.endpoint, 'bucket:', this.bucket, 'region:', this.region, 'accessKey:', this.accessKey ? '(set)' : '(empty)', '| using app.requestUrl:', usingAppUrl);
+      const response = await this.s3Request(`/?list-type=2&max-keys=1`, 'GET');
+      const status = response.status;
+      const text = typeof response.text === 'function' ? await response.text().catch(() => '') : (response.text || '');
+      console.log('[CloudAttach] S3 testConnection status:', status, 'body:', text.slice(0, 200));
+      // 403 = 签名正确但无权限，401 = 签名错误，其他 2xx = 成功
+      if (status === 403) {
+        new Notice(t('notice.s3_test_403') + ` body: ${text.slice(0, 100)}`, 5000);
+        return true;
+      }
+      if (status === 401) {
+        new Notice(t('notice.s3_test_401'), 5000);
+        return false;
+      }
+      if (status === 404) {
+        new Notice(t('notice.s3_test_404'), 5000);
+        return false;
+      }
+      if (response.ok) {
+        new Notice(`t('notice.s3_test_ok') body: ${text.slice(0, 80)}`, 5000);
+        return true;
+      }
+      new Notice(t('notice.s3_test_failed', {status}) + ` body: ${text.slice(0, 80)}`, 5000);
+      return false;
+    } catch (e) {
+      console.error('[CloudAttach] S3 testConnection error:', e);
+      new Notice(t('notice.s3_test_error', {error: e.message}), 5000);
+      return false;
+    }
+  }
+
+  // ============ 内部方法 ============
+
+  /**
+   * 发送 S3 请求（自动附加 AWS Signature V4 签名）
+   * @param {string} path - 请求路径（相对桶）
+   * @param {string} method - HTTP 方法
+   * @param {Object} options - fetch 选项
+   * @returns {Promise<Response>}
+   */
+  async s3Request(path, method = 'GET', options = {}) {
+    // 用 presigned URL 方式，绕过 CORS
+    const url = `${this.endpoint}/${this.bucket}${path}`;
+    const urlObj = new URL(url);
+    // pathname = /obsidian-attachments/ 或 /obsidian-attachments/path/to/file
+    // 去掉 bucket 前缀，得到 objectKey
+    const prefix = `/${this.bucket}/`;
+    const objectKey = urlObj.pathname.startsWith(prefix) 
+      ? urlObj.pathname.slice(prefix.length) 
+      : urlObj.pathname.slice(1); // fallback
+    
+    // 构建查询参数
+    const params = new URLSearchParams(urlObj.search);
+    const signedQuery = await this.signQuery(params, objectKey);
+    
+    // 拼接 URL：endpoint/bucket/objectKey?signedQuery
+    const baseUrl = objectKey 
+      ? `${this.endpoint}/${this.bucket}/${objectKey}`
+      : `${this.endpoint}/${this.bucket}`;
+    const signedUrl = `${baseUrl}?${signedQuery}`;
+    
+    return this.requestViaObsidian(signedUrl, { method: 'GET', ...options });
+  }
+
+  /**
+   * AWS Signature V4 签名
+   */
+  async signRequest(method, url, headers, dateStr) {
+    const dateOnly = dateStr.slice(0, 8);
+    const signedHeaders = {};
+    const credential = `${this.accessKey}/${dateOnly}/${this.region}/s3/aws4_request`;
+    const signedHeaderNames = ['host', 'x-amz-content-sha256', 'x-amz-date'].sort().join(';');
+    signedHeaders['host'] = headers['Host'];
+    signedHeaders['x-amz-content-sha256'] = 'UNSIGNED-PAYLOAD';
+    signedHeaders['x-amz-date'] = headers['X-Amz-Date'];
+    const signature = await this.computeSignature(method, url, signedHeaders, dateStr);
+    signedHeaders['Authorization'] = `AWS4-HMAC-SHA256 Credential=${credential}, SignedHeaders=${signedHeaderNames}, Signature=${signature}`;
+    return signedHeaders;
+  }
+
+  async computeSignature(method, url, signedHeaders, dateStr) {
+    const dateOnly = dateStr.slice(0, 8);
+
+    const urlObj = new URL(url);
+    // URL 已包含 bucket（格式: https://endpoint/bucket/path），直接用 pathname
+    const canonicalUri = encodeURIComponent(urlObj.pathname.replace(/\\/g, '/')).replace(/%2F/g, '/');
+    const canonicalQueryString = urlObj.search.slice(1).split('&').filter(Boolean).sort().map(p => {
+      const [k, v] = p.split('=');
+      return `${encodeURIComponent(k)}=${encodeURIComponent(v || '')}`;
+    }).join('&');
+
+    const sortedHeaders = Object.entries(signedHeaders)
+      .sort((a, b) => a[0].toLowerCase().localeCompare(b[0].toLowerCase()));
+    const signedHeadersLine = sortedHeaders.map(([k]) => k).join(';');
+
+    const canonicalRequest = [
+      method.toUpperCase(),
+      canonicalUri,
+      canonicalQueryString,
+      canonicalHeaders,
+      signedHeadersLine,
+      'UNSIGNED-PAYLOAD'
+    ].join('\n');
+
+    const canonicalHash = await this.sha256(canonicalRequest);
+    const stringToSign = [`AWS4-HMAC-SHA256`, dateStr, `${dateOnly}/${this.region}/s3/aws4_request`, canonicalHash].join('\n');
+
+    const kDate = await this.hmacSha256(`AWS4${this.secretKey}`, dateOnly);
+    const kRegion = await this.hmacSha256(kDate, this.region);
+    const kService = await this.hmacSha256(kRegion, 's3');
+    const kSigning = await this.hmacSha256(kService, 'aws4_request');
+    const signature = await this.hmacSha256Hex(kSigning, stringToSign);
+
+    return signature;
+  }
+
+  async signQuery(additionalParams, objectKey, method = 'GET', extraHeaders = {}) {
+    const now = new Date();
+    const dateStr = now.toISOString().replace(/[:-]|\.\d{3}/g, '');
+    const dateOnly = dateStr.slice(0, 8);
+
+    // 构建签名 headers：host + 额外 headers
+    const hostHeader = { 'host': new URL(this.endpoint).host };
+    const allSignedHeaders = { ...hostHeader, ...extraHeaders };
+    const signedHeaderNames = Object.keys(allSignedHeaders).sort().join(';');
+
+    const params = {
+      'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
+      'X-Amz-Credential': `${this.accessKey}/${dateOnly}/${this.region}/s3/aws4_request`,
+      'X-Amz-Date': dateStr,
+      'X-Amz-Expires': '3600',
+      'X-Amz-SignedHeaders': signedHeaderNames,
+      ...Object.fromEntries(additionalParams.entries())
+    };
+
+    const sortedParams = Object.entries(params).sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0);
+    const canonicalQueryString = sortedParams.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');
+    const canonicalUri = objectKey 
+      ? encodeURIComponent(`/${this.bucket}/${objectKey}`).replace(/%2F/g, '/')
+      : encodeURIComponent(`/${this.bucket}`).replace(/%2F/g, '/');
+
+    const sortedHeaderEntries = Object.entries(allSignedHeaders).sort((a, b) => a[0].localeCompare(b[0]));
+
+    const canonicalRequest = [method.toUpperCase(), canonicalUri, canonicalQueryString, canonicalHeaders, signedHeaderNames, 'UNSIGNED-PAYLOAD'].join('\n');
+    const canonicalHash = await this.sha256(canonicalRequest);
+    const stringToSign = [`AWS4-HMAC-SHA256`, dateStr, `${dateOnly}/${this.region}/s3/aws4_request`, canonicalHash].join('\n');
+
+    const kDate = await this.hmacSha256(`AWS4${this.secretKey}`, dateOnly);
+    const kRegion = await this.hmacSha256(kDate, this.region);
+    const kService = await this.hmacSha256(kRegion, 's3');
+    const kSigning = await this.hmacSha256(kService, 'aws4_request');
+    const signature = await this.hmacSha256Hex(kSigning, stringToSign);
+
+    return canonicalQueryString + `&X-Amz-Signature=${signature}`;
+  }
+
+  async sha256(text) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(text);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  async hmacSha256(key, data) {
+    const encoder = new TextEncoder();
+    const keyBytes = key instanceof Uint8Array ? key : encoder.encode(key);
+    const cryptoKey = await crypto.subtle.importKey(
+      'raw', keyBytes, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+    );
+    const signature = await crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(data));
+    return new Uint8Array(signature);
+  }
+
+  async hmacSha256Hex(key, data) {
+    const encoder = new TextEncoder();
+    const cryptoKey = await crypto.subtle.importKey(
+      'raw', key, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+    );
+    const signature = await crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(data));
+    return Array.from(new Uint8Array(signature)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  /**
+   * 解析 ListObjectsV2 XML 响应
+   * @param {string} xmlText - XML 文本
+   * @param {string} currentPrefix - 当前前缀
+   * @returns {Array} 文件列表
+   */
+  parseListResult(xmlText, currentPrefix) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(xmlText, 'application/xml');
+    const files = [];
+
+    // CommonPrefixes = 子目录
+    const commonPrefixes = doc.getElementsByTagName('CommonPrefixes');
+    for (let i = 0; i < commonPrefixes.length; i++) {
+      const prefix = commonPrefixes[i].getElementsByTagName('Prefix')[0]?.textContent || '';
+      // S3 返回的 prefix 是 URL 编码的，需要解码
+      const decodedPrefix = decodeURIComponent(prefix);
+      const decodedCurrentPrefix = decodeURIComponent(currentPrefix);
+      const name = decodedPrefix.slice(decodedCurrentPrefix.length).replace(/\/$/, '');
+      // path 应该是完整路径，包含父目录
+      const fullPath = decodedPrefix.replace(/\/$/, '');
+      files.push({ name, path: '/' + fullPath + '/', isDirectory: true, size: 0 });
+    }
+
+    // Contents = 文件
+    const contents = doc.getElementsByTagName('Contents');
+    for (let i = 0; i < contents.length; i++) {
+      const keyEl = contents[i].getElementsByTagName('Key')[0];
+      const sizeEl = contents[i].getElementsByTagName('LastModified')[0];
+      const key = keyEl?.textContent || '';
+      const lastModified = sizeEl?.textContent || '';
+
+      if (!key || key === currentPrefix) continue;
+      if (key.endsWith('/')) continue; // 目录占位符跳过
+
+      // S3 返回的 key 是 URL 编码的，需要解码
+      const decodedKey = decodeURIComponent(key);
+      const decodedCurrentPrefix = decodeURIComponent(currentPrefix);
+      const relativePath = decodedKey.slice(decodedCurrentPrefix.length);
+      const name = relativePath.split('/').pop();
+
+      const size = parseInt(contents[i].getElementsByTagName('Size')[0]?.textContent || '0');
+
+      // path 应该是完整路径
+      files.push({ name, path: '/' + decodedKey, isDirectory: false, size, lastModified });
+    }
+
+    return files.sort((a, b) => {
+      if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+  }
+
+  /**
+   * 通用 S3 请求（直接 Authorization header，非 presigned URL）
+   * @param {string} objectKey - S3 object key（不含 /bucket/ 前缀）
+   * @param {string} method - HTTP 方法
+   * @param {Object} extraHeaders - 额外请求头
+   * @returns {Promise<{ok: boolean, status: number, error?: string}>}
+   */
+  async _s3DirectRequest(objectKey, method, extraHeaders = {}) {
+    const host = this.endpoint.replace(/^https?:\/\//, '');
+    const date = new Date();
+    const dateStr = date.toISOString().replace(/[:-]|\.\d{3}/g, '');
+    const dateOnly = dateStr.slice(0, 8);
+
+    const allSignedHeaders = {
+      'host': host,
+      'x-amz-content-sha256': 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+      'x-amz-date': dateStr,
+      ...extraHeaders
+    };
+    const signedHeaderNames = Object.keys(allSignedHeaders).sort().join(';');
+
+    const canonicalUri = objectKey
+      ? encodeURIComponent('/' + this.bucket + '/' + objectKey).replace(/%2F/g, '/')
+      : encodeURIComponent('/' + this.bucket).replace(/%2F/g, '/');
+    const canonicalQueryString = '';
+    const sortedHeaders = Object.entries(allSignedHeaders).sort((a, b) => a[0].localeCompare(b[0]));
+    const canonicalRequest = [method.toUpperCase(), canonicalUri, canonicalQueryString, canonicalHeaders, signedHeaderNames, 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'].join('\n');
+    const canonicalHash = await this._sha256Hex(canonicalRequest);
+    const stringToSign = [`AWS4-HMAC-SHA256`, dateStr, `${dateOnly}/${this.region}/s3/aws4_request`, canonicalHash].join('\n');
+
+    const kDate = await this._hmacSha256(`AWS4${this.secretKey}`, dateOnly);
+    const kRegion = await this._hmacSha256(kDate, this.region);
+    const kService = await this._hmacSha256(kRegion, 's3');
+    const kSigning = await this._hmacSha256(kService, 'aws4_request');
+    const signature = await this._hmacSha256Hex(kSigning, stringToSign);
+
+    const authHeader = [
+      `AWS4-HMAC-SHA256`,
+      `Credential=${this.accessKey}/${dateOnly}/${this.region}/s3/aws4_request`,
+      `SignedHeaders=${signedHeaderNames}`,
+      `Signature=${signature}`
+    ].join(', ');
+
+    const url = `${this.endpoint}/${this.bucket}/${encodeURIComponent(objectKey).replace(/%2F/g, '/')}`;
+    try {
+      const resp = await fetch(url, {
+        method,
+        headers: { ...allSignedHeaders, 'Authorization': authHeader }
+      });
+      return { ok: resp.ok, status: resp.status };
+    } catch (e) {
+      return { ok: false, status: 0, error: e.message };
+    }
+  }
+
+  async _sha256Hex(data) {
+    const msgUint8 = new TextEncoder().encode(data);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+    return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  async _hmacSha256(key, data) {
+    const keyData = new TextEncoder().encode(key);
+    const cryptoKey = await crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    const sig = await crypto.subtle.sign('HMAC', cryptoKey, new TextEncoder().encode(data));
+    return new Uint8Array(sig);
+  }
+
+  async _hmacSha256Hex(key, data) {
+    const sig = await this._hmacSha256(key, data);
+    return Array.from(sig).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  _objectKey(filePath) {
+    const clean = filePath.replace(/^\/+/, '');
+    return this.prefix ? this.prefix.replace(/\/$/, '') + '/' + clean : clean;
+  }
+
+  /**
+   * 删除文件或文件夹（批量）
+   * @param {string[]} paths - 要删除的路径列表
+   * @returns {Promise<{success: string[], failed: Array<{path, error}>}>}
+   */
+  async delete(paths) {
+    const results = { success: [], failed: [] };
+    for (const fullPath of paths) {
+      try {
+        const objectKey = this._objectKey(fullPath);
+        // 判断是文件还是文件夹（文件夹以 / 结尾或通过 listDirectory 判断）
+        const isDir = fullPath.endsWith('/');
+        if (isDir) {
+          // S3 无原生目录，列出所有子对象后逐个删除
+          const dirContents = await this.listDirectory(fullPath);
+          for (const item of dirContents) {
+            const itemKey = this._objectKey(item.path);
+            const r = await this._s3DirectRequest(itemKey, 'DELETE');
+            if (!r.ok) results.failed.push({ path: item.path, error: `HTTP ${r.status}` });
+            else results.success.push(item.path);
+          }
+        } else {
+          const r = await this._s3DirectRequest(objectKey, 'DELETE');
+          if (r.ok) results.success.push(fullPath);
+          else results.failed.push({ path: fullPath, error: `HTTP ${r.status}` });
+        }
+      } catch (e) {
+        results.failed.push({ path: fullPath, error: e.message });
       }
     }
     return results;
   }
 
+  /**
+   * 重命名文件或文件夹（S3 无原生 rename，用 Copy + Delete）
+   * @param {string} path - 原路径
+   * @param {string} newName - 新文件名
+   * @returns {Promise<void>}
+   */
+  async rename(path, newName) {
+    const srcKey = this._objectKey(path);
+    const dstPath = path.substring(0, path.lastIndexOf('/') + 1) + newName;
+    const dstKey = this._objectKey(dstPath);
+
+    // CopyObject 需要 Authorization header
+    const host = this.endpoint.replace(/^https?:\/\//, '');
+    const date = new Date();
+    const dateStr = date.toISOString().replace(/[:-]|\.\d{3}/g, '');
+    const dateOnly = dateStr.slice(0, 8);
+
+    const copySource = encodeURIComponent('/' + this.bucket + '/' + srcKey).replace(/%2F/g, '/');
+    const extraHeaders = {
+      'host': host,
+      'x-amz-content-sha256': 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+      'x-amz-date': dateStr,
+      'x-amz-copy-source': copySource
+    };
+    const signedHeaderNames = Object.keys(extraHeaders).sort().join(';');
+
+    const canonicalUri = encodeURIComponent('/' + this.bucket + '/' + dstKey).replace(/%2F/g, '/');
+    const canonicalQueryString = '';
+    const sortedHeaders = Object.entries(extraHeaders).sort((a, b) => a[0].localeCompare(b[0]));
+    const canonicalRequest = ['PUT', canonicalUri, canonicalQueryString, canonicalHeaders, signedHeaderNames, 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'].join('\n');
+    const canonicalHash = await this._sha256Hex(canonicalRequest);
+    const stringToSign = [`AWS4-HMAC-SHA256`, dateStr, `${dateOnly}/${this.region}/s3/aws4_request`, canonicalHash].join('\n');
+    const kDate = await this._hmacSha256(`AWS4${this.secretKey}`, dateOnly);
+    const kRegion = await this._hmacSha256(kDate, this.region);
+    const kService = await this._hmacSha256(kRegion, 's3');
+    const kSigning = await this._hmacSha256(kService, 'aws4_request');
+    const signature = await this._hmacSha256Hex(kSigning, stringToSign);
+    const authHeader = `AWS4-HMAC-SHA256, Credential=${this.accessKey}/${dateOnly}/${this.region}/s3/aws4_request, SignedHeaders=${signedHeaderNames}, Signature=${signature}`;
+    const copyUrl = `${this.endpoint}/${this.bucket}/${encodeURIComponent(dstKey).replace(/%2F/g, '/')}`;
+    const resp = await fetch(copyUrl, {
+      method: 'PUT',
+      headers: { ...extraHeaders, 'Authorization': authHeader }
+    });
+    if (!resp.ok) {
+      const err = await resp.text().catch(() => `HTTP ${resp.status}`);
+      throw new Error(err);
+    }
+    // 复制成功后删除原对象
+    const delResult = await this._s3DirectRequest(srcKey, 'DELETE');
+    if (!delResult.ok) {
+      throw new Error(`Rename succeeded but delete original failed: HTTP ${delResult.status}`);
+    }
+  }
+}
+class CloudAttachView extends ItemView {
+  constructor(leaf, plugin) {
+    super(leaf);
+    this.plugin = plugin;
+    this.accountId = null;
+    this.currentPath = '/';
+    this.files = [];
+    this.selectedFiles = new Set();
+    this.client = null;
+  }
+  getViewType() { return VIEW_TYPE_CLOUDATTACH; }
+  getDisplayText() { return t('cmd.open_cloud_attach'); }
+  getIcon() { return 'folder-open'; }
+  async onOpen() {
+    console.log('[CloudAttach] onOpen called');
+    this.contentEl.innerHTML = '<div style="padding:20px">' + t('view.loading') + '</div>';
+    this.render();
+  }
+  async onClose() {}
+  async render() {
+    try {
+      this.contentEl.innerHTML = '';
+      const header = document.createElement('div');
+      header.className = 'cloud-attach-header';
+      header.innerHTML = '<h3 class="cloud-attach-title">☁️ CloudAttach</h3>';
+      this.contentEl.appendChild(header);
+      if (this.plugin.accounts.length === 0) {
+        this.contentEl.innerHTML += '<p class="cloud-attach-hint">' + t('view.no_account_hint') + '</p>';
+        return;
+      }
+      if (this.plugin.accounts.length === 1 && !this.accountId) {
+        this.accountId = this.plugin.accounts[0].id;
+        this.client = this.plugin.createClient(this.accountId);
+        console.log('[CloudAttach] loading dir for single account');
+        await this.loadDir();
+        return;
+      }
+      const selectArea = document.createElement('div');
+      selectArea.className = 'cloud-attach-select-area';
+      const select = document.createElement('select');
+      select.className = 'cloud-attach-select';
+      select.innerHTML = '<option value="">' + t('view.select_account_hint') + '</option>';
+      this.plugin.accounts.forEach(acc => {
+        const opt = document.createElement('option');
+        opt.value = acc.id;
+        opt.textContent = acc.name;
+        if (acc.id === this.accountId) opt.selected = true;
+        select.appendChild(opt);
+      });
+      select.onchange = async (e) => {
+        this.accountId = e.target.value;
+        this.selectedFiles.clear();
+        if (this.accountId) {
+          this.currentPath = '/';
+          this.client = this.plugin.createClient(this.accountId);
+          await this.loadDir();
+        }
+      };
+      selectArea.appendChild(select);
+      this.contentEl.appendChild(selectArea);
+      this.breadcrumbEl = document.createElement('div');
+      this.breadcrumbEl.className = 'cloud-attach-breadcrumb';
+      this.batchBarEl = document.createElement('div');
+      this.batchBarEl.className = 'cloud-attach-batch-bar';
+      this.batchBarEl.style.display = 'none';
+      this.fileListEl = document.createElement('div');
+      this.fileListEl.className = 'cloud-attach-file-list';
+      this.contentEl.appendChild(this.breadcrumbEl);
+      this.contentEl.appendChild(this.batchBarEl);
+      this.contentEl.appendChild(this.fileListEl);
+      if (this.accountId && this.client) {
+        await this.loadDir();
+      } else {
+        this.breadcrumbEl.innerHTML = '<span style="color:var(--text-muted);padding:10px;">' + t('view.select_account_hint') + '</span>';
+      }
+      console.log('[CloudAttach] render completed');
+    } catch (e) {
+      console.error('[CloudAttach] render error:', e);
+      this.contentEl.innerHTML = `<p class="cloud-attach-error">${t('view.error', {error: e.message})}</p>`;
+    }
+  }
+  renderBreadcrumb() {
+    if (!this.breadcrumbEl) return;
+    this.breadcrumbEl.innerHTML = '';
+    const root = document.createElement('button');
+    root.className = 'cloud-attach-breadcrumb-btn';
+    root.textContent = t('view.root');
+    root.onclick = () => { this.navigateTo('/'); };
+    this.breadcrumbEl.appendChild(root);
+    if (this.currentPath === '/') {
+      this.renderBatchBar();
+      return;
+    }
+    const parts = this.currentPath.split('/').filter(p => p);
+    for (let i = 0; i < parts.length; i++) {
+      const sep = document.createElement('span');
+      sep.className = 'cloud-attach-breadcrumb-sep';
+      sep.textContent = ' › ';
+      this.breadcrumbEl.appendChild(sep);
+      // 每个路径段都变成可点击的按钮
+      const targetPath = '/' + parts.slice(0, i + 1).join('/');
+      const btn = document.createElement('button');
+      btn.className = 'cloud-attach-breadcrumb-btn';
+      btn.textContent = parts[i];
+      btn.onclick = () => { this.navigateTo(targetPath); };
+      this.breadcrumbEl.appendChild(btn);
+    }
+    const refresh = document.createElement('button');
+    refresh.className = 'cloud-attach-refresh';
+    refresh.textContent = '🔄';
+    refresh.onclick = () => this.loadDir();
+    this.breadcrumbEl.appendChild(refresh);
+    this.renderBatchBar();
+  }
+  // 统一的导航方法
+  navigateTo(path) {
+    console.log('[CloudAttach] navigateTo:', path, 'from:', this.currentPath);
+    if (this.currentPath !== path) {
+      this.currentPath = path;
+      this.selectedFiles.clear();
+      this.loadDir();
+    }
+  }
+  renderBatchBar() {
+    if (!this.batchBarEl) return;
+    this.batchBarEl.innerHTML = '';
+    const count = this.selectedFiles.size;
+    const totalCount = this.files.length;
+    if (count === 0) {
+      this.batchBarEl.style.display = 'none';
+      return;
+    }
+    this.batchBarEl.style.display = 'flex';
+    const span = document.createElement('span');
+    span.className = 'cloud-attach-batch-count';
+    span.textContent = t('view.file_count', {count, total: totalCount});
+    this.batchBarEl.appendChild(span);
+    // 全选按钮
+    const selectAllBtn = document.createElement('button');
+    selectAllBtn.className = 'cloud-attach-batch-btn mod-secondary';
+    selectAllBtn.textContent = t('view.select_all');
+    selectAllBtn.onclick = () => {
+      this.files.forEach(f => this.selectedFiles.add(f.path));
+      this.renderFiles();
+      this.renderBatchBar();
+    };
+    this.batchBarEl.appendChild(selectAllBtn);
+    // 取消全选按钮
+    const deselectBtn = document.createElement('button');
+    deselectBtn.className = 'cloud-attach-batch-btn mod-secondary';
+    deselectBtn.textContent = t('view.cancel');
+    deselectBtn.onclick = () => { this.selectedFiles.clear(); this.renderFiles(); this.renderBatchBar(); };
+    this.batchBarEl.appendChild(deselectBtn);
+    const insertBtn = document.createElement('button');
+    insertBtn.className = 'cloud-attach-batch-btn';
+    insertBtn.textContent = t('view.insert');
+    insertBtn.onclick = () => this.insertSelectedFiles();
+    this.batchBarEl.appendChild(insertBtn);
+    // 复制 URL 按钮（复制所有选中文件的 URL）
+    const copyUrlBtn = document.createElement('button');
+    copyUrlBtn.className = 'cloud-attach-batch-btn mod-secondary';
+    copyUrlBtn.textContent = t('view.copy_url');
+    copyUrlBtn.onclick = async () => {
+      if (!this.client || this.selectedFiles.size === 0) {
+        new Notice(t('notice.no_file_selected'));
+        return;
+      }
+      const selected = this.files.filter(f => this.selectedFiles.has(f.path));
+      const urls = await Promise.all(selected.map(f =>
+        this.client.getSignedUrl ? this.client.getSignedUrl(f.path) : this.client.getFileUrl(f.path)
+      ));
+      await navigator.clipboard.writeText(urls.join('\n'));
+      new Notice(t('notice.copied_count', {count: urls.length}));
+    };
+    this.batchBarEl.appendChild(copyUrlBtn);
+    // 删除按钮
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'cloud-attach-batch-btn';
+    deleteBtn.style.color = 'var(--text-error)';
+    deleteBtn.textContent = t('view.delete_btn') + (count > 0 ? ` (${count})` : '');
+    deleteBtn.onclick = () => this.showDeleteConfirmModal();
+    this.batchBarEl.appendChild(deleteBtn);
+  }
   /**
    * 显示删除确认弹窗
    */
