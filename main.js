@@ -854,12 +854,29 @@ class OpenListClient {
       const name = fullPath.substring(fullPath.lastIndexOf('/') + 1);
       try {
         console.log("[CloudAttach] delete API:", dir, "names:", [name]);
+        const body = JSON.stringify({ dir, names: [name] });
+        console.log("[CloudAttach] delete request body:", body);
         const response = await this.authFetch('/api/fs/remove', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ dir, names: [name] })
+          body
         });
-        if (response.ok) {
+        console.log("[CloudAttach] delete response status:", response.status, "text:", response.text);
+        // OpenList API 返回 200 但 body.code 可能不是 200
+        if (response.status === 200 && response.text) {
+          try {
+            const json = JSON.parse(response.text);
+            console.log("[CloudAttach] delete response json:", json);
+            if (json.code === 200) {
+              results.success.push(fullPath);
+            } else {
+              results.failed.push({ path: fullPath, error: json.message || 'Delete failed' });
+            }
+          } catch (parseErr) {
+            console.error("[CloudAttach] delete parse error:", parseErr);
+            results.failed.push({ path: fullPath, error: 'Parse response failed' });
+          }
+        } else if (response.ok) {
           results.success.push(fullPath);
         } else {
           const err = response.text;
@@ -880,12 +897,29 @@ class OpenListClient {
   async rename(path, newName) {
     const dst = path.substring(0, path.lastIndexOf('/')) + '/' + newName;
     console.log("[CloudAttach] rename API: src:", path, "dst:", dst);
+    const body = JSON.stringify({ src: path, dst });
+    console.log("[CloudAttach] rename request body:", body);
     const response = await this.authFetch('/api/fs/rename', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ src: path, dst })
+      body
     });
-    if (!response.ok) {
+    console.log("[CloudAttach] rename response status:", response.status, "text:", response.text);
+    // OpenList API 返回 200 但 body.code 可能不是 200
+    if (response.status === 200 && response.text) {
+      try {
+        const json = JSON.parse(response.text);
+        console.log("[CloudAttach] rename response json:", json);
+        if (json.code !== 200) {
+          throw new Error(json.message || 'Rename failed');
+        }
+      } catch (e) {
+        if (e.message !== 'Rename failed' && !e.message.includes('Rename failed')) {
+          console.error("[CloudAttach] rename parse error:", e);
+        }
+        throw e;
+      }
+    } else if (!response.ok) {
       throw new Error(response.text || 'Rename failed');
     }
   }
