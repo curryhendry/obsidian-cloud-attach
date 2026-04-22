@@ -476,7 +476,7 @@ class OpenListClient {
         const data = JSON.parse(response.text);
         if (data.code === 200 && data.data?.token) {
           this.token = data.data.token;
-          console.log('[CloudAttach] login success, token obtained');
+          console.log('[CloudAttach] login success, token:', this.token.substring(0, 20) + '...');
           return true;
         }
       }
@@ -589,9 +589,11 @@ class OpenListClient {
       console.log('[CloudAttach] token expired, re-login');
       this.token = '';
       if (await this.login()) {
+        const newAuth = `Bearer ${this.token}`;
+        console.log('[CloudAttach] re-login done, new Authorization:', newAuth.substring(0, 30) + '...');
         response = await this.requestViaObsidian(url, {
           ...options,
-          headers: { ...options.headers, 'Authorization': `Bearer ${this.token}` },
+          headers: { ...options.headers, 'Authorization': newAuth },
         });
       }
     }
