@@ -1402,9 +1402,9 @@ class S3Client {
     const sortedHeaderEntries = Object.entries(allSignedHeaders).sort((a, b) => a[0].localeCompare(b[0]));
     const canonicalHeaders = sortedHeaderEntries.map(([k, v]) => `${k.toLowerCase()}:${v.trim()}`).join('\n') + '\n';
 
-    const canonicalRequest = [method.toUpperCase(), canonicalUri, canonicalQueryString, canonicalHeaders, signedHeaderNames, 'UNSIGNED-PAYLOAD'].join('\n') + '\n';
+    const canonicalRequest = [method.toUpperCase(), canonicalUri, canonicalQueryString, canonicalHeaders, signedHeaderNames, 'UNSIGNED-PAYLOAD'].join('\n');
     const canonicalHash = await this.sha256(canonicalRequest);
-    const stringToSign = [`AWS4-HMAC-SHA256`, dateStr, `${dateOnly}/${this.region}/s3/aws4_request`, canonicalHash].join('\n') + '\n';
+    const stringToSign = [`AWS4-HMAC-SHA256`, dateStr, `${dateOnly}/${this.region}/s3/aws4_request`, canonicalHash].join('\n');
 
     const kDate = await this.hmacSha256(`AWS4${this.secretKey}`, dateOnly);
     const kRegion = await this.hmacSha256(kDate, this.region);
@@ -1522,7 +1522,7 @@ class S3Client {
     const canonicalQueryString = '';
     const sortedHeaders = Object.entries(allSignedHeaders).sort((a, b) => a[0].localeCompare(b[0]));
     const canonicalHeaders = sortedHeaders.map(([k, v]) => `${k.toLowerCase()}:${v.trim()}`).join('\n') + '\n';
-    const canonicalRequest = [method.toUpperCase(), canonicalUri, canonicalQueryString, canonicalHeaders, signedHeaderNames, 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'].join('\n') + '\n';
+    const canonicalRequest = [method.toUpperCase(), canonicalUri, canonicalQueryString, canonicalHeaders, signedHeaderNames, 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'].join('\n');
     const canonicalHash = await this._sha256Hex(canonicalRequest);
     const stringToSign = [`AWS4-HMAC-SHA256`, dateStr, `${dateOnly}/${this.region}/s3/aws4_request`, canonicalHash].join('\n') + '\n';
 
@@ -1637,7 +1637,7 @@ class S3Client {
     const canonicalQueryString = '';
     const sortedHeaders = Object.entries(extraHeaders).sort((a, b) => a[0].localeCompare(b[0]));
     const canonicalHeaders = sortedHeaders.map(([k, v]) => `${k.toLowerCase()}:${v.trim()}`).join('\n') + '\n';
-    const canonicalRequest = ['PUT', canonicalUri, canonicalQueryString, canonicalHeaders, signedHeaderNames, 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'].join('\n') + '\n';
+    const canonicalRequest = ['PUT', canonicalUri, canonicalQueryString, canonicalHeaders, signedHeaderNames, 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'].join('\n');
     const canonicalHash = await this._sha256Hex(canonicalRequest);
     const stringToSign = [`AWS4-HMAC-SHA256`, dateStr, `${dateOnly}/${this.region}/s3/aws4_request`, canonicalHash].join('\n') + '\n';
     const kDate = await this._hmacSha256(`AWS4${this.secretKey}`, dateOnly);
