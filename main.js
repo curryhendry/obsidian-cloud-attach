@@ -3042,6 +3042,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
         } else if (verify.reason === 'sign_expired') {
           // sign 过期，尝试重建
           const realPath = client.extractRealPath(url);
+          // 保存原URL的编码格式，用于后续替换
+          const urlEncodingStyle = detectUrlEncoding(url);
+          console.log('[CloudAttach] 原URL编码风格:', urlEncodingStyle);
           console.log("[CloudAttach] extractRealPath:", url.substring(0, 80), "→", realPath);
           console.log('[CloudAttach] 提取真实路径:', realPath, 'token:', account.token ? '有' : '无');
           if (!realPath || !account.token) {
@@ -3057,8 +3060,37 @@ module.exports = class CloudAttachPlugin extends Plugin {
           console.log("  新的:", newUrl.substring(0, 100));
           console.log("  相等?", newUrl === url);
           // 替换笔记中的 URL
-              const newText = view.editor.getValue().replace(url, newUrl);
-              view.editor.setValue(newText);
+              // 智能替换：处理编码不一致的情况
+              const normalizedOld = normalizeUrlEncoding(url, 'decoded');
+              const normalizedNew = normalizeUrlEncoding(newUrl, 'decoded');
+              
+              let currentText = view.editor.getValue();
+              let replaced = false;
+              
+              // 尝试多种替换方式
+              const replacements = [
+                [url, newUrl],                           // 原样替换
+                [normalizedOld, normalizedNew],          // 规范化替换
+                [url.split('?')[0], newUrl],             // 不带sign替换（原）
+                [normalizedOld.split('?')[0], newUrl],   // 不带sign替换（规范化）
+              ];
+              
+              for (const [old, newU] of replacements) {
+                if (currentText.includes(old)) {
+                  currentText = currentText.replace(old, newU);
+                  replaced = true;
+                  console.log('[CloudAttach] 替换成功，方式:', old.substring(0, 50));
+                  break;
+                }
+              }
+              
+              if (!replaced) {
+                console.log('[CloudAttach] 警告: URL替换失败');
+                console.log('[CloudAttach] 原URL:', url.substring(0, 100));
+                console.log('[CloudAttach] 新URL:', newUrl.substring(0, 100));
+              }
+              
+              view.editor.setValue(currentText);
               results.refreshed++;
               results.refreshedPaths.push(realPath);
             } else {
@@ -3085,8 +3117,23 @@ module.exports = class CloudAttachPlugin extends Plugin {
             try {
               const newUrl = await client.getSignedUrl(realPath);
               if (newUrl && newUrl !== url) {
-                const newText = view.editor.getValue().replace(url, newUrl);
-                view.editor.setValue(newText);
+                // 智能替换：处理编码不一致的情况
+                const normalizedOld = normalizeUrlEncoding(url, 'decoded');
+                const normalizedNew = normalizeUrlEncoding(newUrl, 'decoded');
+                
+                let currentText = view.editor.getValue();
+                const replacements = [
+                  [url, newUrl],
+                  [normalizedOld, normalizedNew],
+                ];
+                
+                for (const [old, newU] of replacements) {
+                  if (currentText.includes(old)) {
+                    currentText = currentText.replace(old, newU);
+                    view.editor.setValue(currentText);
+                    break;
+                  }
+                }
                 results.refreshed++;
                 results.refreshedPaths.push(realPath);
               }
@@ -3622,3 +3669,61 @@ module.exports = class CloudAttachPlugin extends Plugin {
     new Notice(t('notice.upload_complete', {parts: parts.join(', ')}), 5000);
   }
 };
+
+
+// 检测URL编码风格：'encoded' | 'decoded' | 'mixed'
+function detectUrlEncoding(url) {
+  try {
+    const urlObj = new URL(url);
+    const path = urlObj.pathname;
+    // 检查路径中是否有编码的中文
+    const hasEncodedChinese = /%E[0-9A-F]/i.test(path);
+    const hasChinese = /[一-龥]/.test(path);
+    if (hasEncodedChinese && !hasChinese) return 'encoded';
+    if (hasChinese && !hasEncodedChinese) return 'decoded';
+    if (hasEncodedChinese && hasChinese) return 'mixed';
+    return 'none';
+  } catch {
+    return 'unknown';
+  }
+}
+
+// 规范化URL编码：统一为目标编码风格
+function normalizeUrlEncoding(url, targetStyle) {
+  try {
+    const urlObj = new URL(url);
+    let path = urlObj.pathname;
+    
+    // 先完全解码
+    for (let i = 0; i < 10; i++) {
+      if (!path.includes('%')) break;
+      try {
+        const next = decodeURIComponent(path);
+        if (next === path) break;
+        path = next;
+      } catch { break; }
+    }
+    
+    // 根据目标风格重新编码
+    if (targetStyle === 'encoded') {
+      // 编码所有非ASCII字符
+      path = path.split('').map(c => {
+        if (c.charCodeAt(0) > 127) return encodeURIComponent(c);
+        // 特殊字符也要编码
+        if ('%\s#?&<>"'|{}'.includes(c)) return encodeURIComponent(c);
+        return c;
+      }).join('');
+    } else {
+      // 保留中文，只编码特殊字符
+      path = path.replace(/[%\s#?&<>"'\|{}]/g, c => encodeURIComponent(c));
+    }
+    
+    // 移除原有的sign参数，保留其他参数
+    const searchParams = new URLSearchParams(urlObj.search);
+    searchParams.delete('sign');
+    
+    return urlObj.origin + path + (searchParams.toString() ? '?' + searchParams.toString() : '');
+  } catch {
+    return url;
+  }
+}
