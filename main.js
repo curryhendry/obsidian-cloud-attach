@@ -188,6 +188,10 @@ Object.assign(I18n.translations.zh, {
   'cmd.open_browser': '☁️ 云附件',
   'cmd.open_cloud_attach': '打开云附件浏览器',
   'cmd.reload_plugin': '重新加载 CloudAttach 插件',
+  'cmd.check_and_refresh_note_sign': '检查并刷新当前笔记的 Sign',
+  'cmd.check_and_refresh_url_sign': '检查并刷新当前 URL 的 Sign',
+  'cmd.upload_current_attachment': '上传当前附件',
+  'cmd.upload_all_in_note': '上传笔记中全部附件',
   'settings.s3_type_label': '对象存储 (S3)',
   'settings.please_fill_endpoint': '请填写端点',
   'settings.please_fill_bucket': '请填写存储桶',
@@ -374,6 +378,10 @@ Object.assign(I18n.translations.en, {
   'cmd.open_browser': '☁️ Cloud Attach',
   'cmd.open_cloud_attach': 'Open Cloud Attach Browser',
   'cmd.reload_plugin': 'Reload CloudAttach Plugin',
+  'cmd.check_and_refresh_note_sign': 'Check and refresh current note Sign',
+  'cmd.check_and_refresh_url_sign': 'Check and refresh current URL Sign',
+  'cmd.upload_current_attachment': 'Upload Current Attachment',
+  'cmd.upload_all_in_note': 'Upload All Attachments in Note',
 
   'menu.insert_note': 'Insert into Note',
   'menu.insert_note_multi': 'Insert into Note ({count})',
@@ -1351,7 +1359,7 @@ class S3Client {
     const sortedHeaders = Object.entries(signedHeaders)
       .sort((a, b) => a[0].toLowerCase().localeCompare(b[0].toLowerCase()));
     const signedHeadersLine = sortedHeaders.map(([k]) => k).join(';');
-    const canonicalHeaders = sortedHeaders.map(([k, v]) => `${k.toLowerCase()}:${v.trim()}`).join('\n') + '\n';
+    const canonicalHeaders = sortedHeaders.map(([k, v]) => `${k.toLowerCase()}:${v.trim()}`).join('\n');
 
     const canonicalRequest = [
       method.toUpperCase(),
@@ -1360,10 +1368,10 @@ class S3Client {
       canonicalHeaders,
       signedHeadersLine,
       'UNSIGNED-PAYLOAD'
-    ].join('\n') + '\n';
+    ].join('\n');
 
     const canonicalHash = await this.sha256(canonicalRequest);
-    const stringToSign = [`AWS4-HMAC-SHA256`, dateStr, `${dateOnly}/${this.region}/s3/aws4_request`, canonicalHash].join('\n') + '\n';
+    const stringToSign = [`AWS4-HMAC-SHA256`, dateStr, `${dateOnly}/${this.region}/s3/aws4_request`, canonicalHash].join('\n');
 
     const kDate = await this.hmacSha256(`AWS4${this.secretKey}`, dateOnly);
     const kRegion = await this.hmacSha256(kDate, this.region);
@@ -1400,7 +1408,7 @@ class S3Client {
       : encodeURIComponent(`/${this.bucket}`).replace(/%2F/g, '/');
 
     const sortedHeaderEntries = Object.entries(allSignedHeaders).sort((a, b) => a[0].localeCompare(b[0]));
-    const canonicalHeaders = sortedHeaderEntries.map(([k, v]) => `${k.toLowerCase()}:${v.trim()}`).join('\n') + '\n';
+    const canonicalHeaders = sortedHeaderEntries.map(([k, v]) => `${k.toLowerCase()}:${v.trim()}`).join('\n');
 
     const canonicalRequest = [method.toUpperCase(), canonicalUri, canonicalQueryString, canonicalHeaders, signedHeaderNames, 'UNSIGNED-PAYLOAD'].join('\n');
     const canonicalHash = await this.sha256(canonicalRequest);
@@ -1521,10 +1529,10 @@ class S3Client {
       : encodeURIComponent('/' + this.bucket).replace(/%2F/g, '/');
     const canonicalQueryString = '';
     const sortedHeaders = Object.entries(allSignedHeaders).sort((a, b) => a[0].localeCompare(b[0]));
-    const canonicalHeaders = sortedHeaders.map(([k, v]) => `${k.toLowerCase()}:${v.trim()}`).join('\n') + '\n';
+    const canonicalHeaders = sortedHeaders.map(([k, v]) => `${k.toLowerCase()}:${v.trim()}`).join('\n');
     const canonicalRequest = [method.toUpperCase(), canonicalUri, canonicalQueryString, canonicalHeaders, signedHeaderNames, 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'].join('\n');
     const canonicalHash = await this._sha256Hex(canonicalRequest);
-    const stringToSign = [`AWS4-HMAC-SHA256`, dateStr, `${dateOnly}/${this.region}/s3/aws4_request`, canonicalHash].join('\n') + '\n';
+    const stringToSign = [`AWS4-HMAC-SHA256`, dateStr, `${dateOnly}/${this.region}/s3/aws4_request`, canonicalHash].join('\n');
 
     const kDate = await this._hmacSha256(`AWS4${this.secretKey}`, dateOnly);
     const kRegion = await this._hmacSha256(kDate, this.region);
@@ -1636,10 +1644,10 @@ class S3Client {
     const canonicalUri = encodeURIComponent('/' + this.bucket + '/' + dstKey).replace(/%2F/g, '/');
     const canonicalQueryString = '';
     const sortedHeaders = Object.entries(extraHeaders).sort((a, b) => a[0].localeCompare(b[0]));
-    const canonicalHeaders = sortedHeaders.map(([k, v]) => `${k.toLowerCase()}:${v.trim()}`).join('\n') + '\n';
+    const canonicalHeaders = sortedHeaders.map(([k, v]) => `${k.toLowerCase()}:${v.trim()}`).join('\n');
     const canonicalRequest = ['PUT', canonicalUri, canonicalQueryString, canonicalHeaders, signedHeaderNames, 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'].join('\n');
     const canonicalHash = await this._sha256Hex(canonicalRequest);
-    const stringToSign = [`AWS4-HMAC-SHA256`, dateStr, `${dateOnly}/${this.region}/s3/aws4_request`, canonicalHash].join('\n') + '\n';
+    const stringToSign = [`AWS4-HMAC-SHA256`, dateStr, `${dateOnly}/${this.region}/s3/aws4_request`, canonicalHash].join('\n');
     const kDate = await this._hmacSha256(`AWS4${this.secretKey}`, dateOnly);
     const kRegion = await this._hmacSha256(kDate, this.region);
     const kService = await this._hmacSha256(kRegion, 's3');
