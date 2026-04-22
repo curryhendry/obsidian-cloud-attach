@@ -570,8 +570,22 @@ class OpenListClient {
     
     let response = await this.requestViaObsidian(url, { ...options, headers });
     
-    // 401 → token 过期，尝试重新登录
-    if (response.status === 401 && this.username && this.password) {
+    // 检查 HTTP 401 或响应体中的 code 401（token 失效）
+    let tokenInvalidated = response.status === 401;
+    if (response.status === 200 && response.text) {
+      try {
+        const json = JSON.parse(response.text);
+        if (json.code === 401) {
+          console.log('[CloudAttach] token invalidated (body.code=401):', json.message);
+          tokenInvalidated = true;
+        }
+      } catch (e) {
+        // 解析失败，忽略
+      }
+    }
+    
+    // token 过期，尝试重新登录
+    if (tokenInvalidated && this.username && this.password) {
       console.log('[CloudAttach] token expired, re-login');
       this.token = '';
       if (await this.login()) {
