@@ -808,6 +808,8 @@ class OpenListClient {
     }
     return results;
   }
+
+  /**
    * @param {string} path - 原路径
    * @param {string} newName - 新文件名
    * @returns {Promise<void>}
@@ -822,9 +824,6 @@ class OpenListClient {
     });
     if (!response.ok) {
       throw new Error(response.text || 'Rename failed');
-    }
-  }
-      throw new Error(err || response.statusText);
     }
   }
 
