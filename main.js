@@ -602,6 +602,7 @@ class OpenListClient {
       console.log('[CloudAttach] getSignedUrl response:', data);
       
       if (data.code === 200) {
+        console.log("[CloudAttach] raw_url from API:", data.data?.raw_url || data.raw_url);
         // 优先使用 raw_url
         if (data.data?.raw_url) return data.data.raw_url;
         if (data.raw_url) return data.raw_url;
@@ -3041,6 +3042,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         } else if (verify.reason === 'sign_expired') {
           // sign 过期，尝试重建
           const realPath = client.extractRealPath(url);
+          console.log("[CloudAttach] extractRealPath:", url.substring(0, 80), "→", realPath);
           console.log('[CloudAttach] 提取真实路径:', realPath, 'token:', account.token ? '有' : '无');
           if (!realPath || !account.token) {
             results.failed++;
@@ -3050,7 +3052,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
           try {
             const newUrl = await client.getSignedUrl(realPath);
             if (newUrl && newUrl !== url) {
-              // 替换笔记中的 URL
+          console.log("[CloudAttach] 替换 URL:");
+          console.log("  原始:", url.substring(0, 100));
+          console.log("  新的:", newUrl.substring(0, 100));
+          console.log("  相等?", newUrl === url);
+          // 替换笔记中的 URL
               const newText = view.editor.getValue().replace(url, newUrl);
               view.editor.setValue(newText);
               results.refreshed++;
