@@ -815,7 +815,7 @@ class OpenListClient {
    * @returns {Promise<void>}
    */
   async rename(path, newName) {
-    const dst = path.substring(0, path.lastIndexOf('/') + 1).replace(/\/\/$/, "") + '/' + newName;
+    const dst = path.substring(0, path.lastIndexOf('/')) + '/' + newName;
     console.log("[CloudAttach] rename API: src:", path, "dst:", dst);
     const response = await this.authFetch('/api/fs/rename', {
       method: 'POST',
@@ -2108,6 +2108,7 @@ class CloudAttachView extends ItemView {
     const view = this.findMostRecentMarkdownView();
     if (view?.editor) {
       const cursor = view.editor.getCursor();
+      view.editor.replaceRange(mds.join('\n') + '\n', cursor);
       new Notice(t('notice.inserted_count', {count: selected.length}));
     } else {
       new Notice(t('notice.open_note_first'));
