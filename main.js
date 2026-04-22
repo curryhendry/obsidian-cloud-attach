@@ -187,6 +187,7 @@ Object.assign(I18n.translations.zh, {
   'toolbar.refresh_account': '刷新账户',
   'cmd.open_browser': '☁️ 云附件',
   'cmd.open_cloud_attach': '打开云附件浏览器',
+  'cmd.reload_plugin': '重新加载 CloudAttach 插件',
   'settings.s3_type_label': '对象存储 (S3)',
   'settings.please_fill_endpoint': '请填写端点',
   'settings.please_fill_bucket': '请填写存储桶',
@@ -370,6 +371,9 @@ Object.assign(I18n.translations.en, {
   'cmd.upload_all': 'Upload All Attachments in Note',
   'cmd.check_sign': 'Check and refresh current URL Sign',
   'cmd.check_sign_note': 'Check and refresh current note Sign',
+  'cmd.open_browser': '☁️ Cloud Attach',
+  'cmd.open_cloud_attach': 'Open Cloud Attach Browser',
+  'cmd.reload_plugin': 'Reload CloudAttach Plugin',
 
   'menu.insert_note': 'Insert into Note',
   'menu.insert_note_multi': 'Insert into Note ({count})',
@@ -602,7 +606,6 @@ class OpenListClient {
       console.log('[CloudAttach] getSignedUrl response:', data);
       
       if (data.code === 200) {
-        console.log("[CloudAttach] raw_url from API:", data.data?.raw_url || data.raw_url);
         // 优先使用 raw_url
         if (data.data?.raw_url) return data.data.raw_url;
         if (data.raw_url) return data.raw_url;
@@ -688,6 +691,57 @@ class OpenListClient {
     } catch {
       return null;
     }
+  }
+  /**
+   * 移除 URL 中的 sign 参数
+   * @param {string} url
+   * @returns {string} 不带 sign 的 URL
+   */
+  stripSign(url) {
+    try {
+      const urlObj = new URL(url);
+      urlObj.searchParams.delete("sign");
+      return urlObj.toString();
+    } catch {
+      // 回退：字符串处理
+      return url.replace(/[?&]sign=[^&]*/g, "").replace(/&$/, "").replace(/\?$/, "");
+    }
+  }
+
+  /**
+   * 在文本中查找并替换 URL（简化版：遍历文本中的 URL，解码后比对路径）
+   */
+  findAndReplaceUrl(text, realPath, newUrl) {
+    // 匹配 https://xxx:port/p/... 格式的 URL（含可选 sign）
+    // 使用简单正则，避免复杂转义
+    const urlRegex = /https?:\/\/[^?\s()"']+\/p\/[^?\s()"']+((\?|&)sign=[^?\s()"']*)?/g;
+    let newText = text;
+    const matches = text.match(urlRegex);
+    if (!matches) return text;
+    
+    for (const foundUrl of matches) {
+      // 从找到的 URL 中提取路径并解码
+      try {
+        // 提取 /p/ 后面的路径部分（去掉 sign）
+        const pathMatch = foundUrl.match(/\/p\/([^?]+)/);
+        if (!pathMatch) continue;
+        const encodedPath = pathMatch[1];
+        // 解码路径
+        const decodedPath = decodeURIComponent(encodedPath);
+        // 比对：解码后是否与 realPath 相同（忽略前后斜杠）
+        const normalizedReal = realPath.replace(/^\/+|\/+$/g, '');
+        const normalizedDecoded = decodedPath.replace(/^\/+|\/+$/g, '');
+        if (normalizedDecoded === normalizedReal) {
+          // 匹配成功，替换这个 URL（不 break，继续替换所有匹配的）
+          console.log('[CloudAttach] findAndReplaceUrl: matched path=' + normalizedDecoded + ', replacing: ' + foundUrl.substring(0, 80) + '... -> ' + newUrl.substring(0, 80) + '...');
+          newText = newText.replace(foundUrl, newUrl);
+        }
+      } catch (e) {
+        // 解码失败，跳过
+        continue;
+        }
+    }
+    return newText;
   }
 
   /**
@@ -798,131 +852,16 @@ class OpenListClient {
           body: JSON.stringify({ dir, names: [name] })
         });
         if (response.ok) {
-          console.log("[CloudAttach] delete response text:", response.text);
-          // Alist API 返回 {code: 200, message: "success", data: null}
-          try {
-            const data = JSON.parse(response.text);
-            if (data.code !== 200) {
-              results.failed.push({ path: fullPath, error: data.message || JSON.stringify(data) });
-              continue;
-            }
-          } catch (e) {
-            // 非 JSON 响应，假设成功
-          }
           results.success.push(fullPath);
         } else {
-        console.log("[CloudAttach] delete response:", response.status, response.text);
-        if (response.ok) {
-          // 检查响应体是否有错误
-          try {
-            const data = JSON.parse(response.text);
-            if (data.code !== 200) {
-              results.failed.push({ path: fullPath, error: data.message || JSON.stringify(data) });
-              continue;
-            }
-          } catch (e) {
-            // 非 JSON，忽略
-          }
-          results.success.push(fullPath);
-        } else {
-        console.log("[CloudAttach] delete response:", response.status, response.text);
-        if (response.ok) {
-          // 检查响应体是否有错误
-          try {
-            const data = JSON.parse(response.text);
-            if (data.code !== 200) {
-              results.failed.push({ path: fullPath, error: data.message || JSON.stringify(data) });
-              continue;
-            }
-          } catch (e) {
-            // 非 JSON，忽略
-          }
-          results.success.push(fullPath);
-        } else {
-        console.log("[CloudAttach] delete response:", response.status, response.text);
-        if (response.ok) {
-          // 检查响应体是否有错误
-          try {
-            const data = JSON.parse(response.text);
-            if (data.code !== 200) {
-              results.failed.push({ path: fullPath, error: data.message || JSON.stringify(data) });
-              continue;
-            }
-          } catch (e) {
-            // 非 JSON，忽略
-          }
-          results.success.push(fullPath);
-        } else {
-        console.log("[CloudAttach] delete response:", response.status, response.text);
-        if (response.ok) {
-          // 检查响应体是否有错误
-          try {
-            const data = JSON.parse(response.text);
-            if (data.code !== 200) {
-              results.failed.push({ path: fullPath, error: data.message || JSON.stringify(data) });
-              continue;
-            }
-          } catch (e) {
-            // 非 JSON，忽略
-          }
-          results.success.push(fullPath);
-        } else {
-        console.log("[CloudAttach] delete response:", response.status, response.text);
-        if (response.ok) {
-          // 检查响应体是否有错误
-          try {
-            const data = JSON.parse(response.text);
-            if (data.code !== 200) {
-              results.failed.push({ path: fullPath, error: data.message || JSON.stringify(data) });
-              continue;
-            }
-          } catch (e) {
-            // 非 JSON，忽略
-          }
-          results.success.push(fullPath);
-        } else {
-        console.log("[CloudAttach] delete response:", response.status, response.text);
-        if (response.ok) {
-          // 检查响应体是否有错误
-          try {
-            const data = JSON.parse(response.text);
-            if (data.code !== 200) {
-              results.failed.push({ path: fullPath, error: data.message || JSON.stringify(data) });
-              continue;
-            }
-          } catch (e) {
-            // 非 JSON，忽略
-          }
-          results.success.push(fullPath);
-        } else {
-        console.log("[CloudAttach] delete response:", response.status, response.text);
-        if (response.ok) {
-          // 检查响应体是否有错误
-          try {
-            const data = JSON.parse(response.text);
-            if (data.code !== 200) {
-              results.failed.push({ path: fullPath, error: data.message || JSON.stringify(data) });
-              continue;
-            }
-          } catch (e) {
-            // 非 JSON，忽略
-          }
-          results.success.push(fullPath);
-        } else {
-        console.log("[CloudAttach] delete response:", response.status, response.text);
-        if (response.ok) {
-          // 检查响应体是否有错误
-          try {
-            const data = JSON.parse(response.text);
-            if (data.code !== 200) {
-              results.failed.push({ path: fullPath, error: data.message || JSON.stringify(data) });
-              continue;
-            }
-          } catch (e) {
-            // 非 JSON，忽略
-          }
-          results.success.push(fullPath);
-        } else {
+          const err = response.text;
+          results.failed.push({ path: fullPath, error: err });
+        }
+      } catch (e) {
+        results.failed.push({ path: fullPath, error: e.message });
+      }
+    }
+    return results;
   }
 
   /**
@@ -938,18 +877,8 @@ class OpenListClient {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ src: path, dst })
     });
-    console.log("[CloudAttach] rename response:", response.status, response.text);
-    // Alist API 返回 {code: 200, message: "success", data: null}
-    try {
-      const data = JSON.parse(response.text);
-      if (data.code !== 200) {
-        throw new Error(data.message || JSON.stringify(data));
-      }
-    } catch (e) {
-      if (e.message.includes("JSON")) throw e;
-    }
     if (!response.ok) {
-      throw new Error(response.text || "Rename failed");
+      throw new Error(response.text || 'Rename failed');
     }
   }
 
@@ -1422,6 +1351,7 @@ class S3Client {
     const sortedHeaders = Object.entries(signedHeaders)
       .sort((a, b) => a[0].toLowerCase().localeCompare(b[0].toLowerCase()));
     const signedHeadersLine = sortedHeaders.map(([k]) => k).join(';');
+    const canonicalHeaders = sortedHeaders.map(([k, v]) => `${k.toLowerCase()}:${v.trim()}`).join('\n') + '\n';
 
     const canonicalRequest = [
       method.toUpperCase(),
@@ -1430,10 +1360,10 @@ class S3Client {
       canonicalHeaders,
       signedHeadersLine,
       'UNSIGNED-PAYLOAD'
-    ].join('\n');
+    ].join('\n') + '\n';
 
     const canonicalHash = await this.sha256(canonicalRequest);
-    const stringToSign = [`AWS4-HMAC-SHA256`, dateStr, `${dateOnly}/${this.region}/s3/aws4_request`, canonicalHash].join('\n');
+    const stringToSign = [`AWS4-HMAC-SHA256`, dateStr, `${dateOnly}/${this.region}/s3/aws4_request`, canonicalHash].join('\n') + '\n';
 
     const kDate = await this.hmacSha256(`AWS4${this.secretKey}`, dateOnly);
     const kRegion = await this.hmacSha256(kDate, this.region);
@@ -1470,10 +1400,11 @@ class S3Client {
       : encodeURIComponent(`/${this.bucket}`).replace(/%2F/g, '/');
 
     const sortedHeaderEntries = Object.entries(allSignedHeaders).sort((a, b) => a[0].localeCompare(b[0]));
+    const canonicalHeaders = sortedHeaderEntries.map(([k, v]) => `${k.toLowerCase()}:${v.trim()}`).join('\n') + '\n';
 
-    const canonicalRequest = [method.toUpperCase(), canonicalUri, canonicalQueryString, canonicalHeaders, signedHeaderNames, 'UNSIGNED-PAYLOAD'].join('\n');
+    const canonicalRequest = [method.toUpperCase(), canonicalUri, canonicalQueryString, canonicalHeaders, signedHeaderNames, 'UNSIGNED-PAYLOAD'].join('\n') + '\n';
     const canonicalHash = await this.sha256(canonicalRequest);
-    const stringToSign = [`AWS4-HMAC-SHA256`, dateStr, `${dateOnly}/${this.region}/s3/aws4_request`, canonicalHash].join('\n');
+    const stringToSign = [`AWS4-HMAC-SHA256`, dateStr, `${dateOnly}/${this.region}/s3/aws4_request`, canonicalHash].join('\n') + '\n';
 
     const kDate = await this.hmacSha256(`AWS4${this.secretKey}`, dateOnly);
     const kRegion = await this.hmacSha256(kDate, this.region);
@@ -1590,9 +1521,10 @@ class S3Client {
       : encodeURIComponent('/' + this.bucket).replace(/%2F/g, '/');
     const canonicalQueryString = '';
     const sortedHeaders = Object.entries(allSignedHeaders).sort((a, b) => a[0].localeCompare(b[0]));
-    const canonicalRequest = [method.toUpperCase(), canonicalUri, canonicalQueryString, canonicalHeaders, signedHeaderNames, 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'].join('\n');
+    const canonicalHeaders = sortedHeaders.map(([k, v]) => `${k.toLowerCase()}:${v.trim()}`).join('\n') + '\n';
+    const canonicalRequest = [method.toUpperCase(), canonicalUri, canonicalQueryString, canonicalHeaders, signedHeaderNames, 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'].join('\n') + '\n';
     const canonicalHash = await this._sha256Hex(canonicalRequest);
-    const stringToSign = [`AWS4-HMAC-SHA256`, dateStr, `${dateOnly}/${this.region}/s3/aws4_request`, canonicalHash].join('\n');
+    const stringToSign = [`AWS4-HMAC-SHA256`, dateStr, `${dateOnly}/${this.region}/s3/aws4_request`, canonicalHash].join('\n') + '\n';
 
     const kDate = await this._hmacSha256(`AWS4${this.secretKey}`, dateOnly);
     const kRegion = await this._hmacSha256(kDate, this.region);
@@ -1704,9 +1636,10 @@ class S3Client {
     const canonicalUri = encodeURIComponent('/' + this.bucket + '/' + dstKey).replace(/%2F/g, '/');
     const canonicalQueryString = '';
     const sortedHeaders = Object.entries(extraHeaders).sort((a, b) => a[0].localeCompare(b[0]));
-    const canonicalRequest = ['PUT', canonicalUri, canonicalQueryString, canonicalHeaders, signedHeaderNames, 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'].join('\n');
+    const canonicalHeaders = sortedHeaders.map(([k, v]) => `${k.toLowerCase()}:${v.trim()}`).join('\n') + '\n';
+    const canonicalRequest = ['PUT', canonicalUri, canonicalQueryString, canonicalHeaders, signedHeaderNames, 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'].join('\n') + '\n';
     const canonicalHash = await this._sha256Hex(canonicalRequest);
-    const stringToSign = [`AWS4-HMAC-SHA256`, dateStr, `${dateOnly}/${this.region}/s3/aws4_request`, canonicalHash].join('\n');
+    const stringToSign = [`AWS4-HMAC-SHA256`, dateStr, `${dateOnly}/${this.region}/s3/aws4_request`, canonicalHash].join('\n') + '\n';
     const kDate = await this._hmacSha256(`AWS4${this.secretKey}`, dateOnly);
     const kRegion = await this._hmacSha256(kDate, this.region);
     const kService = await this._hmacSha256(kRegion, 's3');
@@ -2753,10 +2686,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
     this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf, this));
     this.addRibbonIcon('folder-open', t('cmd.open_browser'), () => this.activateView());
     this.addSettingTab(new CloudAttachSettingTab(this));
-    this.addCommand({ id: 'open-browser', name: 'Open CloudAttach Browser', callback: () => this.activateView() });
+    this.addCommand({ id: 'open-browser', name: t('cmd.open_cloud_attach'), callback: () => this.activateView() });
     this.addCommand({
       id: 'reload-plugin',
-      name: 'Reload CloudAttach Plugin',
+      name: t('cmd.reload_plugin'),
       callback: async () => {
         try {
           await plugin.app.plugins.disablePlugin('cloud-attach');
@@ -3042,10 +2975,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
         } else if (verify.reason === 'sign_expired') {
           // sign 过期，尝试重建
           const realPath = client.extractRealPath(url);
-          // 保存原URL的编码格式，用于后续替换
-          const urlEncodingStyle = detectUrlEncoding(url);
-          console.log('[CloudAttach] 原URL编码风格:', urlEncodingStyle);
-          console.log("[CloudAttach] extractRealPath:", url.substring(0, 80), "→", realPath);
           console.log('[CloudAttach] 提取真实路径:', realPath, 'token:', account.token ? '有' : '无');
           if (!realPath || !account.token) {
             results.failed++;
@@ -3055,44 +2984,15 @@ module.exports = class CloudAttachPlugin extends Plugin {
           try {
             const newUrl = await client.getSignedUrl(realPath);
             if (newUrl && newUrl !== url) {
-          console.log("[CloudAttach] 替换 URL:");
-          console.log("  原始:", url.substring(0, 100));
-          console.log("  新的:", newUrl.substring(0, 100));
-          console.log("  相等?", newUrl === url);
-          // 替换笔记中的 URL
-              // 智能替换：处理编码不一致的情况
-              const normalizedOld = normalizeUrlEncoding(url, 'decoded');
-              const normalizedNew = normalizeUrlEncoding(newUrl, 'decoded');
-              
-              let currentText = view.editor.getValue();
-              let replaced = false;
-              
-              // 尝试多种替换方式
-              const replacements = [
-                [url, newUrl],                           // 原样替换
-                [normalizedOld, normalizedNew],          // 规范化替换
-                [url.split('?')[0], newUrl],             // 不带sign替换（原）
-                [normalizedOld.split('?')[0], newUrl],   // 不带sign替换（规范化）
-              ];
-              
-              for (const [old, newU] of replacements) {
-                if (currentText.includes(old)) {
-                  currentText = currentText.replace(old, newU);
-                  replaced = true;
-                  console.log('[CloudAttach] 替换成功，方式:', old.substring(0, 50));
-                  break;
-                }
+              // 使用 findAndReplaceUrl 按路径匹配替换整个 URL
+              const newText = client.findAndReplaceUrl(view.editor.getValue(), realPath, newUrl);
+              if (newText !== view.editor.getValue()) {
+                view.editor.setValue(newText);
+                results.refreshed++;
+                results.refreshedPaths.push(realPath);
+              } else {
+                results.valid++;
               }
-              
-              if (!replaced) {
-                console.log('[CloudAttach] 警告: URL替换失败');
-                console.log('[CloudAttach] 原URL:', url.substring(0, 100));
-                console.log('[CloudAttach] 新URL:', newUrl.substring(0, 100));
-              }
-              
-              view.editor.setValue(currentText);
-              results.refreshed++;
-              results.refreshedPaths.push(realPath);
             } else {
               results.valid++;
             }
@@ -3117,31 +3017,19 @@ module.exports = class CloudAttachPlugin extends Plugin {
             try {
               const newUrl = await client.getSignedUrl(realPath);
               if (newUrl && newUrl !== url) {
-                // 智能替换：处理编码不一致的情况
-                const normalizedOld = normalizeUrlEncoding(url, 'decoded');
-                const normalizedNew = normalizeUrlEncoding(newUrl, 'decoded');
-                
-                let currentText = view.editor.getValue();
-                const replacements = [
-                  [url, newUrl],
-                  [normalizedOld, normalizedNew],
-                ];
-                
-                for (const [old, newU] of replacements) {
-                  if (currentText.includes(old)) {
-                    currentText = currentText.replace(old, newU);
-                    view.editor.setValue(currentText);
-                    break;
-                  }
+                // 使用 findAndReplaceUrl 按路径匹配替换整个 URL
+                const newText = client.findAndReplaceUrl(view.editor.getValue(), realPath, newUrl);
+                if (newText !== view.editor.getValue()) {
+                  view.editor.setValue(newText);
+                  results.refreshed++;
+                  results.refreshedPaths.push(realPath);
                 }
-                results.refreshed++;
-                results.refreshedPaths.push(realPath);
               }
             } catch (e) {
               results.failed++;
               results.failedUrls.push({ url, reason: t('error.sign_rebuild_failed', {error: e.message}) });
             }
-          }
+          }  // if (realPath)
         } else {
           results.failed++;
           results.failedUrls.push({ url, reason: verify.reason });
@@ -3669,61 +3557,3 @@ module.exports = class CloudAttachPlugin extends Plugin {
     new Notice(t('notice.upload_complete', {parts: parts.join(', ')}), 5000);
   }
 };
-
-
-// 检测URL编码风格：'encoded' | 'decoded' | 'mixed'
-function detectUrlEncoding(url) {
-  try {
-    const urlObj = new URL(url);
-    const path = urlObj.pathname;
-    // 检查路径中是否有编码的中文
-    const hasEncodedChinese = /%E[0-9A-F]/i.test(path);
-    const hasChinese = /[一-龥]/.test(path);
-    if (hasEncodedChinese && !hasChinese) return 'encoded';
-    if (hasChinese && !hasEncodedChinese) return 'decoded';
-    if (hasEncodedChinese && hasChinese) return 'mixed';
-    return 'none';
-  } catch {
-    return 'unknown';
-  }
-}
-
-// 规范化URL编码：统一为目标编码风格
-function normalizeUrlEncoding(url, targetStyle) {
-  try {
-    const urlObj = new URL(url);
-    let path = urlObj.pathname;
-    
-    // 先完全解码
-    for (let i = 0; i < 10; i++) {
-      if (!path.includes('%')) break;
-      try {
-        const next = decodeURIComponent(path);
-        if (next === path) break;
-        path = next;
-      } catch { break; }
-    }
-    
-    // 根据目标风格重新编码
-    if (targetStyle === 'encoded') {
-      // 编码所有非ASCII字符
-      path = path.split('').map(c => {
-        if (c.charCodeAt(0) > 127) return encodeURIComponent(c);
-        // 特殊字符也要编码
-        if ('%\s#?&<>"'|{}'.includes(c)) return encodeURIComponent(c);
-        return c;
-      }).join('');
-    } else {
-      // 保留中文，只编码特殊字符
-      path = path.replace(/[%\s#?&<>"'\|{}]/g, c => encodeURIComponent(c));
-    }
-    
-    // 移除原有的sign参数，保留其他参数
-    const searchParams = new URLSearchParams(urlObj.search);
-    searchParams.delete('sign');
-    
-    return urlObj.origin + path + (searchParams.toString() ? '?' + searchParams.toString() : '');
-  } catch {
-    return url;
-  }
-}
