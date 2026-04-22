@@ -565,7 +565,7 @@ class OpenListClient {
     const url = `${this.baseUrl}${path}`;
     const headers = {
       ...options.headers,
-      'Authorization': `Bearer ${this.token}`,
+      'Authorization': this.token,
     };
     
     let response = await this.requestViaObsidian(url, { ...options, headers });
@@ -589,7 +589,7 @@ class OpenListClient {
       console.log('[CloudAttach] token expired, re-login');
       this.token = '';
       if (await this.login()) {
-        const newAuth = `Bearer ${this.token}`;
+        const newAuth = this.token;
         console.log('[CloudAttach] re-login done, new Authorization:', newAuth.substring(0, 30) + '...');
         response = await this.requestViaObsidian(url, {
           ...options,
@@ -842,7 +842,7 @@ class OpenListClient {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': this.token ? `Bearer ${this.token}` : ''
+          'Authorization': this.token || ''
         },
         body: JSON.stringify({
           path: '/',
@@ -1073,7 +1073,7 @@ class OpenListClient {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': this.token ? `Bearer ${this.token}` : ''
+        'Authorization': this.token || ''
       },
       body: JSON.stringify({
         path: remotePath,
