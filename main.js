@@ -797,16 +797,131 @@ class OpenListClient {
           body: JSON.stringify({ dir, names: [name] })
         });
         if (response.ok) {
+          console.log("[CloudAttach] delete response text:", response.text);
+          // Alist API 返回 {code: 200, message: "success", data: null}
+          try {
+            const data = JSON.parse(response.text);
+            if (data.code !== 200) {
+              results.failed.push({ path: fullPath, error: data.message || JSON.stringify(data) });
+              continue;
+            }
+          } catch (e) {
+            // 非 JSON 响应，假设成功
+          }
           results.success.push(fullPath);
         } else {
-          const err = response.text;
-          results.failed.push({ path: fullPath, error: err });
-        }
-      } catch (e) {
-        results.failed.push({ path: fullPath, error: e.message });
-      }
-    }
-    return results;
+        console.log("[CloudAttach] delete response:", response.status, response.text);
+        if (response.ok) {
+          // 检查响应体是否有错误
+          try {
+            const data = JSON.parse(response.text);
+            if (data.code !== 200) {
+              results.failed.push({ path: fullPath, error: data.message || JSON.stringify(data) });
+              continue;
+            }
+          } catch (e) {
+            // 非 JSON，忽略
+          }
+          results.success.push(fullPath);
+        } else {
+        console.log("[CloudAttach] delete response:", response.status, response.text);
+        if (response.ok) {
+          // 检查响应体是否有错误
+          try {
+            const data = JSON.parse(response.text);
+            if (data.code !== 200) {
+              results.failed.push({ path: fullPath, error: data.message || JSON.stringify(data) });
+              continue;
+            }
+          } catch (e) {
+            // 非 JSON，忽略
+          }
+          results.success.push(fullPath);
+        } else {
+        console.log("[CloudAttach] delete response:", response.status, response.text);
+        if (response.ok) {
+          // 检查响应体是否有错误
+          try {
+            const data = JSON.parse(response.text);
+            if (data.code !== 200) {
+              results.failed.push({ path: fullPath, error: data.message || JSON.stringify(data) });
+              continue;
+            }
+          } catch (e) {
+            // 非 JSON，忽略
+          }
+          results.success.push(fullPath);
+        } else {
+        console.log("[CloudAttach] delete response:", response.status, response.text);
+        if (response.ok) {
+          // 检查响应体是否有错误
+          try {
+            const data = JSON.parse(response.text);
+            if (data.code !== 200) {
+              results.failed.push({ path: fullPath, error: data.message || JSON.stringify(data) });
+              continue;
+            }
+          } catch (e) {
+            // 非 JSON，忽略
+          }
+          results.success.push(fullPath);
+        } else {
+        console.log("[CloudAttach] delete response:", response.status, response.text);
+        if (response.ok) {
+          // 检查响应体是否有错误
+          try {
+            const data = JSON.parse(response.text);
+            if (data.code !== 200) {
+              results.failed.push({ path: fullPath, error: data.message || JSON.stringify(data) });
+              continue;
+            }
+          } catch (e) {
+            // 非 JSON，忽略
+          }
+          results.success.push(fullPath);
+        } else {
+        console.log("[CloudAttach] delete response:", response.status, response.text);
+        if (response.ok) {
+          // 检查响应体是否有错误
+          try {
+            const data = JSON.parse(response.text);
+            if (data.code !== 200) {
+              results.failed.push({ path: fullPath, error: data.message || JSON.stringify(data) });
+              continue;
+            }
+          } catch (e) {
+            // 非 JSON，忽略
+          }
+          results.success.push(fullPath);
+        } else {
+        console.log("[CloudAttach] delete response:", response.status, response.text);
+        if (response.ok) {
+          // 检查响应体是否有错误
+          try {
+            const data = JSON.parse(response.text);
+            if (data.code !== 200) {
+              results.failed.push({ path: fullPath, error: data.message || JSON.stringify(data) });
+              continue;
+            }
+          } catch (e) {
+            // 非 JSON，忽略
+          }
+          results.success.push(fullPath);
+        } else {
+        console.log("[CloudAttach] delete response:", response.status, response.text);
+        if (response.ok) {
+          // 检查响应体是否有错误
+          try {
+            const data = JSON.parse(response.text);
+            if (data.code !== 200) {
+              results.failed.push({ path: fullPath, error: data.message || JSON.stringify(data) });
+              continue;
+            }
+          } catch (e) {
+            // 非 JSON，忽略
+          }
+          results.success.push(fullPath);
+        } else {
   }
 
   /**
@@ -822,8 +937,18 @@ class OpenListClient {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ src: path, dst })
     });
+    console.log("[CloudAttach] rename response:", response.status, response.text);
+    // Alist API 返回 {code: 200, message: "success", data: null}
+    try {
+      const data = JSON.parse(response.text);
+      if (data.code !== 200) {
+        throw new Error(data.message || JSON.stringify(data));
+      }
+    } catch (e) {
+      if (e.message.includes("JSON")) throw e;
+    }
     if (!response.ok) {
-      throw new Error(response.text || 'Rename failed');
+      throw new Error(response.text || "Rename failed");
     }
   }
 
