@@ -3,7 +3,7 @@
   "name": "CloudAttach",
   "version": "v0.2.030",
   "minAppVersion": "1.0.0",
-  "description": "连接 OpenList 管理云附件，在笔记中插入签名文件链接。",
+  "description": "连接 OpenList 等 WebDAV/对象存储服务，在笔记中一键引用附件、上传文件。",
   "author": "Garry",
   "authorUrl": "https://github.com/curryhendry",
   "isDesktopOnly": false

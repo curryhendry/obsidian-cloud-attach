@@ -1072,7 +1072,8 @@ class OpenListClient {
     const parser = new DOMParser();
     const doc = parser.parseFromString(text, 'text/xml');
     const responses = doc.getElementsByTagName('D:response');
-    
+    console.log('[CloudAttach] WebDAV raw response text (first 500):', text.substring(0, 500));
+    console.log('[CloudAttach] D:response count:', responses.length, 'parse error:', doc.parseError?.errorCode);
     for (let i = 0; i < responses.length; i++) {
       const resp = responses[i];
       const href = resp.getElementsByTagName('D:href')[0]?.textContent || '';
