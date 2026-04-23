@@ -535,9 +535,10 @@ class OpenListClient {
         };
       } catch (e) {
         console.error('[CloudAttach] requestUrl error:', e.message || e);
-        // Obsidian requestUrl 对非 2xx 响应会抛异常，尝试从异常中解析 status
+        // Obsidian requestUrl 对非 2xx 响应会抛异常，尝试从异常中解析 status 和 text
         // 常见错误格式: "Request failed, status 401" 或 { status: 401, ... }
         let status = 0;
+        let text = '';
         const errStr = e.message || String(e);
         const statusMatch = errStr.match(/status\s+(\d+)/i);
         if (statusMatch) {
@@ -547,7 +548,19 @@ class OpenListClient {
         } else if (e.response && typeof e.response.status === 'number') {
           status = e.response.status;
         }
-        return { ok: false, status, reason: status > 0 ? 'http_error' : 'network_error', error: errStr };
+        // 尝试从异常对象中提取响应文本
+        if (e.text) {
+          text = e.text;
+        } else if (e.response?.text) {
+          text = e.response.text;
+        } else if (e.json && typeof e.json === 'function') {
+          try { text = JSON.stringify(e.json()); } catch {}
+        }
+        // WebDAV 207 Multi-Status 是有效响应，返回成功
+        if (status === 207) {
+          return { ok: true, status, text };
+        }
+        return { ok: false, status, reason: status > 0 ? 'http_error' : 'network_error', error: errStr, text };
       }
     }
     console.log('[CloudAttach] falling back to fetch');
@@ -1039,7 +1052,22 @@ class OpenListClient {
 
     if (!response.ok && response.status !== 207) throw new Error(`WebDAV error: ${response.status}`);
 
-    const text = response.text;
+    // 如果 text 为空（requestUrl 异常未捕获响应体），使用原生 fetch 重试
+    let text = response.text;
+    if (!text) {
+      console.log('[CloudAttach] WebDAV 207 response text is empty, retrying with fetch');
+      const fetchResp = await fetch(webdavUrl, {
+        method: 'PROPFIND',
+        headers: {
+          'Authorization': 'Basic ' + btoa(`${this.username}:${this.password}`),
+          'Content-Type': 'application/xml',
+          'Depth': '1'
+        },
+        body: propfindBody
+      });
+      text = await fetchResp.text();
+      console.log('[CloudAttach] fetch retry status:', fetchResp.status, 'text length:', text?.length || 0);
+    }
     const files = [];
     const parser = new DOMParser();
     const doc = parser.parseFromString(text, 'text/xml');
