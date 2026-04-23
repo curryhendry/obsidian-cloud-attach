@@ -1958,7 +1958,9 @@ class CloudAttachView extends ItemView {
       }
       const selected = this.files.filter(f => this.selectedFiles.has(f.path));
       const urls = await Promise.all(selected.map(f =>
-        this.client.getSignedUrl ? this.client.getSignedUrl(f.path) : this.client.getFileUrl(f.path)
+        this.client.username
+          ? this.client.getFileUrl(f.path)
+          : await (this.client.getSignedUrl ? this.client.getSignedUrl(f.path) : this.client.getFileUrl(f.path))
       ));
       await navigator.clipboard.writeText(urls.join('\n'));
       new Notice(t('notice.copied_count', {count: urls.length}));
@@ -2233,10 +2235,13 @@ class CloudAttachView extends ItemView {
         ? this.client.getRawUrl(file.path)
         : this.client.getFileUrl(file.path);
     } else {
-      // 图片/链接：优先使用 getSignedUrl
-      url = await (this.client.getSignedUrl
-        ? this.client.getSignedUrl(file.path)
-        : this.client.getFileUrl(file.path));
+      // 图片/链接：WebDAV 账户直接用 getFileUrl；OpenList/S3 用 getSignedUrl
+      const client = this.client;
+      url = client.username
+        ? client.getFileUrl(file.path)
+        : await (client.getSignedUrl
+            ? client.getSignedUrl(file.path)
+            : client.getFileUrl(file.path));
     }
     if (imageExts.includes(ext)) {
       return `![${nameWithoutExt}](${url})`;
