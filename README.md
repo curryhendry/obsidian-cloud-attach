@@ -15,7 +15,7 @@
 - 坚定的 Obsidian 库内 0 附件使用者
 - 重度 OpenList 依赖者
 - 前电商从业者，0 代码基础
-- 全程 🦞 龙虾操作，目前消耗 token：📈8500W 左右
+- 全程 🦞 龙虾操作，目前消耗 token：📈9500W 左右
 
 ---
 
@@ -31,6 +31,7 @@
 - 👤 **多账号切换** — 同时管理多个 WebDAV 服务
 
 *注：对象存储可能无法使用iframe在线预览，这个取决于各服务商限制，暂时没有更好的兼容办法。建议先用openlist挂载对象存储，再使用OpenList的iframe预览，曲线救国。
+各个网盘或者存储要求不同，无法保证全部兼顾，尽可能做到发现问题解决问题。
 
 ---
 
@@ -91,10 +92,11 @@
 - [x] 笔记附件半自动上传
 - [x] command+P命令菜单
 - [ ] 上架Obsidian商店
+- [x] 支持文件重命名、删除
 
 ---
 
-## 更新日志
+## 更新
 
 [Releases](https://github.com/curryhendry/obsidian-cloud-attach/releases)
 
