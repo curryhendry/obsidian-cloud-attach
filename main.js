@@ -1402,7 +1402,7 @@ class S3Client {
     const sortedHeaders = Object.entries(signedHeaders)
       .sort((a, b) => a[0].toLowerCase().localeCompare(b[0].toLowerCase()));
     const signedHeadersLine = sortedHeaders.map(([k]) => k).join(';');
-    const canonicalHeaders = sortedHeaders.map(([k, v]) => `${k.toLowerCase()}:${v.trim()}`).join('\n');
+    const canonicalHeaders = sortedHeaders.map(([k, v]) => `${k.toLowerCase()}:${v.trim()}`).join('\n') + '\n';
 
     const canonicalRequest = [
       method.toUpperCase(),
@@ -1451,7 +1451,7 @@ class S3Client {
       : encodeURIComponent(`/${this.bucket}`).replace(/%2F/g, '/');
 
     const sortedHeaderEntries = Object.entries(allSignedHeaders).sort((a, b) => a[0].localeCompare(b[0]));
-    const canonicalHeaders = sortedHeaderEntries.map(([k, v]) => `${k.toLowerCase()}:${v.trim()}`).join('\n');
+    const canonicalHeaders = sortedHeaderEntries.map(([k, v]) => `${k.toLowerCase()}:${v.trim()}`).join('\n') + '\n';
 
     const canonicalRequest = [method.toUpperCase(), canonicalUri, canonicalQueryString, canonicalHeaders, signedHeaderNames, 'UNSIGNED-PAYLOAD'].join('\n');
     const canonicalHash = await this.sha256(canonicalRequest);
@@ -1572,7 +1572,7 @@ class S3Client {
       : encodeURIComponent('/' + this.bucket).replace(/%2F/g, '/');
     const canonicalQueryString = '';
     const sortedHeaders = Object.entries(allSignedHeaders).sort((a, b) => a[0].localeCompare(b[0]));
-    const canonicalHeaders = sortedHeaders.map(([k, v]) => `${k.toLowerCase()}:${v.trim()}`).join('\n');
+    const canonicalHeaders = sortedHeaders.map(([k, v]) => `${k.toLowerCase()}:${v.trim()}`).join('\n') + '\n';
     const canonicalRequest = [method.toUpperCase(), canonicalUri, canonicalQueryString, canonicalHeaders, signedHeaderNames, 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'].join('\n');
     const canonicalHash = await this._sha256Hex(canonicalRequest);
     const stringToSign = [`AWS4-HMAC-SHA256`, dateStr, `${dateOnly}/${this.region}/s3/aws4_request`, canonicalHash].join('\n');
@@ -1687,7 +1687,7 @@ class S3Client {
     const canonicalUri = encodeURIComponent('/' + this.bucket + '/' + dstKey).replace(/%2F/g, '/');
     const canonicalQueryString = '';
     const sortedHeaders = Object.entries(extraHeaders).sort((a, b) => a[0].localeCompare(b[0]));
-    const canonicalHeaders = sortedHeaders.map(([k, v]) => `${k.toLowerCase()}:${v.trim()}`).join('\n');
+    const canonicalHeaders = sortedHeaders.map(([k, v]) => `${k.toLowerCase()}:${v.trim()}`).join('\n') + '\n';
     const canonicalRequest = ['PUT', canonicalUri, canonicalQueryString, canonicalHeaders, signedHeaderNames, 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'].join('\n');
     const canonicalHash = await this._sha256Hex(canonicalRequest);
     const stringToSign = [`AWS4-HMAC-SHA256`, dateStr, `${dateOnly}/${this.region}/s3/aws4_request`, canonicalHash].join('\n');
