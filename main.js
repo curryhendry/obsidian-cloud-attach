@@ -886,13 +886,18 @@ class OpenListClient {
    * @param {string[]} paths - 要删除的路径列表
    * @returns {Promise<{success: string[], failed: Array<{path, error}>}>}
    */
+  /** 对 URL 路径分段编码，保留 / 分隔符 */
+  encodePath(path) {
+    return path.split('/').map(seg => encodeURIComponent(seg)).join('/');
+  }
+
   async delete(paths) {
     const results = { success: [], failed: [] };
     for (const fullPath of paths) {
       try {
         // WebDAV 账户使用 WebDAV DELETE 方法
         if (this.username && this.password) {
-          const url = `${this.serverUrl}${this.webdavPath}${fullPath}`;
+          const url = `${this.serverUrl}${this.encodePath(this.webdavPath + fullPath)}`;
           console.log("[CloudAttach] delete WebDAV DELETE:", url);
           const response = await this.requestViaObsidian(url, {
             method: 'DELETE',
@@ -955,10 +960,10 @@ class OpenListClient {
   async rename(path, newName) {
     // WebDAV 账户使用 MOVE 方法
     if (this.username && this.password) {
-      const srcUrl = `${this.serverUrl}${this.webdavPath}${path}`;
+      const srcUrl = `${this.serverUrl}${this.encodePath(this.webdavPath + path)}`;
       const dstDir = path.substring(0, path.lastIndexOf('/'));
       const dstPath = `${dstDir}/${newName}`;
-      const dstUrl = `${this.serverUrl}${this.webdavPath}${dstPath}`;
+      const dstUrl = `${this.serverUrl}${this.encodePath(this.webdavPath + dstPath)}`;
       console.log("[CloudAttach] rename WebDAV MOVE: src:", srcUrl, "dst:", dstUrl);
       
       const response = await this.requestViaObsidian(srcUrl, {
