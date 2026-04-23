@@ -889,9 +889,28 @@ class OpenListClient {
   async delete(paths) {
     const results = { success: [], failed: [] };
     for (const fullPath of paths) {
-      const dir = fullPath.substring(0, fullPath.lastIndexOf("/")).replace(/\/\/$/, "") || '/';
-      const name = fullPath.substring(fullPath.lastIndexOf('/') + 1);
       try {
+        // WebDAV 账户使用 WebDAV DELETE 方法
+        if (this.username && this.password) {
+          const url = `${this.serverUrl}${this.webdavPath}${fullPath}`;
+          console.log("[CloudAttach] delete WebDAV DELETE:", url);
+          const response = await this.requestViaObsidian(url, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': 'Basic ' + btoa(`${this.username}:${this.password}`)
+            }
+          });
+          console.log("[CloudAttach] delete WebDAV response status:", response.status);
+          if (response.ok || response.status === 204) {
+            results.success.push(fullPath);
+          } else {
+            results.failed.push({ path: fullPath, error: response.text || `HTTP ${response.status}` });
+          }
+          continue;
+        }
+        // OpenList 账户使用 API
+        const dir = fullPath.substring(0, fullPath.lastIndexOf("/")).replace(/\/\/$/, "") || '/';
+        const name = fullPath.substring(fullPath.lastIndexOf('/') + 1);
         console.log("[CloudAttach] delete API:", dir, "names:", [name]);
         const body = JSON.stringify({ dir, names: [name] });
         console.log("[CloudAttach] delete request body:", body);
