@@ -1,9 +1,9 @@
 {
   "id": "cloud-attach",
   "name": "CloudAttach",
-  "version": "v0.2.029",
+  "version": "v0.2.030",
   "minAppVersion": "1.0.0",
-  "description": "Connect to OpenList and manage cloud attachments, insert signed file links into notes.",
+  "description": "连接 OpenList 管理云附件，在笔记中插入签名文件链接。",
   "author": "Garry",
   "authorUrl": "https://github.com/curryhendry",
   "isDesktopOnly": false
