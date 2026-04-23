@@ -1071,15 +1071,15 @@ class OpenListClient {
     const files = [];
     const parser = new DOMParser();
     const doc = parser.parseFromString(text, 'text/xml');
-    const responses = doc.getElementsByTagName('D:response');
+    const responses = doc.getElementsByTagName('d:response');
     console.log('[CloudAttach] WebDAV raw response text (first 500):', text.substring(0, 500));
-    console.log('[CloudAttach] D:response count:', responses.length, 'parse error:', doc.parseError?.errorCode);
+    console.log('[CloudAttach] d:response count:', responses.length, 'parse error:', doc.parseError?.errorCode);
     for (let i = 0; i < responses.length; i++) {
       const resp = responses[i];
-      const href = resp.getElementsByTagName('D:href')[0]?.textContent || '';
-      const displayName = resp.getElementsByTagName('D:displayname')[0]?.textContent || '';
-      const contentLength = parseInt(resp.getElementsByTagName('D:getcontentlength')[0]?.textContent || '0');
-      const isDirectory = resp.getElementsByTagName('D:collection')[0] !== undefined;
+      const href = resp.getElementsByTagName('d:href')[0]?.textContent || '';
+      const displayName = resp.getElementsByTagName('d:displayname')[0]?.textContent || '';
+      const contentLength = parseInt(resp.getElementsByTagName('d:getcontentlength')[0]?.textContent || '0');
+      const isDirectory = resp.getElementsByTagName('d:collection')[0] !== undefined;
       const decodedHref = decodeURIComponent(href);
       const name = displayName || decodedHref.split('/').pop();
       
