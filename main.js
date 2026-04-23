@@ -988,7 +988,8 @@ class OpenListClient {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ src_dir: path.substring(0, path.lastIndexOf('/')),
                              src_name: path.substring(path.lastIndexOf('/') + 1),
-                             dst_dir: path.substring(0, path.lastIndexOf('/')) })
+                             dst_dir: path.substring(0, path.lastIndexOf('/')),
+                             dst_name: newName })
     });
     if (!response.ok) {
       throw new Error(response.text || 'Rename failed');
@@ -1112,7 +1113,7 @@ class OpenListClient {
     const doc = parser.parseFromString(text, 'text/xml');
     const responses = doc.getElementsByTagName('d:response');
     console.log('[CloudAttach] WebDAV raw response text (first 500):', text.substring(0, 500));
-    console.log('[CloudAttach] d:response count:', responses.length, 'parse error:', doc.parseError?.errorCode);
+    console.log('[CloudAttach] d:response count:', responses.length);
     for (let i = 0; i < responses.length; i++) {
       const resp = responses[i];
       const href = resp.getElementsByTagName('d:href')[0]?.textContent || '';
@@ -1226,7 +1227,7 @@ class S3Client {
         const errStr = e.message || String(e);
         const statusMatch = errStr.match(/status\s+(\d+)/i);
         const status = statusMatch ? parseInt(statusMatch[1], 10) : (e.status || 0);
-        return { ok: false, status, error: errStr };
+        return { ok: false, status, error: errStr, text: '' };
       }
     }
     // fallback to fetch
