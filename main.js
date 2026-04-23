@@ -1044,14 +1044,11 @@ class OpenListClient {
       });
 
       if (response.ok || response.status === 201 || response.status === 204) {
-        // 上传成功，获取带签名的 URL
-        let url;
-        try {
-          url = await this.getSignedUrl(remotePath);
-        } catch {
-          // 如果获取签名失败，返回 WebDAV URL
-          url = uploadUrl;
-        }
+        // WebDAV 账户（username 存在）直接用 getFileUrl 构造含 Basic Auth 的 URL
+        // OpenList/S3 账户用 getSignedUrl 获取服务端签名 URL
+        const url = this.username
+          ? this.getFileUrl(remotePath)
+          : await this.getSignedUrl(remotePath);
         return { ok: true, remotePath, url };
       } else {
         return { ok: false, error: t('error.upload_failed', {status: response.status}) };
