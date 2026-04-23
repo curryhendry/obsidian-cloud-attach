@@ -953,24 +953,39 @@ class OpenListClient {
    * @returns {Promise<void>}
    */
   async rename(path, newName) {
-    // OpenList /api/fs/rename 返回 403 "using relative path is not allowed"
-    // 解决方案：改用 WebDAV MOVE 方法
-    const srcUrl = `${this.serverUrl}${this.webdavPath}${path}`;
-    const dstDir = path.substring(0, path.lastIndexOf('/'));
-    const dstUrl = `${this.serverUrl}${this.webdavPath}${dstDir}/${newName}`;
-    console.log("[CloudAttach] rename WebDAV MOVE: src:", srcUrl, "dst:", dstUrl);
-    
-    const response = await this.requestViaObsidian(srcUrl, {
-      method: 'MOVE',
-      headers: {
-        'Authorization': 'Basic ' + btoa(`${this.username}:${this.password}`),
-        'Destination': dstUrl
+    // WebDAV 账户使用 MOVE 方法
+    if (this.username && this.password) {
+      const srcUrl = `${this.serverUrl}${this.webdavPath}${path}`;
+      const dstDir = path.substring(0, path.lastIndexOf('/'));
+      const dstPath = `${dstDir}/${newName}`;
+      const dstUrl = `${this.serverUrl}${this.webdavPath}${dstPath}`;
+      console.log("[CloudAttach] rename WebDAV MOVE: src:", srcUrl, "dst:", dstUrl);
+      
+      const response = await this.requestViaObsidian(srcUrl, {
+        method: 'MOVE',
+        headers: {
+          'Authorization': 'Basic ' + btoa(`${this.username}:${this.password}`),
+          'Destination': dstUrl
+        }
+      });
+      console.log("[CloudAttach] rename WebDAV response status:", response.status);
+      
+      // WebDAV MOVE 成功返回 201 Created 或 204 No Content
+      if (response.status !== 201 && response.status !== 204 && !response.ok) {
+        throw new Error(response.text || 'Rename failed');
       }
-    });
-    console.log("[CloudAttach] rename response status:", response.status);
+      return;
+    }
     
-    // WebDAV MOVE 成功返回 201 Created 或 204 No Content
-    if (response.status !== 201 && response.status !== 204 && !response.ok) {
+    // OpenList 账户使用 API
+    const response = await this.authFetch('/api/fs/rename', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ src_dir: path.substring(0, path.lastIndexOf('/')),
+                             src_name: path.substring(path.lastIndexOf('/') + 1),
+                             dst_dir: path.substring(0, path.lastIndexOf('/')) })
+    });
+    if (!response.ok) {
       throw new Error(response.text || 'Rename failed');
     }
   }
