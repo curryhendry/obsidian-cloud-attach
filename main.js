@@ -226,8 +226,13 @@ Object.assign(I18n.translations.zh, {
   'view.select_account_hint': '选择账户后开始浏览',
   'view.no_account_selected': '❌ 未选择账户',
   'view.empty_dir': '📂 空目录',
+  'view.plugin_title': '云附件',
+  'view.breadcrumb_sep': ' › ',
+  'settings.webdav_path_label': 'WebDAV 路径',
+  'settings.openlist_webdav_label': 'OpenList / WebDAV',
+  'settings.webdav_label': 'WebDAV',
+  'settings.webdav_path_placeholder': '',
   'settings.server_address_placeholder': 'http://192.168.62.200:5244',
-  'settings.webdav_path_placeholder': '/dav',
   'settings.endpoint_placeholder': 'https://xxx.r2.cloudflarestorage.com',
   'settings.bucket_placeholder': 'my-vault-attach',
   'settings.region_placeholder': 'auto（Cloudflare R2 可留空）',
@@ -429,8 +434,13 @@ Object.assign(I18n.translations.en, {
   'view.select_account_hint': 'Select an account to start browsing',
   'view.no_account_selected': '❌ No account selected',
   'view.empty_dir': '📂 Empty directory',
+  'view.plugin_title': 'CloudAttach',
+  'view.breadcrumb_sep': ' › ',
+  'settings.webdav_path_label': 'WebDAV Path',
+  'settings.openlist_webdav_label': 'OpenList / WebDAV',
+  'settings.webdav_label': 'WebDAV',
+  'settings.webdav_path_placeholder': '',
   'settings.server_address_placeholder': 'http://192.168.62.200:5244',
-  'settings.webdav_path_placeholder': '/dav',
   'settings.endpoint_placeholder': 'https://xxx.r2.cloudflarestorage.com',
   'settings.bucket_placeholder': 'my-vault-attach',
   'settings.region_placeholder': 'auto (can leave blank for Cloudflare R2)',
@@ -450,7 +460,7 @@ class OpenListClient {
   constructor(account, app) {
     this.serverUrl = account.url.replace(/\/$/, '');
     this.baseUrl = this.serverUrl;
-    this.webdavPath = (account.webdavPath || '/dav').replace(/\/$/, '');
+    this.webdavPath = (account.webdavPath || '').replace(/\/$/, '');
     this.token = account.token || '';
     this.username = account.username;
     this.password = account.password;
@@ -651,7 +661,7 @@ class OpenListClient {
 
   // 获取文件的 WebDAV URL（用于插入到笔记）
   getFileUrl(remotePath) {
-    const webdavPath = this.webdavPath || '/dav';
+    const webdavPath = this.webdavPath || '';
     // 编码规则：保留中文原文，仅编码必须转义的字符
     const safePath = remotePath.replace(/[%\s#?&<>"'\\|{}]/g, c => encodeURIComponent(c));
     // 如果有认证信息，在 URL 中带上 Basic Auth
@@ -1737,7 +1747,7 @@ class CloudAttachView extends ItemView {
       this.contentEl.innerHTML = '';
       const header = document.createElement('div');
       header.className = 'cloud-attach-header';
-      header.innerHTML = '<h3 class="cloud-attach-title">☁️ CloudAttach</h3>';
+      header.innerHTML = '<h3 class="cloud-attach-title">☁️ ' + t('view.plugin_title') + '</h3>';
       this.contentEl.appendChild(header);
       if (this.plugin.accounts.length === 0) {
         this.contentEl.innerHTML += '<p class="cloud-attach-hint">' + t('view.no_account_hint') + '</p>';
@@ -1810,7 +1820,7 @@ class CloudAttachView extends ItemView {
     for (let i = 0; i < parts.length; i++) {
       const sep = document.createElement('span');
       sep.className = 'cloud-attach-breadcrumb-sep';
-      sep.textContent = ' › ';
+      sep.textContent = t('view.breadcrumb_sep');
       this.breadcrumbEl.appendChild(sep);
       // 每个路径段都变成可点击的按钮
       const targetPath = '/' + parts.slice(0, i + 1).join('/');
@@ -1822,7 +1832,7 @@ class CloudAttachView extends ItemView {
     }
     const refresh = document.createElement('button');
     refresh.className = 'cloud-attach-refresh';
-    refresh.textContent = '🔄';
+    refresh.textContent = t('view.refresh');
     refresh.onclick = () => this.loadDir();
     this.breadcrumbEl.appendChild(refresh);
     this.renderBatchBar();
@@ -2318,7 +2328,7 @@ class AddAccountModal extends Modal {
     radioOpenList.name = 'accountType';
     radioOpenList.value = 'openlist';
     typeOpenList.appendChild(radioOpenList);
-    typeOpenList.appendChild(document.createTextNode('OpenList / WebDAV'));
+    typeOpenList.appendChild(document.createTextNode(t('settings.openlist_webdav_label')));
     const typeS3 = document.createElement('label');
     typeS3.style.display = 'flex';
     typeS3.style.alignItems = 'center';
@@ -2361,7 +2371,7 @@ class AddAccountModal extends Modal {
     const webdavInput = document.createElement('input');
     webdavInput.type = 'text';
     webdavInput.placeholder = '/dav';
-    webdavInput.value = this.account?.webdavPath || '/dav';
+    webdavInput.value = this.account?.webdavPath || '';
     webdavInput.className = 'cloud-attach-input';
     webdavDiv.appendChild(webdavInput);
     fields.webdavPath = webdavInput;
@@ -2556,7 +2566,7 @@ class AddAccountModal extends Modal {
           type: 'openlist',
           name: fields.name.value.trim() || t('settings.account_label', {n: this.plugin.accounts.length + 1}),
           url,
-          webdavPath: fields.webdavPath.value.trim() || '/dav',
+          webdavPath: fields.webdavPath.value.trim() || '',
           username: fields.username.value.trim(),
           password: fields.password.value,
           token: fields.token.value,
@@ -2649,7 +2659,7 @@ class CloudAttachSettingTab extends PluginSettingTab {
       typeBadge.style.background = '#e8f5e9';
       typeBadge.style.color = '#2e7d32';
     } else {
-      typeBadge.textContent = 'WebDAV';
+      typeBadge.textContent = t('settings.webdav_label');
       typeBadge.style.background = '#e3f2fd';
       typeBadge.style.color = '#1565c0';
     }
