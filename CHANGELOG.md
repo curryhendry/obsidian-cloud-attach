@@ -2,6 +2,47 @@
 
 All notable changes to CloudAttach will be documented in this file.
 
+## [v0.2.035] - 2026-04-24
+
+### Fixed
+- **OpenList URL 签名回归修复**: 区分 OpenList 和 WebDAV 账户的判断从 `this.username` 改为 `this.token`（3 处：上传、复制链接、插入笔记）
+  - OpenList 账户同时有 username 和 token，之前误判为 WebDAV 导致插入的 URL 缺少 sign 签名
+- README / README_EN token 消耗数据更新（~80M → ~85M）
+
+## [v0.2.034] - 2026-04-24
+
+### Fixed
+- **WebDAV XML 命名空间大小写兼容**: 6 处 `getElementsByTagName` 同时兼容 `D:` 和 `d:` 前缀
+  - v0.2.030 改为小写 `d:` 导致 OpenList（大写 `D:` 前缀）目录显示为空
+
+## [v0.2.033] - 2026-04-24
+
+### Fixed
+- **URL 插入/复制链接**: WebDAV 账户（有 username）使用 `getFileUrl`，OpenList/S3 使用 `getSignedUrl`
+- **WebDAV rename API 分支**: 有 username/password 时走 WebDAV MOVE，否则走 OpenList `/api/fs/rename`
+
+## [v0.2.032] - 2026-04-24
+
+### Fixed
+- **OpenList rename API**: 请求 body 添加 `dst_name` 字段
+- **上传后 URL 选择**: WebDAV 账户用 `getFileUrl`，OpenList/S3 用 `getSignedUrl`
+- **S3Client requestViaObsidian**: 错误返回对象补充 `text` 字段
+- 移除 `doc.parseError?.errorCode`（IE 遗留属性，现代浏览器恒为 undefined）
+
+## [v0.2.031] - 2026-04-23
+
+### Fixed
+- **WebDAV 中文路径编码**: 新增 `encodePath()` 方法，对路径每段 `encodeURIComponent`（保留 `/` 分隔符）
+  - 修复 WebDAV DELETE 和 MOVE 请求因中文路径未编码导致的 400/403 错误
+
+## [v0.2.030] - 2026-04-23
+
+### Fixed
+- **WebDAV listDirectory 支持**: 修复 `requestViaObsidian` 对 207 Multi-Status 响应的处理（之前抛异常导致返回空目录）
+- **WebDAV delete/rename 分支**: 有 username/password 时走原生 WebDAV 协议（DELETE / MOVE），不走 OpenList API
+- **WebDAV XML 解析**: 改为小写 `d:` 命名空间前缀（适配坚果云等服务器）
+- **requestViaObsidian 增强**: catch 块提取响应文本，207 状态码视为成功
+
 ## [Unreleased]
 
 ### Fixed
