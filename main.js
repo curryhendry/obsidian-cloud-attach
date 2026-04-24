@@ -1044,11 +1044,10 @@ class OpenListClient {
       });
 
       if (response.ok || response.status === 201 || response.status === 204) {
-        // WebDAV 账户（username 存在）直接用 getFileUrl 构造含 Basic Auth 的 URL
-        // OpenList/S3 账户用 getSignedUrl 获取服务端签名 URL
-        const url = this.username
-          ? this.getFileUrl(remotePath)
-          : await this.getSignedUrl(remotePath);
+        // 有 token 的走签名 URL（OpenList），无 token 的走 Basic Auth URL（纯 WebDAV）
+        const url = this.token
+          ? await this.getSignedUrl(remotePath)
+          : this.getFileUrl(remotePath);
         return { ok: true, remotePath, url };
       } else {
         return { ok: false, error: t('error.upload_failed', {status: response.status}) };
@@ -1958,9 +1957,9 @@ class CloudAttachView extends ItemView {
       }
       const selected = this.files.filter(f => this.selectedFiles.has(f.path));
       const urls = await Promise.all(selected.map(f =>
-        this.client.username
-          ? this.client.getFileUrl(f.path)
-          : await (this.client.getSignedUrl ? this.client.getSignedUrl(f.path) : this.client.getFileUrl(f.path))
+        this.client.token
+          ? await (this.client.getSignedUrl ? this.client.getSignedUrl(f.path) : this.client.getFileUrl(f.path))
+          : this.client.getFileUrl(f.path)
       ));
       await navigator.clipboard.writeText(urls.join('\n'));
       new Notice(t('notice.copied_count', {count: urls.length}));
@@ -2235,13 +2234,13 @@ class CloudAttachView extends ItemView {
         ? this.client.getRawUrl(file.path)
         : this.client.getFileUrl(file.path);
     } else {
-      // 图片/链接：WebDAV 账户直接用 getFileUrl；OpenList/S3 用 getSignedUrl
+      // 有 token 的走签名 URL（OpenList/S3），无 token 的走 Basic Auth URL（纯 WebDAV）
       const client = this.client;
-      url = client.username
-        ? client.getFileUrl(file.path)
-        : await (client.getSignedUrl
+      url = client.token
+        ? await (client.getSignedUrl
             ? client.getSignedUrl(file.path)
-            : client.getFileUrl(file.path));
+            : client.getFileUrl(file.path))
+        : client.getFileUrl(file.path);
     }
     if (imageExts.includes(ext)) {
       return `![${nameWithoutExt}](${url})`;

@@ -15,7 +15,7 @@ English | [中文](README.md)
 - A firm believer in the 'Zero-Attachment' workflow in Obsidian.
 - Heavy OpenList user
 - Former e-commerce practitioner, zero coding background
-- Built entirely with 🦞 (AI-assisted), token consumption: ~80M and counting
+- Built entirely with 🦞 (AI-assisted), token consumption: ~85M and counting
 
 ---
 
@@ -59,8 +59,7 @@ Add accounts in plugin settings:
 | Token | Get from OpenList Settings → Other |
 
 Object storage:
-<img width="1036" height="752" alt="截屏2026-04-19 17 42 12" src="https://github.com/user-attachments/assets/62bead10-1bf8-44a6-bb93-567bc748e97a" />
-
+<img width="1075" height="761" alt="68747470733a2f2f696d672e637572727968656e6472792e636f6d2f2545342542392542312545342542382538332545352538352541422545372542332539462f6f6273696469616e2d636c6f75642d6174746163682f2545362542372542422545352538412541302545362539432538442545352538412541312…" src="https://github.com/user-attachments/assets/6866656b-9e84-4b07-851d-3c892f06f6c0" />
 
 ---
 
@@ -70,10 +69,12 @@ Object storage:
 2. Browse directories, click a file name to insert a link
 3. Right-click for more actions (preview, copy, delete)
 
-![Screenshot](https://img.curryhendry.com/%E4%B9%B1%E4%B8%83%E5%85%AB%E7%B3%9F/obsidian-cloud-attach/%E6%88%AA%E5%9B%BE.png)
+<img width="1075" height="761" alt="68747470733a2f2f696d672e637572727968656e6472792e636f6d2f2545342542392542312545342542382538332545352538352541422545372542332539462f6f6273696469616e2d636c6f75642d6174746163682f2545362542372542422545352538412541302545362539432538442545352538412541312…" src="https://github.com/user-attachments/assets/eb981cf0-38d9-4d72-aa27-6a94254b65c6" />
+<br>
 
 **Insert files into notes:**
 <img width="1280" height="800" alt="Insert-720p" src="https://github.com/user-attachments/assets/3378be76-0317-4b55-85a5-eaa1c0eb7d2d" />
+<br>
 
 **Upload attachments to server:**
 <img width="1280" height="800" alt="Upload-720p" src="https://github.com/user-attachments/assets/15261330-aeca-42bf-aa2d-67dbac244abf" />
