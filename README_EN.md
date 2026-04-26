@@ -15,7 +15,7 @@ English | [中文](README.md)
 - A firm believer in the 'Zero-Attachment' workflow in Obsidian.
 - Heavy OpenList user
 - Former e-commerce practitioner, zero coding background
-- Built entirely with 🦞 (AI-assisted), token consumption: ~85M and counting
+- Built entirely with 🦞 (AI-assisted), token consumption: ~95M and counting
 
 ---
 
@@ -89,6 +89,7 @@ Object storage:
 - [x] Semi-automatic note attachment upload
 - [x] Command palette support (Cmd/Ctrl+P)
 - [ ] Publish to Obsidian Community Plugins
+- [x] File rename and delete support
 
 ---
 
