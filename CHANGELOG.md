@@ -2,6 +2,11 @@
 
 All notable changes to CloudAttach will be documented in this file.
 
+## [v0.2.037] - 2026-04-26
+
+### Fixed
+- **批量上传引用间距优化**: 替换笔记中的附件引用时，每个引用之间添加空行，提升可读性
+
 ## [v0.2.036] - 2026-04-26
 
 ### Fixed
