@@ -1028,8 +1028,9 @@ class OpenListClient {
         return { ok: false, error: t('error.unsupported_type') };
       }
 
-      // 构造上传 URL
-      const uploadUrl = `${this.serverUrl}${this.webdavPath}${remotePath}`;
+      // 构造上传 URL（WebDAV PUT 需要全编码路径）
+      const encodedPath = this.encodePath ? this.encodePath(remotePath) : encodeURIComponent(remotePath);
+      const uploadUrl = `${this.serverUrl}${this.webdavPath}${encodedPath}`;
 
       console.log('[CloudAttach] 上传文件:', localPath, '->', uploadUrl);
 
