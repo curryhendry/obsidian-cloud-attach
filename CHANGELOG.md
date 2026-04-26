@@ -1,3 +1,8 @@
+## [v0.2.040] - 2026-04-26
+
+### Fixed
+- **热更新诊断**: 添加 getAbstractFileByPath 结果日志，定位热更新失效原因
+
 # Changelog
 
 All notable changes to CloudAttach will be documented in this file.
