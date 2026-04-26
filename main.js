@@ -466,6 +466,33 @@ class OpenListClient {
     this.password = account.password;
     this.app = app;
   }
+
+  /**
+   * 对 URL 路径部分做安全解码：把 %XX 编码的中文还原为原文，但保留空格等必须编码的字符。
+   * 用于服务器返回的全编码 URL → 插入笔记时保留中文原文。
+   * @param {string} url - 完整 URL（可能含 query string）
+   * @returns {string} 解码后的 URL
+   */
+  safeDecodeUrl(url) {
+    try {
+      const qIdx = url.indexOf('?');
+      const path = qIdx >= 0 ? url.substring(0, qIdx) : url;
+      const query = qIdx >= 0 ? url.substring(qIdx) : '';
+      // 先完整解码（处理多层编码），再用 safePath 规则重新编码
+      let decoded = path;
+      for (let i = 0; i < 5; i++) {
+        const next = decodeURIComponent(decoded);
+        if (next === decoded) break;
+        decoded = next;
+      }
+      // 重新编码：中文保留原文，空格及特殊字符才编码
+      const safePath = decoded.replace(/[\s#?&<>"'\\|{}]/g, c => encodeURIComponent(c));
+      return safePath + query;
+    } catch (e) {
+      return url; // 解码失败则原样返回
+    }
+  }
+
   /**
    * 登录获取 token（用于 API 操作）
    * @returns {Promise<boolean>}
@@ -653,9 +680,9 @@ class OpenListClient {
       console.log('[CloudAttach] getSignedUrl response:', data);
       
       if (data.code === 200) {
-        // 优先使用 raw_url
-        if (data.data?.raw_url) return data.data.raw_url;
-        if (data.raw_url) return data.raw_url;
+        // 优先使用 raw_url，但需要解码中文
+        if (data.data?.raw_url) return this.safeDecodeUrl(data.data.raw_url);
+        if (data.raw_url) return this.safeDecodeUrl(data.raw_url);
       }
       
       // API 返回错误
