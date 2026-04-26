@@ -3685,7 +3685,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
           // 其他格式，保持原样替换 URL
           newSyntax = rep.oldSyntax.replace(/file:\S+/, url);
         }
-        text = text.replace(rep.oldSyntax, newSyntax);
+        text = text.replace(rep.oldSyntax, newSyntax + '\n\n');
         // 删除本地文件
         try {
           await this.app.vault.delete(this.app.vault.getAbstractFileByPath(rep.localPath));
