@@ -2,6 +2,11 @@
 
 All notable changes to CloudAttach will be documented in this file.
 
+## [v0.2.038] - 2026-04-26
+
+### Fixed
+- **批量上传引用间距调整**: 每个引用之间保留一个空行（之前多了换行）
+
 ## [v0.2.037] - 2026-04-26
 
 ### Fixed
