@@ -2932,22 +2932,21 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const plugin = this;
     this.registerInterval(
       window.setInterval(() => {
-        try {
-          const file = plugin.app.vault.getAbstractFileByPath('.obsidian/plugins/cloud-attach/main.js');
-          if (plugin._mainMtimeChecked === undefined) {
-            console.log('[cloud-attach 热更新诊断] getAbstractFileByPath 结果:', file ? file.name + ' mtime:' + file.stat?.mtime : 'NULL (文件不在vault索引中)');
-          }
-          const modTime = file?.stat?.mtime;
-          if (modTime && (!plugin._lastMainMtime || modTime > plugin._lastMainMtime)) {
-            plugin._lastMainMtime = modTime;
-            if (plugin._mainMtimeChecked) {
-              plugin.app.plugins.disablePlugin('cloud-attach').then(() => {
-                plugin.app.plugins.enablePlugin('cloud-attach');
-              });
+        (async () => {
+          try {
+            const adapter = plugin.app.vault.adapter;
+            const stat = await adapter.stat('.obsidian/plugins/cloud-attach/main.js');
+            const modTime = stat?.mtime;
+            if (modTime && (!plugin._lastMainMtime || modTime > plugin._lastMainMtime)) {
+              plugin._lastMainMtime = modTime;
+              if (plugin._mainMtimeChecked) {
+                await plugin.app.plugins.disablePlugin('cloud-attach');
+                await plugin.app.plugins.enablePlugin('cloud-attach');
+              }
+              plugin._mainMtimeChecked = true;
             }
-            plugin._mainMtimeChecked = true;
-          }
-        } catch {}
+          } catch {}
+        })();
       }, 3000)
     );
     console.log('CloudAttach loaded');
