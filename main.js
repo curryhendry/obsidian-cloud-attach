@@ -3464,10 +3464,18 @@ module.exports = class CloudAttachPlugin extends Plugin {
     let match;
     while ((match = attachmentRegex.exec(text)) !== null) {
       const localPath = match[2];
-      // 转换为绝对路径
-      let absolutePath = localPath;
-      if (!absolutePath.startsWith('/')) {
-        absolutePath = noteDir + localPath;
+      // 使用 metadataCache 正确解析（支持相对路径、绝对路径、../ 导航）
+      const cacheResolved = this.app.metadataCache.getFirstLinkpathDest(localPath, notePath);
+      let absolutePath;
+      if (cacheResolved && cacheResolved.path) {
+        absolutePath = cacheResolved.path;
+      } else {
+        // fallback：手动拼接（相对路径基于 noteDir，绝对路径直接用）
+        if (localPath.startsWith('/')) {
+          absolutePath = localPath.substring(1); // 去掉开头的 /
+        } else {
+          absolutePath = noteDir + localPath;
+        }
       }
       // 检查是否已存在
       if (!attachments.find(a => a.localPath === absolutePath)) {
@@ -3481,10 +3489,18 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const wikiRegex = /!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g;
     while ((match = wikiRegex.exec(text)) !== null) {
       const localPath = match[1];
-      // 转换为绝对路径
-      let absolutePath = localPath;
-      if (!absolutePath.startsWith('/')) {
-        absolutePath = noteDir + localPath;
+      // 使用 metadataCache 正确解析（支持相对路径、绝对路径、../ 导航）
+      const cacheResolved = this.app.metadataCache.getFirstLinkpathDest(localPath, notePath);
+      let absolutePath;
+      if (cacheResolved && cacheResolved.path) {
+        absolutePath = cacheResolved.path;
+      } else {
+        // fallback：手动拼接（相对路径基于 noteDir，绝对路径直接用）
+        if (localPath.startsWith('/')) {
+          absolutePath = localPath.substring(1); // 去掉开头的 /
+        } else {
+          absolutePath = noteDir + localPath;
+        }
       }
       // 检查是否已存在
       if (!attachments.find(a => a.localPath === absolutePath)) {
