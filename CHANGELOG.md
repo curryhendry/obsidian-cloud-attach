@@ -2,6 +2,11 @@
 
 All notable changes to CloudAttach will be documented in this file.
 
+## [v0.2.039] - 2026-04-26
+
+### Fixed
+- **批量上传引用格式化统一**: 替换时不再添加额外换行，保留原笔记的换行格式
+
 ## [v0.2.038] - 2026-04-26
 
 ### Fixed
