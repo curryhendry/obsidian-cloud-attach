@@ -1107,15 +1107,53 @@ class OpenListClient {
     const files = [];
     const parser = new DOMParser();
     const doc = parser.parseFromString(text, 'text/xml');
-    const responses = doc.getElementsByTagName('D:response').length > 0 ? doc.getElementsByTagName('D:response') : doc.getElementsByTagName('d:response');
-    console.log('[CloudAttach] WebDAV raw response text (first 500):', text.substring(0, 500));
+
+    // 尝试多种方式匹配 XML 元素（跨平台兼容性）
+    let responses = doc.getElementsByTagNameNS('DAV:', 'response');
+    if (responses.length === 0) {
+      // 尝试字面标签匹配（D:response 或 d:response，大小写均可）
+      const upper = doc.getElementsByTagName('D:response');
+      const lower = doc.getElementsByTagName('d:response');
+      responses = upper.length > 0 ? upper : lower;
+    }
+    console.log('[CloudAttach] WebDAV raw response text (first 800):', text.substring(0, 800));
     console.log('[CloudAttach] d:response count:', responses.length);
+
+    // 解析错误检测
+    const parseError = doc.getElementsByTagName('parsererror');
+    if (parseError.length > 0) {
+      console.error('[CloudAttach] WebDAV XML parse error:', parseError[0].textContent?.substring(0, 200));
+    }
+
+    if (responses.length === 0) {
+      // 兜底：直接查找所有元素看结构
+      const allElements = doc.getElementsByTagName('*');
+      const tagNames = [];
+      for (let i = 0; i < Math.min(allElements.length, 20); i++) tagNames.push(allElements[i].tagName);
+      console.log('[CloudAttach] XML elements found (sample):', tagNames.join(', '));
+    }
+    function getTag(el, prefix, localName) {
+      // 优先用命名空间匹配，兜底用字面匹配（兼容不同大小写前缀）
+      const ns = el.getElementsByTagNameNS('DAV:', localName);
+      if (ns.length > 0) return ns[0];
+      const upper = el.getElementsByTagName(prefix + ':' + localName);
+      if (upper.length > 0) return upper[0];
+      const lower = el.getElementsByTagName(prefix.toLowerCase() + ':' + localName);
+      return lower[0] || null;
+    }
+
     for (let i = 0; i < responses.length; i++) {
       const resp = responses[i];
-      const href = (resp.getElementsByTagName('D:href')[0] || resp.getElementsByTagName('d:href')[0])?.textContent || '';
-      const displayName = (resp.getElementsByTagName('D:displayname')[0] || resp.getElementsByTagName('d:displayname')[0])?.textContent || '';
-      const contentLength = parseInt((resp.getElementsByTagName('D:getcontentlength')[0] || resp.getElementsByTagName('d:getcontentlength')[0])?.textContent || '0');
-      const isDirectory = (resp.getElementsByTagName('D:collection')[0] || resp.getElementsByTagName('d:collection')[0]) !== undefined;
+      const hrefEl = getTag(resp, 'D', 'href') || getTag(resp, 'd', 'href');
+      const href = hrefEl?.textContent || '';
+      const displayNameEl = getTag(resp, 'D', 'displayname') || getTag(resp, 'd', 'displayname');
+      const displayName = displayNameEl?.textContent || '';
+      const contentLengthEl = getTag(resp, 'D', 'getcontentlength') || getTag(resp, 'd', 'getcontentlength');
+      const contentLength = parseInt(contentLengthEl?.textContent || '0');
+      // collection 标签存在即为目录
+      const collUpper = resp.getElementsByTagName('D:collection');
+      const collLower = resp.getElementsByTagName('d:collection');
+      const isDirectory = collUpper.length > 0 || collLower.length > 0;
       const decodedHref = decodeURIComponent(href);
       const name = displayName || decodedHref.split('/').pop();
       
@@ -1127,6 +1165,11 @@ class OpenListClient {
       if (relativePath === remotePath || relativePath === remotePath + '/') continue;
       
       files.push({ name, path: relativePath, isDirectory, size: contentLength });
+    }
+
+    // XML 有条目但全部被过滤，可能是路径匹配问题
+    if (responses.length > 0 && files.length === 0) {
+      console.warn('[CloudAttach] WebDAV: XML解析到', responses.length, '条目但全部被过滤，remotePath=', remotePath, 'webdavPath=', this.webdavPath);
     }
 
     return files.sort((a, b) => {
