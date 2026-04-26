@@ -2933,7 +2933,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
     this.registerInterval(
       window.setInterval(() => {
         try {
-          const modTime = plugin.app.vault.getAbstractFileByPath('.obsidian/plugins/cloud-attach/main.js')?.stat?.mtime;
+          const file = plugin.app.vault.getAbstractFileByPath('.obsidian/plugins/cloud-attach/main.js');
+          if (plugin._mainMtimeChecked === undefined) {
+            console.log('[cloud-attach 热更新诊断] getAbstractFileByPath 结果:', file ? file.name + ' mtime:' + file.stat?.mtime : 'NULL (文件不在vault索引中)');
+          }
+          const modTime = file?.stat?.mtime;
           if (modTime && (!plugin._lastMainMtime || modTime > plugin._lastMainMtime)) {
             plugin._lastMainMtime = modTime;
             if (plugin._mainMtimeChecked) {
