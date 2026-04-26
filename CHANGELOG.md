@@ -1,3 +1,8 @@
+## [v0.2.041] - 2026-04-26
+
+### Fixed
+- **热更新修复**: 改用 app.vault.adapter.stat() 替代 getAbstractFileByPath，解决 .obsidian 目录不在 vault 索引中的问题
+
 ## [v0.2.040] - 2026-04-26
 
 ### Fixed
