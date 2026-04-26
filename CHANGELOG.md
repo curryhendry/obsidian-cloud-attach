@@ -2,6 +2,13 @@
 
 All notable changes to CloudAttach will be documented in this file.
 
+## [v0.2.036] - 2026-04-26
+
+### Fixed
+- **uploadAllAttachments 路径解析修复**: 使用 `metadataCache.getFirstLinkpathDest` 正确解析附件路径，与单文件上传逻辑保持一致
+  - 之前直接拼接 `noteDir + localPath`，无法处理 vault 根相对路径（如 `玩具收藏/模玩/IMG_xxx.jpg`）
+  - 修复后支持相对路径、绝对路径、`../` 导航等多种路径格式
+
 ## [v0.2.035] - 2026-04-24
 
 ### Fixed
