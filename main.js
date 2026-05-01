@@ -684,8 +684,9 @@ class OpenListClient {
       console.log('[CloudAttach] getSignedUrl response:', data);
       
       if (data.code === 200) {
-        // 不直接用 raw_url（OpenList API 返回全编码，含 %2F）
-        // OpenList 规则：保留中文，按 segment 分段编码
+        // 优先用 API raw_url（OpenList 可能返回全编码 URL，直接用）
+        // return data.data.raw_url;
+        // 暂不用 raw_url：OpenList 返回全编码含 %2F，改用保留中文的 fallback
       }
       
       // API 返回错误
@@ -697,27 +698,32 @@ class OpenListClient {
     
     // 回退：优先用 OpenList /p/ 路径（支持分享链接），次选 /d/ 目录路径
     // 不再回退到 WebDAV 路径（那是给 WebDAV 客户端用的）
-    // 路径分隔符 / 保持不变，仅对每段 segment 编码
-    const encodePath = (p) => p.split('/').map(s => encodeURIComponent(s)).join('/');
-    return `${this.serverUrl}/p${encodePath(remotePath)}`;
+    // 保留原协议、保留中文原文
+    const proto = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, '$1');
+    const host = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, '$3');
+    return `${proto}${host}/p${remotePath}`;
   }
 
   // 获取文件的 WebDAV URL（用于插入到笔记）
   getFileUrl(remotePath) {
     const webdavPath = this.webdavPath || '';
+    // 保留原协议，不要写死 https
+    const proto = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, '$1');
+    const host = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, '$3');
     // 如果有认证信息，在 URL 中带上 Basic Auth
     if (this.username && this.password) {
       const encodedCreds = btoa(`${this.username}:${this.password}`);
-      const serverWithoutProtocol = this.serverUrl.replace(/^https?:\/\//, '');
-      return `https://${encodedCreds}@${serverWithoutProtocol}${webdavPath}${encodePath(remotePath)}`;
+      return `${proto}${encodedCreds}@${host}${webdavPath}${remotePath}`;
     }
-    return `${this.serverUrl}${webdavPath}${encodePath(remotePath)}`;
+    return `${proto}${host}${webdavPath}${remotePath}`;
   }
 
   // 获取原始 URL（无签名、无 /dav /d 前缀，用于 iframe 预览）
   getRawUrl(remotePath) {
-    const encodePath = (p) => p.split('/').map(s => encodeURIComponent(s)).join('/');
-    return `${this.serverUrl}${encodePath(remotePath)}`;
+    // 保留原协议、保留中文原文
+    const proto = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, '$1');
+    const host = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, '$3');
+    return `${proto}${host}${remotePath}`;
   }
 
   /**
