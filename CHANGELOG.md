@@ -1,3 +1,8 @@
+## [v0.2.058] - 2026-05-01
+
+### Fixed
+- **S3 signQuery 签名回归**: v0.2.056 在 allSignedHeaders 中加入了 `x-amz-date` 和 `x-amz-content-sha256`，导致签名范围扩大，R2 等兼容存储返回 403；回退为只签名 host + extraHeaders
+
 ## [v0.2.057] - 2026-05-01
 
 ### Fixed
