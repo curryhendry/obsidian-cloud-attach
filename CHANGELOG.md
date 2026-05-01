@@ -1,3 +1,9 @@
+## [v0.2.055] - 2026-05-01
+
+### Fixed
+- **S3 getFileUrl 协议尊重用户配置**: 改用 `this.endpoint`（含用户配置的 http/https）替代硬编码 `https://` fallback
+- **批量插入文件之间加空行**: `mds.map(md => md + '\n').join('\n')`，每条 markdown 后多加一个换行，文件之间形成段落空行分隔
+
 ## [v0.2.053] - 2026-05-01
 
 ### Fixed
