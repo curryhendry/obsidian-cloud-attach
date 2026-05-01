@@ -698,7 +698,9 @@ class OpenListClient {
     
     // 回退：优先用 OpenList /p/ 路径（支持分享链接），次选 /d/ 目录路径
     // 不再回退到 WebDAV 路径（那是给 WebDAV 客户端用的）
-    return `${this.serverUrl}/p${encodeURIComponent(remotePath)}`;
+    // 路径分隔符 / 保持不变，仅对每段 segment 编码
+    const encodePath = (p) => p.split('/').map(s => encodeURIComponent(s)).join('/');
+    return `${this.serverUrl}/p${encodePath(remotePath)}`;
   }
 
   // 获取文件的 WebDAV URL（用于插入到笔记）
@@ -708,14 +710,15 @@ class OpenListClient {
     if (this.username && this.password) {
       const encodedCreds = btoa(`${this.username}:${this.password}`);
       const serverWithoutProtocol = this.serverUrl.replace(/^https?:\/\//, '');
-      return `https://${encodedCreds}@${serverWithoutProtocol}${webdavPath}${encodeURIComponent(remotePath)}`;
+      return `https://${encodedCreds}@${serverWithoutProtocol}${webdavPath}${encodePath(remotePath)}`;
     }
-    return `${this.serverUrl}${webdavPath}${encodeURIComponent(remotePath)}`;
+    return `${this.serverUrl}${webdavPath}${encodePath(remotePath)}`;
   }
 
   // 获取原始 URL（无签名、无 /dav /d 前缀，用于 iframe 预览）
   getRawUrl(remotePath) {
-    return `${this.serverUrl}${encodeURIComponent(remotePath)}`;
+    const encodePath = (p) => p.split('/').map(s => encodeURIComponent(s)).join('/');
+    return `${this.serverUrl}${encodePath(remotePath)}`;
   }
 
   /**
@@ -1360,7 +1363,7 @@ class S3Client {
     const fullPath = basePrefix ? `${basePrefix}/${cleanPath}` : cleanPath;
     // publicUrl 可能是裸域名（无协议），自动补 https://
     const base = this.publicUrl.startsWith('http') ? this.publicUrl : `https://${this.publicUrl}`;
-    return `${base}/${encodeURIComponent(fullPath)}`;
+    return `${base}/${encodePath(fullPath)}`;
   }
 
   /**
