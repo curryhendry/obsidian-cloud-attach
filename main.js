@@ -1520,10 +1520,8 @@ class S3Client {
     const dateOnly = dateStr.slice(0, 8);
     const signedHeaders = {};
     const credential = `${this.accessKey}/${dateOnly}/${this.region}/s3/aws4_request`;
-    const signedHeaderNames = ['host', 'x-amz-content-sha256', 'x-amz-date'].sort().join(';');
+    const signedHeaderNames = ['host'].sort().join(';');
     signedHeaders['host'] = headers['Host'];
-    signedHeaders['x-amz-content-sha256'] = 'UNSIGNED-PAYLOAD';
-    signedHeaders['x-amz-date'] = headers['X-Amz-Date'];
     const signature = await this.computeSignature(method, url, signedHeaders, dateStr);
     signedHeaders['Authorization'] = `AWS4-HMAC-SHA256 Credential=${credential}, SignedHeaders=${signedHeaderNames}, Signature=${signature}`;
     return signedHeaders;
@@ -1702,8 +1700,6 @@ class S3Client {
 
     const allSignedHeaders = {
       'host': host,
-      'x-amz-content-sha256': 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
-      'x-amz-date': dateStr,
       ...extraHeaders
     };
     const signedHeaderNames = Object.keys(allSignedHeaders).sort().join(';');
