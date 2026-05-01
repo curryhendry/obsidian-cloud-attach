@@ -1366,8 +1366,8 @@ class S3Client {
     const basePrefix = this.prefix ? this.prefix.replace(/\/$/, '') : '';
     const cleanPath = remotePath.replace(/^\/+/, '');
     const fullPath = basePrefix ? `${basePrefix}/${cleanPath}` : cleanPath;
-    // publicUrl 可能是裸域名（无协议），自动补 https://
-    const base = this.publicUrl.startsWith('http') ? this.publicUrl : `https://${this.publicUrl}`;
+    // publicUrl 可能是裸域名（无协议），endpoint 已含协议，直接用
+    const base = this.endpoint;
     return `${base}/${encodePath(fullPath)}`;
   }
 
@@ -2364,7 +2364,7 @@ class CloudAttachView extends ItemView {
     const view = this.findMostRecentMarkdownView();
     if (view?.editor) {
       const cursor = view.editor.getCursor();
-      view.editor.replaceRange(mds.join('\n') + '\n', cursor);
+      view.editor.replaceRange(mds.map(md => md + '\n').join('\n') + '\n', cursor);
       new Notice(t('notice.inserted_count', {count: selected.length}));
     } else {
       new Notice(t('notice.open_note_first'));
