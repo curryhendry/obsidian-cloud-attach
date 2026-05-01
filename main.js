@@ -684,8 +684,11 @@ class OpenListClient {
       console.log('[CloudAttach] getSignedUrl response:', data);
       
       if (data.code === 200) {
-        // 用 API 返回的 raw_url（含 sign= 参数），findAndReplaceUrl 会处理编码差异
-        return data.data.raw_url;
+        // raw_url 路径全编码，decode 再按段 encode 保留中文和 /
+        const url = new URL(data.data.raw_url);
+        const pathSegments = url.pathname.split('/').filter(Boolean);
+        const encodedPath = pathSegments.map(s => encodeURIComponent(decodeURIComponent(s))).join('/');
+        return `${url.origin}/${encodedPath}${url.search}`;
       }
       
       // API 返回错误
@@ -1573,7 +1576,8 @@ class S3Client {
 
     // 构建签名 headers：host + 额外 headers
     const hostHeader = { 'host': new URL(this.endpoint).host };
-    const allSignedHeaders = { ...hostHeader, ...extraHeaders };
+    const amzHeaders = { 'x-amz-date': dateStr, 'x-amz-content-sha256': 'UNSIGNED-PAYLOAD' };
+    const allSignedHeaders = { ...hostHeader, ...amzHeaders, ...extraHeaders };
     const signedHeaderNames = Object.keys(allSignedHeaders).sort().join(';');
 
     const params = {
