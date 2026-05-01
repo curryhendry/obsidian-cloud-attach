@@ -698,30 +698,24 @@ class OpenListClient {
     
     // 回退：优先用 OpenList /p/ 路径（支持分享链接），次选 /d/ 目录路径
     // 不再回退到 WebDAV 路径（那是给 WebDAV 客户端用的）
-    // 编码规则：保留中文原文，仅编码必须转义的字符（空格、%、#、?、& 等）
-    const safePath = remotePath.replace(/[\s#?&<>"'\\|{}]/g, c => encodeURIComponent(c));
-    return `${this.serverUrl}/p${safePath}`;
+    return `${this.serverUrl}/p${encodeURIComponent(remotePath)}`;
   }
 
   // 获取文件的 WebDAV URL（用于插入到笔记）
   getFileUrl(remotePath) {
     const webdavPath = this.webdavPath || '';
-    // 编码规则：保留中文原文，仅编码必须转义的字符
-    const safePath = remotePath.replace(/[\s#?&<>"'\\|{}]/g, c => encodeURIComponent(c));
     // 如果有认证信息，在 URL 中带上 Basic Auth
     if (this.username && this.password) {
       const encodedCreds = btoa(`${this.username}:${this.password}`);
       const serverWithoutProtocol = this.serverUrl.replace(/^https?:\/\//, '');
-      return `https://${encodedCreds}@${serverWithoutProtocol}${webdavPath}${safePath}`;
+      return `https://${encodedCreds}@${serverWithoutProtocol}${webdavPath}${encodeURIComponent(remotePath)}`;
     }
-    return `${this.serverUrl}${webdavPath}${safePath}`;
+    return `${this.serverUrl}${webdavPath}${encodeURIComponent(remotePath)}`;
   }
 
   // 获取原始 URL（无签名、无 /dav /d 前缀，用于 iframe 预览）
   getRawUrl(remotePath) {
-    // 保留中文等 Unicode 原文，仅编码必须转义的字符（空格、%、#、?、& 等）
-    const safePath = remotePath.replace(/[\s#?&<>"'\\|{}]/g, c => encodeURIComponent(c));
-    return `${this.serverUrl}${safePath}`;
+    return `${this.serverUrl}${encodeURIComponent(remotePath)}`;
   }
 
   /**
@@ -804,12 +798,17 @@ class OpenListClient {
         const pathMatch = foundUrl.match(/\/p\/([^?]+)/);
         if (!pathMatch) continue;
         const encodedPath = pathMatch[1];
-        // 解码路径
+        // 解码笔记中 URL 的路径
         const decodedPath = decodeURIComponent(encodedPath);
+        // 解码新 URL 的路径（可能是全编码的）
+        const newUrlPathMatch = newUrl.match(/\/p\/([^?]+)/);
+        if (!newUrlPathMatch) continue;
+        const decodedNewPath = decodeURIComponent(newUrlPathMatch[1]);
         // 比对：解码后是否与 realPath 相同（忽略前后斜杠）
         const normalizedReal = realPath.replace(/^\/+|\/+$/g, '');
         const normalizedDecoded = decodedPath.replace(/^\/+|\/+$/g, '');
-        if (normalizedDecoded === normalizedReal) {
+        const normalizedNewDecoded = decodedNewPath.replace(/^\/+|\/+$/g, '');
+        if (normalizedDecoded === normalizedReal || normalizedNewDecoded === normalizedReal) {
           // 匹配成功，替换这个 URL（不 break，继续替换所有匹配的）
           console.log('[CloudAttach] findAndReplaceUrl: matched path=' + normalizedDecoded + ', replacing: ' + foundUrl.substring(0, 80) + '... -> ' + newUrl.substring(0, 80) + '...');
           newText = newText.replace(foundUrl, newUrl);
@@ -1359,11 +1358,9 @@ class S3Client {
     const basePrefix = this.prefix ? this.prefix.replace(/\/$/, '') : '';
     const cleanPath = remotePath.replace(/^\/+/, '');
     const fullPath = basePrefix ? `${basePrefix}/${cleanPath}` : cleanPath;
-    // 编码规则：保留中文原文，仅编码必须转义的字符
-    const safePath = fullPath.replace(/[\s#?&<>"'\\|{}]/g, c => encodeURIComponent(c));
     // publicUrl 可能是裸域名（无协议），自动补 https://
     const base = this.publicUrl.startsWith('http') ? this.publicUrl : `https://${this.publicUrl}`;
-    return `${base}/${safePath}`;
+    return `${base}/${encodeURIComponent(fullPath)}`;
   }
 
   /**
