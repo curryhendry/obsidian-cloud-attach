@@ -253,10 +253,12 @@ All notable changes to CloudAttach will be documented in this file.
 
 > 注意：更早版本的详细变更记录未保留，以上信息基于 git history 和 memory 反推。
 
-## v0.2.059 (2026-05-01)
+## v0.2.060 (2026-05-01)
 
 ### 修复
-- S3 computeSignature (L1703) 移除 amzHeaders：只签 host + extraHeaders，与 signQuery 保持一致（回退 v0.2.056 错误引入的 x-amz-content-sha256 和 x-amz-date）
-- S3 signRequest (L1523) 同上移除 amzHeaders
+- S3 getFileUrl (L1370)：优先使用 publicUrl 自定义域名，回退用 endpoint
+- 图片 markdown alt 格式 (L2308)：去除尾随空格
 - 更名人：Garry
+
+## v0.2.059 (2026-05-01)
 
