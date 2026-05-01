@@ -50,16 +50,10 @@ git tag -a "$VERSION" -m "release: $VERSION" && git push origin "$VERSION" || ec
 # 2.5 GitHub Release 上传 assets
 # ----------------------------------------------------------
 echo "==> GitHub Release 上传 assets"
+# gh release 命令已禁用，仅 commit + push + 插件目录同步
+# 用户手动创建 GitHub Release
 if command -v gh &> /dev/null; then
-    # 检查 release 是否已存在
-    if gh release view "$VERSION" &> /dev/null; then
-        echo "   Release $VERSION 已存在，上传 assets..."
-        gh release upload "$VERSION" main.js manifest.json --clobber
-    else
-        echo "   创建 Release $VERSION 并上传 assets..."
-        gh release create "$VERSION" main.js manifest.json --title "v$VERSION" --notes "release: v$VERSION"
-    fi
-    echo "   ✓ assets 已上传"
+    echo "   [skip] gh release 命令已禁用，请用户手动创建 Release"
 else
     echo "⚠️  gh CLI 未安装，跳过 Release assets 上传"
 fi
