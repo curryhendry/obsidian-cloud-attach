@@ -1,3 +1,9 @@
+## [v0.2.053] - 2026-05-01
+
+### Fixed
+- **协议不再强制写死 https**: getSignedUrl、getFileUrl、getRawUrl 三处均改为保留用户配置的原始协议（http/https），不再强制改为 https
+- **OpenList URL 保留中文原文**: getSignedUrl/getFileUrl/getRawUrl 三处均去掉 encodeURIComponent，中文路径不再被编码为 `%E6%9D%82...`
+
 ## [v0.2.052] - 2026-05-01
 
 ### Fixed
