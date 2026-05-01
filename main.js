@@ -1573,8 +1573,7 @@ class S3Client {
 
     // 构建签名 headers：host + 额外 headers
     const hostHeader = { 'host': new URL(this.endpoint).host };
-    const amzHeaders = { 'x-amz-date': dateStr, 'x-amz-content-sha256': 'UNSIGNED-PAYLOAD' };
-    const allSignedHeaders = { ...hostHeader, ...amzHeaders, ...extraHeaders };
+    const allSignedHeaders = { ...hostHeader, ...extraHeaders };
     const signedHeaderNames = Object.keys(allSignedHeaders).sort().join(';');
 
     const params = {
