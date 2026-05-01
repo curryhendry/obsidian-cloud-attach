@@ -684,9 +684,8 @@ class OpenListClient {
       console.log('[CloudAttach] getSignedUrl response:', data);
       
       if (data.code === 200) {
-        // 优先用 API raw_url（OpenList 可能返回全编码 URL，直接用）
-        // return data.data.raw_url;
-        // 暂不用 raw_url：OpenList 返回全编码含 %2F，改用保留中文的 fallback
+        // 用 API 返回的 raw_url（含 sign= 参数），findAndReplaceUrl 会处理编码差异
+        return data.data.raw_url;
       }
       
       // API 返回错误
