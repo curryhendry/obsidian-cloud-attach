@@ -1464,27 +1464,12 @@ class S3Client {
       const text = typeof response.text === 'function' ? await response.text().catch(() => '') : (response.text || '');
       console.log('[CloudAttach] S3 testConnection status:', status, 'body:', text.slice(0, 200));
       // 403 = 签名正确但无权限，401 = 签名错误，其他 2xx = 成功
-      if (status === 403) {
-        new Notice(t('notice.s3_test_403'), 5000);
-        return true;
+      if (status === 403 || status === 401 || status === 404 || response.ok) {
+        return response.ok || status === 403;
       }
-      if (status === 401) {
-        new Notice(t('notice.s3_test_401'), 5000);
-        return false;
-      }
-      if (status === 404) {
-        new Notice(t('notice.s3_test_404'), 5000);
-        return false;
-      }
-      if (response.ok) {
-        new Notice(t('notice.s3_test_ok'), 5000);
-        return true;
-      }
-      new Notice(t('notice.s3_test_failed', {status}), 5000);
       return false;
     } catch (e) {
       console.error('[CloudAttach] S3 testConnection error:', e);
-      new Notice(t('notice.s3_test_error', {error: e.message}), 5000);
       return false;
     }
   }
