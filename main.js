@@ -684,9 +684,8 @@ class OpenListClient {
       console.log('[CloudAttach] getSignedUrl response:', data);
       
       if (data.code === 200) {
-        // 优先使用 raw_url（OpenList URL 中文已编码，无需解码）
-        if (data.data?.raw_url) return data.data.raw_url;
-        if (data.raw_url) return data.raw_url;
+        // 不直接用 raw_url（OpenList API 返回全编码，含 %2F）
+        // OpenList 规则：保留中文，按 segment 分段编码
       }
       
       // API 返回错误
@@ -787,39 +786,39 @@ class OpenListClient {
    * 在文本中查找并替换 URL（简化版：遍历文本中的 URL，解码后比对路径）
    */
   findAndReplaceUrl(text, realPath, newUrl) {
-    // 匹配 https://xxx:port/p/... 格式的 URL（含可选 sign）
-    // 使用简单正则，避免复杂转义
-    const urlRegex = /https?:\/\/[^?\s()"']+\/p\/[^?\s()"']+((\?|&)sign=[^?\s()"']*)?/g;
-    let newText = text;
+    // 匹配任意 https URL，按 decoded path 匹配 realPath
+    // 不再限定 /p/ 格式，兼容 OpenList、S3、WebDAV 等所有服务
+    const urlRegex = /https?:\/\/[^\s()"']+/g;
     const matches = text.match(urlRegex);
     if (!matches) return text;
-    
+
+    const normalizedReal = realPath.replace(/^\/+|\/+$/g, '');
+    let newText = text;
+
     for (const foundUrl of matches) {
-      // 从找到的 URL 中提取路径并解码
       try {
-        // 提取 /p/ 后面的路径部分（去掉 sign）
-        const pathMatch = foundUrl.match(/\/p\/([^?]+)/);
-        if (!pathMatch) continue;
-        const encodedPath = pathMatch[1];
-        // 解码笔记中 URL 的路径
-        const decodedPath = decodeURIComponent(encodedPath);
-        // 解码新 URL 的路径（可能是全编码的）
-        const newUrlPathMatch = newUrl.match(/\/p\/([^?]+)/);
-        if (!newUrlPathMatch) continue;
-        const decodedNewPath = decodeURIComponent(newUrlPathMatch[1]);
-        // 比对：解码后是否与 realPath 相同（忽略前后斜杠）
-        const normalizedReal = realPath.replace(/^\/+|\/+$/g, '');
-        const normalizedDecoded = decodedPath.replace(/^\/+|\/+$/g, '');
-        const normalizedNewDecoded = decodedNewPath.replace(/^\/+|\/+$/g, '');
-        if (normalizedDecoded === normalizedReal || normalizedNewDecoded === normalizedReal) {
-          // 匹配成功，替换这个 URL（不 break，继续替换所有匹配的）
-          console.log('[CloudAttach] findAndReplaceUrl: matched path=' + normalizedDecoded + ', replacing: ' + foundUrl.substring(0, 80) + '... -> ' + newUrl.substring(0, 80) + '...');
+        // 提取 URL 中的 path 部分（第一个 ? 前的内容，截断 query string）
+        const urlWithoutQuery = foundUrl.split('?')[0];
+        const afterHost = urlWithoutQuery.replace(/^https?:\/\/[^\/]+/, '');
+
+        // 解码 URL 中的路径部分
+        const decodedUrlPath = decodeURIComponent(afterHost);
+        const decodedNormalized = decodedUrlPath.replace(/^\/+|\/+$/g, '');
+
+        // 解码新 URL 的路径
+        const newUrlWithoutQuery = newUrl.split('?')[0];
+        const newAfterHost = newUrlWithoutQuery.replace(/^https?:\/\/[^\/]+/, '');
+        const decodedNewPath = decodeURIComponent(newAfterHost);
+        const decodedNewNormalized = decodedNewPath.replace(/^\/+|\/+$/g, '');
+
+        // 按 decoded path 匹配
+        if (decodedNormalized === normalizedReal || decodedNewNormalized === normalizedReal) {
+          console.log('[CloudAttach] findAndReplaceUrl: matched path=' + decodedNormalized + ', replacing: ' + foundUrl.substring(0, 80) + '... -> ' + newUrl.substring(0, 80) + '...');
           newText = newText.replace(foundUrl, newUrl);
         }
       } catch (e) {
-        // 解码失败，跳过
         continue;
-        }
+      }
     }
     return newText;
   }
@@ -1357,6 +1356,7 @@ class S3Client {
    * @returns {string} 公共 URL
    */
   getFileUrl(remotePath) {
+    const encodePath = (p) => p.split('/').map(s => encodeURIComponent(s)).join('/');
     // 去除前缀的尾斜杠，拼到 publicUrl
     const basePrefix = this.prefix ? this.prefix.replace(/\/$/, '') : '';
     const cleanPath = remotePath.replace(/^\/+/, '');

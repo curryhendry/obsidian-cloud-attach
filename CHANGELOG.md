@@ -1,3 +1,9 @@
+## [v0.2.052] - 2026-05-01
+
+### Fixed
+- **OpenList URL 编码策略重构**: getSignedUrl 不再直接使用 API raw_url（返回全编码，含中文 `%E7%85%A7`），改为让 fallback 的 `encodePath` 生效——`split('/').map(encodeURIComponent).join('/')` 保留中文原文，`/` 不编码为空格
+- **签名刷新路径匹配扩大**: findAndReplaceUrl 正则从 `/p/` 限定改为匹配任意 https URL，按 decoded path 匹配 realPath，S3/WebDAV URL 全部生效
+
 ## [v0.2.049] - 2026-05-01
 
 ### Fixed
