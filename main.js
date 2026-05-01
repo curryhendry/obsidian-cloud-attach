@@ -2890,11 +2890,14 @@ class CloudAttachSettingTab extends PluginSettingTab {
       this.render();
       this.refreshViewSelect();
     };
-    btnRow.appendChild(upBtn);
-    btnRow.appendChild(downBtn);
     btnRow.appendChild(editBtn);
     btnRow.appendChild(testBtn);
     btnRow.appendChild(delBtn);
+    const spacer = document.createElement('div');
+    spacer.style.flex = '1';
+    btnRow.appendChild(spacer);
+    btnRow.appendChild(upBtn);
+    btnRow.appendChild(downBtn);
     card.appendChild(btnRow);
     this.containerEl.appendChild(card);
   }
