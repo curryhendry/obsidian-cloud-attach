@@ -1,4 +1,11 @@
-## [v0.2.055] - 2026-05-01
+## [v0.2.057] - 2026-05-01
+
+### Fixed
+- **OpenList getSignedUrl 恢复 safeDecodeUrl 解码**: raw_url 全编码（含 `%2F` 和 `%E6%82%A8` 等），直接返回会导致 URL 不可用；恢复使用实例方法 `this.safeDecodeUrl()` 解码后再 safePath 规则重新编码，保留中文原文、编码必要特殊字符
+- **图片 alt 文本加空格**: `![8](url)` 的 alt 文本 "8" 会被 Obsidian 误解为宽度参数；改为 `![8 ](url)` 加空格避免误解析
+
+
+## [v0.2.056] - 2026-05-01
 
 ### Fixed
 - **S3 getFileUrl 协议尊重用户配置**: 改用 `this.endpoint`（含用户配置的 http/https）替代硬编码 `https://` fallback

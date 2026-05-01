@@ -684,11 +684,8 @@ class OpenListClient {
       console.log('[CloudAttach] getSignedUrl response:', data);
       
       if (data.code === 200) {
-        // raw_url 路径全编码，decode 再按段 encode 保留中文和 /
-        const url = new URL(data.data.raw_url);
-        const pathSegments = url.pathname.split('/').filter(Boolean);
-        const encodedPath = pathSegments.map(s => encodeURIComponent(decodeURIComponent(s))).join('/');
-        return `${url.origin}/${encodedPath}${url.search}`;
+        // raw_url 全编码，用 safeDecodeUrl 解码保留中文，特殊字符编码
+        return this.safeDecodeUrl(data.data.raw_url);
       }
       
       // API 返回错误
@@ -2313,7 +2310,7 @@ class CloudAttachView extends ItemView {
         : client.getFileUrl(file.path);
     }
     if (imageExts.includes(ext)) {
-      return `![${nameWithoutExt}](${url})`;
+      return `![${nameWithoutExt} ](${url})`;
     } else if (videoExts.includes(ext)) {
       return `<video controls width="600" height="400">\n <source src="${url}" type="video/mp4">\n</video>`;
     } else if (audioExts.includes(ext)) {
