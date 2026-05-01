@@ -1,7 +1,7 @@
 {
   "id": "cloud-attach",
   "name": "CloudAttach",
-  "version": "0.2.046",
+  "version": "0.2.047",
   "minAppVersion": "1.0.0",
   "description": "连接 OpenList 等 WebDAV/对象存储服务，在笔记中一键引用附件、上传文件。",
   "author": "Garry",

@@ -92,6 +92,8 @@ Object.assign(I18n.translations.zh, {
   'settings.test': '测试',
   'settings.edit': '编辑',
   'settings.delete': '删除',
+  'settings.move_up': '上移',
+  'settings.move_down': '下移',
   'settings.cancel': '取消',
   'settings.server_address': '服务器地址',
   'settings.endpoint': '端点',
@@ -304,6 +306,8 @@ Object.assign(I18n.translations.en, {
   'settings.test': 'Test',
   'settings.edit': 'Edit',
   'settings.delete': 'Delete',
+  'settings.move_up': 'Move Up',
+  'settings.move_down': 'Move Down',
   'settings.cancel': 'Cancel',
   'settings.server_address': 'Server Address',
   'settings.endpoint': 'Endpoint',
@@ -1461,7 +1465,7 @@ class S3Client {
       console.log('[CloudAttach] S3 testConnection status:', status, 'body:', text.slice(0, 200));
       // 403 = 签名正确但无权限，401 = 签名错误，其他 2xx = 成功
       if (status === 403) {
-        new Notice(t('notice.s3_test_403') + ` body: ${text.slice(0, 100)}`, 5000);
+        new Notice(t('notice.s3_test_403'), 5000);
         return true;
       }
       if (status === 401) {
@@ -1473,10 +1477,10 @@ class S3Client {
         return false;
       }
       if (response.ok) {
-        new Notice(`t('notice.s3_test_ok') body: ${text.slice(0, 80)}`, 5000);
+        new Notice(t('notice.s3_test_ok'), 5000);
         return true;
       }
-      new Notice(t('notice.s3_test_failed', {status}) + ` body: ${text.slice(0, 80)}`, 5000);
+      new Notice(t('notice.s3_test_failed', {status}), 5000);
       return false;
     } catch (e) {
       console.error('[CloudAttach] S3 testConnection error:', e);
@@ -2683,7 +2687,8 @@ class AddAccountModal extends Modal {
       let accountData;
       if (accountType === 's3') {
         // S3 模式校验
-        const endpoint = fields.endpoint.value.trim().replace(/\/$/, '');
+        let endpoint = fields.endpoint.value.trim().replace(/\/$/, '');
+        if (endpoint && !/^https?:\/\//i.test(endpoint)) endpoint = 'http://' + endpoint;
         const bucket = fields.bucket.value.trim();
         if (!endpoint) { new Notice(t('settings.please_fill_endpoint'), 3000); return; }
         if (!bucket) { new Notice(t('settings.please_fill_bucket'), 3000); return; }
@@ -2701,7 +2706,8 @@ class AddAccountModal extends Modal {
         };
       } else {
         // OpenList 模式校验
-        const url = fields.url.value.trim().replace(/\/$/, '');
+        let url = fields.url.value.trim().replace(/\/$/, '');
+        if (url && !/^https?:\/\//i.test(url)) url = 'http://' + url;
         if (!url) { new Notice(t('settings.please_fill_server'), 3000); return; }
         accountData = {
           type: 'openlist',
@@ -2864,6 +2870,28 @@ class CloudAttachSettingTab extends PluginSettingTab {
       this.render();
       this.refreshViewSelect();
     };
+    const upBtn = document.createElement('button');
+    upBtn.textContent = '↑';
+    upBtn.className = 'cloud-attach-btn';
+    upBtn.title = t('settings.move_up');
+    upBtn.onclick = async () => {
+      await this.plugin.moveAccount(account.id, 'up');
+      this.containerEl.innerHTML = '';
+      this.render();
+      this.refreshViewSelect();
+    };
+    const downBtn = document.createElement('button');
+    downBtn.textContent = '↓';
+    downBtn.className = 'cloud-attach-btn';
+    downBtn.title = t('settings.move_down');
+    downBtn.onclick = async () => {
+      await this.plugin.moveAccount(account.id, 'down');
+      this.containerEl.innerHTML = '';
+      this.render();
+      this.refreshViewSelect();
+    };
+    btnRow.appendChild(upBtn);
+    btnRow.appendChild(downBtn);
     btnRow.appendChild(editBtn);
     btnRow.appendChild(testBtn);
     btnRow.appendChild(delBtn);
@@ -3400,6 +3428,14 @@ module.exports = class CloudAttachPlugin extends Plugin {
       this.accounts[idx] = { ...this.accounts[idx], ...updates };
       await this.saveSettings();
     }
+  }
+  async moveAccount(id, direction) {
+    const idx = this.accounts.findIndex(a => a.id === id);
+    if (idx < 0) return;
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= this.accounts.length) return;
+    [this.accounts[idx], this.accounts[targetIdx]] = [this.accounts[targetIdx], this.accounts[idx]];
+    await this.saveSettings();
   }
   createClient(accountId) {
     const account = this.getAccount(accountId);
