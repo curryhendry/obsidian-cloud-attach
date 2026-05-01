@@ -1,3 +1,10 @@
+## [v0.2.049] - 2026-05-01
+
+### Fixed
+- **光标位置保护**: doUpload、sign 刷新等所有 setValue 操作前后保存/恢复光标位置，解决上传后光标跳顶/全选问题
+- **OpenList URL 编码**: getSignedUrl 移除 safeDecodeUrl，OpenList 返回的 URL 中文已编码无需解码（与 safePath 规则一致）
+- **S3 URL 编码确认**: S3 getSignedUrl/getFileUrl 保持 encodeURIComponent 编码，S3 签名依赖路径编码不能解码
+
 ## [v0.2.044] - 2026-04-26
 
 ### Fixed

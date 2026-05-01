@@ -684,9 +684,9 @@ class OpenListClient {
       console.log('[CloudAttach] getSignedUrl response:', data);
       
       if (data.code === 200) {
-        // 优先使用 raw_url，但需要解码中文
-        if (data.data?.raw_url) return this.safeDecodeUrl(data.data.raw_url);
-        if (data.raw_url) return this.safeDecodeUrl(data.raw_url);
+        // 优先使用 raw_url（OpenList URL 中文已编码，无需解码）
+        if (data.data?.raw_url) return data.data.raw_url;
+        if (data.raw_url) return data.raw_url;
       }
       
       // API 返回错误
@@ -1377,6 +1377,7 @@ class S3Client {
       const cleanPath = remotePath.replace(/^\/+/, '');
       const params = new URLSearchParams({ 'X-Amz-Expires': expires.toString() });
       const signedQuery = await this.signQuery(params, cleanPath);
+      // S3 路径必须保持编码，中文不能解码（签名依赖路径编码）
       const objectKey = encodeURIComponent(cleanPath);
       return `${this.endpoint}/${this.bucket}/${objectKey}?${signedQuery}`;
     } catch (e) {
@@ -3208,7 +3209,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
               // 使用 findAndReplaceUrl 按路径匹配替换整个 URL
               const newText = client.findAndReplaceUrl(view.editor.getValue(), realPath, newUrl);
               if (newText !== view.editor.getValue()) {
+                const cursor = view.editor.getCursor();
                 view.editor.setValue(newText);
+                view.editor.setCursor(cursor);
                 results.refreshed++;
                 results.refreshedPaths.push(realPath);
               } else {
@@ -3241,7 +3244,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
                 // 使用 findAndReplaceUrl 按路径匹配替换整个 URL
                 const newText = client.findAndReplaceUrl(view.editor.getValue(), realPath, newUrl);
                 if (newText !== view.editor.getValue()) {
+                  const cursor = view.editor.getCursor();
                   view.editor.setValue(newText);
+                  view.editor.setCursor(cursor);
                   results.refreshed++;
                   results.refreshedPaths.push(realPath);
                 }
@@ -3792,7 +3797,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
           console.log('[CloudAttach] 删除本地文件失败:', e.message);
         }
       }
+      const finalCursor = view.editor.getCursor();
       view.editor.setValue(text);
+      view.editor.setCursor(finalCursor);
     }
     // 显示结果
     const parts = [];
