@@ -1367,9 +1367,11 @@ class S3Client {
     const cleanPath = remotePath.replace(/^\/+/, '');
     const fullPath = basePrefix ? `${basePrefix}/${cleanPath}` : cleanPath;
     // 确保 protocol
+    // 协议继承：customHost 无协议则从 endpoint 取；endpoint 也无协议则默认 http
     let base = this.publicUrl || this.endpoint;
+    const protoFromEndpoint = (this.endpoint || '').match(/^https?:/)?.[0] || 'http:';
     if (!base.startsWith('http')) {
-      base = `https://${base}`;
+      base = `${protoFromEndpoint}//${base}`;
     }
     return `${base}/${encodePath(fullPath)}`;
   }
