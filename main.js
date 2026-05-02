@@ -295,9 +295,18 @@ Object.assign(I18n.translations.en, {
   'notice.rename_failed': '❌ Rename failed: {error}',
   'notice.rename_success': '✅ Renamed successfully',
   'notice.reload_failed': '❌ Reload failed: {error}',
-  'notice.reload_failed': '❌ Reload failed: {error}',
   'notice.connect_success': '✅ Connection successful',
   'notice.connect_failed': '❌ Connection failed',
+
+  // Error messages
+  'error.rebuild_failed': 'Rebuild failed: {error}',
+  'error.sign_rebuild_failed': 'Sign rebuild failed: {error}',
+
+  // Settings
+  'settings.check_account_settings': 'Please check account settings',
+
+  // View
+  'view.upload_to': 'Upload to: <code style="background:var(--background-secondary);padding:2px 6px;border-radius:3px;">{path}</code>',
 
   'settings.title': 'CloudAttach Settings',
   'settings.account_name': 'Account Name',

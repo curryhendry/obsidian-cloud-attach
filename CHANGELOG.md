@@ -278,3 +278,9 @@ All notable changes to CloudAttach will be documented in this file.
 
 ## v0.2.059 (2026-05-01)
 
+
+## v0.2.064 (2026-05-02)
+
+### 修复
+- 补全 EN 翻译：4 个 key 缺失（error.rebuild_failed, error.sign_rebuild_failed, settings.check_account_settings, view.upload_to）
+- 更名人：Garry
