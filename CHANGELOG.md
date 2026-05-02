@@ -1,7 +1,12 @@
+## [v0.2.062] - 2026-05-02
+
+### Fixed
+- **S3 getFileUrl 协议继承顺序**: customHost 无协议时从 endpoint 取协议；endpoint 也有从 endpoint 取；都没有才默认 http；更人人：Garry
+
 ## [v0.2.061] - 2026-05-02
 
 ### Fixed
-- **S3 getFileUrl publicUrl 裸域名加 https:// 前缀**: 用户配置的自定义域名可能是裸域名（如 qiniu.002814.xyz），之前版本会直接拼接导致 URL 缺少协议；新增协议检测，无 http 前缀时自动加上 https://
+- **S3 getFileUrl publicUrl 裸域名加协议前缀**: 用户配置的自定义域名可能是裸域名（如 qiniu.002814.xyz），之前版本会直接拼接导致 URL 缺少协议；新增协议检测，无 http 前缀时自动加上 https://
 
 ## [v0.2.058] - 2026-05-01
 
