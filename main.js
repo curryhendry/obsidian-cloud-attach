@@ -1366,8 +1366,11 @@ class S3Client {
     const basePrefix = this.prefix ? this.prefix.replace(/\/$/, '') : '';
     const cleanPath = remotePath.replace(/^\/+/, '');
     const fullPath = basePrefix ? `${basePrefix}/${cleanPath}` : cleanPath;
-    // publicUrl 可能是裸域名（无协议），endpoint 已含协议，直接用
-    const base = this.publicUrl || this.endpoint;
+    // 确保 protocol
+    let base = this.publicUrl || this.endpoint;
+    if (!base.startsWith('http')) {
+      base = `https://${base}`;
+    }
     return `${base}/${encodePath(fullPath)}`;
   }
 
