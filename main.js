@@ -1784,12 +1784,18 @@ class S3Client {
           const dirContents = await this.listDirectory(fullPath);
           for (const item of dirContents) {
             const itemKey = this._objectKey(item.path);
-            const r = await this._s3DirectRequest(itemKey, 'DELETE');
+            const itemSignedQuery = await this.signQuery(new URLSearchParams({'X-Amz-Expires':'3600'}), itemKey, 'DELETE', {});
+            const itemEncodedKey = encodeURIComponent(itemKey);
+            const itemDeleteUrl = `${this.endpoint}/${this.bucket}/${itemEncodedKey}?${itemSignedQuery}`;
+            const r = await this.requestViaObsidian(itemDeleteUrl, { method: 'DELETE' });
             if (!r.ok) results.failed.push({ path: item.path, error: `HTTP ${r.status}` });
             else results.success.push(item.path);
           }
         } else {
-          const r = await this._s3DirectRequest(objectKey, 'DELETE');
+          const signedQuery = await this.signQuery(new URLSearchParams({'X-Amz-Expires':'3600'}), objectKey, 'DELETE', {});
+        const encodedKey = encodeURIComponent(objectKey);
+        const deleteUrl = `${this.endpoint}/${this.bucket}/${encodedKey}?${signedQuery}`;
+        const r = await this.requestViaObsidian(deleteUrl, { method: 'DELETE' });
           if (r.ok) results.success.push(fullPath);
           else results.failed.push({ path: fullPath, error: `HTTP ${r.status}` });
         }
