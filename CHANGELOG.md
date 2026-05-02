@@ -1,3 +1,8 @@
+## [v0.2.061] - 2026-05-02
+
+### Fixed
+- **S3 getFileUrl publicUrl 裸域名加 https:// 前缀**: 用户配置的自定义域名可能是裸域名（如 qiniu.002814.xyz），之前版本会直接拼接导致 URL 缺少协议；新增协议检测，无 http 前缀时自动加上 https://
+
 ## [v0.2.058] - 2026-05-01
 
 ### Fixed
@@ -256,6 +261,7 @@ All notable changes to CloudAttach will be documented in this file.
 ## v0.2.060 (2026-05-01)
 
 ### 修复
+- S3 getFileUrl publicUrl 裸域名加 https:// 前缀 (L1371)
 - S3 getFileUrl (L1370)：优先使用 publicUrl 自定义域名，回退用 endpoint
 - 图片 markdown alt 格式 (L2308)：去除尾随空格
 - 更名人：Garry
