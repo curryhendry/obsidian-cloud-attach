@@ -1,7 +1,7 @@
 ## [v0.2.062] - 2026-05-02
 
 ### Fixed
-- **S3 getFileUrl 协议继承顺序**: customHost 无协议时从 endpoint 取协议；endpoint 也有从 endpoint 取；都没有才默认 http；更人人：Garry
+- **S3 getFileUrl 协议继承顺序**: customHost 无协议时从 endpoint 取协议；endpoint 也有从 endpoint 取；都没有才默认 http；更名人：Garry
 
 ## [v0.2.061] - 2026-05-02
 
