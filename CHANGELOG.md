@@ -1,3 +1,8 @@
+## [v0.2.063]
+### Fixed
+- **S3 delete 绕过 CORS**: delete 方法改用 signQuery 生成 presigned URL + requestViaObsidian 发送 DELETE 请求，与 upload 同一模式，绕过七牛云 S3 CORS 限制
+- 更名人：Garry
+
 ## [v0.2.062] - 2026-05-02
 
 ### Fixed
