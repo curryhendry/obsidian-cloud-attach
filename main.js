@@ -2330,7 +2330,7 @@ class CloudAttachView extends ItemView {
         : client.getFileUrl(file.path);
     }
     if (imageExts.includes(ext)) {
-      return `![${nameWithoutExt} ](${url})`;
+      return `![${nameWithoutExt}](${url})`;
     } else if (videoExts.includes(ext)) {
       return `<video controls width="600" height="400">\n <source src="${url}" type="video/mp4">\n</video>`;
     } else if (audioExts.includes(ext)) {
