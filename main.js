@@ -3190,6 +3190,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
     new Notice(t('notice.check_start', {count: urls.length}), 3000);
     const results = { valid: 0, refreshed: 0, refreshedPaths: [], failed: 0, failedUrls: [], skipped: 0 };
+    // 累积修改的文本，避免每次都从原始文本重新读取
+    let accumulatedText = text;
+    let cursorPos = null;
     for (const url of urls) {
       console.log('[CloudAttach] 检查 URL:', url);
       const match = this.matchAccount(url);
@@ -3227,12 +3230,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
           try {
             const newUrl = await client.getSignedUrl(realPath);
             if (newUrl && newUrl !== url) {
-              // 使用 findAndReplaceUrl 按路径匹配替换整个 URL
-              const newText = client.findAndReplaceUrl(view.editor.getValue(), realPath, newUrl);
-              if (newText !== view.editor.getValue()) {
-                const cursor = view.editor.getCursor();
-                view.editor.setValue(newText);
-                view.editor.setCursor(cursor);
+              // 使用累积的文本进行替换，而非每次从原始文本重新读取
+              const newText = client.findAndReplaceUrl(accumulatedText, realPath, newUrl);
+              if (newText !== accumulatedText) {
+                // 首次修改时保存光标位置
+                if (!cursorPos) cursorPos = view.editor.getCursor();
+                accumulatedText = newText;
                 results.refreshed++;
                 results.refreshedPaths.push(realPath);
               } else {
@@ -3262,12 +3265,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
             try {
               const newUrl = await client.getSignedUrl(realPath);
               if (newUrl && newUrl !== url) {
-                // 使用 findAndReplaceUrl 按路径匹配替换整个 URL
-                const newText = client.findAndReplaceUrl(view.editor.getValue(), realPath, newUrl);
-                if (newText !== view.editor.getValue()) {
-                  const cursor = view.editor.getCursor();
-                  view.editor.setValue(newText);
-                  view.editor.setCursor(cursor);
+                // 使用累积的文本进行替换
+                const newText = client.findAndReplaceUrl(accumulatedText, realPath, newUrl);
+                if (newText !== accumulatedText) {
+                  if (!cursorPos) cursorPos = view.editor.getCursor();
+                  accumulatedText = newText;
                   results.refreshed++;
                   results.refreshedPaths.push(realPath);
                 }
@@ -3289,6 +3291,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (results.refreshed > 0) parts.push(t('notice.urls_refreshed', {count: results.refreshed}));
     if (results.failed > 0) parts.push(t('notice.urls_failed', {count: results.failed}));
     if (results.skipped > 0) parts.push(t('notice.urls_skipped', {count: results.skipped}));
+    // 一次性写入累积的修改
+    if (accumulatedText !== text && cursorPos) {
+      view.editor.setValue(accumulatedText);
+      // 恢复光标位置，并清除选择区
+      view.editor.setCursor(cursorPos);
+      view.editor.setSelection(cursorPos);
+    }
     if (results.refreshed > 0) {
       new Notice(t('notice.check_complete', {parts: parts.join(', ')}), 6000);
     } else {
@@ -3821,6 +3830,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const finalCursor = view.editor.getCursor();
       view.editor.setValue(text);
       view.editor.setCursor(finalCursor);
+      view.editor.setSelection(finalCursor);
     }
     // 显示结果
     const parts = [];
