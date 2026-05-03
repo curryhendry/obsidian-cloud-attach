@@ -1,4 +1,11 @@
 ## [v0.2.063]
+## [v0.2.065] - 2026-05-03
+
+### Fixed
+- **批量 sign 刷新累积修改**: 修复批量刷新 sign URL 时每次都用原始文本重新读取的 bug，导致URL重复或丢失
+- **光标位置保护**: setValue 后清除选择区（setSelection），防止全选状态
+- 更名人：Garry
+
 ### Fixed
 - **S3 delete 绕过 CORS**: delete 方法改用 signQuery 生成 presigned URL + requestViaObsidian 发送 DELETE 请求，与 upload 同一模式，绕过七牛云 S3 CORS 限制
 - 更名人：Garry
