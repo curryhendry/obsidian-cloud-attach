@@ -817,13 +817,16 @@ class OpenListClient {
 
         // 解码 URL 中的路径部分
         const decodedUrlPath = decodeURIComponent(afterHost);
-        const decodedNormalized = decodedUrlPath.replace(/^\/+|\/+$/g, '');
+        // 去掉 /p/ 或 /d/ 前缀（OpenList 公开链接格式）
+        const decodedNoPrefix = decodedUrlPath.replace(/^\/(p|d)\//, '/');
+        const decodedNormalized = decodedNoPrefix.replace(/^\/+\/+$/g, '');
 
         // 解码新 URL 的路径
         const newUrlWithoutQuery = newUrl.split('?')[0];
         const newAfterHost = newUrlWithoutQuery.replace(/^https?:\/\/[^\/]+/, '');
         const decodedNewPath = decodeURIComponent(newAfterHost);
-        const decodedNewNormalized = decodedNewPath.replace(/^\/+|\/+$/g, '');
+        const decodedNewNoPrefix = decodedNewPath.replace(/^\/(p|d)\//, '/');
+        const decodedNewNormalized = decodedNewNoPrefix.replace(/^\/+\/+$/g, '');
 
         // 按 decoded path 匹配
         if (decodedNormalized === normalizedReal || decodedNewNormalized === normalizedReal) {
