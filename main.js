@@ -2043,11 +2043,18 @@ class CloudAttachView extends ItemView {
         return;
       }
       const selected = this.files.filter(f => this.selectedFiles.has(f.path));
-      const urls = await Promise.all(selected.map(f =>
-        this.client.token
-          ? await (this.client.getSignedUrl ? this.client.getSignedUrl(f.path) : this.client.getFileUrl(f.path))
-          : this.client.getFileUrl(f.path)
-      ));
+      const urls = await Promise.all(selected.map(async f => {
+        try {
+          if (this.client.token) {
+            return this.client.getSignedUrl ? await this.client.getSignedUrl(f.path) : await this.client.getFileUrl(f.path);
+          }
+          return await this.client.getFileUrl(f.path);
+        } catch (e) {
+          console.error('[CloudAttach] getFileUrl failed:', f.path, e.message);
+          return null;
+        }
+      }));
+      const validUrls = urls.filter(Boolean);
       await navigator.clipboard.writeText(urls.join('\n'));
       new Notice(t('notice.copied_count', {count: urls.length}));
     };
@@ -3423,6 +3430,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
           const fullText = view.editor.getValue();
           const newText = fullText.replace(url, newUrl);
           view.editor.setValue(newText);
+          view.editor.setCursor(0, 0);
+          view.editor.setSelection(0, 0);
           new Notice(t('notice.sign_refreshed'), 3000);
         }
       } catch (e) {
@@ -3841,6 +3850,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const finalCursor = view.editor.getCursor();
       view.editor.setValue(text);
       view.editor.setCursor(finalCursor);
+      view.editor.setSelection(finalCursor, finalCursor);
       view.editor.setSelection(finalCursor);
     }
     // 显示结果
