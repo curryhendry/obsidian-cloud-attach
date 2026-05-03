@@ -664,7 +664,7 @@ class OpenListClient {
     return response;
   }
 
-  async getSignedUrl(remotePath) {
+  async getSignedUrl(remotePath, preferredPrefix = 'p') {
     // 优先使用 OpenList API 获取带签名的 URL
     const apiUrl = `${this.serverUrl}/api/fs/get`;
     
@@ -679,7 +679,7 @@ class OpenListClient {
     }
     
     try {
-      console.log('[CloudAttach] getSignedUrl calling API:', apiUrl, 'path:', remotePath);
+      console.log('[CloudAttach] getSignedUrl calling API:', apiUrl, 'path:', remotePath, 'prefix:', preferredPrefix);
       
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -694,7 +694,10 @@ class OpenListClient {
       
       if (data.code === 200) {
         // raw_url 全编码，用 safeDecodeUrl 解码保留中文，特殊字符编码
-        return this.safeDecodeUrl(data.data.raw_url);
+        let newUrl = this.safeDecodeUrl(data.data.raw_url);
+        // 保持原 URL 的前缀（/d/ 或 /p/）
+        newUrl = newUrl.replace(/\/(d|p)\//, `/${preferredPrefix}/`);
+        return newUrl;
       }
       
       // API 返回错误
@@ -704,12 +707,11 @@ class OpenListClient {
       console.log('[CloudAttach] API call failed:', e.message);
     }
     
-    // 回退：优先用 OpenList /p/ 路径（支持分享链接），次选 /d/ 目录路径
-    // 不再回退到 WebDAV 路径（那是给 WebDAV 客户端用的）
+    // 回退：使用传入的 preferredPrefix（默认 p）
     // 保留原协议、保留中文原文
     const proto = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, '$1');
     const host = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, '$3');
-    return `${proto}${host}/p${remotePath}`;
+    return `${proto}${host}/${preferredPrefix}${remotePath}`;
   }
 
   // 获取文件的 WebDAV URL（用于插入到笔记）
@@ -3231,7 +3233,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
             continue;
           }
           try {
-            const newUrl = await client.getSignedUrl(realPath);
+            // 保持原 URL 的前缀（/d/ 或 /p/）
+            const originalPrefix = url.match(/\/(d|p)\//)?.[1] || 'p';
+            const newUrl = await client.getSignedUrl(realPath, originalPrefix);
             if (newUrl && newUrl !== url) {
               // 使用累积的文本进行替换，而非每次从原始文本重新读取
               const newText = client.findAndReplaceUrl(accumulatedText, realPath, newUrl);
@@ -3266,7 +3270,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
           const realPath = client.extractRealPath(url);
           if (realPath) {
             try {
-              const newUrl = await client.getSignedUrl(realPath);
+              // 保持原 URL 的前缀（/d/ 或 /p/）
+              const originalPrefix = url.match(/\/(d|p)\//)?.[1] || 'p';
+              const newUrl = await client.getSignedUrl(realPath, originalPrefix);
               if (newUrl && newUrl !== url) {
                 // 使用累积的文本进行替换
                 const newText = client.findAndReplaceUrl(accumulatedText, realPath, newUrl);
@@ -3410,7 +3416,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
         return;
       }
       try {
-        const newUrl = await client.getSignedUrl(realPath);
+        // 保持原 URL 的前缀（/d/ 或 /p/）
+        const originalPrefix = url.match(/\/(d|p)\//)?.[1] || 'p';
+        const newUrl = await client.getSignedUrl(realPath, originalPrefix);
         if (newUrl) {
           const fullText = view.editor.getValue();
           const newText = fullText.replace(url, newUrl);
