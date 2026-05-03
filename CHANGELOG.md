@@ -1,4 +1,15 @@
-## [v0.2.063]
+## [v0.2.067] - 2026-05-03
+
+### Fixed
+- **findAndReplaceUrl 正则修复**: 修复路径匹配时去除首尾斜杠的正则表达式错误（`/^\/+\/+$/g` → `/^\/+/` + `/\/$/`）
+- 更名人：Garry
+
+## [v0.2.066] - 2026-05-03
+
+### Fixed
+- **sign URL /d/ 路径匹配**: 批量刷新 sign URL 时 extractRealPath 去掉 /d/ 前缀，但 findAndReplaceUrl 保留前缀，导致匹配失败
+- 更名人：Garry
+
 ## [v0.2.065] - 2026-05-03
 
 ### Fixed
