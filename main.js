@@ -819,14 +819,14 @@ class OpenListClient {
         const decodedUrlPath = decodeURIComponent(afterHost);
         // 去掉 /p/ 或 /d/ 前缀（OpenList 公开链接格式）
         const decodedNoPrefix = decodedUrlPath.replace(/^\/(p|d)\//, '/');
-        const decodedNormalized = decodedNoPrefix.replace(/^\/+\/+$/g, '');
+        const decodedNormalized = decodedNoPrefix.replace(/^\/+/, '').replace(/\/$/, '');
 
         // 解码新 URL 的路径
         const newUrlWithoutQuery = newUrl.split('?')[0];
         const newAfterHost = newUrlWithoutQuery.replace(/^https?:\/\/[^\/]+/, '');
         const decodedNewPath = decodeURIComponent(newAfterHost);
         const decodedNewNoPrefix = decodedNewPath.replace(/^\/(p|d)\//, '/');
-        const decodedNewNormalized = decodedNewNoPrefix.replace(/^\/+\/+$/g, '');
+        const decodedNewNormalized = decodedNewNoPrefix.replace(/^\/+/, '').replace(/\/$/, '');
 
         // 按 decoded path 匹配
         if (decodedNormalized === normalizedReal || decodedNewNormalized === normalizedReal) {
