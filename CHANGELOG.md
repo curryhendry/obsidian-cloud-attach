@@ -1,3 +1,9 @@
+## [v0.2.070] - 2026-05-03
+
+### Fixed
+- **批量复制URL按钮失效**: .map() 回调内 await 写在非 async 函数中导致 SyntaxError，静默失败；修复为显式 async 回调并加 try-catch
+- **sign 刷新后光标全选**: checkAndRefreshCurrentUrl 和 upload 后 setValue 缺少 setSelection 清除选择区
+- 更名人：Garry
 ## [v0.2.067] - 2026-05-03
 
 ### Fixed
@@ -302,3 +308,4 @@ All notable changes to CloudAttach will be documented in this file.
 ### 修复
 - 补全 EN 翻译：4 个 key 缺失（error.rebuild_failed, error.sign_rebuild_failed, settings.check_account_settings, view.upload_to）
 - 更名人：Garry
+
