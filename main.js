@@ -833,7 +833,13 @@ class OpenListClient {
         // 按 decoded path 匹配
         if (decodedNormalized === normalizedReal || decodedNewNormalized === normalizedReal) {
           console.log('[CloudAttach] findAndReplaceUrl: matched path=' + decodedNormalized + ', replacing: ' + foundUrl.substring(0, 80) + '... -> ' + newUrl.substring(0, 80) + '...');
-          newText = newText.replace(foundUrl, newUrl);
+          // Extract sign param from newUrl
+          const newSignMatch = newUrl.match(/\?sign=([^\s"']+)/);
+          const newSign = newSignMatch ? '?sign=' + newSignMatch[1] : '';
+          const foundUrlWithoutQuery = foundUrl.split('?')[0];
+          const foundAfterHost = foundUrlWithoutQuery.replace(/^https?:\/\/[^\/]+/, '');
+          const finalReplaceUrl = foundAfterHost + newSign;
+          newText = newText.replace(foundUrl, finalReplaceUrl);
         }
       } catch (e) {
         continue;
