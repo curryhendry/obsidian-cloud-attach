@@ -309,3 +309,6 @@ All notable changes to CloudAttach will be documented in this file.
 - 补全 EN 翻译：4 个 key 缺失（error.rebuild_failed, error.sign_rebuild_failed, settings.check_account_settings, view.upload_to）
 - 更名人：Garry
 
+
+## v0.2.079 (2026-05-05)
+- 修复：批量刷新 sign URL 前先验证新 URL 有效性，验证失败保留原 URL（PLACE 1/2/3 三处）

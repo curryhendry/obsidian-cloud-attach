@@ -3208,6 +3208,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
             const originalPrefix = url.match(/\/(d|p)\//)?.[1] || 'p';
             const newUrl = await client.getSignedUrl(realPath, originalPrefix[0]);
             if (newUrl && newUrl !== url) {
+              const newVerify = await client.verifySignUrl(newUrl);
+              if (newVerify.ok) {
               // 使用累积的文本进行替换，而非每次从原始文本重新读取
               const newText = client.findAndReplaceUrl(accumulatedText, realPath, newUrl);
               if (newText !== accumulatedText) {
@@ -3218,6 +3220,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
                 results.refreshedPaths.push(realPath);
               } else {
                 results.valid++;
+              }
+              } else {
+                // 新 URL 验证失败，保留原 URL
+                console.log('[CloudAttach] 新 URL 验证失败，保留原 URL:', newVerify.reason);
+                results.failed++;
+                results.failedUrls.push({ url, reason: t('error.sign_rebuild_failed', {error: newVerify.reason}) });
               }
             } else {
               results.valid++;
@@ -3245,6 +3253,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
               const originalPrefix = url.match(/\/(d|p)\//)?.[1] || 'p';
               const newUrl = await client.getSignedUrl(realPath, originalPrefix[0]);
               if (newUrl && newUrl !== url) {
+                const newVerify = await client.verifySignUrl(newUrl);
+                if (newVerify.ok) {
                 // 使用累积的文本进行替换
                 const newText = client.findAndReplaceUrl(accumulatedText, realPath, newUrl);
                 if (newText !== accumulatedText) {
@@ -3254,6 +3264,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
                   results.refreshedPaths.push(realPath);
                 }
               }
+                } else {
+                  console.log('[CloudAttach] 新 URL 验证失败，保留原 URL:', newVerify.reason);
+                  results.failed++;
+                  results.failedUrls.push({ url, reason: t('error.sign_rebuild_failed', {error: newVerify.reason}) });
+                }
             } catch (e) {
               results.failed++;
               results.failedUrls.push({ url, reason: t('error.sign_rebuild_failed', {error: e.message}) });
@@ -3391,6 +3406,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
         const originalPrefix = url.match(/\/(d|p)\//)?.[1] || 'p';
         const newUrl = await client.getSignedUrl(realPath, originalPrefix[0]);
         if (newUrl) {
+          const newVerify = await client.verifySignUrl(newUrl);
+          if (newVerify.ok) {
           const fullText = view.editor.getValue();
           const newText = fullText.replace(url, newUrl);
           view.editor.setValue(newText);
@@ -3398,6 +3415,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
           view.editor.setSelection(0, 0);
           new Notice(t('notice.sign_refreshed'), 3000);
         }
+          } else {
+            console.log('[CloudAttach] 新 URL 验证失败:', newVerify.reason);
+            new Notice(t('notice.refresh_failed', {error: newVerify.reason}), 4000);
+          }
       } catch (e) {
         new Notice(t('notice.refresh_failed', {error: e.message}), 4000);
       }
