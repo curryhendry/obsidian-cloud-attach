@@ -746,22 +746,16 @@ class OpenListClient {
    */
   extractRealPath(url) {
     try {
-      const urlObj = new URL(url);
-      const path = urlObj.pathname; // e.g. "/p/Local/share/photo.jpg"
-
-      // 检查是否是 OpenList 公开链接格式
-      let realPath = null;
-      if (path.startsWith('/p/')) {
-        realPath = '/' + path.slice(3); // 去掉 "/p" 前缀，保留后面的路径
-      } else if (path.startsWith('/d/')) {
-        realPath = '/' + path.slice(3); // 去掉 "/d" 前缀，保留后面的路径
-      } else {
-        return null; // 不是 OpenList URL
-      }
+      // 注意：不能用 new URL(url).pathname，因为它会自动解码 %20→空格
+      // 必须从 URL 字符串手动提取路径部分，保留编码
+      const match = url.match(/^https?:\/\/[^\/]+\/\w+\/(.+?)(?:\?|$)/);
+      if (!match) return null;
       
-      // 不解码，保持 URL 编码格式（%20, %E2%80%93 等）
-      // API 需要编码后的路径来查找文件
-      return realPath;
+      let pathSegment = match[1];
+      // 去掉 sign 参数（如果有）
+      pathSegment = pathSegment.split('?')[0].split('&')[0];
+      
+      return '/' + pathSegment;
     } catch {
       return null;
     }
