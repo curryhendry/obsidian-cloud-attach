@@ -759,23 +759,11 @@ class OpenListClient {
         return null; // 不是 OpenList URL
       }
       
-      // 解码 URL 编码的路径（处理多重编码的情况）
+      // 只解码一次（decodeURIComponent），不过度解码
+      // 过度解码会把 %20→空格、%E2%80%93→异形破折号，导致与服务器实际路径不匹配
       try {
-        let decoded = realPath;
-        // 循环解码直到没有 % 或者解码失败（最多10次防止死循环）
-        for (let i = 0; i < 10; i++) {
-          if (!decoded.includes('%')) break;
-          try {
-            const newDecoded = decodeURIComponent(decoded);
-            if (newDecoded === decoded) break; // 没有变化，停止解码
-            decoded = newDecoded;
-          } catch {
-            break; // 解码失败，停止
-          }
-        }
-        return decoded;
+        return decodeURIComponent(realPath);
       } catch {
-        // 解码失败，返回原始路径
         return realPath;
       }
     } catch {
@@ -846,20 +834,9 @@ class OpenListClient {
    */
   static safeDecodeUrl(url) {
     if (!url || typeof url !== 'string') return url || '';
+    // 只解码一次，不要循环解码（%20→空格、%E2%80%93→异形破折号会导致路径与服务器不匹配）
     try {
-      let decoded = url;
-      // 循环解码直到没有 % 或解码失败（最多10次，防止多重编码）
-      for (let i = 0; i < 10; i++) {
-        if (!decoded.includes('%')) break;
-        try {
-          const next = decodeURIComponent(decoded);
-          if (next === decoded) break;
-          decoded = next;
-        } catch {
-          break;
-        }
-      }
-      return decoded;
+      return decodeURIComponent(url);
     } catch {
       return url;
     }
