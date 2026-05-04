@@ -759,13 +759,9 @@ class OpenListClient {
         return null; // 不是 OpenList URL
       }
       
-      // 只解码一次（decodeURIComponent），不过度解码
-      // 过度解码会把 %20→空格、%E2%80%93→异形破折号，导致与服务器实际路径不匹配
-      try {
-        return decodeURIComponent(realPath);
-      } catch {
-        return realPath;
-      }
+      // 不解码，保持 URL 编码格式（%20, %E2%80%93 等）
+      // API 需要编码后的路径来查找文件
+      return realPath;
     } catch {
       return null;
     }
