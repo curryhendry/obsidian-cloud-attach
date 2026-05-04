@@ -802,44 +802,34 @@ class OpenListClient {
    * 在文本中查找并替换 URL（简化版：遍历文本中的 URL，解码后比对路径）
    */
   findAndReplaceUrl(text, realPath, newUrl) {
-    // 匹配任意 https URL，按 decoded path 匹配 realPath
-    // 不再限定 /p/ 格式，兼容 OpenList、S3、WebDAV 等所有服务
+    // 精确匹配：去掉 sign 参数后完整 URL 对比（保留文件名）
+    // 不再按文件夹路径前缀匹配——会导致同一文件夹所有文件被替换成同一个 URL
     const urlRegex = /https?:\/\/[^\s()"']+/g;
     const matches = text.match(urlRegex);
     if (!matches) return text;
 
-    const normalizedReal = realPath.replace(/^\/+|\/+$/g, '');
+    // 去掉 newUrl 的 sign 参数，取完整路径作为匹配 key
+    const newUrlClean = newUrl.split('?')[0];
+    const newUrlPath = newUrlClean.replace(/^https?:\/\/[^\/]+/, '');
+    const newUrlDecoded = decodeURIComponent(newUrlPath);
+    const newUrlNormalized = newUrlDecoded.replace(/^\/(p|d)\//, '/').replace(/^\/+|\/+$/g, '');
+
     let newText = text;
 
     for (const foundUrl of matches) {
       try {
-        // 提取 URL 中的 path 部分（第一个 ? 前的内容，截断 query string）
-        const urlWithoutQuery = foundUrl.split('?')[0];
-        const afterHost = urlWithoutQuery.replace(/^https?:\/\/[^\/]+/, '');
+        const foundUrlClean = foundUrl.split('?')[0];
+        const foundUrlPath = foundUrlClean.replace(/^https?:\/\/[^\/]+/, '');
+        const foundUrlDecoded = decodeURIComponent(foundUrlPath);
+        const foundUrlNormalized = foundUrlDecoded.replace(/^\/(p|d)\//, '/').replace(/^\/+|\/+$/g, '');
 
-        // 解码 URL 中的路径部分
-        const decodedUrlPath = decodeURIComponent(afterHost);
-        // 去掉 /p/ 或 /d/ 前缀（OpenList 公开链接格式）
-        const decodedNoPrefix = decodedUrlPath.replace(/^\/(p|d)\//, '/');
-        const decodedNormalized = decodedNoPrefix.replace(/^\/+/, '').replace(/\/$/, '');
-
-        // 解码新 URL 的路径
-        const newUrlWithoutQuery = newUrl.split('?')[0];
-        const newAfterHost = newUrlWithoutQuery.replace(/^https?:\/\/[^\/]+/, '');
-        const decodedNewPath = decodeURIComponent(newAfterHost);
-        const decodedNewNoPrefix = decodedNewPath.replace(/^\/(p|d)\//, '/');
-        const decodedNewNormalized = decodedNewNoPrefix.replace(/^\/+/, '').replace(/\/$/, '');
-
-        // 按 decoded path 匹配
-        if (decodedNormalized === normalizedReal || decodedNewNormalized === normalizedReal) {
-          console.log('[CloudAttach] findAndReplaceUrl: matched path=' + decodedNormalized + ', replacing: ' + foundUrl.substring(0, 80) + '... -> ' + newUrl.substring(0, 80) + '...');
-          // Extract sign param from newUrl
+        // 精确匹配完整 URL 路径（含文件名），而非路径前缀
+        if (foundUrlNormalized === newUrlNormalized) {
+          console.log('[CloudAttach] findAndReplaceUrl: exact match ' + foundUrlNormalized + ', replacing: ' + foundUrl.substring(0, 80) + '...');
+          // 从 newUrl 提取 sign 参数，拼到原始 URL 路径上（保留文件名）
           const newSignMatch = newUrl.match(/\?sign=([^\s"']+)/);
           const newSign = newSignMatch ? '?sign=' + newSignMatch[1] : '';
-          const foundUrlWithoutQuery = foundUrl.split('?')[0];
-          const foundAfterHost = foundUrlWithoutQuery.replace(/^https?:\/\/[^\/]+/, '');
-          const finalReplaceUrl = foundAfterHost + newSign;
-          newText = newText.replace(foundUrl, finalReplaceUrl);
+          newText = newText.replace(foundUrl, foundUrlClean + newSign);
         }
       } catch (e) {
         continue;
