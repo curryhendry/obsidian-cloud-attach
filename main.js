@@ -679,13 +679,17 @@ class OpenListClient {
     }
     
     try {
-      console.log('[CloudAttach] getSignedUrl calling API:', apiUrl, 'path:', remotePath, 'prefix:', preferredPrefix);
+      // 对路径完全解码后再发送 API 请求（将 %20→空格等全部还原）
+      // 这样保证 API 接收到的路径格式与服务器文件系统一致
+      const decodedPath = decodeURIComponent(remotePath);
+      
+      console.log('[CloudAttach] getSignedUrl calling API:', apiUrl, 'path:', decodedPath, 'prefix:', preferredPrefix);
       
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: headers,
         body: JSON.stringify({
-          path: remotePath
+          path: decodedPath
         })
       });
 
