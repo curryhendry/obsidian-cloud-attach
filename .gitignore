@@ -2,3 +2,4 @@ data.json
 *.bak-*
 *.restored
 deploy.sh
+node_modules/

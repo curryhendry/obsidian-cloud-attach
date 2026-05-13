@@ -1,3 +1,14 @@
+## [v0.2.082] - 2026-05-13
+
+### Added
+- **GitHub Actions Release Workflow**: 自动构建、签名、创建 Release，解决 artifact attestation 要求
+- **Standard Node.js Structure**: 添加 package.json、esbuild 配置，规范化构建流程
+
+### Changed
+- **README 重构**: 英文版为主，中文版分离为 README_CN.md
+
+- 更新人：Garry
+
 ## [v0.2.070] - 2026-05-03
 
 ### Fixed
