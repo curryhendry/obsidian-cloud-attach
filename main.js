@@ -2907,45 +2907,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
       id: 'reload-plugin',
       name: t('cmd.reload_plugin'),
       callback: async () => {
-        try {
-          await plugin.app.plugins.disablePlugin('cloud-attach');
-          await plugin.app.plugins.enablePlugin('cloud-attach');
-          new Notice(t('notice.plugin_reloaded'), 2000);
-        } catch (e) {
-          new Notice(t('notice.reload_failed', { error: e.message }), 4000);
-        }
+        new Notice('请手动禁用再启用插件以重载', 2000);
       }
     });
-    // ---- 开发模式：监听 main.js 变化自动重载 ----
-    if (this.app.isMobile === false) {
-      try {
-        const { watch } = require('fs');
-        const pluginDir = this.manifestDir || this.app.vault.pluginManifests?.cloud-attach?.dir;
-        if (pluginDir) {
-          const mainJsPath = require('path').join(pluginDir, 'main.js');
-          let reloadTimer = null;
-          const watcher = watch(mainJsPath, (eventType) => {
-            if (eventType === 'change') {
-              // 防抖：500ms 内多次变更只触发一次
-              if (reloadTimer) clearTimeout(reloadTimer);
-              reloadTimer = setTimeout(async () => {
-                console.log('[CloudAttach] main.js changed, auto-reloading...');
-                new Notice('🔄 CloudAttach auto-reloading...', 2000);
-                try {
-                  await this.app.plugins.disablePlugin('cloud-attach');
-                  await this.app.plugins.enablePlugin('cloud-attach');
-                } catch (e) {
-                  console.error('[CloudAttach] auto-reload failed:', e);
-                }
-              }, 500);
-            }
-          });
-          this.register(() => watcher.close());
-        }
-      } catch (e) {
-        // fs/watch 不可用时静默忽略
-      }
-    }
     // ---- Sign 检查与刷新命令 ----
     this.addCommand({
       id: 'check-sign-current-note',
@@ -3013,27 +2977,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (activeLeaf?.view instanceof MarkdownView && activeLeaf.view.editor) {
       this.activeMarkdownView = activeLeaf.view;
     }
-    // 热更新：监听 main.js 文件变化，自动重新加载插件
-    const plugin = this;
-    this.registerInterval(
-      window.setInterval(() => {
-        (async () => {
-          try {
-            const adapter = plugin.app.vault.adapter;
-            const stat = await adapter.stat('.obsidian/plugins/cloud-attach/main.js');
-            const modTime = stat?.mtime;
-            if (modTime && (!plugin._lastMainMtime || modTime > plugin._lastMainMtime)) {
-              plugin._lastMainMtime = modTime;
-              if (plugin._mainMtimeChecked) {
-                await plugin.app.plugins.disablePlugin('cloud-attach');
-                await plugin.app.plugins.enablePlugin('cloud-attach');
-              }
-              plugin._mainMtimeChecked = true;
-            }
-          } catch {}
-        })();
-      }, 3000)
-    );
     console.log('CloudAttach loaded');
   }
   addStyles() {
