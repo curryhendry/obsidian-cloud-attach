@@ -1,9 +1,9 @@
 {
   "id": "cloud-attach",
   "name": "CloudAttach",
-  "version": "0.2.080",
+  "version": "0.2.081",
   "minAppVersion": "1.0.0",
-  "description": "连接 OpenList 等 WebDAV/对象存储服务，在笔记中一键引用附件、上传文件。",
+  "description": "Connect OpenList/WebDAV/S3, insert cloud attachments in notes.",
   "author": "Garry",
   "authorUrl": "https://github.com/curryhendry",
   "isDesktopOnly": false
