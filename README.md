@@ -3,6 +3,8 @@
 # obsidian-cloud-attach
 
 > Obsidian 插件，通过 WebDAV 连接 OpenList 等服务 以及 对象存储服务，在笔记中直接插入云端文件。释放本地空间。
+> Obsidian plugin that connects to OpenList/WebDAV/S3, letting you insert cloud files into notes. Free up local space.
+
 
 [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/curryhendry/obsidian-cloud-attach?style=flat-square)](https://github.com/curryhendry/obsidian-cloud-attach/releases/latest)
 [![GitHub stars](https://img.shields.io/github/stars/curryhendry/obsidian-cloud-attach?style=flat-square)](https://github.com/curryhendry/obsidian-cloud-attach)
@@ -35,7 +37,7 @@
 
 ---
 
-## 安装
+## Installation / 安装
 **"请务必更新插件后，关闭一次插件，再打开才能生效！**
 **"请务必更新插件后，关闭一次插件，再打开才能生效！**
 **"请务必更新插件后，关闭一次插件，再打开才能生效！**
@@ -68,7 +70,7 @@
 
 ---
 
-## 使用
+## Usage / 使用
 
 1. 点击侧边栏图标打开云端文件面板
 2. 浏览目录，单击文件名插入链接
