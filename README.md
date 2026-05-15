@@ -88,7 +88,7 @@ Object storage:
 - [x] Manual trigger to detect and refresh expired sign tokens
 - [x] Semi-automatic note attachment upload
 - [x] Command palette support (Cmd/Ctrl+P)
-- [ ] Publish to Obsidian Community Plugins
+- [x] Publish to Obsidian Community Plugins
 - [x] File rename and delete support
 
 ---
