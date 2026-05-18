@@ -58,9 +58,6 @@ Add accounts in plugin settings:
 | WebDAV Path | Usually `/dav` |
 | Token | Get from OpenList Settings → Other |
 
-Object storage:
-<img width="1075" height="761" alt="68747470733a2f2f696d672e637572727968656e6472792e636f6d2f2545342542392542312545342542382538332545352538352541422545372542332539462f6f6273696469616e2d636c6f75642d6174746163682f2545362542372542422545352538412541302545362539432538442545352538412541312…" src="https://github.com/user-attachments/assets/6866656b-9e84-4b07-851d-3c892f06f6c0" />
-
 ---
 
 ## Usage
@@ -69,15 +66,15 @@ Object storage:
 2. Browse directories, click a file name to insert a link
 3. Right-click for more actions (preview, copy, delete)
 
-<img width="1075" height="761" alt="68747470733a2f2f696d672e637572727968656e6472792e636f6d2f2545342542392542312545342542382538332545352538352541422545372542332539462f6f6273696469616e2d636c6f75642d6174746163682f2545362542372542422545352538412541302545362539432538442545352538412541312…" src="https://github.com/user-attachments/assets/eb981cf0-38d9-4d72-aa27-6a94254b65c6" />
+<img alt="68747470733a2f2f696d672e637572727968656e6472792e636f6d2f2545342542392542312545342542382538332545352538352541422545372542332539462f6f6273696469616e2d636c6f75642d6174746163682f2545362542372542422545352538412541302545362539432538442545352538412541312…" src="https://github.com/user-attachments/assets/eb981cf0-38d9-4d72-aa27-6a94254b65c6" />
 <br>
 
 **Insert files into notes:**
-<img width="1280" height="800" alt="Insert-720p" src="https://github.com/user-attachments/assets/3378be76-0317-4b55-85a5-eaa1c0eb7d2d" />
+<img alt="Insert-720p" src="https://github.com/user-attachments/assets/3378be76-0317-4b55-85a5-eaa1c0eb7d2d" />
 <br>
 
 **Upload attachments to server:**
-<img width="1280" height="800" alt="Upload-720p" src="https://github.com/user-attachments/assets/15261330-aeca-42bf-aa2d-67dbac244abf" />
+<img alt="Upload-720p" src="https://github.com/user-attachments/assets/15261330-aeca-42bf-aa2d-67dbac244abf" />
 
 ---
 
