@@ -1170,7 +1170,19 @@ class OpenListClient {
       const collUpper = resp.getElementsByTagName('D:collection');
       const collLower = resp.getElementsByTagName('d:collection');
       const isDirectory = collUpper.length > 0 || collLower.length > 0;
-      const decodedHref = decodeURIComponent(href);
+      let decodedHref = decodeURIComponent(href);
+      
+      // Synology WebDAV 返回完整 URL（https://domain:5006/path/file.txt），需要提取路径部分
+      if (decodedHref.startsWith('http')) {
+        try {
+          const url = new URL(decodedHref);
+          decodedHref = url.pathname;
+          console.log('[CloudAttach] WebDAV: href 是完整 URL，提取路径:', url.pathname);
+        } catch (e) {
+          console.warn('[CloudAttach] WebDAV: 解析 href URL 失败:', decodedHref);
+        }
+      }
+      
       const name = displayName || decodedHref.split('/').pop();
       
       let relativePath = decodedHref;
