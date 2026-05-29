@@ -1,4 +1,4 @@
-/* CloudAttach v0.2.081 */
+/* CloudAttach v0.2.083 */
 "use strict";
 
 // src/main.js
@@ -652,11 +652,9 @@ var OpenListClient = class {
     const webdavPath = this.webdavPath || "";
     const proto = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, "$1");
     const host = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, "$3");
-    if (this.username && this.password) {
-      const encodedCreds = btoa(`${this.username}:${this.password}`);
-      return `${proto}${encodedCreds}@${host}${webdavPath}${remotePath}`;
-    }
-    return `${proto}${host}${webdavPath}${remotePath}`;
+    const fullPath = webdavPath + remotePath;
+    const encodedPath = fullPath.replace(/[\s#?&<>"'\\|{}]/g, (c) => encodeURIComponent(c));
+    return `${proto}${host}${encodedPath}`;
   }
   // 获取原始 URL（无签名、无 /dav /d 前缀，用于 iframe 预览）
   getRawUrl(remotePath) {
@@ -1053,7 +1051,16 @@ var OpenListClient = class {
       const collUpper = resp.getElementsByTagName("D:collection");
       const collLower = resp.getElementsByTagName("d:collection");
       const isDirectory = collUpper.length > 0 || collLower.length > 0;
-      const decodedHref = decodeURIComponent(href);
+      let decodedHref = decodeURIComponent(href);
+      if (decodedHref.startsWith("http")) {
+        try {
+          const url = new URL(decodedHref);
+          decodedHref = url.pathname;
+          console.log("[CloudAttach] WebDAV: href \u662F\u5B8C\u6574 URL\uFF0C\u63D0\u53D6\u8DEF\u5F84:", url.pathname);
+        } catch (e) {
+          console.warn("[CloudAttach] WebDAV: \u89E3\u6790 href URL \u5931\u8D25:", decodedHref);
+        }
+      }
       const name = displayName || decodedHref.split("/").pop();
       let relativePath = decodedHref;
       if (relativePath.startsWith(this.webdavPath)) {
@@ -1728,14 +1735,21 @@ var CloudAttachView = class extends ItemView {
     if (!this.breadcrumbEl)
       return;
     this.breadcrumbEl.innerHTML = "";
+    const webdavPath = this.client?.webdavPath;
+    const rootLabel = webdavPath ? "\u{1F4C1} " + webdavPath.replace(/^\/+/, "").split("/").pop() || webdavPath : t("view.root");
     const root = document.createElement("button");
     root.className = "cloud-attach-breadcrumb-btn";
-    root.textContent = t("view.root");
+    root.textContent = rootLabel;
     root.onclick = () => {
       this.navigateTo("/");
     };
     this.breadcrumbEl.appendChild(root);
     if (this.currentPath === "/") {
+      const refresh2 = document.createElement("button");
+      refresh2.className = "cloud-attach-refresh";
+      refresh2.textContent = t("view.refresh");
+      refresh2.onclick = () => this.loadDir();
+      this.breadcrumbEl.appendChild(refresh2);
       this.renderBatchBar();
       return;
     }
@@ -3266,9 +3280,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (!view.accountId) {
       return { ok: false, error: t("error.no_account") };
     }
+    const isWebDAV = view.client.webdavPath;
     if (!view.currentPath || view.currentPath === "/") {
-      return { ok: false, error: t("settings.folder_required") };
+      if (!isWebDAV) {
+        return { ok: false, error: t("settings.folder_required") };
+      }
     }
+    const remotePath = isWebDAV ? view.client.webdavPath + view.currentPath : view.currentPath;
     return {
       ok: true,
       client: view.client,
