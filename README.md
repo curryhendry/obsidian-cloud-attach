@@ -36,10 +36,6 @@
 
 ## 安装
 
-**"请务必更新插件后，关闭一次插件，再打开才能生效！**
-**"请务必更新插件后，关闭一次插件，再打开才能生效！**
-**"请务必更新插件后，关闭一次插件，再打开才能生效！**
-
 **方式一：下载 ZIP**
 
 1. 点击本仓库 *Code* → *Download ZIP*
@@ -63,7 +59,7 @@
 | Token | 从 OpenList「设置 → 其他」界面获取 |
 
 对象存储配置：
-<img width="1075" height="761" alt="对象存储配置" src="https://github.com/user-attachments/assets/6866656b-9e84-4b07-851d-3c892f06f6c0" />
+<img alt="对象存储配置" src="https://github.com/user-attachments/assets/6866656b-9e84-4b07-851d-3c892f06f6c0" />
 
 ---
 
@@ -73,15 +69,15 @@
 2. 浏览目录，单击文件名插入链接
 3. 右键有更多操作（插入、复制链接、重命名、删除）
 
-<img width="1470" height="956" alt="侧边栏浏览" src="https://github.com/user-attachments/assets/cdfdc813-a6a0-4ba1-ae7c-effb224a6981" />
+<img alt="侧边栏浏览" src="https://github.com/user-attachments/assets/cdfdc813-a6a0-4ba1-ae7c-effb224a6981" />
 <br>
 
 **插入资源到笔记：**
-<img width="1280" height="800" alt="插入资源" src="https://github.com/user-attachments/assets/3378be76-0317-4b55-85a5-eaa1c0eb7d2d" />
+<img alt="插入资源" src="https://github.com/user-attachments/assets/3378be76-0317-4b55-85a5-eaa1c0eb7d2d" />
 <br>
 
 **上传附件到服务器：**
-<img width="1280" height="800" alt="上传附件" src="https://github.com/user-attachments/assets/15261330-aeca-42bf-aa2d-67dbac244abf" />
+<img alt="上传附件" src="https://github.com/user-attachments/assets/15261330-aeca-42bf-aa2d-67dbac244abf" />
 
 ---
 
