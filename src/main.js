@@ -721,12 +721,10 @@ class OpenListClient {
     // 保留原协议，不要写死 https
     const proto = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, '$1');
     const host = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, '$3');
-    // 如果有认证信息，在 URL 中带上 Basic Auth
-    if (this.username && this.password) {
-      const encodedCreds = btoa(`${this.username}:${this.password}`);
-      return `${proto}${encodedCreds}@${host}${webdavPath}${remotePath}`;
-    }
-    return `${proto}${host}${webdavPath}${remotePath}`;
+    // 统一编码规则：保留中文，编码空格和特殊字符（与 OpenList/S3 一致）
+    const fullPath = webdavPath + remotePath;
+    const encodedPath = fullPath.replace(/[\s#?&<>"'\\|{}]/g, c => encodeURIComponent(c));
+    return `${proto}${host}${encodedPath}`;
   }
 
   // 获取原始 URL（无签名、无 /dav /d 前缀，用于 iframe 预览）
@@ -1935,12 +1933,23 @@ class CloudAttachView extends ItemView {
   renderBreadcrumb() {
     if (!this.breadcrumbEl) return;
     this.breadcrumbEl.innerHTML = '';
+    // 如果账户有 webdavPath，显示配置的目录名而不是“根目录”
+    const webdavPath = this.client?.webdavPath;
+    const rootLabel = webdavPath
+      ? '📁 ' + webdavPath.replace(/^\/+/, '').split('/').pop() || webdavPath
+      : t('view.root');
     const root = document.createElement('button');
     root.className = 'cloud-attach-breadcrumb-btn';
-    root.textContent = t('view.root');
+    root.textContent = rootLabel;
     root.onclick = () => { this.navigateTo('/'); };
     this.breadcrumbEl.appendChild(root);
     if (this.currentPath === '/') {
+      // 根目录也需要刷新按钮
+      const refresh = document.createElement('button');
+      refresh.className = 'cloud-attach-refresh';
+      refresh.textContent = t('view.refresh');
+           refresh.onclick = () => this.loadDir();
+      this.breadcrumbEl.appendChild(refresh);
       this.renderBatchBar();
       return;
     }
@@ -3444,9 +3453,17 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (!view.accountId) {
       return { ok: false, error: t('error.no_account') };
     }
+    // WebDAV 账户：currentPath 为 / 时，实际对应 webdavPath 下的内容，允许上传
+    const isWebDAV = view.client.webdavPath;
     if (!view.currentPath || view.currentPath === '/') {
-      return { ok: false, error: t('settings.folder_required') };
+      if (!isWebDAV) {
+        return { ok: false, error: t('settings.folder_required') };
+      }
     }
+    // WebDAV 上传时 remotePath 需要拼接 webdavPath
+    const remotePath = isWebDAV
+      ? (view.client.webdavPath + view.currentPath)
+      : view.currentPath;
     return {
       ok: true,
       client: view.client,
