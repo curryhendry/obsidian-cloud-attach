@@ -531,9 +531,14 @@ var OpenListClient = class {
           body: options.body || void 0
         });
         console.log("[CloudAttach] requestUrl result:", result.status);
+        let respText = result.text || "";
+        // Obsidian requestUrl 对 JSON 响应可能把内容放在 result.json 而不是 result.text
+        if (!respText && result.json) {
+          try { respText = JSON.stringify(result.json); } catch (e) {}
+        }
         return {
           status: result.status,
-          text: result.text,
+          text: respText,
           ok: result.status >= 200 && result.status < 300
         };
       } catch (e) {
@@ -616,6 +621,19 @@ var OpenListClient = class {
     return response;
   }
   async getSignedUrl(remotePath, preferredPrefix = "p") {
+    // 归一化：去掉 webdavPath 前缀，得到 OpenList API 需要的相对路径
+    let apiPath = remotePath;
+    if (this.webdavPath) {
+      const wp = this.webdavPath.replace(/\/$/, "");
+      if (apiPath.startsWith(wp)) {
+        apiPath = apiPath.slice(wp.length);
+      }
+    }
+    // 再以 /dav 开头也去掉（兼容直接传完整 WebDAV URL 路径的情况）
+    apiPath = apiPath.replace(/^\/dav/, "");
+    // 保证以 / 开头
+    if (!apiPath.startsWith("/")) apiPath = "/" + apiPath;
+
     const apiUrl = `${this.serverUrl}/api/fs/get`;
     const headers = {
       "Content-Type": "application/json"
@@ -624,24 +642,38 @@ var OpenListClient = class {
       headers["Authorization"] = this.token;
     }
     try {
-      console.log("[CloudAttach] getSignedUrl calling API:", apiUrl, "path:", remotePath, "prefix:", preferredPrefix);
-      const response = await fetch(apiUrl, {
+      console.log("[CloudAttach] getSignedUrl calling API:", apiUrl, "path:", apiPath, "prefix:", preferredPrefix);
+      const response = await this.authFetch("/api/fs/get", {
         method: "POST",
-        headers,
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          path: remotePath
+          path: apiPath
         })
       });
-      const data = await response.json();
+      
+      if (response.status === 401) {
+        new Notice("⚠️ Token 无效，请在设置中检查 OpenList Token");
+        throw new Error("Token invalid");
+      }
+      
+      let data;
+      if (typeof response.json === "function") {
+        data = await response.json();
+      } else {
+        data = JSON.parse(response.text || "{}");
+      }
       console.log("[CloudAttach] getSignedUrl response:", data);
       if (data.code === 200) {
         let newUrl = this.safeDecodeUrl(data.data.raw_url);
         newUrl = newUrl.replace(/\/(d|p)\//, `/${preferredPrefix}/`);
         return newUrl;
       }
-      console.log("[CloudAttach] API returned error:", data.message);
+      const errMsg = data.message || "API error: code " + data.code;
+      console.log("[CloudAttach] API returned error:", errMsg);
+      throw new Error(errMsg);
     } catch (e) {
       console.log("[CloudAttach] API call failed:", e.message);
+      throw e;
     }
     const proto = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, "$1");
     const host = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, "$3");
@@ -769,6 +801,7 @@ var OpenListClient = class {
   }
   async testConnection() {
     try {
+      // 步骤1：测试 WebDAV
       if (this.webdavPath) {
         const webdavUrl = `${this.serverUrl}${this.webdavPath}/`;
         const response2 = await this.requestViaObsidian(webdavUrl, {
@@ -778,26 +811,40 @@ var OpenListClient = class {
             "Depth": "0"
           }
         });
-        if (response2.ok || response2.status === 207)
-          return true;
+        if (!response2.ok && response2.status !== 207) {
+          return false;
+        }
       }
-      const apiUrl = `${this.serverUrl}/api/fs/list`;
-      const response = await fetch(apiUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": this.token || ""
-        },
-        body: JSON.stringify({
-          path: "/",
-          password: this.password || "",
-          username: this.username || "",
-          page: 1,
-          per_page: 1
-        })
-      });
-      return response.ok;
-    } catch {
+      
+      // 步骤2：只有 OpenList（有 token）才测试 API
+      if (this.token) {
+        const response = await this.requestViaObsidian(`${this.baseUrl}/api/fs/list`, {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "Authorization": this.token
+          },
+          body: JSON.stringify({ path: "/", page: 1, per_page: 1 })
+        });
+        // OpenList 可能返回 HTTP 200 但 body 里 code=401
+        if (response.status === 401) {
+          new Notice("⚠️ Token 无效");
+          return false;
+        }
+        if (response.text) {
+          try {
+            const json = JSON.parse(response.text);
+            if (json.code === 401) {
+              new Notice("⚠️ Token 无效");
+              return false;
+            }
+          } catch (e) {}
+        }
+        return response.ok;
+      }
+      
+      return true;
+    } catch (e) {
       return false;
     }
   }
@@ -935,17 +982,31 @@ var OpenListClient = class {
       const encodedPath = this.encodePath ? this.encodePath(remotePath) : encodeURIComponent(remotePath);
       const uploadUrl = `${this.serverUrl}${this.webdavPath}${encodedPath}`;
       console.log("[CloudAttach] \u4E0A\u4F20\u6587\u4EF6:", localPath, "->", uploadUrl);
-      const response = await this.requestViaObsidian(uploadUrl, {
-        method: "PUT",
-        headers: {
-          "Authorization": "Basic " + btoa(`${this.username}:${this.password}`),
-          "Content-Type": this.getMimeType(fileName)
-        },
-        body: content
-      });
+      let response;
+      if (this.username && this.password) {
+        response = await this.requestViaObsidian(uploadUrl, {
+          method: "PUT",
+          headers: {
+            "Authorization": "Basic " + btoa(`${this.username}:${this.password}`),
+            "Content-Type": this.getMimeType(fileName)
+          },
+          body: content
+        });
+      } else {
+        const formData = new FormData();
+        formData.append("file", new Blob([content], { type: this.getMimeType(fileName) }), fileName);
+        formData.append("path", normalizedDir);
+        response = await this.authFetch("/api/fs/form", { method: "POST", body: formData });
+      }
       if (response.ok || response.status === 201 || response.status === 204) {
-        const url = this.token ? await this.getSignedUrl(remotePath) : this.getFileUrl(remotePath);
-        return { ok: true, remotePath, url };
+        // 构造 API 路径：webdavPath 格式是 /dav/<storage>/<userPath>/
+        // API 需要相对路径：/<storage>/<userPath>/<file>
+        try {
+          const url = this.token ? await this.getSignedUrl(remotePath) : this.getFileUrl(remotePath);
+          return { ok: true, remotePath, url };
+        } catch (e) {
+          return { ok: false, error: e.message };
+        }
       } else {
         return { ok: false, error: t("error.upload_failed", { status: response.status }) };
       }
@@ -1831,18 +1892,22 @@ var CloudAttachView = class extends ItemView {
         return;
       }
       const selected = this.files.filter((f) => this.selectedFiles.has(f.path));
-      const urls = await Promise.all(selected.map(async (f) => {
+      const urls = [];
+      for (const f of selected) {
         try {
+          let url;
           if (this.client.token) {
-            return this.client.getSignedUrl ? await this.client.getSignedUrl(f.path) : await this.client.getFileUrl(f.path);
+            url = this.client.getSignedUrl ? await this.client.getSignedUrl(f.path) : await this.client.getFileUrl(f.path);
+          } else {
+            url = await this.client.getFileUrl(f.path);
           }
-          return await this.client.getFileUrl(f.path);
+          if (url) urls.push(url);
         } catch (e) {
           console.error("[CloudAttach] getFileUrl failed:", f.path, e.message);
-          return null;
+          new Notice("⚠️ " + f.name + " 获取链接失败：" + e.message, 5000);
         }
-      }));
-      const validUrls = urls.filter(Boolean);
+      }
+      if (urls.length === 0) return;
       await navigator.clipboard.writeText(urls.join("\n"));
       new Notice(t("notice.copied_count", { count: urls.length }));
     };
@@ -2156,7 +2221,15 @@ var CloudAttachView = class extends ItemView {
       url = this.client.getRawUrl ? this.client.getRawUrl(file.path) : this.client.getFileUrl(file.path);
     } else {
       const client = this.client;
-      url = client.token ? await (client.getSignedUrl ? client.getSignedUrl(file.path) : client.getFileUrl(file.path)) : client.getFileUrl(file.path);
+      if (client.token && client.getSignedUrl) {
+        try {
+          url = await client.getSignedUrl(file.path);
+        } catch (e) {
+          throw new Error(`获取签名 URL 失败：${e.message}`);
+        }
+      } else {
+        url = client.getFileUrl(file.path);
+      }
     }
     if (imageExts.includes(ext)) {
       return `![${nameWithoutExt}](${url})`;
@@ -2197,14 +2270,19 @@ var CloudAttachView = class extends ItemView {
   }
   // 插入单个文件到笔记（异步）
   async insertFile(file) {
-    const md = await this.getInsertMarkdown(file);
-    const view = this.findMostRecentMarkdownView();
-    if (view?.editor) {
-      const cursor = view.editor.getCursor();
-      view.editor.replaceRange(md + "\n", cursor);
-      new Notice(t("notice.inserted", { name: file.name }));
-    } else {
-      new Notice(t("notice.open_note_first"));
+    try {
+      const md = await this.getInsertMarkdown(file);
+      const view = this.findMostRecentMarkdownView();
+      if (view?.editor) {
+        const cursor = view.editor.getCursor();
+        view.editor.replaceRange(md + "\n", cursor);
+        new Notice(t("notice.inserted", { name: file.name }));
+      } else {
+        new Notice(t("notice.open_note_first"));
+      }
+    } catch (e) {
+      console.error("[CloudAttach] insertFile error:", e);
+      new Notice("⚠️ 插入失败：" + e.message, 5000);
     }
   }
   // 批量插入（异步）
@@ -2212,12 +2290,27 @@ var CloudAttachView = class extends ItemView {
     if (!this.client || this.selectedFiles.size === 0)
       return;
     const selected = this.files.filter((f) => this.selectedFiles.has(f.path));
-    const mds = await Promise.all(selected.map((file) => this.getInsertMarkdown(file)));
+    const mds = [];
+    for (const file of selected) {
+      try {
+        const md = await this.getInsertMarkdown(file);
+        mds.push(md);
+      } catch (e) {
+        console.error("[CloudAttach] insertSelectedFiles error:", e);
+        new Notice("⚠️ " + file.name + " 插入失败：" + e.message, 5000);
+      }
+    }
+    if (mds.length === 0) {
+      this.selectedFiles.clear();
+      this.renderFiles();
+      this.renderBatchBar();
+      return;
+    }
     const view = this.findMostRecentMarkdownView();
     if (view?.editor) {
       const cursor = view.editor.getCursor();
       view.editor.replaceRange(mds.map((md) => md + "\n").join("\n") + "\n", cursor);
-      new Notice(t("notice.inserted_count", { count: selected.length }));
+      new Notice(t("notice.inserted_count", { count: mds.length }));
     } else {
       new Notice(t("notice.open_note_first"));
     }
