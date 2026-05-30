@@ -1,3 +1,14 @@
+## [v0.2.084] - 2026-05-31
+
+### 修复
+- **getSignedUrl 路径归一化**: 方法内部统一去掉 webdavPath 前缀和 /dav 前缀，所有调用方无需自行处理路径
+- **testConnection token 检测**: 检测 HTTP 200 但 body 中 code=401 的情况，正确提示 Token 无效
+- **insertFile/insertSelectedFiles 错误处理**: 添加 try/catch，错误通过 Notice 展示给用户，不再静默失败
+- **copyUrlBtn 批量复制**: 改用 for...of 替代 Promise.all，单个文件失败不影响其他
+- **requestViaObsidian JSON 兼容**: result.text 为空时 fallback 读取 result.json，兼容 Obsidian requestUrl 响应结构
+
+- 更新人：Garry
+
 ## [v0.2.083] - 2026-05-29
 
 ### 修复
