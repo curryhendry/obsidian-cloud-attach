@@ -2313,6 +2313,7 @@ class CloudAttachView extends ItemView {
         const ext = file.name.split('.').pop()?.toLowerCase() || '';
         if (ext === 'pdf' && this.plugin.settings.pdfPreview === 'pdfjs') {
           // PDF.js 预览模式：打开 PdfJsView
+          console.log('[CloudAttach] PDF.js mode, opening:', file.name);
           name.onclick = async () => {
             const url = await this.client.getFileUrl(file.path);
             this.plugin.openPdfJsView(url, file.name);
