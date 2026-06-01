@@ -2315,7 +2315,7 @@ class CloudAttachView extends ItemView {
           // PDF.js 预览模式：打开 PdfJsView
           name.onclick = async () => {
             const url = await this.client.getFileUrl(file.path);
-            this.openPdfJsView(url, file.name);
+            this.plugin.openPdfJsView(url, file.name);
           };
         } else {
           name.onclick = () => this.insertFile(file);
