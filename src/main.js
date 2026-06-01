@@ -2314,7 +2314,9 @@ class CloudAttachView extends ItemView {
         if (ext === 'pdf' && this.plugin.settings.pdfPreview === 'pdfjs') {
           // PDF.js 预览模式：打开 PdfJsView
           console.log('[CloudAttach] PDF.js mode, opening:', file.name);
-          name.onclick = async () => {
+          name.onclick = async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
             const url = await this.client.getFileUrl(file.path);
             this.plugin.openPdfJsView(url, file.name);
           };
@@ -3030,12 +3032,13 @@ class AdvancedSettingModal extends Modal {
       }
     };
     const pdfjsPath = (() => {
-      // configDir 可能是相对路径（如 .obsidian），需要转为绝对路径
       let cd = this.app.vault.configDir || '.obsidian';
       if (!require('path').isAbsolute(cd)) {
         cd = require('path').resolve(this.app.vault.adapter?.basePath || process.cwd(), cd);
       }
-      return cd + '/plugins/cloud-attach/libs/pdfjs/';
+      const finalPath = cd + '/plugins/cloud-attach/libs/pdfjs/';
+      console.log('[CloudAttach] pdfjsPath resolved:', finalPath, 'exists:', require('fs').existsSync(finalPath + 'pdf.js'));
+      return finalPath;
     })();
     const fs = require('fs');
     const hasPdfjs = fs.existsSync(pdfjsPath + 'pdf.js');
@@ -3131,6 +3134,11 @@ class AdvancedSettingModal extends Modal {
 const VIEW_TYPE_PDFJS = 'cloud-attach-pdfjs';
 
 class PdfJsView extends ItemView {
+  constructor(leaf, plugin) {
+    super(leaf);
+    this.plugin = plugin;
+  }
+
   getViewType() { return VIEW_TYPE_PDFJS; }
   getDisplayText() { return (this.state && this.state.fileName) || 'PDF'; }
   getIcon() { return 'file-text'; }
@@ -3185,18 +3193,22 @@ class PdfJsView extends ItemView {
     this.container.style.padding = '16px';
     this.container.style.background = '#1e1e1e';
 
-    // 如果 state 已就绪（setState 先于 onOpen 调用），立即加载 PDF
-    if (this.state && this.state.url) {
-      this.loadPdf(this.state.url);
-    }
+    // state 由 setState() 设置，loadPdf 也在 setState() 里调用
+    // onOpen 只负责构建 UI 骨架
   }
 
   async loadPdf(fileUrl) {
-    const pdfjsPath = this.app.vault.configDir + '/plugins/cloud-attach/libs/pdfjs/';
+    let cd = this.app.vault.configDir || '.obsidian';
+    if (!require('path').isAbsolute(cd)) {
+      cd = require('path').resolve(this.app.vault.adapter?.basePath || process.cwd(), cd);
+    }
+    const pdfjsPath = cd + '/plugins/cloud-attach/libs/pdfjs/';
+    console.log('[CloudAttach] loadPdf path:', pdfjsPath, 'fileUrl:', fileUrl);
     let pdfjsCore;
     try {
       pdfjsCore = require(pdfjsPath + 'pdf.js');
     } catch(e) {
+      console.error('[CloudAttach] require pdf.js failed:', e.message);
       this.container.createEl('p', { text: t('pdf.lib_not_found') || 'PDF.js library not found. Please download it in Advanced Settings.', attr: { style: 'color:orange;' } });
       return;
     }
