@@ -3011,23 +3011,40 @@ class AdvancedSettingModal extends Modal {
     };
     
     mkRadio(t('settings.pdf_preview_iframe'), 'iframe', pdfRadioGroup);
-    mkRadio(t('settings.pdf_preview_pdfjs'), 'pdfjs', pdfRadioGroup);
     
-    // PDF.js 安装状态（第二行）
-    const pdfjsPath = this.app.vault.configDir + '/plugins/cloud-attach/libs/pdfjs/';
+    // PDF.js 整体（第二行）：radio + 状态文字
+    const pdfjsRow = pdfSection.createDiv();
+    pdfjsRow.style.marginTop = '4px';
+    const pdfjsOpt = pdfjsRow.createDiv();
+    pdfjsOpt.style.display = 'flex';
+    pdfjsOpt.style.alignItems = 'center';
+    pdfjsOpt.style.gap = '4px';
+    const pdfjsRadio = pdfjsOpt.createEl('input', { type: 'radio', attr: { name: 'pdf_preview' } });
+    pdfjsRadio.checked = this.plugin.settings.pdfPreview === 'pdfjs';
+    pdfjsRadio.onchange = async () => {
+      if (pdfjsRadio.checked) {
+        this.plugin.settings.pdfPreview = 'pdfjs';
+        await this.plugin.saveSettings();
+        this.onOpen();
+      }
+    };
+    const pdfjsPath = (() => {
+      // configDir 可能是相对路径（如 .obsidian），需要转为绝对路径
+      let cd = this.app.vault.configDir || '.obsidian';
+      if (!require('path').isAbsolute(cd)) {
+        cd = require('path').resolve(this.app.vault.adapter?.basePath || process.cwd(), cd);
+      }
+      return cd + '/plugins/cloud-attach/libs/pdfjs/';
+    })();
     const fs = require('fs');
     const hasPdfjs = fs.existsSync(pdfjsPath + 'pdf.min.mjs');
-    const pdfjsInfo = pdfSection.createDiv();
-    pdfjsInfo.style.marginTop = '4px';
+    pdfjsOpt.createEl('label', { text: hasPdfjs ? ('PDF.js' + (t('settings.pdfjs_installed') || '')) : ('PDF.js' + (t('settings.pdfjs_need_install') || '')) });
     if (hasPdfjs) {
-      pdfjsInfo.textContent = t('settings.pdfjs_installed') || '';
-      const delBtn = pdfjsInfo.createEl('button', { text: t('settings.pdfjs_uninstall') || '卸载' });
+      const delBtn = pdfjsRow.createEl('button', { text: t('settings.pdfjs_uninstall') || '卸载' });
       delBtn.onclick = async () => {
         try { fs.rmSync(pdfjsPath, { recursive: true }); } catch(e) {}
         this.onOpen();
       };
-    } else {
-      pdfjsInfo.textContent = t('settings.pdfjs_need_install') || '';
     }
     
     // --- Excel 预览 ---
@@ -3056,7 +3073,13 @@ class AdvancedSettingModal extends Modal {
     saveBtn.className = 'mod-cta';
     saveBtn.onclick = async () => {
       // 如果选了 PDF.js 但未安装，先安装
-      const pdfjsPath2 = this.app.vault.configDir + '/plugins/cloud-attach/libs/pdfjs/';
+      const pdfjsPath2 = (() => {
+        let cd = this.app.vault.configDir || '.obsidian';
+        if (!require('path').isAbsolute(cd)) {
+          cd = require('path').resolve(this.app.vault.adapter?.basePath || process.cwd(), cd);
+        }
+        return cd + '/plugins/cloud-attach/libs/pdfjs/';
+      })();
       const fs2 = require('fs');
       if (this.plugin.settings.pdfPreview === 'pdfjs' && !fs2.existsSync(pdfjsPath2 + 'pdf.min.mjs')) {
         new Notice(t('settings.pdfjs_installing'));
