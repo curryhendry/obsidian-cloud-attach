@@ -1,5 +1,5 @@
 /**
- * CloudAttach Plugin v0.2.085
+ * CloudAttach Plugin v0.3.001
  * 云附件管理 - 连接 OpenList/WebDAV
  */
 
@@ -114,6 +114,24 @@ Object.assign(I18n.translations.zh, {
   'settings.storage_type': '存储类型',
   'settings.openlist': '对象存储',
   'settings.openlist_desc': '连接 OpenList 管理云附件',
+  'settings.advanced': '高级',
+  'settings.advanced_title': '高级设置',
+  'settings.preview_category': '文件预览',
+  'settings.pdf_preview': 'PDF 预览方式',
+  'settings.pdf_preview_iframe': 'iframe（默认）',
+  'settings.pdf_preview_pdfjs': 'PDF.js（应用后安装插件~1.6MB）',
+  'settings.pdfjs_size': '~1.6MB',
+  'settings.pdfjs_install': '安装',
+  'settings.pdfjs_installing': '安装中...',
+  'settings.pdfjs_downloaded': 'PDF.js（已安装）',
+  'settings.pdfjs_uninstall': '卸载',
+  'settings.excel_preview': 'Excel 预览方式',
+  'settings.excel_preview_iframe': 'iframe（默认）',
+  'settings.excel_preview_sheetjs': 'SheetJS',
+  'settings.word_preview': 'Word 预览方式',
+  'settings.word_preview_iframe': 'iframe（默认）',
+  'settings.word_preview_mammoth': 'mammoth.js',
+  'settings.preview_coming_soon': '敬请期待...',
   'settings.s3': '对象存储 (S3)',
   'settings.s3_desc': '支持 S3 协议的对象存储',
   'settings.account_name_placeholder': '例如：我的COS桶',
@@ -337,6 +355,24 @@ Object.assign(I18n.translations.en, {
   'settings.storage_type': 'Storage Type',
   'settings.openlist': 'Object Storage',
   'settings.openlist_desc': 'Connect OpenList to manage cloud attachments',
+  'settings.advanced': 'Advanced',
+  'settings.advanced_title': 'Advanced Settings',
+  'settings.preview_category': 'File Preview',
+  'settings.pdf_preview': 'PDF Preview Method',
+  'settings.pdf_preview_iframe': 'iframe (default)',
+  'settings.pdf_preview_pdfjs': 'PDF.js (install ~1.6MB)',
+  'settings.pdfjs_size': '~1.6MB',
+  'settings.pdfjs_install': 'Install',
+  'settings.pdfjs_installing': 'Installing...',
+  'settings.pdfjs_downloaded': 'PDF.js (installed)',
+  'settings.pdfjs_uninstall': 'Uninstall',
+  'settings.excel_preview': 'Excel Preview Method',
+  'settings.excel_preview_iframe': 'iframe (default)',
+  'settings.excel_preview_sheetjs': 'SheetJS',
+  'settings.word_preview': 'Word Preview Method',
+  'settings.word_preview_iframe': 'iframe (default)',
+  'settings.word_preview_mammoth': 'mammoth.js',
+  'settings.preview_coming_soon': 'Coming soon...',
   'settings.s3': 'Object Storage (S3)',
   'settings.s3_desc': 'S3-compatible object storage',
   'settings.account_name_placeholder': 'e.g.: My COS Bucket',
@@ -2274,7 +2310,16 @@ class CloudAttachView extends ItemView {
       if (file.isDirectory) {
         name.onclick = () => { this.currentPath = file.path; this.selectedFiles.clear(); this.loadDir(); };
       } else {
-        name.onclick = () => this.insertFile(file);
+        const ext = file.name.split('.').pop()?.toLowerCase() || '';
+        if (ext === 'pdf' && this.plugin.settings.pdfPreview === 'pdfjs') {
+          // PDF.js 预览模式：打开 PdfJsView
+          name.onclick = async () => {
+            const url = await this.client.getFileUrl(file.path);
+            this.openPdfJsView(url, file.name);
+          };
+        } else {
+          name.onclick = () => this.insertFile(file);
+        }
       }
       name.style.cursor = 'pointer';
       item.appendChild(name);
@@ -2761,13 +2806,25 @@ class CloudAttachSettingTab extends PluginSettingTab {
   display() { this.render(); }
   render() {
     this.containerEl.innerHTML = '';
+    // 标题行 + 高级按钮
+    const titleRow = document.createElement('div');
+    titleRow.style.display = 'flex';
+    titleRow.style.alignItems = 'center';
+    titleRow.style.justifyContent = 'space-between';
+    titleRow.style.marginBottom = '8px';
     const title = document.createElement('h2');
     title.textContent = t('settings.title');
-    this.containerEl.appendChild(title);
-    const desc = document.createElement('p');
-    desc.textContent = t('settings.openlist_desc');
-    desc.className = 'setting-item-description';
-    this.containerEl.appendChild(desc);
+    title.style.margin = '0';
+    titleRow.appendChild(title);
+    const advBtn = document.createElement('button');
+    advBtn.textContent = '⚙️ ' + t('settings.advanced');
+    advBtn.className = 'cloud-attach-btn';
+    advBtn.style.fontSize = '12px';
+    advBtn.style.padding = '4px 10px';
+    advBtn.onclick = () => new AdvancedSettingModal(this.app, this.plugin).open();
+    titleRow.appendChild(advBtn);
+    this.containerEl.appendChild(titleRow);
+    // 移除「连接OpenList管理云附件」描述文字（无用）
     // 刷新按钮 - 移到下面
     if (this.plugin.accounts.length > 0) {
       this.plugin.accounts.forEach(account => this.renderAccount(account));
@@ -2906,6 +2963,244 @@ class CloudAttachSettingTab extends PluginSettingTab {
     this.containerEl.appendChild(card);
   }
 }
+
+// === Advanced Setting Modal ===
+class AdvancedSettingModal extends Modal {
+  constructor(app, plugin) {
+    super(app);
+    this.plugin = plugin;
+  }
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.innerHTML = '';
+    contentEl.style.padding = '20px';
+    
+    const title = contentEl.createEl('h2', { text: t('settings.advanced_title') });
+    title.style.marginTop = '0';
+    
+    // === 文件预览分类 ===
+    const catTitle = contentEl.createEl('h3', { text: t('settings.preview_category') });
+    catTitle.style.marginTop = '20px';
+    
+    // --- PDF 预览 ---
+    const pdfSection = contentEl.createDiv();
+    pdfSection.style.marginBottom = '16px';
+    pdfSection.createEl('div', { text: t('settings.pdf_preview'), attr: { style: 'font-weight:600;margin-bottom:8px;' } });
+    
+    const pdfRadioGroup = pdfSection.createDiv();
+    pdfRadioGroup.style.display = 'flex';
+    pdfRadioGroup.style.gap = '16px';
+    pdfRadioGroup.style.marginBottom = '8px';
+    
+    const mkRadio = (label, value, group) => {
+      const opt = group.createDiv();
+      opt.style.display = 'flex';
+      opt.style.alignItems = 'center';
+      opt.style.gap = '4px';
+      const radio = opt.createEl('input', { type: 'radio', attr: { name: 'pdf_preview' } });
+      radio.checked = this.plugin.settings.pdfPreview === value;
+      radio.onchange = async () => {
+        if (radio.checked) {
+          this.plugin.settings.pdfPreview = value;
+          await this.plugin.saveSettings();
+          this.onOpen();
+        }
+      };
+      opt.createEl('label', { text: label });
+      return radio;
+    };
+    
+    mkRadio(t('settings.pdf_preview_iframe'), 'iframe', pdfRadioGroup);
+    // PDF.js 安装/卸载按钮
+    const pdfjsInfo = pdfSection.createDiv();
+    pdfjsInfo.style.marginTop = '4px';
+    
+    const pdfjsPath = this.app.vault.configDir + '/plugins/cloud-attach/libs/pdfjs/';
+    const fs = require('fs');
+    const hasPdfjs = fs.existsSync(pdfjsPath + 'pdf.min.mjs');
+    
+    if (hasPdfjs) {
+      pdfjsInfo.textContent = t('settings.pdfjs_downloaded') + ' (' + t('settings.pdfjs_size') + ')';
+      pdfjsInfo.appendChild(document.createTextNode('  '));
+      const delBtn = pdfjsInfo.createEl('button', { text: t('settings.pdfjs_uninstall') });
+      delBtn.onclick = async () => {
+        try { fs.rmSync(pdfjsPath, { recursive: true }); } catch(e) {}
+        this.onOpen();
+      };
+    } else {
+      pdfjsInfo.textContent = t('settings.pdfjs_size') + ' | ';
+      const dlBtn = pdfjsInfo.createEl('button', { text: t('settings.pdfjs_install') });
+      dlBtn.onclick = async () => {
+        dlBtn.textContent = t('settings.pdfjs_installing');
+        dlBtn.disabled = true;
+        try { await this.downloadPdfjs(pdfjsPath); } catch(e) {}
+        this.onOpen();
+      };
+    }
+    
+    // --- Excel 预览 ---
+    const excelSection = contentEl.createDiv();
+    excelSection.style.marginBottom = '16px';
+    excelSection.createEl('div', { text: t('settings.excel_preview'), attr: { style: 'font-weight:600;margin-bottom:8px;' } });
+    const excelNote = excelSection.createEl('div', { text: t('settings.preview_coming_soon') });
+    excelNote.style.fontSize = '12px';
+    excelNote.style.color = 'var(--text-muted)';
+    
+    // --- Word 预览 ---
+    const wordSection = contentEl.createDiv();
+    wordSection.style.marginBottom = '16px';
+    wordSection.createEl('div', { text: t('settings.word_preview'), attr: { style: 'font-weight:600;margin-bottom:8px;' } });
+    const wordNote = wordSection.createEl('div', { text: t('settings.preview_coming_soon') });
+    wordNote.style.fontSize = '12px';
+    wordNote.style.color = 'var(--text-muted)';
+    
+    // 底部按钮行：保存 + 取消
+    const btnRow = contentEl.createDiv();
+    btnRow.style.marginTop = '24px';
+    btnRow.style.display = 'flex';
+    btnRow.style.gap = '8px';
+    
+    const saveBtn = btnRow.createEl('button', { text: t('settings.save') || '保存' });
+    saveBtn.className = 'mod-cta';
+    saveBtn.onclick = async () => {
+      await this.plugin.saveSettings();
+      new Notice(t('settings.saved') || '设置已保存');
+      this.close();
+    };
+    
+    const cancelBtn = btnRow.createEl('button', { text: t('settings.cancel') });
+    cancelBtn.onclick = () => this.close();
+  }
+  
+  async downloadPdfjs(destDir) {
+    const fs = require('fs');
+    const path = require('path');
+    const destDirNorm = destDir.replace(/\/$/, '');
+    if (!fs.existsSync(destDirNorm)) fs.mkdirSync(destDirNorm, { recursive: true });
+    const files = [
+      { name: 'pdf.min.mjs', url: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.mjs' },
+      { name: 'pdf.worker.min.mjs', url: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.mjs' },
+    ];
+    for (const f of files) {
+      const res = await fetch(f.url);
+      const buf = await res.arrayBuffer();
+      fs.writeFileSync(path.join(destDirNorm, f.name), Buffer.from(buf));
+    }
+    // 动态加载 pdfjs 到全局
+    try { delete globalThis.pdfjsLib; } catch(e) {}
+  }
+}
+
+
+// === PDF.js View ===
+const VIEW_TYPE_PDFJS = 'cloud-attach-pdfjs';
+
+class PdfJsView extends ItemView {
+  getViewType() { return VIEW_TYPE_PDFJS; }
+  getDisplayText() { return (this.state && this.state.fileName) || 'PDF'; }
+  getIcon() { return 'file-text'; }
+
+  async onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.style.display = 'flex';
+    contentEl.style.flexDirection = 'column';
+    contentEl.style.height = '100%';
+
+    const fileUrl = this.state.url;
+    const fileName = this.state.fileName || 'PDF';
+
+    // 工具栏
+    const toolbar = contentEl.createDiv();
+    toolbar.style.display = 'flex';
+    toolbar.style.alignItems = 'center';
+    toolbar.style.gap = '8px';
+    toolbar.style.padding = '8px 12px';
+    toolbar.style.borderBottom = '1px solid var(--background-modifier-border)';
+
+    const prevBtn = toolbar.createEl('button', { text: t('pdf.prev_page') || '◀ Prev' });
+    prevBtn.onclick = () => this.renderPage(this.currentPage - 1);
+
+    this.pageInfo = toolbar.createSpan();
+    this.pageInfo.style.minWidth = '80px';
+    this.pageInfo.style.textAlign = 'center';
+
+    const nextBtn = toolbar.createEl('button', { text: t('pdf.next_page') || 'Next ▶' });
+    nextBtn.onclick = () => this.renderPage(this.currentPage + 1);
+
+    toolbar.createEl('span', { text: ' | ' });
+
+    const zoomOut = toolbar.createEl('button', { text: '🔍-' });
+    zoomOut.onclick = () => { this.scale = Math.max(0.5, this.scale - 0.25); this.renderPage(this.currentPage); };
+
+    const zoomIn = toolbar.createEl('button', { text: '🔍+' });
+    zoomIn.onclick = () => { this.scale = Math.min(3, this.scale + 0.25); this.renderPage(this.currentPage); };
+
+    const dlBtn = toolbar.createEl('button', { text: t('pdf.download') || '⬇ Download' });
+    dlBtn.onclick = () => { window.open(fileUrl, '_blank'); };
+
+    // 容器
+    this.container = contentEl.createDiv();
+    this.container.style.flex = '1';
+    this.container.style.overflow = 'auto';
+    this.container.style.padding = '16px';
+    this.container.style.background = '#1e1e1e';
+
+    await this.loadPdf(fileUrl);
+  }
+
+  async loadPdf(fileUrl) {
+    const pdfjsPath = this.app.vault.configDir + '/plugins/cloud-attach/libs/pdfjs/';
+    let pdfjsCore;
+    try {
+      pdfjsCore = require(pdfjsPath + 'pdf.min.mjs');
+    } catch(e) {
+      this.container.createEl('p', { text: t('pdf.lib_not_found') || 'PDF.js library not found. Please download it in Advanced Settings.', attr: { style: 'color:orange;' } });
+      return;
+    }
+    pdfjsCore.GlobalWorkerOptions.workerSrc = pdfjsPath + 'pdf.worker.min.mjs';
+
+    try {
+      const loadingTask = pdfjsCore.getDocument({ url: fileUrl });
+      this.pdfDoc = await loadingTask.promise;
+      this.totalPages = this.pdfDoc.numPages;
+      await this.renderPage(1);
+    } catch (e) {
+      this.container.createEl('p', { text: (t('pdf.load_failed') || 'PDF load failed: ') + e.message, attr: { style: 'color:red;' } });
+    }
+  }
+
+  async renderPage(pageNum) {
+    if (!this.pdfDoc) return;
+    if (pageNum < 1 || pageNum > this.totalPages) return;
+    this.currentPage = pageNum;
+
+    const page = await this.pdfDoc.getPage(pageNum);
+    const viewport = page.getViewport({ scale: this.scale });
+
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    canvas.style.marginBottom = '16px';
+    canvas.style.boxShadow = '0 2px 8px rgba(0,0,0,0.5)';
+    canvas.style.display = 'block';
+    canvas.style.margin = '0 auto 16px auto';
+
+    const ctx = canvas.getContext('2d');
+    await page.render({ canvasContext: ctx, viewport }).promise;
+
+    this.container.innerHTML = '';
+    this.container.appendChild(canvas);
+
+    this.pageInfo.textContent = `${t('pdf.page') || 'Page'} ${pageNum} / ${this.totalPages}`;
+  }
+
+  async onClose() {
+    if (this.pdfDoc) { try { this.pdfDoc.destroy(); } catch(e) {} }
+    this.pdfDoc = null;
+  }
+}
+
 module.exports = class CloudAttachPlugin extends Plugin {
   constructor() {
     super(...arguments);
@@ -3064,6 +3359,25 @@ module.exports = class CloudAttachPlugin extends Plugin {
     console.log('[CloudAttach] new leaf created');
   }
   onunload() { console.log('CloudAttach unloading...'); }
+
+  // 打开 PDF.js 预览视图
+  async openPdfJsView(url, fileName) {
+    const { workspace } = this.app;
+    let leaf = workspace.getLeavesOfType(VIEW_TYPE_PDFJS)[0];
+    if (leaf) {
+      await leaf.setViewState({
+        type: VIEW_TYPE_PDFJS,
+        state: { url, fileName }
+      });
+    } else {
+      leaf = workspace.getRightLeaf(false) || workspace.getLeaf('tab');
+      await leaf.setViewState({
+        type: VIEW_TYPE_PDFJS,
+        state: { url, fileName }
+      });
+    }
+    workspace.revealLeaf(leaf);
+  }
   // ============================================================
   // Sign 检查与刷新
   // ============================================================
@@ -3397,8 +3711,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
   async loadSettings() {
     const data = await this.loadData();
-    this.settings = { accounts: [], ...data };
+    this.settings = { accounts: [], pdfPreview: 'iframe', ...data };
     this.accounts = this.settings.accounts || [];
+    this.settings.pdfPreview = this.settings.pdfPreview || 'iframe';
   }
   async saveSettings() {
     this.settings.accounts = this.accounts;

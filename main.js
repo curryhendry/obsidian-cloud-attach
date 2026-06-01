@@ -1,4 +1,4 @@
-/* CloudAttach v0.2.083 */
+/* CloudAttach v0.3.001 */
 "use strict";
 
 // src/main.js
@@ -103,6 +103,24 @@ Object.assign(I18n.translations.zh, {
   "settings.storage_type": "\u5B58\u50A8\u7C7B\u578B",
   "settings.openlist": "\u5BF9\u8C61\u5B58\u50A8",
   "settings.openlist_desc": "\u8FDE\u63A5 OpenList \u7BA1\u7406\u4E91\u9644\u4EF6",
+  "settings.advanced": "\u9AD8\u7EA7",
+  "settings.advanced_title": "\u9AD8\u7EA7\u8BBE\u7F6E",
+  "settings.preview_category": "\u6587\u4EF6\u9884\u89C8",
+  "settings.pdf_preview": "PDF \u9884\u89C8\u65B9\u5F0F",
+  "settings.pdf_preview_iframe": "iframe\uFF08\u9ED8\u8BA4\uFF09",
+  "settings.pdf_preview_pdfjs": "PDF.js\uFF08\u9700\u4E0B\u8F7D\uFF09",
+  "settings.pdfjs_size": "\u5E93\u5927\u5C0F: ~1.6MB",
+  "settings.pdfjs_download": "\u4E0B\u8F7D PDF.js",
+  "settings.pdfjs_downloaded": "\u5DF2\u4E0B\u8F7D \u2713",
+  "settings.pdfjs_delete": "\u5220\u9664",
+  "settings.pdfjs_downloading": "\u4E0B\u8F7D\u4E2D...",
+  "settings.excel_preview": "Excel \u9884\u89C8\u65B9\u5F0F",
+  "settings.excel_preview_iframe": "iframe\uFF08\u9ED8\u8BA4\uFF09",
+  "settings.excel_preview_sheetjs": "SheetJS",
+  "settings.word_preview": "Word \u9884\u89C8\u65B9\u5F0F",
+  "settings.word_preview_iframe": "iframe\uFF08\u9ED8\u8BA4\uFF09",
+  "settings.word_preview_mammoth": "mammoth.js",
+  "settings.preview_coming_soon": "\u656C\u8BF7\u671F\u5F85...",
   "settings.s3": "\u5BF9\u8C61\u5B58\u50A8 (S3)",
   "settings.s3_desc": "\u652F\u6301 S3 \u534F\u8BAE\u7684\u5BF9\u8C61\u5B58\u50A8",
   "settings.account_name_placeholder": "\u4F8B\u5982\uFF1A\u6211\u7684COS\u6876",
@@ -317,6 +335,24 @@ Object.assign(I18n.translations.en, {
   "settings.storage_type": "Storage Type",
   "settings.openlist": "Object Storage",
   "settings.openlist_desc": "Connect OpenList to manage cloud attachments",
+  "settings.advanced": "Advanced",
+  "settings.advanced_title": "Advanced Settings",
+  "settings.preview_category": "File Preview",
+  "settings.pdf_preview": "PDF Preview Method",
+  "settings.pdf_preview_iframe": "iframe (default)",
+  "settings.pdf_preview_pdfjs": "PDF.js (download required)",
+  "settings.pdfjs_size": "Library size: ~1.6MB",
+  "settings.pdfjs_download": "Download PDF.js",
+  "settings.pdfjs_downloaded": "Downloaded \u2713",
+  "settings.pdfjs_delete": "Delete",
+  "settings.pdfjs_downloading": "Downloading...",
+  "settings.excel_preview": "Excel Preview Method",
+  "settings.excel_preview_iframe": "iframe (default)",
+  "settings.excel_preview_sheetjs": "SheetJS",
+  "settings.word_preview": "Word Preview Method",
+  "settings.word_preview_iframe": "iframe (default)",
+  "settings.word_preview_mammoth": "mammoth.js",
+  "settings.preview_coming_soon": "Coming soon...",
   "settings.s3": "Object Storage (S3)",
   "settings.s3_desc": "S3-compatible object storage",
   "settings.account_name_placeholder": "e.g.: My COS Bucket",
@@ -2096,7 +2132,15 @@ var CloudAttachView = class extends ItemView {
           this.loadDir();
         };
       } else {
-        name.onclick = () => this.insertFile(file);
+        const ext = file.name.split(".").pop()?.toLowerCase() || "";
+        if (ext === "pdf" && this.plugin.settings.pdfPreview === "pdfjs") {
+          name.onclick = async () => {
+            const url = await this.client.getFileUrl(file.path);
+            this.openPdfJsView(url, file.name);
+          };
+        } else {
+          name.onclick = () => this.insertFile(file);
+        }
       }
       name.style.cursor = "pointer";
       item.appendChild(name);
@@ -2613,9 +2657,23 @@ var CloudAttachSettingTab = class extends PluginSettingTab {
   }
   render() {
     this.containerEl.innerHTML = "";
+    const titleRow = document.createElement("div");
+    titleRow.style.display = "flex";
+    titleRow.style.alignItems = "center";
+    titleRow.style.justifyContent = "space-between";
+    titleRow.style.marginBottom = "8px";
     const title = document.createElement("h2");
     title.textContent = t("settings.title");
-    this.containerEl.appendChild(title);
+    title.style.margin = "0";
+    titleRow.appendChild(title);
+    const advBtn = document.createElement("button");
+    advBtn.textContent = "\u2699\uFE0F " + t("settings.advanced");
+    advBtn.className = "cloud-attach-btn";
+    advBtn.style.fontSize = "12px";
+    advBtn.style.padding = "4px 10px";
+    advBtn.onclick = () => new AdvancedSettingModal(this.app, this.plugin).open();
+    titleRow.appendChild(advBtn);
+    this.containerEl.appendChild(titleRow);
     const desc = document.createElement("p");
     desc.textContent = t("settings.openlist_desc");
     desc.className = "setting-item-description";
@@ -2756,6 +2814,119 @@ var CloudAttachSettingTab = class extends PluginSettingTab {
     this.containerEl.appendChild(card);
   }
 };
+var AdvancedSettingModal = class extends Modal {
+  constructor(app, plugin) {
+    super(app);
+    this.plugin = plugin;
+  }
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.innerHTML = "";
+    contentEl.style.padding = "20px";
+    const title = contentEl.createEl("h2", { text: t("settings.advanced_title") });
+    title.style.marginTop = "0";
+    const catTitle = contentEl.createEl("h3", { text: t("settings.preview_category") });
+    catTitle.style.marginTop = "20px";
+    const pdfSection = contentEl.createDiv();
+    pdfSection.style.marginBottom = "16px";
+    pdfSection.createEl("div", { text: t("settings.pdf_preview"), attr: { style: "font-weight:600;margin-bottom:8px;" } });
+    const pdfRadioGroup = pdfSection.createDiv();
+    pdfRadioGroup.style.display = "flex";
+    pdfRadioGroup.style.gap = "16px";
+    pdfRadioGroup.style.marginBottom = "8px";
+    const mkRadio = (label, value, group) => {
+      const opt = group.createDiv();
+      opt.style.display = "flex";
+      opt.style.alignItems = "center";
+      opt.style.gap = "4px";
+      const radio = opt.createEl("input", { type: "radio", attr: { name: "pdf_preview" } });
+      radio.checked = this.plugin.settings.pdfPreview === value;
+      radio.onchange = async () => {
+        if (radio.checked) {
+          this.plugin.settings.pdfPreview = value;
+          await this.plugin.saveSettings();
+          this.onOpen();
+        }
+      };
+      opt.createEl("label", { text: label });
+      return radio;
+    };
+    mkRadio(t("settings.pdf_preview_iframe"), "iframe", pdfRadioGroup);
+    mkRadio(t("settings.pdf_preview_pdfjs"), "pdfjs", pdfRadioGroup);
+    const pdfjsInfo = pdfSection.createDiv();
+    pdfjsInfo.style.fontSize = "12px";
+    pdfjsInfo.style.color = "var(--text-muted)";
+    pdfjsInfo.style.marginTop = "4px";
+    pdfjsInfo.textContent = t("settings.pdfjs_size") + " | ";
+    const pdfjsPath = this.app.vault.configDir + "/plugins/cloud-attach/libs/pdfjs/";
+    const fs = require("fs");
+    const hasPdfjs = fs.existsSync(pdfjsPath + "pdf.min.mjs");
+    if (hasPdfjs) {
+      const ok = pdfjsInfo.createEl("span", { text: t("settings.pdfjs_downloaded") });
+      ok.style.color = "var(--text-success)";
+      pdfjsInfo.appendChild(document.createTextNode(" "));
+      const delBtn = pdfjsInfo.createEl("button", { text: t("settings.pdfjs_delete") });
+      delBtn.style.fontSize = "11px";
+      delBtn.style.marginLeft = "8px";
+      delBtn.onclick = async () => {
+        try {
+          fs.rmSync(pdfjsPath, { recursive: true });
+        } catch (e) {
+        }
+        this.onOpen();
+      };
+    } else {
+      const dlBtn = pdfjsInfo.createEl("button", { text: t("settings.pdfjs_download") });
+      dlBtn.style.fontSize = "11px";
+      dlBtn.onclick = async () => {
+        dlBtn.textContent = t("settings.pdfjs_downloading");
+        dlBtn.disabled = true;
+        try {
+          await this.downloadPdfjs(pdfjsPath);
+        } catch (e) {
+        }
+        this.onOpen();
+      };
+    }
+    const excelSection = contentEl.createDiv();
+    excelSection.style.marginBottom = "16px";
+    excelSection.createEl("div", { text: t("settings.excel_preview"), attr: { style: "font-weight:600;margin-bottom:8px;" } });
+    const excelNote = excelSection.createEl("div", { text: t("settings.preview_coming_soon") });
+    excelNote.style.fontSize = "12px";
+    excelNote.style.color = "var(--text-muted)";
+    const wordSection = contentEl.createDiv();
+    wordSection.style.marginBottom = "16px";
+    wordSection.createEl("div", { text: t("settings.word_preview"), attr: { style: "font-weight:600;margin-bottom:8px;" } });
+    const wordNote = wordSection.createEl("div", { text: t("settings.preview_coming_soon") });
+    wordNote.style.fontSize = "12px";
+    wordNote.style.color = "var(--text-muted)";
+    const closeRow = contentEl.createDiv();
+    closeRow.style.marginTop = "24px";
+    const closeBtn = closeRow.createEl("button", { text: t("settings.cancel") });
+    closeBtn.onclick = () => this.close();
+  }
+  async downloadPdfjs(destDir) {
+    const fs = require("fs");
+    const path = require("path");
+    const destDirNorm = destDir.replace(/\/$/, "");
+    if (!fs.existsSync(destDirNorm))
+      fs.mkdirSync(destDirNorm, { recursive: true });
+    const files = [
+      { name: "pdf.min.mjs", url: "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.mjs" },
+      { name: "pdf.worker.min.mjs", url: "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.mjs" }
+    ];
+    for (const f of files) {
+      const res = await fetch(f.url);
+      const buf = await res.arrayBuffer();
+      fs.writeFileSync(path.join(destDirNorm, f.name), Buffer.from(buf));
+    }
+    try {
+      delete globalThis.pdfjsLib;
+    } catch (e) {
+    }
+  }
+};
+var VIEW_TYPE_PDFJS = "cloud-attach-pdfjs";
 module.exports = class CloudAttachPlugin extends Plugin {
   constructor() {
     super(...arguments);
@@ -2906,6 +3077,24 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
   onunload() {
     console.log("CloudAttach unloading...");
+  }
+  // 打开 PDF.js 预览视图
+  async openPdfJsView(url, fileName) {
+    const { workspace } = this.app;
+    let leaf = workspace.getLeavesOfType(VIEW_TYPE_PDFJS)[0];
+    if (leaf) {
+      await leaf.setViewState({
+        type: VIEW_TYPE_PDFJS,
+        state: { url, fileName }
+      });
+    } else {
+      leaf = workspace.getRightLeaf(false) || workspace.getLeaf("tab");
+      await leaf.setViewState({
+        type: VIEW_TYPE_PDFJS,
+        state: { url, fileName }
+      });
+    }
+    workspace.revealLeaf(leaf);
   }
   // ============================================================
   // Sign 检查与刷新
@@ -3220,8 +3409,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
   async loadSettings() {
     const data = await this.loadData();
-    this.settings = { accounts: [], ...data };
+    this.settings = { accounts: [], pdfPreview: "iframe", ...data };
     this.accounts = this.settings.accounts || [];
+    this.settings.pdfPreview = this.settings.pdfPreview || "iframe";
   }
   async saveSettings() {
     this.settings.accounts = this.accounts;

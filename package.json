@@ -1,1 +1,16 @@
-{"name":"cloud-attach","version":"0.2.085","description":"CloudAttach Plugin - 云附件管理","main":"main.js","scripts":{"build":"esbuild src/main.js --bundle --outfile=main.js --format=cjs --platform=node --external:obsidian --banner:js=\"/* CloudAttach v0.2.083 */\"","dev":"esbuild src/main.js --bundle --outfile=main.js --format=cjs --platform=node --external:obsidian --watch"},"devDependencies":{"esbuild":"^0.20.0"}}
+{
+  "name": "cloud-attach",
+  "version": "0.3.001",
+  "description": "CloudAttach Plugin - 云附件管理",
+  "main": "main.js",
+  "scripts": {
+    "build": "esbuild src/main.js --bundle --outfile=main.js --format=cjs --platform=node --external:obsidian --banner:js=\"/* CloudAttach v0.3.001 */\"",
+    "dev": "esbuild src/main.js --bundle --outfile=main.js --format=cjs --platform=node --external:obsidian --watch"
+  },
+  "devDependencies": {
+    "esbuild": "^0.20.0"
+  },
+  "dependencies": {
+    "pdfjs-dist": "^6.0.227"
+  }
+}
