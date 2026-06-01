@@ -3011,14 +3011,24 @@ class AdvancedSettingModal extends Modal {
     };
     
     mkRadio(t('settings.pdf_preview_iframe'), 'iframe', pdfRadioGroup);
-    // PDF.js radio：label 动态包含安装状态
+    mkRadio(t('settings.pdf_preview_pdfjs'), 'pdfjs', pdfRadioGroup);
+    
+    // PDF.js 安装状态（第二行）
     const pdfjsPath = this.app.vault.configDir + '/plugins/cloud-attach/libs/pdfjs/';
     const fs = require('fs');
     const hasPdfjs = fs.existsSync(pdfjsPath + 'pdf.min.mjs');
-    const pdfjsLabel = hasPdfjs
-      ? 'PDF.js' + (t('settings.pdfjs_installed') || '')
-      : 'PDF.js' + (t('settings.pdfjs_need_install') || '');
-    mkRadio(pdfjsLabel, 'pdfjs', pdfRadioGroup);
+    const pdfjsInfo = pdfSection.createDiv();
+    pdfjsInfo.style.marginTop = '4px';
+    if (hasPdfjs) {
+      pdfjsInfo.textContent = t('settings.pdfjs_installed') || '';
+      const delBtn = pdfjsInfo.createEl('button', { text: t('settings.pdfjs_uninstall') || '卸载' });
+      delBtn.onclick = async () => {
+        try { fs.rmSync(pdfjsPath, { recursive: true }); } catch(e) {}
+        this.onOpen();
+      };
+    } else {
+      pdfjsInfo.textContent = t('settings.pdfjs_need_install') || '';
+    }
     
     // --- Excel 预览 ---
     const excelSection = contentEl.createDiv();
@@ -3049,19 +3059,14 @@ class AdvancedSettingModal extends Modal {
       const pdfjsPath2 = this.app.vault.configDir + '/plugins/cloud-attach/libs/pdfjs/';
       const fs2 = require('fs');
       if (this.plugin.settings.pdfPreview === 'pdfjs' && !fs2.existsSync(pdfjsPath2 + 'pdf.min.mjs')) {
-        let installed = false;
-        const doInstall = async () => {
-          new Notice(t('settings.pdfjs_installing'));
-          try {
-            await this.downloadPdfjs(pdfjsPath2);
-            installed = true;
-            new Notice('✅ PDF.js ' + (t('settings.pdfjs_installed') || '安装成功'));
-          } catch(e) {
-            new Notice('❌ PDF.js 安装失败: ' + e.message);
-          }
-        };
-        await doInstall();
-        if (!installed) return; // 失败则不关闭，用户可重试或取消
+        new Notice(t('settings.pdfjs_installing'));
+        try {
+          await this.downloadPdfjs(pdfjsPath2);
+          new Notice('✅ PDF.js ' + (t('settings.pdfjs_installed') || '安装成功'));
+        } catch(e) {
+          new Notice('❌ PDF.js 安装失败: ' + e.message);
+          return; // 失败不关闭，用户可重试（保存）或取消
+        }
       }
       await this.plugin.saveSettings();
       new Notice(t('settings.saved') || '设置已保存');
@@ -3075,11 +3080,7 @@ class AdvancedSettingModal extends Modal {
   async downloadPdfjs(destDir) {
     const fs = require('fs');
     const path = require('path');
-    // 确保 configDir 是绝对路径
-    let destDirNorm = destDir.replace(/\/$/, '');
-    if (!path.isAbsolute(destDirNorm)) {
-      destDirNorm = path.resolve(this.app.vault.basePath, '..', destDirNorm);
-    }
+    const destDirNorm = destDir.replace(/\/$/, '');
     if (!fs.existsSync(destDirNorm)) {
       try { fs.mkdirSync(destDirNorm, { recursive: true }); } catch(e) {
         throw new Error('mkdir failed: ' + e.message + ' (path: ' + destDirNorm + ')');
