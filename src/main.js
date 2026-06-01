@@ -119,10 +119,10 @@ Object.assign(I18n.translations.zh, {
   'settings.preview_category': '文件预览',
   'settings.pdf_preview': 'PDF 预览方式',
   'settings.pdf_preview_iframe': 'iframe（默认）',
-  'settings.pdf_preview_pdfjs': 'PDF.js（应用后安装插件~1.6MB）',
-  'settings.pdfjs_size': '~1.6MB',
-  'settings.pdfjs_install': '安装',
-  'settings.pdfjs_installing': '安装中...',
+  'settings.pdf_preview_pdfjs': 'PDF.js',
+  'settings.pdfjs_need_install': '（需安装 约1.6MB）',
+  'settings.pdfjs_installed': '（已安装）',
+  'settings.pdfjs_installing': '正在安装 PDF.js...',
   'settings.pdfjs_downloaded': 'PDF.js（已安装）',
   'settings.pdfjs_uninstall': '卸载',
   'settings.excel_preview': 'Excel 预览方式',
@@ -360,10 +360,10 @@ Object.assign(I18n.translations.en, {
   'settings.preview_category': 'File Preview',
   'settings.pdf_preview': 'PDF Preview Method',
   'settings.pdf_preview_iframe': 'iframe (default)',
-  'settings.pdf_preview_pdfjs': 'PDF.js (install ~1.6MB)',
-  'settings.pdfjs_size': '~1.6MB',
-  'settings.pdfjs_install': 'Install',
-  'settings.pdfjs_installing': 'Installing...',
+  'settings.pdf_preview_pdfjs': 'PDF.js',
+  'settings.pdfjs_need_install': '(install ~1.6MB)',
+  'settings.pdfjs_installed': '(installed)',
+  'settings.pdfjs_installing': 'Installing PDF.js...',
   'settings.pdfjs_downloaded': 'PDF.js (installed)',
   'settings.pdfjs_uninstall': 'Uninstall',
   'settings.excel_preview': 'Excel Preview Method',
@@ -3011,7 +3011,7 @@ class AdvancedSettingModal extends Modal {
     };
     
     mkRadio(t('settings.pdf_preview_iframe'), 'iframe', pdfRadioGroup);
-    // PDF.js 安装/卸载按钮
+    // PDF.js 安装状态显示
     const pdfjsInfo = pdfSection.createDiv();
     pdfjsInfo.style.marginTop = '4px';
     
@@ -3020,22 +3020,14 @@ class AdvancedSettingModal extends Modal {
     const hasPdfjs = fs.existsSync(pdfjsPath + 'pdf.min.mjs');
     
     if (hasPdfjs) {
-      pdfjsInfo.textContent = t('settings.pdfjs_downloaded') + ' (' + t('settings.pdfjs_size') + ')';
-      pdfjsInfo.appendChild(document.createTextNode('  '));
+      pdfjsInfo.textContent = 'PDF.js' + t('settings.pdfjs_installed') + '  ';
       const delBtn = pdfjsInfo.createEl('button', { text: t('settings.pdfjs_uninstall') });
       delBtn.onclick = async () => {
         try { fs.rmSync(pdfjsPath, { recursive: true }); } catch(e) {}
         this.onOpen();
       };
     } else {
-      pdfjsInfo.textContent = t('settings.pdfjs_size') + ' | ';
-      const dlBtn = pdfjsInfo.createEl('button', { text: t('settings.pdfjs_install') });
-      dlBtn.onclick = async () => {
-        dlBtn.textContent = t('settings.pdfjs_installing');
-        dlBtn.disabled = true;
-        try { await this.downloadPdfjs(pdfjsPath); } catch(e) {}
-        this.onOpen();
-      };
+      pdfjsInfo.textContent = 'PDF.js' + t('settings.pdfjs_need_install');
     }
     
     // --- Excel 预览 ---
@@ -3063,6 +3055,19 @@ class AdvancedSettingModal extends Modal {
     const saveBtn = btnRow.createEl('button', { text: t('settings.save') || '保存' });
     saveBtn.className = 'mod-cta';
     saveBtn.onclick = async () => {
+      // 如果选了 PDF.js 但未安装，先安装
+      const pdfjsPath2 = this.app.vault.configDir + '/plugins/cloud-attach/libs/pdfjs/';
+      const fs2 = require('fs');
+      if (this.plugin.settings.pdfPreview === 'pdfjs' && !fs2.existsSync(pdfjsPath2 + 'pdf.min.mjs')) {
+        new Notice(t('settings.pdfjs_installing'));
+        try {
+          await this.downloadPdfjs(pdfjsPath2);
+          new Notice('✅ PDF.js ' + (t('settings.pdfjs_installed') || '安装成功'));
+        } catch(e) {
+          new Notice('❌ PDF.js 安装失败: ' + e.message);
+          return;
+        }
+      }
       await this.plugin.saveSettings();
       new Notice(t('settings.saved') || '设置已保存');
       this.close();
