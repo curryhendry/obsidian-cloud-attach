@@ -120,7 +120,7 @@ Object.assign(I18n.translations.zh, {
   'settings.pdf_preview': 'PDF 预览方式',
   'settings.pdf_preview_iframe': 'iframe（默认）',
   'settings.pdf_preview_pdfjs': 'PDF.js',
-  'settings.pdfjs_need_install': '（需安装 约1.6MB）',
+  'settings.pdfjs_auto_install': '（保存后自动安装 约1.6MB）',
   'settings.pdfjs_installed': '（已安装）',
   'settings.pdfjs_installing': '正在安装 PDF.js...',
   'settings.pdfjs_downloaded': 'PDF.js（已安装）',
@@ -361,7 +361,7 @@ Object.assign(I18n.translations.en, {
   'settings.pdf_preview': 'PDF Preview Method',
   'settings.pdf_preview_iframe': 'iframe (default)',
   'settings.pdf_preview_pdfjs': 'PDF.js',
-  'settings.pdfjs_need_install': '(install ~1.6MB)',
+  'settings.pdfjs_auto_install': '(auto-install on save ~1.6MB)',
   'settings.pdfjs_installed': '(installed)',
   'settings.pdfjs_installing': 'Installing PDF.js...',
   'settings.pdfjs_downloaded': 'PDF.js (installed)',
@@ -3039,7 +3039,7 @@ class AdvancedSettingModal extends Modal {
     })();
     const fs = require('fs');
     const hasPdfjs = fs.existsSync(pdfjsPath + 'pdf.js');
-    pdfjsOpt.createEl('label', { text: hasPdfjs ? ('PDF.js' + (t('settings.pdfjs_installed') || '')) : ('PDF.js' + (t('settings.pdfjs_need_install') || '')) });
+    pdfjsOpt.createEl('label', { text: hasPdfjs ? ('PDF.js' + (t('settings.pdfjs_installed') || '')) : ('PDF.js' + (t('settings.pdfjs_auto_install') || '')) });
     if (hasPdfjs) {
       const delBtn = pdfjsRow.createEl('button', { text: t('settings.pdfjs_uninstall') || '卸载' });
       delBtn.onclick = async () => {
@@ -3135,15 +3135,19 @@ class PdfJsView extends ItemView {
   getDisplayText() { return (this.state && this.state.fileName) || 'PDF'; }
   getIcon() { return 'file-text'; }
 
+  setState(state) {
+    this.state = state;
+    if (state && state.url) {
+      this.loadPdf(state.url);
+    }
+  }
+
   async onOpen() {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.style.display = 'flex';
     contentEl.style.flexDirection = 'column';
     contentEl.style.height = '100%';
-
-    const fileUrl = this.state.url;
-    const fileName = this.state.fileName || 'PDF';
 
     // 工具栏
     const toolbar = contentEl.createDiv();
@@ -3172,7 +3176,7 @@ class PdfJsView extends ItemView {
     zoomIn.onclick = () => { this.scale = Math.min(3, this.scale + 0.25); this.renderPage(this.currentPage); };
 
     const dlBtn = toolbar.createEl('button', { text: t('pdf.download') || '⬇ Download' });
-    dlBtn.onclick = () => { window.open(fileUrl, '_blank'); };
+    dlBtn.onclick = () => { if (this.state && this.state.url) window.open(this.state.url, '_blank'); };
 
     // 容器
     this.container = contentEl.createDiv();
@@ -3181,7 +3185,10 @@ class PdfJsView extends ItemView {
     this.container.style.padding = '16px';
     this.container.style.background = '#1e1e1e';
 
-    await this.loadPdf(fileUrl);
+    // 如果 state 已就绪（setState 先于 onOpen 调用），立即加载 PDF
+    if (this.state && this.state.url) {
+      this.loadPdf(this.state.url);
+    }
   }
 
   async loadPdf(fileUrl) {
