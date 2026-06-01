@@ -3235,6 +3235,7 @@ class PdfJsView extends ItemView {
     // 必须先通过 Obsidian requestUrl（带认证）下载 PDF，再用 Uint8Array 传给 PDF.js
     try {
       console.log('[CloudAttach] fetching PDF via requestUrl:', fileUrl.substring(0, 80));
+      console.log('[CloudAttach] this.plugin type:', typeof this.plugin, 'has requestViaObsidian:', typeof this.plugin?.requestViaObsidian);
       const pdfResp = await this.plugin.requestViaObsidian(fileUrl);
       if (!pdfResp.ok) {
         throw new Error('HTTP ' + pdfResp.status + ' while fetching PDF');
