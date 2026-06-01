@@ -653,6 +653,50 @@ class OpenListClient {
   }
 
   /**
+   * 通过 Obsidian requestUrl 获取二进制数据（用于 PDF 等文件）
+   * @returns {Promise<Uint8Array|null>}
+   */
+  async requestBinary(url) {
+    let requestUrl = null;
+    try { requestUrl = require('obsidian').requestUrl; } catch(e) {
+      requestUrl = globalThis.requestUrl || this.app?.requestUrl;
+    }
+    if (requestUrl) {
+      try {
+        const result = await requestUrl({ url, method: 'GET', throw: false });
+        if (result.status >= 200 && result.status < 300) {
+          // 优先用 arrayBuffer，其次 blob
+          if (result.arrayBuffer) {
+            return new Uint8Array(result.arrayBuffer);
+          } else if (result.blob) {
+            const buf = await result.blob.arrayBuffer();
+            return new Uint8Array(buf);
+          } else if (result.text) {
+            // 回退：将 text 当作二进制（会有编码问题，但尽量尝试）
+            const bytes = new TextEncoder().encode(result.text);
+            return bytes;
+          }
+        }
+        console.error('[CloudAttach] requestBinary failed, status:', result.status);
+        return null;
+      } catch(e) {
+        console.error('[CloudAttach] requestBinary error:', e.message);
+        return null;
+      }
+    }
+    // 完全不可用时，用 fetch 回退
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) return null;
+      const buf = await resp.arrayBuffer();
+      return new Uint8Array(buf);
+    } catch(e) {
+      console.error('[CloudAttach] requestBinary fetch error:', e.message);
+      return null;
+    }
+  }
+
+  /**
    * 带认证的 API 请求（token 优先，401 fallback 到 login）
    */
   async authFetch(path, options = {}) {
@@ -2311,22 +2355,8 @@ class CloudAttachView extends ItemView {
         name.onclick = () => { this.currentPath = file.path; this.selectedFiles.clear(); this.loadDir(); };
       } else {
         const ext = file.name.split('.').pop()?.toLowerCase() || '';
-        if (ext === 'pdf' && this.plugin.settings.pdfPreview === 'pdfjs') {
-          // PDF.js 预览模式：打开 PdfJsView
-          console.log('[CloudAttach] PDF.js mode, opening:', file.name);
-          name.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            (async () => {
-              const url = await this.client.getFileUrl(file.path);
-              console.log('[CloudAttach] PDF clicked, url:', url);
-              this.plugin.openPdfJsView(url, file.name);
-            })();
-          });
-        } else {
-          name.onclick = () => this.insertFile(file);
-        }
+        // PDF 也通过 insertFile 插入 ![]()，后续渲染时会用 MutationObserver + PDF.js canvas 替换
+        name.onclick = () => this.insertFile(file);
       }
       name.style.cursor = 'pointer';
       item.appendChild(name);
@@ -2437,6 +2467,94 @@ class CloudAttachView extends ItemView {
     this.selectedFiles.clear();
     this.renderFiles();
     this.renderBatchBar();
+  }
+
+  /**
+   * MarkdownPostProcessor：扫描笔记 DOM 中的 PDF 图片，替换为 PDF.js canvas
+   * 触发时机：Obsidian 每次渲染 / 重渲染笔记时
+   */
+  _observePdfEmbeds(rootEl) {
+    // 只在 PDF.js 预览模式下生效
+    if (this.settings.pdfPreview !== 'pdfjs') return;
+    // 在 markdown 渲染区域内找所有 img（含 .pdf 的 URL）
+    const mdArea = rootEl.closest?.('.markdown-rendered') || rootEl;
+    const imgs = mdArea.querySelectorAll('img[src*=".pdf"]');
+    imgs.forEach(img => {
+      if (img.dataset.pdfRendered) return; // 已处理过
+      const src = img.src;
+      if (!src.match(/\.pdf(\?|$)/i)) return;
+      img.dataset.pdfRendered = '1';
+      img.style.display = 'none';
+      // 插入占位 div，在其内部渲染 PDF canvas
+      const placeholder = document.createElement('div');
+      placeholder.className = 'cloud-attach-pdf-embed';
+      placeholder.style.cssText = 'margin:12px 0;border:1px solid #ccc;border-radius:4px;overflow:hidden;background:#f9f9f9;min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#888;font-size:14px;';
+      placeholder.textContent = '⏳ PDF 加载中...';
+      img.parentNode?.insertBefore(placeholder, img.nextSibling);
+      this.renderPdfEmbed(src, placeholder).catch(e => {
+        placeholder.textContent = '❌ PDF 加载失败: ' + e.message;
+        placeholder.style.color = 'red';
+      });
+    });
+  }
+
+  /**
+   * 用 PDF.js 在 placeholder 内渲染 PDF（带 WebDAV 认证下载）
+   */
+  async renderPdfEmbed(pdfUrl, placeholder) {
+    const pdfjsPath = (() => {
+      const base = this.app.vault.adapter?.basePath || '';
+      return base + '/plugins/cloud-attach/libs/pdfjs/';
+    })();
+    let pdfjsLib;
+    try {
+      pdfjsLib = require(pdfjsPath + 'pdf.js');
+    } catch(e) {
+      throw new Error('PDF.js 未安装，请在设置中下载');
+    }
+    // 替换 worker 为 Blob URL（Electron app:// 协议不支持本地文件）
+    try {
+      const fs = require('fs');
+      const workerCode = fs.readFileSync(pdfjsPath + 'pdf.worker.js', 'utf8');
+      const blob = new Blob([workerCode], { type: 'application/javascript' });
+      pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(blob);
+    } catch(e) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = ''; // fallback 单线程
+    }
+    // 通过 requestBinary 获取 PDF 原始二进制数据（带 WebDAV 认证）
+    const data = await this.requestBinary(pdfUrl);
+    if (!data) throw new Error('无法下载 PDF');
+    const doc = await pdfjsLib.getDocument({ data }).promise;
+    placeholder.innerHTML = '';
+    placeholder.style.flexDirection = 'column';
+    placeholder.style.alignItems = 'stretch';
+    placeholder.style.background = '#fff';
+    placeholder.style.padding = '8px';
+    // 渲染前 3 页
+    const maxPage = Math.min(doc.numPages, 3);
+    for (let pageNum = 1; pageNum <= maxPage; pageNum++) {
+      const page = await doc.getPage(pageNum);
+      const scale = 1.5;
+      const viewport = page.getViewport({ scale });
+      const canvas = document.createElement('canvas');
+      canvas.style.display = 'block';
+      canvas.style.margin = '0 auto 8px auto';
+      canvas.style.maxWidth = '100%';
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      const title = document.createElement('div');
+      title.textContent = `第 ${pageNum} / ${doc.numPages} 页`;
+      title.style.cssText = 'text-align:center;font-size:12px;color:#666;margin-bottom:4px;';
+      placeholder.appendChild(title);
+      placeholder.appendChild(canvas);
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+    }
+    if (doc.numPages > 3) {
+      const more = document.createElement('div');
+      more.textContent = `…还有 ${doc.numPages - 3} 页（完整预览需下载）`;
+      more.style.cssText = 'text-align:center;font-size:12px;color:#888;padding:4px;';
+      placeholder.appendChild(more);
+    }
   }
   showMenu(file, event) {
     const menu = new Menu(this.plugin.app);
@@ -3135,155 +3253,6 @@ class AdvancedSettingModal extends Modal {
 
 
 // === PDF.js View ===
-const VIEW_TYPE_PDFJS = 'cloud-attach-pdfjs';
-
-class PdfJsView extends ItemView {
-  constructor(leaf, plugin) {
-    super(leaf);
-    this.plugin = plugin;
-  }
-
-  getViewType() { return VIEW_TYPE_PDFJS; }
-  getDisplayText() { return (this.state && this.state.fileName) || 'PDF'; }
-  getIcon() { return 'file-text'; }
-
-  setState(state) {
-    this.state = state;
-    if (state && state.url) {
-      this.loadPdf(state.url);
-    }
-  }
-
-  async onOpen() {
-    const { contentEl } = this;
-    contentEl.empty();
-    contentEl.style.display = 'flex';
-    contentEl.style.flexDirection = 'column';
-    contentEl.style.height = '100%';
-
-    // 工具栏
-    const toolbar = contentEl.createDiv();
-    toolbar.style.display = 'flex';
-    toolbar.style.alignItems = 'center';
-    toolbar.style.gap = '8px';
-    toolbar.style.padding = '8px 12px';
-    toolbar.style.borderBottom = '1px solid var(--background-modifier-border)';
-
-    const prevBtn = toolbar.createEl('button', { text: t('pdf.prev_page') || '◀ Prev' });
-    prevBtn.onclick = () => this.renderPage(this.currentPage - 1);
-
-    this.pageInfo = toolbar.createSpan();
-    this.pageInfo.style.minWidth = '80px';
-    this.pageInfo.style.textAlign = 'center';
-
-    const nextBtn = toolbar.createEl('button', { text: t('pdf.next_page') || 'Next ▶' });
-    nextBtn.onclick = () => this.renderPage(this.currentPage + 1);
-
-    toolbar.createEl('span', { text: ' | ' });
-
-    const zoomOut = toolbar.createEl('button', { text: '🔍-' });
-    zoomOut.onclick = () => { this.scale = Math.max(0.5, this.scale - 0.25); this.renderPage(this.currentPage); };
-
-    const zoomIn = toolbar.createEl('button', { text: '🔍+' });
-    zoomIn.onclick = () => { this.scale = Math.min(3, this.scale + 0.25); this.renderPage(this.currentPage); };
-
-    const dlBtn = toolbar.createEl('button', { text: t('pdf.download') || '⬇ Download' });
-    dlBtn.onclick = () => { if (this.state && this.state.url) window.open(this.state.url, '_blank'); };
-
-    // 容器
-    this.container = contentEl.createDiv();
-    this.container.style.flex = '1';
-    this.container.style.overflow = 'auto';
-    this.container.style.padding = '16px';
-    this.container.style.background = '#1e1e1e';
-
-    // state 由 setState() 设置，loadPdf 也在 setState() 里调用
-    // onOpen 只负责构建 UI 骨架
-  }
-
-  async loadPdf(fileUrl) {
-    let cd = this.app.vault.configDir || '.obsidian';
-    if (!require('path').isAbsolute(cd)) {
-      cd = require('path').resolve(this.app.vault.adapter?.basePath || process.cwd(), cd);
-    }
-    const pdfjsPath = cd + '/plugins/cloud-attach/libs/pdfjs/';
-    console.log('[CloudAttach] loadPdf path:', pdfjsPath, 'fileUrl:', fileUrl);
-    let pdfjsCore;
-    try {
-      pdfjsCore = require(pdfjsPath + 'pdf.js');
-    } catch(e) {
-      console.error('[CloudAttach] require pdf.js failed:', e.message);
-      this.container.createEl('p', { text: t('pdf.lib_not_found') || 'PDF.js library not found. Please download it in Advanced Settings.', attr: { style: 'color:orange;' } });
-      return;
-    }
-
-    // Electron/Obsidian 环境下不能用文件路径加载 worker（app:// 协议不支持）
-    // 改用内联 worker：读取 pdf.worker.js 内容，创建 Blob URL
-    try {
-      const fs = require('fs');
-      const workerCode = fs.readFileSync(pdfjsPath + 'pdf.worker.js', 'utf8');
-      const blob = new Blob([workerCode], { type: 'application/javascript' });
-      pdfjsCore.GlobalWorkerOptions.workerSrc = URL.createObjectURL(blob);
-      console.log('[CloudAttach] worker blob URL created');
-    } catch(e) {
-      console.error('[CloudAttach] worker blob failed:', e.message);
-      // fallback：禁用 worker（单线程模式，性能差但可用）
-      pdfjsCore.GlobalWorkerOptions.workerSrc = '';
-    }
-
-    // PDF.js 内部用 fetch(url) 加载 PDF，但 WebDAV URL 需要认证信息
-    // 必须先通过 Obsidian requestUrl（带认证）下载 PDF，再用 Uint8Array 传给 PDF.js
-    try {
-      console.log('[CloudAttach] fetching PDF via requestUrl:', fileUrl.substring(0, 80));
-      console.log('[CloudAttach] this.plugin type:', typeof this.plugin, 'has requestViaObsidian:', typeof this.plugin?.requestViaObsidian);
-      const pdfResp = await this.plugin.requestViaObsidian(fileUrl);
-      if (!pdfResp.ok) {
-        throw new Error('HTTP ' + pdfResp.status + ' while fetching PDF');
-      }
-      // 将响应文本转为 Uint8Array 传给 PDF.js
-      const bytes = new TextEncoder().encode(pdfResp.text);
-      const uint8 = new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-      
-      const loadingTask = pdfjsCore.getDocument({ data: uint8 });
-      this.pdfDoc = await loadingTask.promise;
-      this.totalPages = this.pdfDoc.numPages;
-      await this.renderPage(1);
-    } catch (e) {
-      console.error('[CloudAttach] loadPdf error:', e.message);
-      this.container.createEl('p', { text: (t('pdf.load_failed') || 'PDF load failed: ') + e.message, attr: { style: 'color:red;' } });
-    }
-  }
-
-  async renderPage(pageNum) {
-    if (!this.pdfDoc) return;
-    if (pageNum < 1 || pageNum > this.totalPages) return;
-    this.currentPage = pageNum;
-
-    const page = await this.pdfDoc.getPage(pageNum);
-    const viewport = page.getViewport({ scale: this.scale });
-
-    const canvas = document.createElement('canvas');
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
-    canvas.style.marginBottom = '16px';
-    canvas.style.boxShadow = '0 2px 8px rgba(0,0,0,0.5)';
-    canvas.style.display = 'block';
-    canvas.style.margin = '0 auto 16px auto';
-
-    const ctx = canvas.getContext('2d');
-    await page.render({ canvasContext: ctx, viewport }).promise;
-
-    this.container.innerHTML = '';
-    this.container.appendChild(canvas);
-
-    this.pageInfo.textContent = `${t('pdf.page') || 'Page'} ${pageNum} / ${this.totalPages}`;
-  }
-
-  async onClose() {
-    if (this.pdfDoc) { try { this.pdfDoc.destroy(); } catch(e) {} }
-    this.pdfDoc = null;
-  }
-}
 
 module.exports = class CloudAttachPlugin extends Plugin {
   constructor() {
@@ -3298,9 +3267,14 @@ module.exports = class CloudAttachPlugin extends Plugin {
     I18n.setLang(lang);
     console.log('CloudAttach loading, language:', I18n.currentLang, 'momentLocale:', momentLocale);
     await this.loadSettings();
+    // 全局引用，供 MutationObserver callback 使用（避免 this 上下文问题）
+    globalThis._cloudAttachPlugin = this;
     this.addStyles();
     this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf, this));
-    this.registerView(VIEW_TYPE_PDFJS, (leaf) => new PdfJsView(leaf, this));
+    // 注册 MutationObserver：拦截笔记中 ![]() 渲染的 PDF 链接，替换为 PDF.js canvas
+    this.registerMarkdownPostProcessor((element, context) => {
+      this._observePdfEmbeds(element);
+    });
     this.addRibbonIcon('folder-open', t('cmd.open_browser'), () => this.activateView());
     this.addSettingTab(new CloudAttachSettingTab(this));
     this.addCommand({ id: 'open-browser', name: t('cmd.open_cloud_attach'), callback: () => this.activateView() });
@@ -3446,24 +3420,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
   onunload() { console.log('CloudAttach unloading...'); }
 
   // 打开 PDF.js 预览视图
-  async openPdfJsView(url, fileName) {
-    const { workspace } = this.app;
-    let leaf = workspace.getLeavesOfType(VIEW_TYPE_PDFJS)[0];
-    if (leaf) {
-      await leaf.setViewState({
-        type: VIEW_TYPE_PDFJS,
-        state: { url, fileName }
-      });
-    } else {
-      leaf = workspace.getRightLeaf(false) || workspace.getLeaf('tab');
-      await leaf.setViewState({
-        type: VIEW_TYPE_PDFJS,
-        state: { url, fileName }
-      });
-    }
-    workspace.revealLeaf(leaf);
-  }
-  // ============================================================
   // Sign 检查与刷新
   // ============================================================
   /**
