@@ -2314,12 +2314,16 @@ class CloudAttachView extends ItemView {
         if (ext === 'pdf' && this.plugin.settings.pdfPreview === 'pdfjs') {
           // PDF.js 预览模式：打开 PdfJsView
           console.log('[CloudAttach] PDF.js mode, opening:', file.name);
-          name.onclick = async (e) => {
+          name.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            const url = await this.client.getFileUrl(file.path);
-            this.plugin.openPdfJsView(url, file.name);
-          };
+            e.stopImmediatePropagation();
+            (async () => {
+              const url = await this.client.getFileUrl(file.path);
+              console.log('[CloudAttach] PDF clicked, url:', url);
+              this.plugin.openPdfJsView(url, file.name);
+            })();
+          });
         } else {
           name.onclick = () => this.insertFile(file);
         }
@@ -3212,7 +3216,20 @@ class PdfJsView extends ItemView {
       this.container.createEl('p', { text: t('pdf.lib_not_found') || 'PDF.js library not found. Please download it in Advanced Settings.', attr: { style: 'color:orange;' } });
       return;
     }
-    pdfjsCore.GlobalWorkerOptions.workerSrc = pdfjsPath + 'pdf.worker.js';
+
+    // Electron/Obsidian 环境下不能用文件路径加载 worker（app:// 协议不支持）
+    // 改用内联 worker：读取 pdf.worker.js 内容，创建 Blob URL
+    try {
+      const fs = require('fs');
+      const workerCode = fs.readFileSync(pdfjsPath + 'pdf.worker.js', 'utf8');
+      const blob = new Blob([workerCode], { type: 'application/javascript' });
+      pdfjsCore.GlobalWorkerOptions.workerSrc = URL.createObjectURL(blob);
+      console.log('[CloudAttach] worker blob URL created');
+    } catch(e) {
+      console.error('[CloudAttach] worker blob failed:', e.message);
+      // fallback：禁用 worker（单线程模式，性能差但可用）
+      pdfjsCore.GlobalWorkerOptions.workerSrc = '';
+    }
 
     try {
       const loadingTask = pdfjsCore.getDocument({ url: fileUrl });
