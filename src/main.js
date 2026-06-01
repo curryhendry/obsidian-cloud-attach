@@ -3110,12 +3110,14 @@ class AdvancedSettingModal extends Modal {
       }
     }
     const files = [
-      { name: 'pdf.min.mjs', url: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.mjs' },
-      { name: 'pdf.worker.min.mjs', url: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.mjs' },
+      { name: 'pdf.js', url: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.js' },
+      { name: 'pdf.worker.js', url: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.js' },
     ];
     for (const f of files) {
       const res = await fetch(f.url);
+      if (!res.ok) throw new Error('download failed: ' + f.name + ' HTTP ' + res.status);
       const buf = await res.arrayBuffer();
+      if (buf.byteLength < 1000) throw new Error('file too small: ' + f.name + ' (' + buf.byteLength + ' bytes, possibly HTML error page)');
       fs.writeFileSync(path.join(destDirNorm, f.name), Buffer.from(buf));
     }
     // 动态加载 pdfjs 到全局
