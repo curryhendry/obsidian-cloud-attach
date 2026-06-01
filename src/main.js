@@ -3250,6 +3250,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     await this.loadSettings();
     this.addStyles();
     this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf, this));
+    this.registerView(VIEW_TYPE_PDFJS, (leaf) => new PdfJsView(leaf, this));
     this.addRibbonIcon('folder-open', t('cmd.open_browser'), () => this.activateView());
     this.addSettingTab(new CloudAttachSettingTab(this));
     this.addCommand({ id: 'open-browser', name: t('cmd.open_cloud_attach'), callback: () => this.activateView() });
