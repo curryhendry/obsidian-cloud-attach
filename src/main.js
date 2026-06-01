@@ -3231,12 +3231,24 @@ class PdfJsView extends ItemView {
       pdfjsCore.GlobalWorkerOptions.workerSrc = '';
     }
 
+    // PDF.js 内部用 fetch(url) 加载 PDF，但 WebDAV URL 需要认证信息
+    // 必须先通过 Obsidian requestUrl（带认证）下载 PDF，再用 Uint8Array 传给 PDF.js
     try {
-      const loadingTask = pdfjsCore.getDocument({ url: fileUrl });
+      console.log('[CloudAttach] fetching PDF via requestUrl:', fileUrl.substring(0, 80));
+      const pdfResp = await this.plugin.requestViaObsidian(fileUrl);
+      if (!pdfResp.ok) {
+        throw new Error('HTTP ' + pdfResp.status + ' while fetching PDF');
+      }
+      // 将响应文本转为 Uint8Array 传给 PDF.js
+      const bytes = new TextEncoder().encode(pdfResp.text);
+      const uint8 = new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+      
+      const loadingTask = pdfjsCore.getDocument({ data: uint8 });
       this.pdfDoc = await loadingTask.promise;
       this.totalPages = this.pdfDoc.numPages;
       await this.renderPage(1);
     } catch (e) {
+      console.error('[CloudAttach] loadPdf error:', e.message);
       this.container.createEl('p', { text: (t('pdf.load_failed') || 'PDF load failed: ') + e.message, attr: { style: 'color:red;' } });
     }
   }
