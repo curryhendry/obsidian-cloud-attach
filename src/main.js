@@ -3011,6 +3011,8 @@ class AdvancedSettingModal extends Modal {
     };
     
     mkRadio(t('settings.pdf_preview_iframe'), 'iframe', pdfRadioGroup);
+    mkRadio(t('settings.pdf_preview_pdfjs'), 'pdfjs', pdfRadioGroup);
+    
     // PDF.js 安装状态显示
     const pdfjsInfo = pdfSection.createDiv();
     pdfjsInfo.style.marginTop = '4px';
