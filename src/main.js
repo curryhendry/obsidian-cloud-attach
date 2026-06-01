@@ -3037,7 +3037,7 @@ class AdvancedSettingModal extends Modal {
       return cd + '/plugins/cloud-attach/libs/pdfjs/';
     })();
     const fs = require('fs');
-    const hasPdfjs = fs.existsSync(pdfjsPath + 'pdf.min.mjs');
+    const hasPdfjs = fs.existsSync(pdfjsPath + 'pdf.js');
     pdfjsOpt.createEl('label', { text: hasPdfjs ? ('PDF.js' + (t('settings.pdfjs_installed') || '')) : ('PDF.js' + (t('settings.pdfjs_need_install') || '')) });
     if (hasPdfjs) {
       const delBtn = pdfjsRow.createEl('button', { text: t('settings.pdfjs_uninstall') || '卸载' });
@@ -3081,7 +3081,7 @@ class AdvancedSettingModal extends Modal {
         return cd + '/plugins/cloud-attach/libs/pdfjs/';
       })();
       const fs2 = require('fs');
-      if (this.plugin.settings.pdfPreview === 'pdfjs' && !fs2.existsSync(pdfjsPath2 + 'pdf.min.mjs')) {
+      if (this.plugin.settings.pdfPreview === 'pdfjs' && !fs2.existsSync(pdfjsPath2 + 'pdf.js')) {
         new Notice(t('settings.pdfjs_installing'));
         try {
           await this.downloadPdfjs(pdfjsPath2);
@@ -3187,12 +3187,12 @@ class PdfJsView extends ItemView {
     const pdfjsPath = this.app.vault.configDir + '/plugins/cloud-attach/libs/pdfjs/';
     let pdfjsCore;
     try {
-      pdfjsCore = require(pdfjsPath + 'pdf.min.mjs');
+      pdfjsCore = require(pdfjsPath + 'pdf.js');
     } catch(e) {
       this.container.createEl('p', { text: t('pdf.lib_not_found') || 'PDF.js library not found. Please download it in Advanced Settings.', attr: { style: 'color:orange;' } });
       return;
     }
-    pdfjsCore.GlobalWorkerOptions.workerSrc = pdfjsPath + 'pdf.worker.min.mjs';
+    pdfjsCore.GlobalWorkerOptions.workerSrc = pdfjsPath + 'pdf.worker.js';
 
     try {
       const loadingTask = pdfjsCore.getDocument({ url: fileUrl });
