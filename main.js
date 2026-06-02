@@ -3083,7 +3083,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (this.settings.pdfPreview === "pdfjs") {
       this._observePdfEmbeds();
     }
-    this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf));
+    this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf, this));
     console.log("CloudAttach loaded");
   }
   addStyles() {
