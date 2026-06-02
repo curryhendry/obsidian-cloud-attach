@@ -2410,12 +2410,6 @@ class CloudAttachView extends ItemView {
     } else if (audioExts.includes(ext)) {
       return `<audio controls>\n <source src="${url}" type="audio/mpeg">\n</audio>`;
     } else if (docExts.includes(ext)) {
-      // PDF 特殊处理：pdfjs 模式插入 ```pdf\nurl\n``` 代码块
-      if (ext === 'pdf' && this.plugin.settings.pdfPreview === 'pdfjs') {
-        // 去掉 ?sign=xxx，渲染时重新签名
-        const baseUrl = url.split('?')[0];
-        return '```pdf\n' + baseUrl + '\n```';
-      }
       return `<iframe src="${url}" width="100%" height="800px"></iframe>`;
     } else {
       return `[${file.name}](${url})`;
@@ -2476,28 +2470,69 @@ class CloudAttachView extends ItemView {
   }
 
   /**
-   * MarkdownPostProcessor：扫描笔记 DOM 中的 {% pdf ... %} 语法，替换为 PDF.js canvas
-   * 触发时机：Obsidian 每次渲染 / 重渲染笔记时
+   * 用 MutationObserver 监听笔记预览面板，拦截 PDF 代码块
+   * 彻底解决 registerMarkdownPostProcessor 不触发的问题
    */
-  _observePdfEmbeds(rootEl) {
-    // 只在 PDF.js 预览模式下生效
+  _setupPdfObserver() {
+    if (this._pdfObserver) {
+      this._pdfObserver.disconnect();
+      this._pdfObserver = null;
+    }
+    
+    // 找到当前活跃的 MarkdownView
+    const activeView = this.app.workspace.getActiveViewOfType?.(MarkdownView) || this.activeMarkdownView;
+    if (!activeView) return;
+    
+    // 获取预览面板的 DOM 元素
+    const previewEl = activeView.previewMode?.containerEl;
+    if (!previewEl) return;
+    
+    console.log('[CloudAttach] setting up MutationObserver on', previewEl);
+    
+    // 创建 MutationObserver
+    this._pdfObserver = new MutationObserver((mutations) => {
+      // 防抖：100ms 内只执行一次
+      if (this._pdfObserverTimer) clearTimeout(this._pdfObserverTimer);
+      this._pdfObserverTimer = setTimeout(() => {
+        this._scanPdfCodeBlocks(previewEl);
+      }, 100);
+    });
+    
+    // 开始监听
+    this._pdfObserver.observe(previewEl, {
+      childList: true,
+      subtree: true,
+      characterData: true
+    });
+    
+    // 立即扫描一次（处理已经渲染的笔记）
+    this._scanPdfCodeBlocks(previewEl);
+  }
+  
+  /**
+   * 扫描指定元素内的 PDF 代码块（```pdf\nurl\n```）
+   */
+  _scanPdfCodeBlocks(rootEl) {
     if (this.settings.pdfPreview !== 'pdfjs') return;
     
-    // 查找所有 <p> 标签（Obsidian 会把每个段落渲染成 <p>）
-    const paragraphs = rootEl.querySelectorAll('p');
+    // 查找所有 <pre class="language-pdf"> 元素
+    const codeBlocks = rootEl.querySelectorAll('pre.language-pdf');
     
-    paragraphs.forEach(p => {
-      const text = p.textContent;
-      const match = text.match(/\{%\s*pdf\s+(.+)\s*%\}/);
+    codeBlocks.forEach((preEl) => {
+      if (preEl.dataset.pdfRendered) return;
+      preEl.dataset.pdfRendered = '1';
       
-      if (!match) return; // 没有匹配，跳过
-      if (p.dataset.pdfRendered) return; // 已处理过，跳过
+      // 提取 URL（code 元素的文本内容）
+      const codeEl = preEl.querySelector('code');
+      if (!codeEl) return;
       
-      const pdfUrl = match[1].trim();
-      p.dataset.pdfRendered = '1';
+      const pdfUrl = codeEl.textContent.trim();
+      if (!pdfUrl) return;
       
-      // 隐藏原始 <p> 标签
-      p.style.display = 'none';
+      console.log('[CloudAttach] found PDF code block, url:', pdfUrl);
+      
+      // 隐藏原始 <pre> 标签
+      preEl.style.display = 'none';
       
       // 创建占位 div
       const placeholder = document.createElement('div');
@@ -2505,8 +2540,8 @@ class CloudAttachView extends ItemView {
       placeholder.style.cssText = 'margin:12px 0;border:1px solid #ccc;border-radius:4px;overflow:hidden;background:#f9f9f9;min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#888;font-size:14px;';
       placeholder.textContent = '⏳ PDF 加载中...';
       
-      // 插入到 <p> 标签后面
-      p.parentNode.insertBefore(placeholder, p.nextSibling);
+      // 插入到 <pre> 标签后面
+      preEl.parentNode.insertBefore(placeholder, preEl.nextSibling);
       
       // 渲染 PDF
       this.renderPdfEmbed(pdfUrl, placeholder).catch(e => {
@@ -2517,36 +2552,28 @@ class CloudAttachView extends ItemView {
   }
 
   /**
-   * 扫描笔记中的 PDF 代码块（```pdf\nurl\n```），替换为 PDF.js canvas
+   * MarkdownPostProcessor：扫描笔记 DOM 中的 PDF 图片，替换为 PDF.js canvas
+   * 触发时机：Obsidian 每次渲染 / 重渲染笔记时
    */
-  _observePdfCodeBlocks(rootEl) {
+  _observePdfEmbeds(rootEl) {
+    // 只在 PDF.js 预览模式下生效
     if (this.settings.pdfPreview !== 'pdfjs') return;
-    
-    // 查找所有 <pre class="language-pdf"> 元素
-    const codeBlocks = rootEl.querySelectorAll('pre.language-pdf');
-    
-    codeBlocks.forEach((preEl, idx) => {
-      if (preEl.dataset.pdfRendered) return;
-      preEl.dataset.pdfRendered = '1';
-      
-      const codeEl = preEl.querySelector('code');
-      if (!codeEl) return;
-      
-      const pdfUrl = codeEl.textContent.trim();
-      if (!pdfUrl) return;
-      
-      console.log('[CloudAttach] found PDF code block, url:', pdfUrl);
-      
-      preEl.style.display = 'none';
-      
+    // 在 markdown 渲染区域内找所有 img（含 .pdf 的 URL）
+    const mdArea = rootEl.closest?.('.markdown-rendered') || rootEl;
+    const imgs = mdArea.querySelectorAll('img[src*=".pdf"]');
+    imgs.forEach(img => {
+      if (img.dataset.pdfRendered) return; // 已处理过
+      const src = img.src;
+      if (!src.match(/\.pdf(\?|$)/i)) return;
+      img.dataset.pdfRendered = '1';
+      img.style.display = 'none';
+      // 插入占位 div，在其内部渲染 PDF canvas
       const placeholder = document.createElement('div');
       placeholder.className = 'cloud-attach-pdf-embed';
       placeholder.style.cssText = 'margin:12px 0;border:1px solid #ccc;border-radius:4px;overflow:hidden;background:#f9f9f9;min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#888;font-size:14px;';
       placeholder.textContent = '⏳ PDF 加载中...';
-      
-      preEl.parentNode.insertBefore(placeholder, preEl.nextSibling);
-      
-      this.renderPdfEmbed(pdfUrl, placeholder).catch(e => {
+      img.parentNode?.insertBefore(placeholder, img.nextSibling);
+      this.renderPdfEmbed(src, placeholder).catch(e => {
         placeholder.textContent = '❌ PDF 加载失败: ' + e.message;
         placeholder.style.color = 'red';
       });
@@ -3208,21 +3235,20 @@ class AdvancedSettingModal extends Modal {
         this.onOpen();
       }
     };
-    const getPdfjsPath = () => {
-      const path = require('path');
-      const basePath = this.app.vault.adapter.basePath || '';
-      const configDir = this.app.vault.configDir || '.obsidian';
-      const result = path.join(basePath, configDir, 'plugins/cloud-attach/libs/pdfjs/');
-      console.log('[CloudAttach] getPdfjsPath:', result);
-      return result;
-    };
-    const pdfjsPath = getPdfjsPath();
+    const pdfjsPath = (() => {
+      let cd = this.app.vault.configDir || '.obsidian';
+      if (!require('path').isAbsolute(cd)) {
+        cd = require('path').resolve(this.app.vault.adapter?.basePath || process.cwd(), cd);
+      }
+      const finalPath = cd + '/plugins/cloud-attach/libs/pdfjs/';
+      console.log('[CloudAttach] pdfjsPath resolved:', finalPath, 'exists:', require('fs').existsSync(finalPath + 'pdf.js'));
+      return finalPath;
+    })();
     const fs = require('fs');
     const hasPdfjs = fs.existsSync(pdfjsPath + 'pdf.js');
     pdfjsOpt.createEl('label', { text: hasPdfjs ? ('PDF.js' + (t('settings.pdfjs_installed') || '')) : ('PDF.js' + (t('settings.pdfjs_auto_install') || '')) });
     if (hasPdfjs) {
-      const delBtn = pdfjsOpt.createEl('button', { text: t('settings.pdfjs_uninstall') || '卸载' });
-      delBtn.style.marginLeft = '8px';
+      const delBtn = pdfjsRow.createEl('button', { text: t('settings.pdfjs_uninstall') || '卸载' });
       delBtn.onclick = async () => {
         try { fs.rmSync(pdfjsPath, { recursive: true }); } catch(e) {}
         this.onOpen();
@@ -3256,10 +3282,11 @@ class AdvancedSettingModal extends Modal {
     saveBtn.onclick = async () => {
       // 如果选了 PDF.js 但未安装，先安装
       const pdfjsPath2 = (() => {
-        const path = require('path');
-        const basePath = this.app.vault.adapter.basePath || '';
-        const configDir = this.app.vault.configDir || '.obsidian';
-        return path.join(basePath, configDir, 'plugins/cloud-attach/libs/pdfjs/');
+        let cd = this.app.vault.configDir || '.obsidian';
+        if (!require('path').isAbsolute(cd)) {
+          cd = require('path').resolve(this.app.vault.adapter?.basePath || process.cwd(), cd);
+        }
+        return cd + '/plugins/cloud-attach/libs/pdfjs/';
       })();
       const fs2 = require('fs');
       if (this.plugin.settings.pdfPreview === 'pdfjs' && !fs2.existsSync(pdfjsPath2 + 'pdf.js')) {
@@ -3269,11 +3296,7 @@ class AdvancedSettingModal extends Modal {
           new Notice('✅ PDF.js ' + (t('settings.pdfjs_installed') || '安装成功'));
         } catch(e) {
           new Notice('❌ PDF.js 安装失败: ' + e.message);
-          // 下载失败：回退选择到 iframe，不允许保存无效的 pdfjs 选择
-          this.plugin.settings.pdfPreview = 'iframe';
-          await this.plugin.saveSettings();
-          this.onOpen(); // 刷新UI显示回退后的选择
-          return; // 不关闭设置页
+          return; // 失败不关闭，用户可重试（保存）或取消
         }
       }
       await this.plugin.saveSettings();
@@ -3299,13 +3322,11 @@ class AdvancedSettingModal extends Modal {
       { name: 'pdf.worker.js', url: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.js' },
     ];
     for (const f of files) {
-      // Obsidian 全局 requestUrl（非 vault.requestUrl）
-      const res = await requestUrl({ url: f.url });
-      if (res.status !== 200) throw new Error('download failed: ' + f.name + ' HTTP ' + res.status);
-      const buf = res.arrayBuffer;
-      const data = new Uint8Array(buf);
-      if (data.length < 1000) throw new Error('file too small: ' + f.name + ' (' + data.length + ' bytes)');
-      fs.writeFileSync(path.join(destDirNorm, f.name), Buffer.from(data));
+      const res = await fetch(f.url);
+      if (!res.ok) throw new Error('download failed: ' + f.name + ' HTTP ' + res.status);
+      const buf = await res.arrayBuffer();
+      if (buf.byteLength < 1000) throw new Error('file too small: ' + f.name + ' (' + buf.byteLength + ' bytes, possibly HTML error page)');
+      fs.writeFileSync(path.join(destDirNorm, f.name), Buffer.from(buf));
     }
     // 动态加载 pdfjs 到全局
     try { delete globalThis.pdfjsLib; } catch(e) {}
@@ -3332,11 +3353,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
     globalThis._cloudAttachPlugin = this;
     this.addStyles();
     this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf, this));
-    // 注册 postProcessor：扫描笔记中的 PDF 代码块，替换为 PDF.js canvas
+    // 注册 MutationObserver：拦截笔记中 ![]() 渲染的 PDF 链接，替换为 PDF.js canvas
     this.registerMarkdownPostProcessor((element, context) => {
-      const fs = require('fs');
-      fs.appendFileSync('/tmp/cloud-attach-debug.log', '[CloudAttach] postProcessor triggered\n');
-      this._observePdfCodeBlocks(element);
+      this._observePdfEmbeds(element);
     });
     this.addRibbonIcon('folder-open', t('cmd.open_browser'), () => this.activateView());
     this.addSettingTab(new CloudAttachSettingTab(this));
@@ -3415,6 +3434,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (activeLeaf?.view instanceof MarkdownView && activeLeaf.view.editor) {
       this.activeMarkdownView = activeLeaf.view;
     }
+    // 注册 PDF.js 预览的 DOM 监听器（MutationObserver）
+    this._setupPdfObserver();
+    this.registerEvent(this.app.workspace.on('layout-change', () => {
+      this._setupPdfObserver();
+    }));
     console.log('CloudAttach loaded');
   }
   addStyles() {
