@@ -3263,6 +3263,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (this.settings.pdfPreview === 'pdfjs') {
       this._observePdfEmbeds();
     }
+    // 注册视图类型（必须，否则 setViewState 静默失败）
+    this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf));
     console.log('CloudAttach loaded');
   }
   addStyles() {
