@@ -2409,6 +2409,9 @@ class CloudAttachView extends ItemView {
       return `<video controls width="600" height="400">\n <source src="${url}" type="video/mp4">\n</video>`;
     } else if (audioExts.includes(ext)) {
       return `<audio controls>\n <source src="${url}" type="audio/mpeg">\n</audio>`;
+    } else if (ext === 'pdf') {
+      // PDF: 图片语法，配合 MutationObserver + PDF.js 渲染
+      return `![${nameWithoutExt}](${url})`;
     } else if (docExts.includes(ext)) {
       return `<iframe src="${url}" width="100%" height="800px"></iframe>`;
     } else {
@@ -2470,45 +2473,60 @@ class CloudAttachView extends ItemView {
   }
 
   /**
-   * 用 MutationObserver 监听笔记预览，拦截 PDF 图片
-   * 彻底解决 registerMarkdownPostProcessor 不触发的问题
+   * 设置 MutationObserver，监听 DOM 中新增的 img[src*=".pdf"] 元素
    */
   _setupPdfObserver() {
-    // 断开旧观察者
-    if (this._pdfObserver) {
-      this._pdfObserver.disconnect();
-      this._pdfObserver = null;
-    }
-    
-    // 监听整个文档（捕获所有笔记预览变化）
-    this._pdfObserver = new MutationObserver((mutations) => {
-      // 防抖
-      if (this._pdfObserverTimer) clearTimeout(this._pdfObserverTimer);
-      this._pdfObserverTimer = setTimeout(() => {
-        // 扫描所有 .markdown-rendered 容器
-        document.querySelectorAll('.markdown-rendered').forEach(el => {
-          this._observePdfEmbeds(el);
-        });
-      }, 100);
+    if (this.settings.pdfPreview !== 'pdfjs') return;
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (node.nodeType !== Node.ELEMENT_NODE) continue;
+          // 检查节点本身是否是 img.pdf
+          if (node.tagName === 'IMG' && node.src && node.src.match(/\.pdf(\?|$)/i)) {
+            this._replacePdfImg(node);
+          }
+          // 检查子节点
+          const imgs = node.querySelectorAll?.('img[src*=".pdf"]');
+          if (imgs) imgs.forEach(img => this._replacePdfImg(img));
+        }
+      }
     });
-    
-    // 开始监听
-    this._pdfObserver.observe(document.body, {
-      childList: true,
-      subtree: true
-    });
-    
-    // 立即扫描一次
-    document.querySelectorAll('.markdown-rendered').forEach(el => {
-      this._observePdfEmbeds(el);
-    });
-    
-    console.log('[CloudAttach] MutationObserver started');
+    observer.observe(document.body, { childList: true, subtree: true });
+    console.log('[CloudAttach] PDF MutationObserver started');
   }
-  
+
   /**
-   * MarkdownPostProcessor：扫描笔记 DOM 中的 PDF 图片，替换为 PDF.js canvas
-   * 触发时机：Obsidian 每次渲染 / 重渲染笔记时
+   * layout-change 时全量扫描当前笔记中的 PDF img
+   */
+  _scanAllPdfImgs() {
+    if (this.settings.pdfPreview !== 'pdfjs') return;
+    const containers = document.querySelectorAll('.markdown-rendered');
+    containers.forEach(c => {
+      c.querySelectorAll('img[src*=".pdf"]').forEach(img => this._replacePdfImg(img));
+    });
+  }
+
+  /**
+   * 替换单个 PDF img 为 PDF.js canvas
+   */
+  _replacePdfImg(img) {
+    if (img.dataset.pdfRendered) return;
+    if (!img.src || !img.src.match(/\.pdf(\?|$)/i)) return;
+    img.dataset.pdfRendered = '1';
+    img.style.display = 'none';
+    const placeholder = document.createElement('div');
+    placeholder.className = 'cloud-attach-pdf-embed';
+    placeholder.style.cssText = 'margin:12px 0;border:1px solid #ccc;border-radius:4px;overflow:hidden;background:#f9f9f9;min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#888;font-size:14px;';
+    placeholder.textContent = '⏳ PDF 加载中...';
+    img.parentNode?.insertBefore(placeholder, img.nextSibling);
+    this.renderPdfEmbed(img.src, placeholder).catch(e => {
+      placeholder.textContent = '❌ PDF 加载失败: ' + e.message;
+      placeholder.style.color = 'red';
+    });
+  }
+
+  /**
+   * MarkdownPostProcessor：扫描笔记 DOM 中的 PDF 图片，替换为 PDF.js canvas（备用）
    */
   _observePdfEmbeds(rootEl) {
     // 只在 PDF.js 预览模式下生效
@@ -3308,10 +3326,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
     globalThis._cloudAttachPlugin = this;
     this.addStyles();
     this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf, this));
-    // 注册 MutationObserver：拦截笔记中 ![]() 渲染的 PDF 链接，替换为 PDF.js canvas
-    this.registerMarkdownPostProcessor((element, context) => {
-      this._observePdfEmbeds(element);
-    });
+    // MutationObserver：拦截笔记中 ![](xxx.pdf) 渲染的 img，替换为 PDF.js canvas
+    this._setupPdfObserver();
+    this.registerEvent(this.app.workspace.on('layout-change', () => {
+      setTimeout(() => this._scanAllPdfImgs(), 100);
+    }));
     this.addRibbonIcon('folder-open', t('cmd.open_browser'), () => this.activateView());
     this.addSettingTab(new CloudAttachSettingTab(this));
     this.addCommand({ id: 'open-browser', name: t('cmd.open_cloud_attach'), callback: () => this.activateView() });
@@ -3389,11 +3408,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (activeLeaf?.view instanceof MarkdownView && activeLeaf.view.editor) {
       this.activeMarkdownView = activeLeaf.view;
     }
-    // 注册 PDF.js 预览的 DOM 监听器（MutationObserver）
-    this._setupPdfObserver();
-    this.registerEvent(this.app.workspace.on('layout-change', () => {
-      this._setupPdfObserver();
-    }));
     console.log('CloudAttach loaded');
   }
   addStyles() {
@@ -4169,6 +4183,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
             newSyntax = `<video controls width="600" height="400">\n <source src="${url}" type="video/mp4">\n</video>`;
           } else if (audioExts.includes(ext)) {
             newSyntax = `<audio controls>\n <source src="${url}" type="audio/mpeg">\n</audio>`;
+          } else if (ext === 'pdf') {
+            newSyntax = `![${alias}](${url})`;
           } else if (docExts.includes(ext)) {
             newSyntax = `<iframe src="${url}" width="100%" height="800px"></iframe>`;
           } else {
@@ -4184,6 +4200,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
             newSyntax = `<video controls width="600" height="400">\n <source src="${url}" type="video/mp4">\n</video>`;
           } else if (audioExts.includes(ext)) {
             newSyntax = `<audio controls>\n <source src="${url}" type="audio/mpeg">\n</audio>`;
+          } else if (ext === 'pdf') {
+            newSyntax = `![${alt}](${url})`;
           } else if (docExts.includes(ext)) {
             newSyntax = `<iframe src="${url}" width="100%" height="800px"></iframe>`;
           } else {
