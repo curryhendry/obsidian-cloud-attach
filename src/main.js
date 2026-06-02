@@ -2476,16 +2476,34 @@ class CloudAttachView extends ItemView {
   _observePdfEmbeds(rootEl) {
     // 只在 PDF.js 预览模式下生效
     if (this.settings.pdfPreview !== 'pdfjs') return;
-    // 在 markdown 渲染区域内找所有 img（含 .pdf 的 URL）
+    // 兼容直接传入 img 节点的情况
+    if (rootEl && rootEl.tagName === 'IMG') {
+      const img = rootEl;
+      if (img.dataset.pdfRendered) return;
+      const src = img.src;
+      if (!src || !src.match(/\.pdf(\?|$)/i)) return;
+      img.dataset.pdfRendered = '1';
+      img.style.display = 'none';
+      const placeholder = document.createElement('div');
+      placeholder.className = 'cloud-attach-pdf-embed';
+      placeholder.style.cssText = 'margin:12px 0;border:1px solid #ccc;border-radius:4px;overflow:hidden;background:#f9f9f9;min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#888;font-size:14px;';
+      placeholder.textContent = '⏳ PDF 加载中...';
+      img.parentNode?.insertBefore(placeholder, img.nextSibling);
+      this.renderPdfEmbed(src, placeholder).catch(e => {
+        placeholder.textContent = '❌ PDF 加载失败: ' + e.message;
+        placeholder.style.color = 'red';
+      });
+      return;
+    }
+    // 传入的是容器节点，扫描内部所有 img[src*=pdf]
     const mdArea = rootEl.closest?.('.markdown-rendered') || rootEl;
     const imgs = mdArea.querySelectorAll('img[src*=".pdf"]');
     imgs.forEach(img => {
-      if (img.dataset.pdfRendered) return; // 已处理过
+      if (img.dataset.pdfRendered) return;
       const src = img.src;
       if (!src.match(/\.pdf(\?|$)/i)) return;
       img.dataset.pdfRendered = '1';
       img.style.display = 'none';
-      // 插入占位 div，在其内部渲染 PDF canvas
       const placeholder = document.createElement('div');
       placeholder.className = 'cloud-attach-pdf-embed';
       placeholder.style.cssText = 'margin:12px 0;border:1px solid #ccc;border-radius:4px;overflow:hidden;background:#f9f9f9;min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#888;font-size:14px;';
@@ -2496,6 +2514,41 @@ class CloudAttachView extends ItemView {
         placeholder.style.color = 'red';
       });
     });
+  }
+
+  /**
+   * 启动全局 MutationObserver，拦截 !(](pdf_url) 渲染出来的 img 标签
+   */
+  _setupPdfObserver() {
+    if (this._pdfObserver) return; // 防止重复启动
+    this._pdfObserver = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        for (const node of m.addedNodes) {
+          if (node.nodeType !== 1) continue;
+          // 检查新增的节点本身是不是 img[src*=pdf]
+          if (node.tagName === 'IMG' && node.src && node.src.match(/\.pdf(\?|$)/i)) {
+            this._observePdfEmbeds(node);
+          }
+          // 检查新增节点内部是否包含 img[src*=pdf]
+          const innerImgs = node.querySelectorAll?.('img[src*=".pdf"]') || [];
+          innerImgs.forEach(img => this._observePdfEmbeds(img));
+        }
+      }
+    });
+    // 监听整个 workspace 的 DOM 变化
+    const wsEl = this.app.workspace.containerEl;
+    this._pdfObserver.observe(wsEl, { childList: true, subtree: true });
+    console.log('[CloudAttach] PDF observer started');
+  }
+
+  /**
+   * 扫描当前所有已打开的笔记，处理已有的 img[src*=pdf]
+   */
+  _scanAllPdfImgs() {
+    const wsEl = this.app.workspace.containerEl;
+    const allImgs = wsEl.querySelectorAll('img[src*=".pdf"]');
+    console.log('[CloudAttach] scanning existing PDF imgs:', allImgs.length);
+    allImgs.forEach(img => this._observePdfEmbeds(img));
   }
 
   /**
@@ -3270,24 +3323,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
     // 全局引用，供 MutationObserver callback 使用（避免 this 上下文问题）
     globalThis._cloudAttachPlugin = this;
     this.addStyles();
-    // 注册 PDF 代码块处理器：在 Live Preview 和 Reading Mode 下都能触发
-    this.registerMarkdownCodeBlockProcessor('pdf', async (source, el, ctx) => {
-      const pdfUrl = source.trim();
-      if (!pdfUrl || !pdfUrl.match(/\.pdf(\?|$)/i)) {
-        el.createEl('div', { text: '❌ 无效的 PDF URL', cls: 'cloud-attach-pdf-error' });
-        return;
-      }
-      const placeholder = el.createEl('div');
-      placeholder.className = 'cloud-attach-pdf-embed';
-      placeholder.style.cssText = 'margin:12px 0;border:1px solid #ccc;border-radius:4px;overflow:hidden;background:#f9f9f9;min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#888;font-size:14px;';
-      placeholder.textContent = '⏳ PDF 加载中...';
-      try {
-        await this.renderPdfEmbed(pdfUrl, placeholder);
-      } catch(e) {
-        placeholder.textContent = '❌ PDF 加载失败: ' + e.message;
-        placeholder.style.color = 'red';
-      }
-    });
+    // PDF.js 预览：使用 MutationObserver 拦截 !(](pdf_url) 渲染的 img 标签
+    // 不需要注册代码块处理器，!(]() 是 Obsidian 原生语法，会自动渲染成 img，由 MutationObserver 拦截替换
     this.addRibbonIcon('folder-open', t('cmd.open_browser'), () => this.activateView());
     this.addSettingTab(new CloudAttachSettingTab(this));
     this.addCommand({ id: 'open-browser', name: t('cmd.open_cloud_attach'), callback: () => this.activateView() });
@@ -3364,6 +3401,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const activeLeaf = this.app.workspace.getMostRecentLeaf();
     if (activeLeaf?.view instanceof MarkdownView && activeLeaf.view.editor) {
       this.activeMarkdownView = activeLeaf.view;
+    }
+    // PDF.js 预览：启动 MutationObserver 拦截 !(](pdf_url) 渲染的 img 标签
+    if (this.settings.pdfPreview === 'pdfjs') {
+      this._setupPdfObserver();
+      // 初次加载时扫描已有笔记
+      setTimeout(() => this._scanAllPdfImgs(), 500);
     }
     console.log('CloudAttach loaded');
   }
