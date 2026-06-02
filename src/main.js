@@ -3346,6 +3346,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
     I18n.setLang(lang);
     console.log('CloudAttach loading, language:', I18n.currentLang, 'momentLocale:', momentLocale);
     await this.loadSettings();
+    // Bind PDF.js methods to ensure correct this context
+    this._observePdfEmbeds = this._observePdfEmbeds.bind(this);
     // 全局引用，供 MutationObserver callback 使用（避免 this 上下文问题）
     globalThis._cloudAttachPlugin = this;
     this.addStyles();
