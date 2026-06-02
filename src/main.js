@@ -3270,10 +3270,23 @@ module.exports = class CloudAttachPlugin extends Plugin {
     // 全局引用，供 MutationObserver callback 使用（避免 this 上下文问题）
     globalThis._cloudAttachPlugin = this;
     this.addStyles();
-    this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf, this));
-    // 注册 MutationObserver：拦截笔记中 ![]() 渲染的 PDF 链接，替换为 PDF.js canvas
-    this.registerMarkdownPostProcessor((element, context) => {
-      this._observePdfEmbeds(element);
+    // 注册 PDF 代码块处理器：在 Live Preview 和 Reading Mode 下都能触发
+    this.registerMarkdownCodeBlockProcessor('pdf', async (source, el, ctx) => {
+      const pdfUrl = source.trim();
+      if (!pdfUrl || !pdfUrl.match(/\.pdf(\?|$)/i)) {
+        el.createEl('div', { text: '❌ 无效的 PDF URL', cls: 'cloud-attach-pdf-error' });
+        return;
+      }
+      const placeholder = el.createEl('div');
+      placeholder.className = 'cloud-attach-pdf-embed';
+      placeholder.style.cssText = 'margin:12px 0;border:1px solid #ccc;border-radius:4px;overflow:hidden;background:#f9f9f9;min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#888;font-size:14px;';
+      placeholder.textContent = '⏳ PDF 加载中...';
+      try {
+        await this.renderPdfEmbed(pdfUrl, placeholder);
+      } catch(e) {
+        placeholder.textContent = '❌ PDF 加载失败: ' + e.message;
+        placeholder.style.color = 'red';
+      }
     });
     this.addRibbonIcon('folder-open', t('cmd.open_browser'), () => this.activateView());
     this.addSettingTab(new CloudAttachSettingTab(this));
