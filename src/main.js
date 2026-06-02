@@ -3264,7 +3264,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       this._observePdfEmbeds();
     }
     // 注册视图类型（必须，否则 setViewState 静默失败）
-    this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf));
+    this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf, this));
     console.log('CloudAttach loaded');
   }
   addStyles() {
