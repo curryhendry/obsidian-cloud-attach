@@ -2468,94 +2468,6 @@ class CloudAttachView extends ItemView {
     this.renderFiles();
     this.renderBatchBar();
   }
-
-  /**
-   * MarkdownPostProcessor：扫描笔记 DOM 中的 PDF 图片，替换为 PDF.js canvas
-   * 触发时机：Obsidian 每次渲染 / 重渲染笔记时
-   */
-  _observePdfEmbeds(rootEl) {
-    // 只在 PDF.js 预览模式下生效
-    if (this.settings.pdfPreview !== 'pdfjs') return;
-    // 在 markdown 渲染区域内找所有 img（含 .pdf 的 URL）
-    const mdArea = rootEl.closest?.('.markdown-rendered') || rootEl;
-    const imgs = mdArea.querySelectorAll('img[src*=".pdf"]');
-    imgs.forEach(img => {
-      if (img.dataset.pdfRendered) return; // 已处理过
-      const src = img.src;
-      if (!src.match(/\.pdf(\?|$)/i)) return;
-      img.dataset.pdfRendered = '1';
-      img.style.display = 'none';
-      // 插入占位 div，在其内部渲染 PDF canvas
-      const placeholder = document.createElement('div');
-      placeholder.className = 'cloud-attach-pdf-embed';
-      placeholder.style.cssText = 'margin:12px 0;border:1px solid #ccc;border-radius:4px;overflow:hidden;background:#f9f9f9;min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#888;font-size:14px;';
-      placeholder.textContent = '⏳ PDF 加载中...';
-      img.parentNode?.insertBefore(placeholder, img.nextSibling);
-      this.renderPdfEmbed(src, placeholder).catch(e => {
-        placeholder.textContent = '❌ PDF 加载失败: ' + e.message;
-        placeholder.style.color = 'red';
-      });
-    });
-  }
-
-  /**
-   * 用 PDF.js 在 placeholder 内渲染 PDF（带 WebDAV 认证下载）
-   */
-  async renderPdfEmbed(pdfUrl, placeholder) {
-    const pdfjsPath = (() => {
-      const base = this.app.vault.adapter?.basePath || '';
-      return base + '/plugins/cloud-attach/libs/pdfjs/';
-    })();
-    let pdfjsLib;
-    try {
-      pdfjsLib = require(pdfjsPath + 'pdf.js');
-    } catch(e) {
-      throw new Error('PDF.js 未安装，请在设置中下载');
-    }
-    // 替换 worker 为 Blob URL（Electron app:// 协议不支持本地文件）
-    try {
-      const fs = require('fs');
-      const workerCode = fs.readFileSync(pdfjsPath + 'pdf.worker.js', 'utf8');
-      const blob = new Blob([workerCode], { type: 'application/javascript' });
-      pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(blob);
-    } catch(e) {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = ''; // fallback 单线程
-    }
-    // 通过 requestBinary 获取 PDF 原始二进制数据（带 WebDAV 认证）
-    const data = await this.requestBinary(pdfUrl);
-    if (!data) throw new Error('无法下载 PDF');
-    const doc = await pdfjsLib.getDocument({ data }).promise;
-    placeholder.innerHTML = '';
-    placeholder.style.flexDirection = 'column';
-    placeholder.style.alignItems = 'stretch';
-    placeholder.style.background = '#fff';
-    placeholder.style.padding = '8px';
-    // 渲染前 3 页
-    const maxPage = Math.min(doc.numPages, 3);
-    for (let pageNum = 1; pageNum <= maxPage; pageNum++) {
-      const page = await doc.getPage(pageNum);
-      const scale = 1.5;
-      const viewport = page.getViewport({ scale });
-      const canvas = document.createElement('canvas');
-      canvas.style.display = 'block';
-      canvas.style.margin = '0 auto 8px auto';
-      canvas.style.maxWidth = '100%';
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      const title = document.createElement('div');
-      title.textContent = `第 ${pageNum} / ${doc.numPages} 页`;
-      title.style.cssText = 'text-align:center;font-size:12px;color:#666;margin-bottom:4px;';
-      placeholder.appendChild(title);
-      placeholder.appendChild(canvas);
-      await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-    }
-    if (doc.numPages > 3) {
-      const more = document.createElement('div');
-      more.textContent = `…还有 ${doc.numPages - 3} 页（完整预览需下载）`;
-      more.style.cssText = 'text-align:center;font-size:12px;color:#888;padding:4px;';
-      placeholder.appendChild(more);
-    }
-  }
   showMenu(file, event) {
     const menu = new Menu(this.plugin.app);
     if (!file.isDirectory) {
@@ -3270,24 +3182,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     // 全局引用，供 MutationObserver callback 使用（避免 this 上下文问题）
     globalThis._cloudAttachPlugin = this;
     this.addStyles();
-    // 注册 PDF 代码块处理器：在 Live Preview 和 Reading Mode 下都能触发
-    this.registerMarkdownCodeBlockProcessor('pdf', async (source, el, ctx) => {
-      const pdfUrl = source.trim();
-      if (!pdfUrl || !pdfUrl.match(/\.pdf(\?|$)/i)) {
-        el.createEl('div', { text: '❌ 无效的 PDF URL', cls: 'cloud-attach-pdf-error' });
-        return;
-      }
-      const placeholder = el.createEl('div');
-      placeholder.className = 'cloud-attach-pdf-embed';
-      placeholder.style.cssText = 'margin:12px 0;border:1px solid #ccc;border-radius:4px;overflow:hidden;background:#f9f9f9;min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#888;font-size:14px;';
-      placeholder.textContent = '⏳ PDF 加载中...';
-      try {
-        await this.renderPdfEmbed(pdfUrl, placeholder);
-      } catch(e) {
-        placeholder.textContent = '❌ PDF 加载失败: ' + e.message;
-        placeholder.style.color = 'red';
-      }
-    });
     this.addRibbonIcon('folder-open', t('cmd.open_browser'), () => this.activateView());
     this.addSettingTab(new CloudAttachSettingTab(this));
     this.addCommand({ id: 'open-browser', name: t('cmd.open_cloud_attach'), callback: () => this.activateView() });
