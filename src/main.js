@@ -3311,6 +3311,32 @@ module.exports = class CloudAttachPlugin extends Plugin {
   constructor() {
     super(...arguments);
     this.accounts = [];
+    // PDF.js 预览：绑定为箭头函数，确保 this 始终正确
+    this._setupPdfObserver = () => {
+      if (this._pdfObserver) return;
+      this._pdfObserver = new MutationObserver((mutations) => {
+        for (const m of mutations) {
+          for (const node of m.addedNodes) {
+            if (node.nodeType !== 1) continue;
+            if (node.tagName === 'IMG' && node.src && node.src.match(/\.pdf(\?|$)/i)) {
+              this._observePdfEmbeds(node);
+            }
+            const innerImgs = node.querySelectorAll?.('img[src*=".pdf"]') || [];
+            innerImgs.forEach(img => this._observePdfEmbeds(img));
+          }
+        }
+      });
+      const wsEl = this.app.workspace.containerEl;
+      this._pdfObserver.observe(wsEl, { childList: true, subtree: true });
+      console.log('[CloudAttach] PDF observer started');
+    };
+
+    this._scanAllPdfImgs = () => {
+      const wsEl = this.app.workspace.containerEl;
+      const allImgs = wsEl.querySelectorAll('img[src*=".pdf"]');
+      console.log('[CloudAttach] scanning existing PDF imgs:', allImgs.length);
+      allImgs.forEach(img => this._observePdfEmbeds(img));
+    };
   }
   async onload() {
     // 初始化语言（Obsidian 界面语言是应用级设置，不在 vault config 里）
