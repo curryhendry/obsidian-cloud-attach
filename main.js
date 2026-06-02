@@ -2470,87 +2470,42 @@ class CloudAttachView extends ItemView {
   }
 
   /**
-   * 用 MutationObserver 监听笔记预览面板，拦截 PDF 代码块
+   * 用 MutationObserver 监听笔记预览，拦截 PDF 图片
    * 彻底解决 registerMarkdownPostProcessor 不触发的问题
    */
   _setupPdfObserver() {
+    // 断开旧观察者
     if (this._pdfObserver) {
       this._pdfObserver.disconnect();
       this._pdfObserver = null;
     }
     
-    // 找到当前活跃的 MarkdownView
-    const activeView = this.app.workspace.getActiveViewOfType?.(MarkdownView) || this.activeMarkdownView;
-    if (!activeView) return;
-    
-    // 获取预览面板的 DOM 元素
-    const previewEl = activeView.previewMode?.containerEl;
-    if (!previewEl) return;
-    
-    console.log('[CloudAttach] setting up MutationObserver on', previewEl);
-    
-    // 创建 MutationObserver
+    // 监听整个文档（捕获所有笔记预览变化）
     this._pdfObserver = new MutationObserver((mutations) => {
-      // 防抖：100ms 内只执行一次
+      // 防抖
       if (this._pdfObserverTimer) clearTimeout(this._pdfObserverTimer);
       this._pdfObserverTimer = setTimeout(() => {
-        this._scanPdfCodeBlocks(previewEl);
+        // 扫描所有 .markdown-rendered 容器
+        document.querySelectorAll('.markdown-rendered').forEach(el => {
+          this._observePdfEmbeds(el);
+        });
       }, 100);
     });
     
     // 开始监听
-    this._pdfObserver.observe(previewEl, {
+    this._pdfObserver.observe(document.body, {
       childList: true,
-      subtree: true,
-      characterData: true
+      subtree: true
     });
     
-    // 立即扫描一次（处理已经渲染的笔记）
-    this._scanPdfCodeBlocks(previewEl);
+    // 立即扫描一次
+    document.querySelectorAll('.markdown-rendered').forEach(el => {
+      this._observePdfEmbeds(el);
+    });
+    
+    console.log('[CloudAttach] MutationObserver started');
   }
   
-  /**
-   * 扫描指定元素内的 PDF 代码块（```pdf\nurl\n```）
-   */
-  _scanPdfCodeBlocks(rootEl) {
-    if (this.settings.pdfPreview !== 'pdfjs') return;
-    
-    // 查找所有 <pre class="language-pdf"> 元素
-    const codeBlocks = rootEl.querySelectorAll('pre.language-pdf');
-    
-    codeBlocks.forEach((preEl) => {
-      if (preEl.dataset.pdfRendered) return;
-      preEl.dataset.pdfRendered = '1';
-      
-      // 提取 URL（code 元素的文本内容）
-      const codeEl = preEl.querySelector('code');
-      if (!codeEl) return;
-      
-      const pdfUrl = codeEl.textContent.trim();
-      if (!pdfUrl) return;
-      
-      console.log('[CloudAttach] found PDF code block, url:', pdfUrl);
-      
-      // 隐藏原始 <pre> 标签
-      preEl.style.display = 'none';
-      
-      // 创建占位 div
-      const placeholder = document.createElement('div');
-      placeholder.className = 'cloud-attach-pdf-embed';
-      placeholder.style.cssText = 'margin:12px 0;border:1px solid #ccc;border-radius:4px;overflow:hidden;background:#f9f9f9;min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#888;font-size:14px;';
-      placeholder.textContent = '⏳ PDF 加载中...';
-      
-      // 插入到 <pre> 标签后面
-      preEl.parentNode.insertBefore(placeholder, preEl.nextSibling);
-      
-      // 渲染 PDF
-      this.renderPdfEmbed(pdfUrl, placeholder).catch(e => {
-        placeholder.textContent = '❌ PDF 加载失败: ' + e.message;
-        placeholder.style.color = 'red';
-      });
-    });
-  }
-
   /**
    * MarkdownPostProcessor：扫描笔记 DOM 中的 PDF 图片，替换为 PDF.js canvas
    * 触发时机：Obsidian 每次渲染 / 重渲染笔记时
