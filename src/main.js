@@ -3498,12 +3498,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
 
       const actualScale = targetWidth / firstVpRaw.width;
       const firstVp = firstPage.getViewport({ scale: actualScale });
+      console.log('[CloudAttach] scale: targetW=' + targetWidth + ' actualScale=' + actualScale + ' vp=' + Math.round(firstVp.width) + 'x' + Math.round(firstVp.height));
 
       // 容器最终尺寸（inline style 设像素值，强制覆盖）
       const finalScrollHeight = userHeightStr || (Math.round(firstVp.height) + 'px');
       const finalContainerWidth = Math.round(firstVp.width) + 'px';
       const TOOLBAR_HEIGHT = 28;
-      const finalContainerHeight = `calc(${finalScrollHeight} + ${TOOLBAR_HEIGHT}px)`;
+      const finalContainerHeight = (parseInt(finalScrollHeight) + TOOLBAR_HEIGHT) + 'px';
 
       // 关键：inline style 强制设高宽和 overflow（setProperty + priority 'important' 才是正确写法）
       container.style.setProperty('display', 'block', 'important');
@@ -3534,9 +3535,14 @@ module.exports = class CloudAttachPlugin extends Plugin {
         canvas.style.setProperty('display', 'block', 'important');
         canvas.style.setProperty('max-width', '100%', 'important');
         canvas.style.setProperty('width', '100%', 'important');
+        // 显式设 canvas CSS height（canvas.height 只控制绘制缓冲区，CSS height:auto 会压扁元素）
+        const vp = await pdf.getPage(i).then(p => p.getViewport({ scale: actualScale }));
+        canvas.style.setProperty('height', Math.round(vp.height) + 'px', 'important');
         scrollArea.appendChild(canvas);
         await this._renderPdfPage(canvas, pdf, i, actualScale);
+        console.log('[CloudAttach] page', i, '/', pdf.numPages, 'cw:', canvas.width, 'ch:', canvas.height);
       }
+      console.log('[CloudAttach] ALL DONE, scrollChildren:', scrollArea.children.length);
 
       // 初始化工具栏（absolute 浮在容器顶部，不随内容滚动）
       this._initPdfToolbar(container, pdf);
@@ -3547,7 +3553,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       // MutationObserver 后备：防止 Obsidian 后续 DOM 操作覆盖高度
       const heightObserver = new MutationObserver(() => {
         // 强制重设容器高度（保持 calc 表达式）
-        if (container.style.height !== finalContainerHeight) {
+        if (parseInt(container.style.height) !== parseInt(finalContainerHeight)) {
           container.style.setProperty('display', 'block', 'important');
           container.style.setProperty('position', 'relative', 'important');
           container.style.setProperty('height', finalContainerHeight, 'important');

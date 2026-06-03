@@ -3290,10 +3290,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
       const actualScale = targetWidth / firstVpRaw.width;
       const firstVp = firstPage.getViewport({ scale: actualScale });
+      console.log("[CloudAttach] scale: targetW=" + targetWidth + " actualScale=" + actualScale + " vp=" + Math.round(firstVp.width) + "x" + Math.round(firstVp.height));
       const finalScrollHeight = userHeightStr || Math.round(firstVp.height) + "px";
       const finalContainerWidth = Math.round(firstVp.width) + "px";
       const TOOLBAR_HEIGHT = 28;
-      const finalContainerHeight = `calc(${finalScrollHeight} + ${TOOLBAR_HEIGHT}px)`;
+      const finalContainerHeight = parseInt(finalScrollHeight) + TOOLBAR_HEIGHT + "px";
       container.style.setProperty("display", "block", "important");
       container.style.setProperty("position", "relative", "important");
       container.style.setProperty("height", finalContainerHeight, "important");
@@ -3317,13 +3318,17 @@ module.exports = class CloudAttachPlugin extends Plugin {
         canvas.style.setProperty("display", "block", "important");
         canvas.style.setProperty("max-width", "100%", "important");
         canvas.style.setProperty("width", "100%", "important");
+        const vp = await pdf.getPage(i).then((p) => p.getViewport({ scale: actualScale }));
+        canvas.style.setProperty("height", Math.round(vp.height) + "px", "important");
         scrollArea.appendChild(canvas);
         await this._renderPdfPage(canvas, pdf, i, actualScale);
+        console.log("[CloudAttach] page", i, "/", pdf.numPages, "cw:", canvas.width, "ch:", canvas.height);
       }
+      console.log("[CloudAttach] ALL DONE, scrollChildren:", scrollArea.children.length);
       this._initPdfToolbar(container, pdf);
       this._bindPdfScroll(container, pdf);
       const heightObserver = new MutationObserver(() => {
-        if (container.style.height !== finalContainerHeight) {
+        if (parseInt(container.style.height) !== parseInt(finalContainerHeight)) {
           container.style.setProperty("display", "block", "important");
           container.style.setProperty("position", "relative", "important");
           container.style.setProperty("height", finalContainerHeight, "important");
