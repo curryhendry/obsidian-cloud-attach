@@ -3477,37 +3477,23 @@ module.exports = class CloudAttachPlugin extends Plugin {
         container.dataset.userHeight = imgHeight.includes('%') || imgHeight.includes('px') || imgHeight.includes('vh') ? imgHeight : imgHeight + 'px';
       }
       
-      // 创建 canvas（首次）
-      const canvas = document.createElement('canvas');
-      canvas.style.width = '100%';
-      canvas.style.height = 'auto';
-      // 如果用户指定了高度，应用到 canvas
-      if (container.dataset.userHeight) {
-        canvas.style.height = container.dataset.userHeight;
-        canvas.style.objectFit = 'contain';
-      }
-      container.appendChild(canvas);
-      
-      // 遍历所有页面获取最大高度（避免翻页时框高度跳动）
-      let maxPageHeight = 0;
-      const pageViewports = [];
+      // 渲染所有页面为独立 canvas，纵向堆叠（自然滚动）
       for (let i = 1; i <= pdf.numPages; i++) {
-        const p = await pdf.getPage(i);
-        const vp = p.getViewport({ scale: 1.5 });
-        pageViewports.push(vp);
-        if (vp.height > maxPageHeight) maxPageHeight = vp.height;
+        const canvas = document.createElement('canvas');
+        canvas.style.width = '100%';
+        canvas.style.display = 'block';
+        canvas.dataset.pageNum = i.toString();
+        // 如果用户指定了高度，应用到每个 canvas
+        if (container.dataset.userHeight) {
+          canvas.style.height = container.dataset.userHeight;
+          canvas.style.objectFit = 'contain';
+        }
+        container.appendChild(canvas);
+        await this._renderPdfPage(canvas, pdf, i);
       }
-      container.dataset.maxPageHeight = maxPageHeight.toString();
 
-      // 设置容器固定高度 + 溢出隐藏（一页大小的视口）
-      container.style.height = maxPageHeight + 'px';
-      container.style.overflow = 'hidden';
-
-      // 渲染第1页
-      await this._renderPdfPage(container, pdf, 1);
-      
-      // 绑定滚轮滑动翻页
-      this._bindPdfSwipe(container, pdf);
+      // 监听滚动实时更新页码
+      this._bindPdfScrollTracking(container, pdf);
 
       // 初始化工具栏（只需一次）
       this._initPdfToolbar(container, pdf);
@@ -3518,71 +3504,46 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
   }
 
-  // 渲染指定页码的 PDF 页面（无感翻页：复用 canvas，只更新内容）
-  async _renderPdfPage(container, pdf, pageNum) {
-    // 复用或创建 canvas
-    let canvas = container.querySelector('canvas');
-    if (!canvas) {
-      canvas = document.createElement('canvas');
-      canvas.style.width = '100%';
-      canvas.style.height = 'auto';
-      container.insertBefore(canvas, container.querySelector('.cloudattach-pdf-toolbar'));
-    }
-    
-    // 渲染指定页到同一个 canvas
+  // 渲染指定页到给定 canvas
+  async _renderPdfPage(canvas, pdf, pageNum) {
     const page = await pdf.getPage(pageNum);
     const viewport = page.getViewport({ scale: 1.5 });
     canvas.width = viewport.width;
     canvas.height = viewport.height;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     await page.render({ canvasContext: ctx, viewport }).promise;
-    
-    // 更新当前页码
-    container.dataset.currentPage = pageNum.toString();
-    
-    // 更新工具栏文字（不重建 DOM）
-    this._updatePdfToolbar(container, pdf);
   }
 
-  // 绑定滚轮/触摸滑动翻页（类似手机相册滑动翻页）
-  _bindPdfSwipe(container, pdf) {
-    let wheelAccum = 0;
-    const threshold = 50; // 累积滑动阈值（px）
-    let swiping = false;
+  // 监听容器滚动，实时计算当前页码并更新工具栏
+  _bindPdfScrollTracking(container, pdf) {
+    const scrollParent = container.closest('.markdown-preview-view')
+      || container.closest('.markdown-source-view')
+      || container.closest('.scrollbar-content')
+      || document.scrollingElement;
+    if (!scrollParent) return;
 
-    const doTurn = (delta) => {
-      if (swiping) return;
-      const current = parseInt(container.dataset.currentPage);
-      const total = parseInt(container.dataset.totalPages);
-      if (delta > 0 && current < total) {
-        swiping = true;
-        this._renderPdfPage(container, pdf, current + 1).finally(() => { swiping = false; });
-      } else if (delta < 0 && current > 1) {
-        swiping = true;
-        this._renderPdfPage(container, pdf, current - 1).finally(() => { swiping = false; });
-      }
+    const getVisiblePage = () => {
+      const canvases = container.querySelectorAll('canvas[data-page-num]');
+      if (!canvases.length) return 1;
+      const containerRect = container.getBoundingClientRect();
+      const containerMidY = containerRect.top + containerRect.height / 4;
+      let closest = 1;
+      let closestDist = Infinity;
+      canvases.forEach(c => {
+        const rect = c.getBoundingClientRect();
+        const dist = Math.abs(rect.top - containerMidY);
+        if (dist < closestDist) { closestDist = dist; closest = parseInt(c.dataset.pageNum); }
+      });
+      return closest;
     };
 
-    container.addEventListener('wheel', (e) => {
-      e.preventDefault();
-      wheelAccum += e.deltaY;
-      if (Math.abs(wheelAccum) >= threshold) {
-        doTurn(wheelAccum > 0 ? 1 : -1);
-        wheelAccum = 0;
-      }
-    }, { passive: false });
-
-    // 触摸滑动支持
-    let touchStartY = 0;
-    container.addEventListener('touchstart', (e) => {
-      touchStartY = e.touches[0].clientY;
-    }, { passive: true });
-    container.addEventListener('touchend', (e) => {
-      const delta = touchStartY - e.changedTouches[0].clientY;
-      if (Math.abs(delta) >= threshold) {
-        doTurn(delta > 0 ? 1 : -1);
-      }
-    }, { passive: true });
+    scrollParent.addEventListener('scroll', () => {
+ const page = getVisiblePage();
+ if (parseInt(container.dataset.currentPage) !== page) {
+ container.dataset.currentPage = page.toString();
+ this._updatePdfToolbar(container, pdf);
+ }
+ }, { passive: true });
   }
 
   // 初始化 PDF 翻页工具栏（只创建一次）
@@ -3646,16 +3607,20 @@ module.exports = class CloudAttachPlugin extends Plugin {
     container.addEventListener('mouseenter', () => { toolbar.style.display = 'flex'; });
     container.addEventListener('mouseleave', () => { toolbar.style.display = 'none'; });
     
-    // 事件绑定
+    // 事件绑定：翻页按钮 → scrollIntoView
+    const scrollToPage = (pageNum) => {
+      const target = container.querySelector(`canvas[data-page-num="${pageNum}"]`);
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
     prevBtn.onclick = (e) => {
       e.stopPropagation();
       const current = parseInt(container.dataset.currentPage);
-      if (current > 1) this._renderPdfPage(container, pdf, current - 1);
+      if (current > 1) scrollToPage(current - 1);
     };
     nextBtn.onclick = (e) => {
       e.stopPropagation();
       const current = parseInt(container.dataset.currentPage);
-      if (current < totalPages) this._renderPdfPage(container, pdf, current + 1);
+      if (current < totalPages) scrollToPage(current + 1);
     };
     pageIndicator.onclick = (e) => {
       e.stopPropagation();
@@ -3697,7 +3662,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         onClose() { this.contentEl.empty(); }
       }
       new PageJumpModal(this.app, current, totalPages, (p) => {
-        this._renderPdfPage(container, pdf, p);
+        scrollToPage(p);
       }).open();
     };
     
