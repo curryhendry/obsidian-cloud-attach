@@ -3379,7 +3379,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       .cloud-attach-add-btn:hover { background: var(--background-modifier-hover); }
     
     /* PDF 预览容器 - 强制约束，覆盖 Obsidian 全局样式 */
-    .cloudattach-pdf-container { display: inline-block !important; position: relative !important; max-width: 100% !important; overflow: hidden !important; vertical-align: top; }
+    .cloudattach-pdf-container { display: block !important; position: relative !important; max-width: 100% !important; overflow: hidden !important; }
     .cloudattach-pdf-scroll-area { width: 100% !important; height: 100% !important; overflow-y: auto !important; overflow-x: hidden !important; }
     .cloudattach-pdf-page { display: block !important; width: 100% !important; height: auto !important; }
     `;
@@ -3464,10 +3464,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
       
       // 创建外层容器（复用 v0.3.042 宽高逻辑）
-      const container = document.createElement('span');
+      const container = document.createElement('div');
       container.className = 'cloudattach-pdf-container';
       container.style.position = 'relative';
-      container.style.display = 'inline-block';
       container.style.maxWidth = '100%';
       container.dataset.currentPage = '1';
       container.dataset.totalPages = pdf.numPages.toString();
