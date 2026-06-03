@@ -1,3 +1,10 @@
+## [0.3.059.dev] - 2026-06-03
+
+### 修复
+- **容器高度方案**: 移除 CSS 变量（`--pdf-viewer-height`）方案，改用直接 `inline style` 设 `height`（JS 动态计算 = 第一页像素高度）
+- 根因：`height: var(--pdf-viewer-height, 800px) !important` CSS 规则中的 `var()` 在 Obsidian 环境里没有正确回退到 JS 设的值，导致 fallback 到 800px
+- 改法：CSS 规则只设 `max-height: 80vh` 兜底，`height` 完全由 JS inline style 控制
+
 ## [0.3.058.dev] - 2026-06-03
 
 ### 变更
