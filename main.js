@@ -2249,6 +2249,9 @@ var CloudAttachView = class extends ItemView {
  <source src="${url}" type="audio/mpeg">
 </audio>`;
     } else if (docExts.includes(ext)) {
+      if (ext === "pdf" && this.plugin.settings.pdfPreview === "pdfjs") {
+        return `![${nameWithoutExt}](${url})`;
+      }
       return `<iframe src="${url}" width="100%" height="800px"></iframe>`;
     } else {
       return `[${file.name}](${url})`;

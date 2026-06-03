@@ -2410,6 +2410,10 @@ class CloudAttachView extends ItemView {
     } else if (audioExts.includes(ext)) {
       return `<audio controls>\n <source src="${url}" type="audio/mpeg">\n</audio>`;
     } else if (docExts.includes(ext)) {
+      // PDF 文件：若启用 PDF.js 预览则用 ![]() 语法（MutationObserver 会拦截替换为 canvas）
+      if (ext === 'pdf' && this.plugin.settings.pdfPreview === 'pdfjs') {
+        return `![${nameWithoutExt}](${url})`;
+      }
       return `<iframe src="${url}" width="100%" height="800px"></iframe>`;
     } else {
       return `[${file.name}](${url})`;
