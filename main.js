@@ -3265,6 +3265,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
         imgWidth = widthClassMatch[1] + "px";
       }
       const host = document.createElement("cloudattach-pdf");
+      host.style.display = "inline-block";
+      host.style.position = "relative";
+      host.style.verticalAlign = "top";
       const shadow = host.attachShadow({ mode: "open" });
       const style = document.createElement("style");
       style.textContent = `
@@ -3321,6 +3324,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const finalContainerHeight = userHeightStr || Math.round(firstVp.height) + "px";
       container.style.height = finalContainerHeight;
       container.style.overflow = "hidden";
+      if (imgWidth) {
+        host.style.width = container.style.width;
+      }
+      host.style.height = finalContainerHeight;
+      host.style.overflow = "hidden";
+      host.style.maxWidth = imgStyleMaxWidth || "";
       shadow.appendChild(container);
       const scrollArea = document.createElement("div");
       scrollArea.className = "cloudattach-pdf-scroll";
