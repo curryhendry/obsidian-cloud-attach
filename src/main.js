@@ -3379,8 +3379,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
       .cloud-attach-add-btn:hover { background: var(--background-modifier-hover); }
     
     /* PDF 预览容器 - 双层结构，仿 Obsidian 原生 .pdf-embed */
-    .cloudattach-pdf-container { display: block !important; position: relative !important; max-width: 100% !important; overflow: hidden !important; border: 1px solid var(--background-modifier-border) !important; border-radius: 8px !important; background: var(--background-secondary) !important; }
-    .cloudattach-pdf-scroll { position: absolute !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; overflow-y: auto !important; }
+    .cloudattach-pdf-container { display: inline-block !important; position: relative !important; max-width: 100% !important; overflow: hidden !important; border: 1px solid var(--background-modifier-border) !important; border-radius: 8px !important; background: var(--background-secondary) !important; vertical-align: top !important; }
+    .cloudattach-pdf-scroll { overflow-y: auto !important; overflow-x: hidden !important; }
     .cloudattach-pdf-page { display: block !important; width: 100% !important; height: auto !important; }
     `;
     const styleEl = document.createElement('style');
@@ -3463,9 +3463,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
         imgWidth = widthClassMatch[1] + 'px';
       }
       
-      // 创建外层容器（参考 Obsidian 原生 .pdf-embed 方案：flex + 固定 height + overflow:hidden）
-      const container = document.createElement('div');
+      // 创建外层容器（与 v0.3.042 一致：span + inline-block，避免 Obsidian 撑开 div）
+      const container = document.createElement('span');
       container.className = 'cloudattach-pdf-container';
+      container.style.display = 'inline-block';
+      container.style.position = 'relative';
+      container.style.verticalAlign = 'top';
       container.dataset.currentPage = '1';
       container.dataset.totalPages = pdf.numPages.toString();
       container.dataset.pdfUrl = url;
@@ -3490,10 +3493,14 @@ module.exports = class CloudAttachPlugin extends Plugin {
       // 容器高度 = 用户指定 ? 用用户值 : 第一页实际像素高度
       const finalContainerHeight = userHeightStr || (Math.round(firstVp.height) + 'px');
       container.style.height = finalContainerHeight;
+      container.style.overflow = 'hidden';
       
-      // 创建滚动中间层（仿 Obsidian 原生 absolute 滚动容器）
+      // 创建滚动中间层（固定高度 = 容器高度，overflow-y: auto 实现连续滚动）
       const scrollArea = document.createElement('div');
       scrollArea.className = 'cloudattach-pdf-scroll';
+      scrollArea.style.height = finalContainerHeight;
+      scrollArea.style.overflowY = 'auto';
+      scrollArea.style.overflowX = 'hidden';
       container.appendChild(scrollArea);
       
       // 连续滚动模式：所有页面 canvas 纵向堆叠在 scrollArea 内
