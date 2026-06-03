@@ -3289,7 +3289,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       container.style.overflow = "hidden";
       const scrollArea = document.createElement("div");
       scrollArea.className = "cloudattach-pdf-scroll-area";
-      scrollArea.style.cssText = "width:100%;height:100%;overflow-y:auto;overflow-x:hidden;";
+      scrollArea.style.cssText = "width:100%;height:" + finalContainerHeight + ";overflow-y:auto;overflow-x:hidden;";
       container.appendChild(scrollArea);
       for (let i = 1; i <= pdf.numPages; i++) {
         const canvas = document.createElement("canvas");
