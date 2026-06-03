@@ -3278,7 +3278,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
           vertical-align: top;
         }
         .cloudattach-pdf-container {
-          display: inline-block !important;
+          display: block !important;
           position: relative !important;
           vertical-align: top !important;
           overflow: hidden !important;
@@ -3286,10 +3286,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
         .cloudattach-pdf-scroll {
           overflow-y: auto;
           overflow-x: hidden;
+          width: 100%;
         }
         .cloudattach-pdf-page {
           display: block;
           max-width: 100%;
+          width: 100%;
         }
         .cloudattach-pdf-toolbar {
           background: rgba(0, 0, 0, 0.6);
@@ -3304,7 +3306,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
           user-select: none;
           justify-content: center;
           flex-shrink: 0;
-          position: relative;
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
         }
         .cloudattach-pdf-toolbar span {
           cursor: pointer;
@@ -3341,10 +3346,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
       container.style.height = finalContainerHeight;
       container.style.width = finalContainerWidth;
       container.style.overflow = "hidden";
-      host.style.width = finalContainerWidth;
+      host.style.minWidth = finalContainerWidth;
+      host.style.maxWidth = finalContainerWidth;
       host.style.height = finalContainerHeight;
       host.style.overflow = "hidden";
-      host.style.maxWidth = imgStyleMaxWidth || "";
+      host.style.maxWidth = imgStyleMaxWidth || finalContainerWidth;
       shadow.appendChild(container);
       const scrollArea = document.createElement("div");
       scrollArea.className = "cloudattach-pdf-scroll";
@@ -3359,7 +3365,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
         scrollArea.appendChild(canvas);
         await this._renderPdfPage(canvas, pdf, i, actualScale);
       }
-      this._initPdfToolbar(container, pdf);
+      const toolbarEl = this._createPdfToolbar(container, pdf);
+      container.appendChild(toolbarEl);
       this._bindPdfScroll(container, pdf);
       imgEl.replaceWith(host);
     } catch (e) {
@@ -3410,7 +3417,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     toolbar.style.userSelect = "none";
     toolbar.style.justifyContent = "center";
     toolbar.style.flexShrink = "0";
-    toolbar.style.position = "relative";
     const prevBtn = document.createElement("span");
     prevBtn.textContent = "\u25C0";
     prevBtn.style.cursor = "pointer";
