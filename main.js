@@ -2854,18 +2854,47 @@ var AdvancedSettingModal = class extends Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.innerHTML = "";
-    contentEl.style.padding = "20px";
+    contentEl.style.padding = "24px";
+    contentEl.style.maxWidth = "520px";
     const title = contentEl.createEl("h2", { text: t("settings.advanced_title") });
     title.style.marginTop = "0";
-    const catTitle = contentEl.createEl("h3", { text: t("settings.preview_category") });
-    catTitle.style.marginTop = "20px";
-    const pdfSection = contentEl.createDiv();
-    pdfSection.style.marginBottom = "16px";
-    pdfSection.createEl("div", { text: t("settings.pdf_preview"), attr: { style: "font-weight:600;margin-bottom:8px;" } });
-    const pdfRadioGroup = pdfSection.createDiv();
-    pdfRadioGroup.style.display = "flex";
-    pdfRadioGroup.style.gap = "16px";
-    pdfRadioGroup.style.marginBottom = "8px";
+    title.style.marginBottom = "20px";
+    const card = contentEl.createDiv();
+    card.className = "cloudattach-settings-card";
+    card.style.background = "var(--background-secondary)";
+    card.style.borderRadius = "8px";
+    card.style.padding = "20px";
+    card.style.marginBottom = "16px";
+    const catTitle = card.createEl("h3", { text: t("settings.preview_category") });
+    catTitle.style.marginTop = "0";
+    catTitle.style.marginBottom = "16px";
+    catTitle.style.fontSize = "14px";
+    catTitle.style.fontWeight = "600";
+    catTitle.style.color = "var(--text-normal)";
+    catTitle.style.textTransform = "uppercase";
+    catTitle.style.letterSpacing = "0.5px";
+    catTitle.style.opacity = "0.7";
+    const pdfGroup = card.createDiv();
+    pdfGroup.style.marginBottom = "16px";
+    const pdfLabelRow = pdfGroup.createDiv();
+    pdfLabelRow.style.display = "flex";
+    pdfLabelRow.style.alignItems = "center";
+    pdfLabelRow.style.gap = "6px";
+    pdfLabelRow.style.marginBottom = "10px";
+    const pdfIndent = pdfLabelRow.createSpan();
+    pdfIndent.textContent = "\u25B8";
+    pdfIndent.style.color = "var(--text-accent)";
+    pdfIndent.style.fontWeight = "700";
+    pdfIndent.style.fontSize = "11px";
+    const pdfLabel = pdfLabelRow.createEl("span", { text: t("settings.pdf_preview") });
+    pdfLabel.style.fontWeight = "600";
+    pdfLabel.style.fontSize = "13px";
+    const pdfOptRow = pdfGroup.createDiv();
+    pdfOptRow.style.marginLeft = "18px";
+    pdfOptRow.style.display = "flex";
+    pdfOptRow.style.flexWrap = "wrap";
+    pdfOptRow.style.alignItems = "center";
+    pdfOptRow.style.gap = "12px";
     const mkRadio = (label, value, group) => {
       const opt = group.createDiv();
       opt.style.display = "flex";
@@ -2883,10 +2912,8 @@ var AdvancedSettingModal = class extends Modal {
       opt.createEl("label", { text: label });
       return radio;
     };
-    mkRadio(t("settings.pdf_preview_iframe"), "iframe", pdfRadioGroup);
-    const pdfjsRow = pdfSection.createDiv();
-    pdfjsRow.style.marginTop = "4px";
-    const pdfjsOpt = pdfjsRow.createDiv();
+    mkRadio(t("settings.pdf_preview_iframe"), "iframe", pdfOptRow);
+    const pdfjsOpt = pdfOptRow.createDiv();
     pdfjsOpt.style.display = "flex";
     pdfjsOpt.style.alignItems = "center";
     pdfjsOpt.style.gap = "4px";
@@ -2904,15 +2931,14 @@ var AdvancedSettingModal = class extends Modal {
       if (!require("path").isAbsolute(cd)) {
         cd = require("path").resolve(this.app.vault.adapter?.basePath || process.cwd(), cd);
       }
-      const finalPath = cd + "/plugins/cloud-attach/libs/pdfjs/";
-      console.log("[CloudAttach] pdfjsPath resolved:", finalPath, "exists:", require("fs").existsSync(finalPath + "pdf.js"));
-      return finalPath;
+      return cd + "/plugins/cloud-attach/libs/pdfjs/";
     })();
     const fs = require("fs");
     const hasPdfjs = fs.existsSync(pdfjsPath + "pdf.js");
     pdfjsOpt.createEl("label", { text: hasPdfjs ? "PDF.js" + (t("settings.pdfjs_installed") || "") : "PDF.js" + (t("settings.pdfjs_auto_install") || "") });
     if (hasPdfjs) {
-      const delBtn = pdfjsRow.createEl("button", { text: t("settings.pdfjs_uninstall") || "\u5378\u8F7D" });
+      const delBtn = pdfjsOpt.createEl("button", { text: t("settings.pdfjs_uninstall") || "\u5378\u8F7D" });
+      delBtn.style.marginLeft = "4px";
       delBtn.onclick = async () => {
         try {
           fs.rmSync(pdfjsPath, { recursive: true });
@@ -2921,21 +2947,57 @@ var AdvancedSettingModal = class extends Modal {
         this.onOpen();
       };
     }
-    const excelSection = contentEl.createDiv();
-    excelSection.style.marginBottom = "16px";
-    excelSection.createEl("div", { text: t("settings.excel_preview"), attr: { style: "font-weight:600;margin-bottom:8px;" } });
-    const excelNote = excelSection.createEl("div", { text: t("settings.preview_coming_soon") });
+    const pdfNote = pdfGroup.createDiv();
+    pdfNote.style.marginLeft = "18px";
+    pdfNote.style.marginTop = "6px";
+    pdfNote.style.fontSize = "12px";
+    pdfNote.style.color = "var(--text-muted)";
+    pdfNote.textContent = "\u9009\u5B9A\u540E\u4F7F\u7528 `![]()` \u8BED\u6CD5\u63D2\u5165\u9884\u89C8";
+    const excelGroup = card.createDiv();
+    excelGroup.style.marginBottom = "16px";
+    const excelLabelRow = excelGroup.createDiv();
+    excelLabelRow.style.display = "flex";
+    excelLabelRow.style.alignItems = "center";
+    excelLabelRow.style.gap = "6px";
+    excelLabelRow.style.marginBottom = "6px";
+    const excelIndent = excelLabelRow.createSpan();
+    excelIndent.textContent = "\u25B8";
+    excelIndent.style.color = "var(--text-muted)";
+    excelIndent.style.fontWeight = "700";
+    excelIndent.style.fontSize = "11px";
+    const excelLabel = excelLabelRow.createEl("span", { text: t("settings.excel_preview") });
+    excelLabel.style.fontWeight = "600";
+    excelLabel.style.fontSize = "13px";
+    excelLabel.style.color = "var(--text-muted)";
+    const excelNote = excelGroup.createDiv();
+    excelNote.style.marginLeft = "18px";
     excelNote.style.fontSize = "12px";
-    excelNote.style.color = "var(--text-muted)";
-    const wordSection = contentEl.createDiv();
-    wordSection.style.marginBottom = "16px";
-    wordSection.createEl("div", { text: t("settings.word_preview"), attr: { style: "font-weight:600;margin-bottom:8px;" } });
-    const wordNote = wordSection.createEl("div", { text: t("settings.preview_coming_soon") });
+    excelNote.style.color = "var(--text-faint)";
+    excelNote.textContent = t("settings.preview_coming_soon");
+    const wordGroup = card.createDiv();
+    const wordLabelRow = wordGroup.createDiv();
+    wordLabelRow.style.display = "flex";
+    wordLabelRow.style.alignItems = "center";
+    wordLabelRow.style.gap = "6px";
+    wordLabelRow.style.marginBottom = "6px";
+    const wordIndent = wordLabelRow.createSpan();
+    wordIndent.textContent = "\u25B8";
+    wordIndent.style.color = "var(--text-muted)";
+    wordIndent.style.fontWeight = "700";
+    wordIndent.style.fontSize = "11px";
+    const wordLabel = wordLabelRow.createEl("span", { text: t("settings.word_preview") });
+    wordLabel.style.fontWeight = "600";
+    wordLabel.style.fontSize = "13px";
+    wordLabel.style.color = "var(--text-muted)";
+    const wordNote = wordGroup.createDiv();
+    wordNote.style.marginLeft = "18px";
     wordNote.style.fontSize = "12px";
-    wordNote.style.color = "var(--text-muted)";
+    wordNote.style.color = "var(--text-faint)";
+    wordNote.textContent = t("settings.preview_coming_soon");
     const btnRow = contentEl.createDiv();
-    btnRow.style.marginTop = "24px";
+    btnRow.style.marginTop = "20px";
     btnRow.style.display = "flex";
+    btnRow.style.justifyContent = "flex-end";
     btnRow.style.gap = "8px";
     const saveBtn = btnRow.createEl("button", { text: t("settings.save") || "\u4FDD\u5B58" });
     saveBtn.className = "mod-cta";
@@ -3238,7 +3300,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const viewport = page.getViewport({ scale: 1.5 });
     canvas.width = viewport.width;
     canvas.height = viewport.height;
-    await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    await page.render({ canvasContext: ctx, viewport }).promise;
     container.dataset.currentPage = pageNum.toString();
     this._updatePdfToolbar(container, pdf);
   }
@@ -3275,6 +3338,17 @@ module.exports = class CloudAttachPlugin extends Plugin {
     nextBtn.style.cursor = "pointer";
     nextBtn.dataset.role = "next";
     toolbar.appendChild(nextBtn);
+    const sep = document.createElement("span");
+    sep.textContent = "|";
+    sep.style.opacity = "0.5";
+    sep.style.margin = "0 2px";
+    toolbar.appendChild(sep);
+    const fullscreenBtn = document.createElement("span");
+    fullscreenBtn.textContent = "\u26F6";
+    fullscreenBtn.style.cursor = "pointer";
+    fullscreenBtn.title = "\u5168\u5C4F\u9884\u89C8\uFF08\u656C\u8BF7\u671F\u5F85\uFF09";
+    fullscreenBtn.dataset.role = "fullscreen";
+    toolbar.appendChild(fullscreenBtn);
     container.addEventListener("mouseenter", () => {
       toolbar.style.display = "flex";
     });
@@ -3333,6 +3407,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
       new PageJumpModal(this.app, current, totalPages, (p) => {
         this._renderPdfPage(container, pdf, p);
       }).open();
+    };
+    fullscreenBtn.onclick = (e) => {
+      e.stopPropagation();
+      const { Notice: Notice2 } = require("obsidian");
+      new Notice2("\u{1F50D} \u5168\u5C4F\u9884\u89C8\u529F\u80FD\uFF0C\u656C\u8BF7\u671F\u5F85");
     };
     container.appendChild(toolbar);
     this._updatePdfToolbar(container, pdf);
