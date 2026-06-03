@@ -3275,70 +3275,49 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (imgHeight && imgHeight !== "auto") {
         container.dataset.userHeight = imgHeight.includes("%") || imgHeight.includes("px") || imgHeight.includes("vh") ? imgHeight : imgHeight + "px";
       }
-      const canvas = document.createElement("canvas");
-      canvas.style.width = "100%";
-      canvas.style.height = "auto";
-      if (container.dataset.userHeight) {
-        canvas.style.height = container.dataset.userHeight;
-        canvas.style.objectFit = "contain";
-      }
-      container.appendChild(canvas);
-      let maxPageHeight = 0;
       for (let i = 1; i <= pdf.numPages; i++) {
-        const p = await pdf.getPage(i);
-        const vp = p.getViewport({ scale: 1.5 });
-        if (vp.height > maxPageHeight)
-          maxPageHeight = vp.height;
+        const canvas = document.createElement("canvas");
+        canvas.className = "cloudattach-pdf-page";
+        canvas.dataset.pageNum = i.toString();
+        canvas.style.width = "100%";
+        canvas.style.height = "auto";
+        canvas.style.display = "block";
+        if (container.dataset.userHeight) {
+          canvas.style.height = container.dataset.userHeight;
+          canvas.style.objectFit = "contain";
+        }
+        container.appendChild(canvas);
+        await this._renderPdfPage(canvas, pdf, i);
       }
-      container.style.height = maxPageHeight + "px";
-      container.style.overflow = "hidden";
-      await this._renderPdfPage(container, pdf, 1);
-      this._bindPdfScroll(container, pdf);
       this._initPdfToolbar(container, pdf);
+      this._bindPdfScroll(container, pdf);
       imgEl.replaceWith(container);
     } catch (e) {
       console.error("[CloudAttach] PDF render failed:", e);
     }
   }
-  // 渲染指定页码的 PDF 页面（复用 canvas，无感翻页）
-  async _renderPdfPage(container, pdf, pageNum) {
-    let canvas = container.querySelector("canvas");
-    if (!canvas) {
-      canvas = document.createElement("canvas");
-      canvas.style.width = "100%";
-      canvas.style.height = "auto";
-      container.insertBefore(canvas, container.querySelector(".cloudattach-pdf-toolbar"));
-    }
+  // 渲染指定页码的 PDF 页面到指定 canvas
+  async _renderPdfPage(canvas, pdf, pageNum) {
     const page = await pdf.getPage(pageNum);
     const viewport = page.getViewport({ scale: 1.5 });
     canvas.width = viewport.width;
     canvas.height = viewport.height;
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     await page.render({ canvasContext: ctx, viewport }).promise;
-    container.dataset.currentPage = pageNum.toString();
-    this._updatePdfToolbar(container, pdf);
   }
-  // 滚轮连续翻页（标准 PDF 阅读器行为：一页视口内滚动切页）
+  // 监听滚动更新当前页码（连续滚动模式）
   _bindPdfScroll(container, pdf) {
-    let turning = false;
-    container.addEventListener("wheel", (e) => {
-      e.preventDefault();
-      if (turning)
-        return;
-      const current = parseInt(container.dataset.currentPage);
-      const total = parseInt(container.dataset.totalPages);
-      let target = current;
-      if (e.deltaY > 0 && current < total)
-        target = current + 1;
-      else if (e.deltaY < 0 && current > 1)
-        target = current - 1;
-      if (target !== current) {
-        turning = true;
-        this._renderPdfPage(container, pdf, target).finally(() => {
-          turning = false;
-        });
-      }
-    }, { passive: false });
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          const pageNum = entry.target.dataset.pageNum;
+          container.dataset.currentPage = pageNum;
+          this._updatePdfToolbar(container, pdf);
+        }
+      });
+    }, { root: container, threshold: 0.5 });
+    const canvases = container.querySelectorAll(".cloudattach-pdf-page");
+    canvases.forEach((canvas) => observer.observe(canvas));
   }
   // 初始化 PDF 翻页工具栏（只创建一次）
   _initPdfToolbar(container, pdf) {
