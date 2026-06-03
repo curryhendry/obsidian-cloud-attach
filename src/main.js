@@ -3441,6 +3441,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     try {
       const pdfjsLib = await this._loadPdfJs();
       const loadingTask = pdfjsLib.getDocument(url);
+      console.log('[CloudAttach] PDF doc loaded, pages:', (await loadingTask.promise).numPages);
       const pdf = await loadingTask.promise;
 
       // 读取原始 img 的尺寸属性（支持 Obsidian 多种尺寸语法）
@@ -3557,7 +3558,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       });
       heightObserver.observe(container, { attributes: true, attributeFilter: ['style'] });
       container._heightObserver = heightObserver;
-
+      console.log('[CloudAttach] PDF container built, height:', finalContainerHeight, 'width:', finalContainerWidth);
       imgEl.replaceWith(container);
     } catch (e) {
       console.error('[CloudAttach] PDF render failed:', e);
