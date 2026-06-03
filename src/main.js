@@ -3504,14 +3504,25 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const TOOLBAR_HEIGHT = 28;
       const finalContainerHeight = `calc(${finalScrollHeight} + ${TOOLBAR_HEIGHT}px)`;
 
-      // 关键：inline style 强制设高宽和 overflow（v0.3.060 成功方案）
-      container.style.cssText = `display:block !important; position:relative !important; height:${finalContainerHeight} !important; width:${finalContainerWidth} !important; max-width:100% !important; overflow:hidden !important;`;
+      // 关键：inline style 强制设高宽和 overflow（setProperty + priority 'important' 才是正确写法）
+      container.style.setProperty('display', 'block', 'important');
+      container.style.setProperty('position', 'relative', 'important');
+      container.style.setProperty('height', finalContainerHeight, 'important');
+      container.style.setProperty('width', finalContainerWidth, 'important');
+      container.style.setProperty('max-width', '100%', 'important');
+      container.style.setProperty('overflow', 'hidden', 'important');
 
       // 创建滚动中间层（absolute 填满容器，overflow-y: auto 显示滚动条）
       const scrollArea = document.createElement('div');
       scrollArea.className = 'cloudattach-pdf-scroll';
       // 关键：scrollArea 设 absolute + 从 toolbar 下方到容器底，overflow-y: auto
-      scrollArea.style.cssText = `position:absolute !important; top:${TOOLBAR_HEIGHT}px !important; left:0 !important; right:0 !important; bottom:0 !important; overflow-y:auto !important; overflow-x:hidden !important;`;
+      scrollArea.style.setProperty('position', 'absolute', 'important');
+      scrollArea.style.setProperty('top', TOOLBAR_HEIGHT + 'px', 'important');
+      scrollArea.style.setProperty('left', '0', 'important');
+      scrollArea.style.setProperty('right', '0', 'important');
+      scrollArea.style.setProperty('bottom', '0', 'important');
+      scrollArea.style.setProperty('overflow-y', 'auto', 'important');
+      scrollArea.style.setProperty('overflow-x', 'hidden', 'important');
       container.appendChild(scrollArea);
 
       // 渲染所有页面
@@ -3536,7 +3547,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const heightObserver = new MutationObserver(() => {
         // 强制重设容器高度（保持 calc 表达式）
         if (container.style.height !== finalContainerHeight) {
-          container.style.cssText = `display:block !important; position:relative !important; height:${finalContainerHeight} !important; width:${finalContainerWidth} !important; max-width:100% !important; overflow:hidden !important;`;
+          container.style.setProperty('display', 'block', 'important');
+          container.style.setProperty('position', 'relative', 'important');
+          container.style.setProperty('height', finalContainerHeight, 'important');
+          container.style.setProperty('width', finalContainerWidth, 'important');
+          container.style.setProperty('max-width', '100%', 'important');
+          container.style.setProperty('overflow', 'hidden', 'important');
         }
       });
       heightObserver.observe(container, { attributes: true, attributeFilter: ['style'] });
