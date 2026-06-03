@@ -3188,7 +3188,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       .cloud-attach-add-btn:hover { background: var(--background-modifier-hover); }
     
     /* PDF \u9884\u89C8\u5BB9\u5668 - \u5F3A\u5236\u7EA6\u675F\uFF0C\u8986\u76D6 Obsidian \u5168\u5C40\u6837\u5F0F */
-    .cloudattach-pdf-container { display: inline-block !important; position: relative !important; max-width: 100% !important; overflow: hidden !important; vertical-align: top; }
+    .cloudattach-pdf-container { display: block !important; position: relative !important; max-width: 100% !important; overflow: hidden !important; }
     .cloudattach-pdf-scroll-area { width: 100% !important; height: 100% !important; overflow-y: auto !important; overflow-x: hidden !important; }
     .cloudattach-pdf-page { display: block !important; width: 100% !important; height: auto !important; }
     `;
@@ -3264,10 +3264,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (widthClassMatch && !imgWidth) {
         imgWidth = widthClassMatch[1] + "px";
       }
-      const container = document.createElement("span");
+      const container = document.createElement("div");
       container.className = "cloudattach-pdf-container";
       container.style.position = "relative";
-      container.style.display = "inline-block";
       container.style.maxWidth = "100%";
       container.dataset.currentPage = "1";
       container.dataset.totalPages = pdf.numPages.toString();
