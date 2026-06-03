@@ -3310,6 +3310,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
       this._initPdfToolbar(container, pdf);
       this._bindPdfScroll(container, pdf);
+      const heightObserver = new MutationObserver(() => {
+        if (container.style.height !== finalContainerHeight) {
+          container.style.cssText = `display:block !important; position:relative !important; height:${finalContainerHeight} !important; width:${finalContainerWidth} !important; max-width:100% !important; overflow:hidden !important;`;
+        }
+      });
+      heightObserver.observe(container, { attributes: true, attributeFilter: ["style"] });
+      container._heightObserver = heightObserver;
       imgEl.replaceWith(container);
     } catch (e) {
       console.error("[CloudAttach] PDF render failed:", e);
@@ -3355,6 +3362,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
     toolbar.style.gap = "6px";
     toolbar.style.alignItems = "center";
     toolbar.style.fontSize = "12px";
+    toolbar.style.position = "absolute";
+    toolbar.style.top = "0";
+    toolbar.style.left = "0";
+    toolbar.style.right = "0";
     toolbar.style.zIndex = "10";
     toolbar.style.userSelect = "none";
     toolbar.style.justifyContent = "center";
@@ -3450,10 +3461,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       new Notice2("\u{1F50D} \u5168\u5C4F\u9884\u89C8\u529F\u80FD\uFF0C\u656C\u8BF7\u671F\u5F85");
     };
     container.insertBefore(toolbar, container.firstChild);
-    if (scrollArea) {
-      scrollArea.style.flexGrow = "1";
-      scrollArea.style.minHeight = "0";
-    }
     this._updatePdfToolbar(container, pdf);
   }
   // 更新工具栏状态（不重建 DOM，只改文字和可见性）

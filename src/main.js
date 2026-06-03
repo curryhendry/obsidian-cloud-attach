@@ -3532,6 +3532,16 @@ module.exports = class CloudAttachPlugin extends Plugin {
       // 监听滚动更新页码
       this._bindPdfScroll(container, pdf);
 
+      // MutationObserver 后备：防止 Obsidian 后续 DOM 操作覆盖高度
+      const heightObserver = new MutationObserver(() => {
+        // 强制重设容器高度（保持 calc 表达式）
+        if (container.style.height !== finalContainerHeight) {
+          container.style.cssText = `display:block !important; position:relative !important; height:${finalContainerHeight} !important; width:${finalContainerWidth} !important; max-width:100% !important; overflow:hidden !important;`;
+        }
+      });
+      heightObserver.observe(container, { attributes: true, attributeFilter: ['style'] });
+      container._heightObserver = heightObserver;
+
       imgEl.replaceWith(container);
     } catch (e) {
       console.error('[CloudAttach] PDF render failed:', e);
@@ -3582,6 +3592,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
     toolbar.style.gap = '6px';
     toolbar.style.alignItems = 'center';
     toolbar.style.fontSize = '12px';
+    toolbar.style.position = 'absolute';
+    toolbar.style.top = '0';
+    toolbar.style.left = '0';
+    toolbar.style.right = '0';
     toolbar.style.zIndex = '10';
     toolbar.style.userSelect = 'none';
     toolbar.style.justifyContent = 'center';
@@ -3694,12 +3708,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     
     // 插入工具栏到容器最前面（flex 布局下，工具栏在 scrollArea 之前，固定在顶部）
     container.insertBefore(toolbar, container.firstChild);
-    // scrollArea 需要 flex-grow:1 填满剩余空间
-    if (scrollArea) {
-      scrollArea.style.flexGrow = '1';
-      scrollArea.style.minHeight = '0';  // flex 子元素需 min-height:0 才能正确收缩
-    }
-    // 首次更新状态
+    // 首次更新状态（scrollArea 已是 absolute，flexGrow/minHeight 不影响 absolute）
     this._updatePdfToolbar(container, pdf);
   }
 
