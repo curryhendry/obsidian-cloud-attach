@@ -3272,13 +3272,20 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
       if (imgStyleMaxWidth)
         container.style.maxWidth = imgStyleMaxWidth;
-      const containerHeight = imgHeight && imgHeight !== "auto" ? imgHeight.includes("%") || imgHeight.includes("px") || imgHeight.includes("vh") ? imgHeight : imgHeight + "px" : "600px";
-      container.style.height = containerHeight;
+      const firstPage = await pdf.getPage(1);
+      const firstViewport = firstPage.getViewport({ scale: 1.5 });
+      let calcContainerHeight;
+      if (imgHeight && imgHeight !== "auto") {
+        calcContainerHeight = imgHeight.includes("%") || imgHeight.includes("px") || imgHeight.includes("vh") ? imgHeight : imgHeight + "px";
+      } else {
+        calcContainerHeight = Math.round(firstViewport.height) + "px";
+      }
+      container.style.height = calcContainerHeight;
       container.style.overflow = "hidden";
       const scrollArea = document.createElement("div");
       scrollArea.className = "cloudattach-pdf-scroll-area";
       scrollArea.style.width = "100%";
-      scrollArea.height = "100%";
+      scrollArea.style.height = "100%";
       scrollArea.style.overflowY = "auto";
       scrollArea.style.overflowX = "hidden";
       container.appendChild(scrollArea);
