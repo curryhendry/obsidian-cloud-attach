@@ -3592,8 +3592,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
       
       // 工具栏：作为浮窗直接追加到 container（position:absolute 浮在 scrollArea 上方）
-      const toolbarEl = this._createPdfToolbar(container, pdf);
-      container.appendChild(toolbarEl);
+      this._initPdfToolbar(container, pdf);
       
       // 监听滚动更新页码（监听 scrollArea）
       this._bindPdfScroll(container, pdf);
