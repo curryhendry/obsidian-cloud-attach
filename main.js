@@ -3283,7 +3283,20 @@ module.exports = class CloudAttachPlugin extends Plugin {
         canvas.style.objectFit = "contain";
       }
       container.appendChild(canvas);
+      let maxPageHeight = 0;
+      const pageViewports = [];
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const p = await pdf.getPage(i);
+        const vp = p.getViewport({ scale: 1.5 });
+        pageViewports.push(vp);
+        if (vp.height > maxPageHeight)
+          maxPageHeight = vp.height;
+      }
+      container.dataset.maxPageHeight = maxPageHeight.toString();
+      container.style.height = maxPageHeight + "px";
+      container.style.overflow = "hidden";
       await this._renderPdfPage(container, pdf, 1);
+      this._bindPdfSwipe(container, pdf);
       this._initPdfToolbar(container, pdf);
       imgEl.replaceWith(container);
     } catch (e) {
@@ -3307,6 +3320,47 @@ module.exports = class CloudAttachPlugin extends Plugin {
     await page.render({ canvasContext: ctx, viewport }).promise;
     container.dataset.currentPage = pageNum.toString();
     this._updatePdfToolbar(container, pdf);
+  }
+  // 绑定滚轮/触摸滑动翻页（类似手机相册滑动翻页）
+  _bindPdfSwipe(container, pdf) {
+    let wheelAccum = 0;
+    const threshold = 50;
+    let swiping = false;
+    const doTurn = (delta) => {
+      if (swiping)
+        return;
+      const current = parseInt(container.dataset.currentPage);
+      const total = parseInt(container.dataset.totalPages);
+      if (delta > 0 && current < total) {
+        swiping = true;
+        this._renderPdfPage(container, pdf, current + 1).finally(() => {
+          swiping = false;
+        });
+      } else if (delta < 0 && current > 1) {
+        swiping = true;
+        this._renderPdfPage(container, pdf, current - 1).finally(() => {
+          swiping = false;
+        });
+      }
+    };
+    container.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      wheelAccum += e.deltaY;
+      if (Math.abs(wheelAccum) >= threshold) {
+        doTurn(wheelAccum > 0 ? 1 : -1);
+        wheelAccum = 0;
+      }
+    }, { passive: false });
+    let touchStartY = 0;
+    container.addEventListener("touchstart", (e) => {
+      touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+    container.addEventListener("touchend", (e) => {
+      const delta = touchStartY - e.changedTouches[0].clientY;
+      if (Math.abs(delta) >= threshold) {
+        doTurn(delta > 0 ? 1 : -1);
+      }
+    }, { passive: true });
   }
   // 初始化 PDF 翻页工具栏（只创建一次）
   _initPdfToolbar(container, pdf) {
