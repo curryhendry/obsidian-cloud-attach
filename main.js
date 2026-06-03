@@ -3330,19 +3330,17 @@ module.exports = class CloudAttachPlugin extends Plugin {
       let targetWidth;
       if (imgWidth) {
         targetWidth = parseInt(imgWidth) || firstVpRaw.width * 1.5;
-      } else if (imgEl.width) {
-        targetWidth = imgEl.width;
       } else {
-        targetWidth = Math.min(firstVpRaw.width * 1.5, 800);
+        targetWidth = Math.min(firstVpRaw.width * 1.5, 1200);
       }
       const actualScale = targetWidth / firstVpRaw.width;
       const firstVp = firstPage.getViewport({ scale: actualScale });
       const finalContainerHeight = userHeightStr || Math.round(firstVp.height) + "px";
+      const finalContainerWidth = Math.round(firstVp.width) + "px";
       container.style.height = finalContainerHeight;
+      container.style.width = finalContainerWidth;
       container.style.overflow = "hidden";
-      if (imgWidth) {
-        host.style.width = container.style.width;
-      }
+      host.style.width = finalContainerWidth;
       host.style.height = finalContainerHeight;
       host.style.overflow = "hidden";
       host.style.maxWidth = imgStyleMaxWidth || "";
