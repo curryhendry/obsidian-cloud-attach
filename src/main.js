@@ -3379,8 +3379,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
       .cloud-attach-add-btn:hover { background: var(--background-modifier-hover); }
     
     /* PDF 预览容器 - 双层结构，仿 Obsidian 原生 .pdf-embed */
-    .cloudattach-pdf-container { display: inline-block !important; position: relative !important; max-width: 100% !important; overflow: hidden !important; border: 1px solid var(--background-modifier-border) !important; border-radius: 8px !important; background: var(--background-secondary) !important; vertical-align: top !important; }
-    .cloudattach-pdf-scroll { overflow-y: auto !important; overflow-x: hidden !important; }
+    .cloudattach-pdf-container { display: flex !important; flex-direction: column !important; max-width: 100% !important; border: 1px solid var(--background-modifier-border) !important; border-radius: 8px !important; background: var(--background-secondary) !important; vertical-align: top !important; }
+    .cloudattach-pdf-scroll { flex: 1 !important; overflow-y: auto !important; overflow-x: hidden !important; min-height: 0 !important; }
     .cloudattach-pdf-page { display: block !important; width: 100% !important; height: auto !important; }
     `;
     const styleEl = document.createElement('style');
@@ -3507,8 +3507,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const finalContainerHeight = (parseInt(finalScrollHeight) + TOOLBAR_HEIGHT) + 'px';
 
       // 关键：inline style 强制设高宽和 overflow（setProperty + priority 'important' 才是正确写法）
-      container.style.setProperty('display', 'block', 'important');
-      container.style.setProperty('position', 'relative', 'important');
+      container.style.setProperty('display', 'flex', 'important');
+      container.style.setProperty('flex-direction', 'column', 'important');
       container.style.setProperty('height', finalContainerHeight, 'important');
       container.style.setProperty('width', finalContainerWidth, 'important');
       container.style.setProperty('max-width', '100%', 'important');
@@ -3518,13 +3518,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const scrollArea = document.createElement('div');
       scrollArea.className = 'cloudattach-pdf-scroll';
       // 关键：scrollArea 设 absolute + 从 toolbar 下方到容器底，overflow-y: auto
-      scrollArea.style.setProperty('position', 'absolute', 'important');
-      scrollArea.style.setProperty('top', TOOLBAR_HEIGHT + 'px', 'important');
-      scrollArea.style.setProperty('left', '0', 'important');
-      scrollArea.style.setProperty('right', '0', 'important');
-      scrollArea.style.setProperty('bottom', '0', 'important');
+      scrollArea.style.setProperty('flex', '1', 'important');
       scrollArea.style.setProperty('overflow-y', 'auto', 'important');
       scrollArea.style.setProperty('overflow-x', 'hidden', 'important');
+      scrollArea.style.setProperty('min-height', '0', 'important');
       container.appendChild(scrollArea);
 
       // 渲染所有页面
@@ -3615,10 +3612,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     toolbar.style.gap = '6px';
     toolbar.style.alignItems = 'center';
     toolbar.style.fontSize = '12px';
-    toolbar.style.position = 'absolute';
-    toolbar.style.top = '0';
-    toolbar.style.left = '0';
-    toolbar.style.right = '0';
+    toolbar.style.height = '28px';
     toolbar.style.zIndex = '10';
     toolbar.style.userSelect = 'none';
     toolbar.style.justifyContent = 'center';
