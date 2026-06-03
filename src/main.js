@@ -3379,7 +3379,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       .cloud-attach-add-btn:hover { background: var(--background-modifier-hover); }
     
     /* PDF 预览容器 - 参考 Obsidian 原生 .pdf-embed 方案 */
-    .cloudattach-pdf-container { display: flex !important; flex-direction: column !important; position: relative !important; max-width: 100% !important; height: var(--pdf-viewer-height, 800px) !important; max-height: 80vh !important; overflow: hidden !important; border: 1px solid var(--background-modifier-border) !important; border-radius: 8px !important; background: var(--background-secondary) !important; }
+    .cloudattach-pdf-container { display: flex !important; flex-direction: column !important; position: relative !important; max-width: 100% !important; max-height: 80vh !important; overflow: hidden !important; border: 1px solid var(--background-modifier-border) !important; border-radius: 8px !important; background: var(--background-secondary) !important; }
     .cloudattach-pdf-scroll { flex: 1 1 0% !important; min-height: 0 !important; overflow: auto !important; }
     .cloudattach-pdf-page { display: block !important; width: 100% !important; height: auto !important; }
     `;
@@ -3489,8 +3489,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
       
       // 容器高度 = 用户指定 ? 用用户值 : 第一页实际像素高度
       const finalContainerHeight = userHeightStr || (Math.round(firstVp.height) + 'px');
-      container.style.setProperty('--pdf-viewer-height', finalContainerHeight);
-      // max-height: 80vh 由 CSS 规则保障，不重复设 inline style
+      // 直接用 inline style 设 height（不用 CSS 变量，避免优先级问题）
+      container.style.height = finalContainerHeight;
       
       // 创建滚动容器（参考 Obsidian .pdf-viewer-container：absolute + overflow:auto）
       const scrollArea = document.createElement('div');
