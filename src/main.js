@@ -3466,9 +3466,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
       // 创建外层容器（与 v0.3.042 一致：span + inline-block，避免 Obsidian 撑开 div）
       const container = document.createElement('span');
       container.className = 'cloudattach-pdf-container';
-      container.style.display = 'inline-block';
-      container.style.position = 'relative';
-      container.style.verticalAlign = 'top';
+      // 强制 inline-block（避免 Obsidian CSS 覆盖）
+      container.style.cssText = 'display: inline-block !important; position: relative; vertical-align: top; overflow: hidden;'
       container.dataset.currentPage = '1';
       container.dataset.totalPages = pdf.numPages.toString();
       container.dataset.pdfUrl = url;
