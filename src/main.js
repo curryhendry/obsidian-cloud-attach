@@ -3481,7 +3481,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
           vertical-align: top;
         }
         .cloudattach-pdf-container {
-          display: inline-block !important;
+          display: block !important;
           position: relative !important;
           vertical-align: top !important;
           overflow: hidden !important;
@@ -3489,10 +3489,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
         .cloudattach-pdf-scroll {
           overflow-y: auto;
           overflow-x: hidden;
+          width: 100%;
         }
         .cloudattach-pdf-page {
           display: block;
           max-width: 100%;
+          width: 100%;
         }
         .cloudattach-pdf-toolbar {
           background: rgba(0, 0, 0, 0.6);
@@ -3507,7 +3509,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
           user-select: none;
           justify-content: center;
           flex-shrink: 0;
-          position: relative;
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
         }
         .cloudattach-pdf-toolbar span {
           cursor: pointer;
@@ -3560,10 +3565,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
       container.style.overflow = 'hidden';
       
       // 同步尺寸到 host（host 是实际参与 Obsidian 布局的元素）
-      host.style.width = finalContainerWidth;
+      // min-width + max-width 双保险，防止 Obsidian 的 display:block 覆盖 width
+      host.style.minWidth = finalContainerWidth;
+      host.style.maxWidth = finalContainerWidth;
       host.style.height = finalContainerHeight;
       host.style.overflow = 'hidden';
-      host.style.maxWidth = imgStyleMaxWidth || '';
+      host.style.maxWidth = imgStyleMaxWidth || finalContainerWidth;
       
       shadow.appendChild(container);
       
@@ -3584,8 +3591,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
         await this._renderPdfPage(canvas, pdf, i, actualScale);
       }
       
-      // 初始化工具栏（放在容器内、scrollArea 前，flex 布局下自然在顶部）
-      this._initPdfToolbar(container, pdf);
+      // 工具栏：作为浮窗直接追加到 container（position:absolute 浮在 scrollArea 上方）
+      const toolbarEl = this._createPdfToolbar(container, pdf);
+      container.appendChild(toolbarEl);
       
       // 监听滚动更新页码（监听 scrollArea）
       this._bindPdfScroll(container, pdf);
@@ -3645,7 +3653,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     toolbar.style.userSelect = 'none';
     toolbar.style.justifyContent = 'center';
     toolbar.style.flexShrink = '0';
-    toolbar.style.position = 'relative';
     
     // 上一页
     const prevBtn = document.createElement('span');
