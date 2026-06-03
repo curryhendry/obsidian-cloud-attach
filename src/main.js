@@ -3492,6 +3492,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         }
         .cloudattach-pdf-page {
           display: block;
+          max-width: 100%;
         }
         .cloudattach-pdf-toolbar {
           background: rgba(0, 0, 0, 0.6);
@@ -3570,6 +3571,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const scrollArea = document.createElement('div');
       scrollArea.className = 'cloudattach-pdf-scroll';
       scrollArea.style.height = finalContainerHeight;
+      scrollArea.style.width = finalContainerWidth;
+      scrollArea.style.overflow = 'hidden';
       container.appendChild(scrollArea);
       
       // 连续滚动模式：所有页面 canvas 纵向堆叠在 scrollArea 内
