@@ -3177,23 +3177,99 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const pdfjsLib = await this._loadPdfJs();
       const loadingTask = pdfjsLib.getDocument(url);
       const pdf = await loadingTask.promise;
-      const numPages = Math.min(pdf.numPages, 3);
       const container = document.createElement("span");
-      container.style.display = "block";
-      for (let i = 1; i <= numPages; i++) {
-        const page = await pdf.getPage(i);
-        const viewport = page.getViewport({ scale: 1.5 });
-        const canvas = document.createElement("canvas");
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        canvas.style.marginBottom = "8px";
-        await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
-        container.appendChild(canvas);
-      }
+      container.className = "cloudattach-pdf-container";
+      container.style.position = "relative";
+      container.style.display = "inline-block";
+      container.style.maxWidth = "100%";
+      container.dataset.currentPage = "1";
+      container.dataset.totalPages = pdf.numPages.toString();
+      container.dataset.pdfUrl = url;
+      await this._renderPdfPage(container, pdf, 1);
       imgEl.replaceWith(container);
     } catch (e) {
       console.error("[CloudAttach] PDF render failed:", e);
     }
+  }
+  // 渲染指定页码的 PDF 页面
+  async _renderPdfPage(container, pdf, pageNum) {
+    const existingToolbar = container.querySelector(".cloudattach-pdf-toolbar");
+    container.innerHTML = "";
+    if (existingToolbar)
+      container.appendChild(existingToolbar);
+    const page = await pdf.getPage(pageNum);
+    const viewport = page.getViewport({ scale: 1.5 });
+    const canvas = document.createElement("canvas");
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    canvas.style.width = "100%";
+    canvas.style.height = "auto";
+    await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+    container.appendChild(canvas);
+    container.dataset.currentPage = pageNum.toString();
+    this._addPdfToolbar(container, pdf);
+  }
+  // 添加 PDF 翻页工具栏
+  _addPdfToolbar(container, pdf) {
+    const oldToolbar = container.querySelector(".cloudattach-pdf-toolbar");
+    if (oldToolbar)
+      oldToolbar.remove();
+    const currentPage = parseInt(container.dataset.currentPage);
+    const totalPages = parseInt(container.dataset.totalPages);
+    const toolbar = document.createElement("div");
+    toolbar.className = "cloudattach-pdf-toolbar";
+    toolbar.style.position = "absolute";
+    toolbar.style.bottom = "8px";
+    toolbar.style.right = "8px";
+    toolbar.style.background = "rgba(0, 0, 0, 0.6)";
+    toolbar.style.color = "white";
+    toolbar.style.padding = "4px 8px";
+    toolbar.style.borderRadius = "4px";
+    toolbar.style.display = "none";
+    toolbar.style.gap = "4px";
+    toolbar.style.alignItems = "center";
+    toolbar.style.fontSize = "12px";
+    toolbar.style.zIndex = "10";
+    container.addEventListener("mouseenter", () => {
+      toolbar.style.display = "flex";
+    });
+    container.addEventListener("mouseleave", () => {
+      toolbar.style.display = "none";
+    });
+    if (currentPage > 1) {
+      const prevBtn = document.createElement("span");
+      prevBtn.textContent = "\u2B05\uFE0F";
+      prevBtn.style.cursor = "pointer";
+      prevBtn.onclick = async () => {
+        const newPage = currentPage - 1;
+        await this._renderPdfPage(container, pdf, newPage);
+      };
+      toolbar.appendChild(prevBtn);
+    }
+    const pageIndicator = document.createElement("span");
+    pageIndicator.textContent = `${currentPage} / ${totalPages}`;
+    pageIndicator.style.cursor = "pointer";
+    pageIndicator.onclick = () => {
+      const input = prompt("\u8DF3\u8F6C\u5230\u9875\u7801\uFF1A", currentPage.toString());
+      if (input) {
+        const targetPage = parseInt(input);
+        if (targetPage >= 1 && targetPage <= totalPages) {
+          this._renderPdfPage(container, pdf, targetPage);
+        }
+      }
+    };
+    toolbar.appendChild(pageIndicator);
+    if (currentPage < totalPages) {
+      const nextBtn = document.createElement("span");
+      nextBtn.textContent = "\u27A1\uFE0F";
+      nextBtn.style.cursor = "pointer";
+      nextBtn.onclick = async () => {
+        const newPage = currentPage + 1;
+        await this._renderPdfPage(container, pdf, newPage);
+      };
+      toolbar.appendChild(nextBtn);
+    }
+    container.appendChild(toolbar);
   }
   _observePdfEmbeds() {
     if (this._pdfObserver)
