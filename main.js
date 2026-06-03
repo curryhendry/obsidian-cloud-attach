@@ -3185,45 +3185,36 @@ module.exports = class CloudAttachPlugin extends Plugin {
       container.dataset.currentPage = "1";
       container.dataset.totalPages = pdf.numPages.toString();
       container.dataset.pdfUrl = url;
+      const canvas = document.createElement("canvas");
+      canvas.style.width = "100%";
+      canvas.style.height = "auto";
+      container.appendChild(canvas);
       await this._renderPdfPage(container, pdf, 1);
+      this._initPdfToolbar(container, pdf);
       imgEl.replaceWith(container);
     } catch (e) {
       console.error("[CloudAttach] PDF render failed:", e);
     }
   }
-  // 渲染指定页码的 PDF 页面
+  // 渲染指定页码的 PDF 页面（无感翻页：复用 canvas，只更新内容）
   async _renderPdfPage(container, pdf, pageNum) {
-    const scrollContainer = container.closest(".markdown-preview-view, .markdown-source-view") || window;
-    const scrollTop = scrollContainer.scrollTop || window.scrollY;
-    const existingToolbar = container.querySelector(".cloudattach-pdf-toolbar");
-    container.innerHTML = "";
-    if (existingToolbar)
-      container.appendChild(existingToolbar);
+    let canvas = container.querySelector("canvas");
+    if (!canvas) {
+      canvas = document.createElement("canvas");
+      canvas.style.width = "100%";
+      canvas.style.height = "auto";
+      container.insertBefore(canvas, container.querySelector(".cloudattach-pdf-toolbar"));
+    }
     const page = await pdf.getPage(pageNum);
     const viewport = page.getViewport({ scale: 1.5 });
-    const canvas = document.createElement("canvas");
     canvas.width = viewport.width;
     canvas.height = viewport.height;
-    canvas.style.width = "100%";
-    canvas.style.height = "auto";
     await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
-    container.appendChild(canvas);
     container.dataset.currentPage = pageNum.toString();
-    this._addPdfToolbar(container, pdf);
-    requestAnimationFrame(() => {
-      if (scrollContainer.scrollTo) {
-        scrollContainer.scrollTo({ top: scrollTop, behavior: "instant" });
-      } else {
-        window.scrollTo({ top: scrollTop, behavior: "instant" });
-      }
-    });
+    this._updatePdfToolbar(container, pdf);
   }
-  // 添加 PDF 翻页工具栏
-  _addPdfToolbar(container, pdf) {
-    const oldToolbar = container.querySelector(".cloudattach-pdf-toolbar");
-    if (oldToolbar)
-      oldToolbar.remove();
-    const currentPage = parseInt(container.dataset.currentPage);
+  // 初始化 PDF 翻页工具栏（只创建一次）
+  _initPdfToolbar(container, pdf) {
     const totalPages = parseInt(container.dataset.totalPages);
     const toolbar = document.createElement("div");
     toolbar.className = "cloudattach-pdf-toolbar";
@@ -3235,83 +3226,104 @@ module.exports = class CloudAttachPlugin extends Plugin {
     toolbar.style.padding = "4px 8px";
     toolbar.style.borderRadius = "4px";
     toolbar.style.display = "none";
-    toolbar.style.gap = "4px";
+    toolbar.style.gap = "6px";
     toolbar.style.alignItems = "center";
     toolbar.style.fontSize = "12px";
     toolbar.style.zIndex = "10";
+    toolbar.style.userSelect = "none";
+    const prevBtn = document.createElement("span");
+    prevBtn.textContent = "\u25C0";
+    prevBtn.style.cursor = "pointer";
+    prevBtn.dataset.role = "prev";
+    toolbar.appendChild(prevBtn);
+    const pageIndicator = document.createElement("span");
+    pageIndicator.dataset.role = "pageIndicator";
+    pageIndicator.style.cursor = "pointer";
+    pageIndicator.title = "\u70B9\u51FB\u8DF3\u8F6C\u5230\u6307\u5B9A\u9875\u7801";
+    toolbar.appendChild(pageIndicator);
+    const nextBtn = document.createElement("span");
+    nextBtn.textContent = "\u25B6";
+    nextBtn.style.cursor = "pointer";
+    nextBtn.dataset.role = "next";
+    toolbar.appendChild(nextBtn);
     container.addEventListener("mouseenter", () => {
       toolbar.style.display = "flex";
     });
     container.addEventListener("mouseleave", () => {
       toolbar.style.display = "none";
     });
-    if (currentPage > 1) {
-      const prevBtn = document.createElement("span");
-      prevBtn.textContent = "\u2B05\uFE0F";
-      prevBtn.style.cursor = "pointer";
-      prevBtn.onclick = async () => {
-        const newPage = currentPage - 1;
-        await this._renderPdfPage(container, pdf, newPage);
-      };
-      toolbar.appendChild(prevBtn);
-    }
-    const pageIndicator = document.createElement("span");
-    pageIndicator.textContent = `${currentPage} / ${totalPages}`;
-    pageIndicator.style.cursor = "pointer";
-    pageIndicator.title = "\u70B9\u51FB\u8DF3\u8F6C\u5230\u6307\u5B9A\u9875\u7801";
+    prevBtn.onclick = (e) => {
+      e.stopPropagation();
+      const current = parseInt(container.dataset.currentPage);
+      if (current > 1)
+        this._renderPdfPage(container, pdf, current - 1);
+    };
+    nextBtn.onclick = (e) => {
+      e.stopPropagation();
+      const current = parseInt(container.dataset.currentPage);
+      if (current < totalPages)
+        this._renderPdfPage(container, pdf, current + 1);
+    };
     pageIndicator.onclick = (e) => {
       e.stopPropagation();
       e.preventDefault();
+      const current = parseInt(container.dataset.currentPage);
       const { Modal: Modal2, Setting } = require("obsidian");
       class PageJumpModal extends Modal2 {
-        constructor(app, currentPage2, totalPages2, onSubmit) {
+        constructor(app, cur, total, onSubmit) {
           super(app);
-          this.currentPage = currentPage2;
-          this.totalPages = totalPages2;
+          this.cur = cur;
+          this.total = total;
           this.onSubmit = onSubmit;
         }
         onOpen() {
           const { contentEl } = this;
-          contentEl.createEl("h2", { text: "\u8DF3\u8F6C\u5230\u9875\u7801" });
-          let inputValue = this.currentPage.toString();
-          new Setting(contentEl).setName(`\u9875\u7801 (1-${this.totalPages})`).addText((text) => {
-            text.setValue(inputValue);
+          contentEl.createEl("h4", { text: "\u8DF3\u8F6C\u5230\u9875\u7801" });
+          let val = this.cur.toString();
+          new Setting(contentEl).setName(`\u9875\u7801 (1-${this.total})`).addText((text) => {
+            text.setValue(val);
             text.inputEl.type = "number";
             text.inputEl.min = "1";
-            text.inputEl.max = this.totalPages.toString();
-            text.onChange((value) => {
-              inputValue = value;
+            text.inputEl.max = this.total.toString();
+            text.onChange((v) => {
+              val = v;
             });
           });
           new Setting(contentEl).addButton((btn) => btn.setButtonText("\u8DF3\u8F6C").setCta().onClick(() => {
-            const targetPage = parseInt(inputValue);
-            if (!isNaN(targetPage) && targetPage >= 1 && targetPage <= this.totalPages) {
-              this.onSubmit(targetPage);
+            const p = parseInt(val);
+            if (!isNaN(p) && p >= 1 && p <= this.total) {
+              this.onSubmit(p);
               this.close();
             }
           }));
         }
         onClose() {
-          const { contentEl } = this;
-          contentEl.empty();
+          this.contentEl.empty();
         }
       }
-      new PageJumpModal(this.app, currentPage, totalPages, (targetPage) => {
-        this._renderPdfPage(container, pdf, targetPage);
+      new PageJumpModal(this.app, current, totalPages, (p) => {
+        this._renderPdfPage(container, pdf, p);
       }).open();
     };
-    toolbar.appendChild(pageIndicator);
-    if (currentPage < totalPages) {
-      const nextBtn = document.createElement("span");
-      nextBtn.textContent = "\u27A1\uFE0F";
-      nextBtn.style.cursor = "pointer";
-      nextBtn.onclick = async () => {
-        const newPage = currentPage + 1;
-        await this._renderPdfPage(container, pdf, newPage);
-      };
-      toolbar.appendChild(nextBtn);
-    }
     container.appendChild(toolbar);
+    this._updatePdfToolbar(container, pdf);
+  }
+  // 更新工具栏状态（不重建 DOM，只改文字和可见性）
+  _updatePdfToolbar(container, pdf) {
+    const toolbar = container.querySelector(".cloudattach-pdf-toolbar");
+    if (!toolbar)
+      return;
+    const currentPage = parseInt(container.dataset.currentPage);
+    const totalPages = parseInt(container.dataset.totalPages);
+    const pageIndicator = toolbar.querySelector('[data-role="pageIndicator"]');
+    if (pageIndicator)
+      pageIndicator.textContent = `${currentPage} / ${totalPages}`;
+    const prevBtn = toolbar.querySelector('[data-role="prev"]');
+    const nextBtn = toolbar.querySelector('[data-role="next"]');
+    if (prevBtn)
+      prevBtn.style.visibility = currentPage > 1 ? "visible" : "hidden";
+    if (nextBtn)
+      nextBtn.style.visibility = currentPage < totalPages ? "visible" : "hidden";
   }
   _observePdfEmbeds() {
     if (this._pdfObserver)

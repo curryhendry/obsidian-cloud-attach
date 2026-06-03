@@ -3373,8 +3373,17 @@ module.exports = class CloudAttachPlugin extends Plugin {
       container.dataset.totalPages = pdf.numPages.toString();
       container.dataset.pdfUrl = url;
       
+      // 创建 canvas（首次）
+      const canvas = document.createElement('canvas');
+      canvas.style.width = '100%';
+      canvas.style.height = 'auto';
+      container.appendChild(canvas);
+      
       // 渲染第1页
       await this._renderPdfPage(container, pdf, 1);
+      
+      // 初始化工具栏（只需一次）
+      this._initPdfToolbar(container, pdf);
       
       imgEl.replaceWith(container);
     } catch (e) {
@@ -3382,51 +3391,33 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
   }
 
-  // 渲染指定页码的 PDF 页面
+  // 渲染指定页码的 PDF 页面（无感翻页：复用 canvas，只更新内容）
   async _renderPdfPage(container, pdf, pageNum) {
-    // 保存当前滚动位置
-    const scrollContainer = container.closest('.markdown-preview-view, .markdown-source-view') || window;
-    const scrollTop = scrollContainer.scrollTop || window.scrollY;
+    // 复用或创建 canvas
+    let canvas = container.querySelector('canvas');
+    if (!canvas) {
+      canvas = document.createElement('canvas');
+      canvas.style.width = '100%';
+      canvas.style.height = 'auto';
+      container.insertBefore(canvas, container.querySelector('.cloudattach-pdf-toolbar'));
+    }
     
-    // 清空容器（保留工具栏）
-    const existingToolbar = container.querySelector('.cloudattach-pdf-toolbar');
-    container.innerHTML = '';
-    if (existingToolbar) container.appendChild(existingToolbar);
-    
-    // 渲染指定页
+    // 渲染指定页到同一个 canvas
     const page = await pdf.getPage(pageNum);
     const viewport = page.getViewport({ scale: 1.5 });
-    const canvas = document.createElement('canvas');
     canvas.width = viewport.width;
     canvas.height = viewport.height;
-    canvas.style.width = '100%';
-    canvas.style.height = 'auto';
     await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-    container.appendChild(canvas);
     
     // 更新当前页码
     container.dataset.currentPage = pageNum.toString();
     
-    // 添加/更新工具栏
-    this._addPdfToolbar(container, pdf);
-    
-    // 恢复滚动位置（延迟执行确保 DOM 更新完成）
-    requestAnimationFrame(() => {
-      if (scrollContainer.scrollTo) {
-        scrollContainer.scrollTo({ top: scrollTop, behavior: 'instant' });
-      } else {
-        window.scrollTo({ top: scrollTop, behavior: 'instant' });
-      }
-    });
+    // 更新工具栏文字（不重建 DOM）
+    this._updatePdfToolbar(container, pdf);
   }
 
-  // 添加 PDF 翻页工具栏
-  _addPdfToolbar(container, pdf) {
-    // 移除旧工具栏
-    const oldToolbar = container.querySelector('.cloudattach-pdf-toolbar');
-    if (oldToolbar) oldToolbar.remove();
-    
-    const currentPage = parseInt(container.dataset.currentPage);
+  // 初始化 PDF 翻页工具栏（只创建一次）
+  _initPdfToolbar(container, pdf) {
     const totalPages = parseInt(container.dataset.totalPages);
     
     // 创建工具栏
@@ -3440,93 +3431,113 @@ module.exports = class CloudAttachPlugin extends Plugin {
     toolbar.style.padding = '4px 8px';
     toolbar.style.borderRadius = '4px';
     toolbar.style.display = 'none';
-    toolbar.style.gap = '4px';
+    toolbar.style.gap = '6px';
     toolbar.style.alignItems = 'center';
     toolbar.style.fontSize = '12px';
     toolbar.style.zIndex = '10';
+    toolbar.style.userSelect = 'none';
     
-    // hover 时显示
+    // 上一页
+    const prevBtn = document.createElement('span');
+    prevBtn.textContent = '◀';
+    prevBtn.style.cursor = 'pointer';
+    prevBtn.dataset.role = 'prev';
+    toolbar.appendChild(prevBtn);
+    
+    // 页码
+    const pageIndicator = document.createElement('span');
+    pageIndicator.dataset.role = 'pageIndicator';
+    pageIndicator.style.cursor = 'pointer';
+    pageIndicator.title = '点击跳转到指定页码';
+    toolbar.appendChild(pageIndicator);
+    
+    // 下一页
+    const nextBtn = document.createElement('span');
+    nextBtn.textContent = '▶';
+    nextBtn.style.cursor = 'pointer';
+    nextBtn.dataset.role = 'next';
+    toolbar.appendChild(nextBtn);
+    
+    // hover 显示/隐藏
     container.addEventListener('mouseenter', () => { toolbar.style.display = 'flex'; });
     container.addEventListener('mouseleave', () => { toolbar.style.display = 'none'; });
     
-    // 上一页按钮
-    if (currentPage > 1) {
-      const prevBtn = document.createElement('span');
-      prevBtn.textContent = '⬅️';
-      prevBtn.style.cursor = 'pointer';
-      prevBtn.onclick = async () => {
-        const newPage = currentPage - 1;
-        await this._renderPdfPage(container, pdf, newPage);
-      };
-      toolbar.appendChild(prevBtn);
-    }
-    
-    // 页码显示（可点击跳转）
-    const pageIndicator = document.createElement('span');
-    pageIndicator.textContent = `${currentPage} / ${totalPages}`;
-    pageIndicator.style.cursor = 'pointer';
-    pageIndicator.title = '点击跳转到指定页码';
+    // 事件绑定
+    prevBtn.onclick = (e) => {
+      e.stopPropagation();
+      const current = parseInt(container.dataset.currentPage);
+      if (current > 1) this._renderPdfPage(container, pdf, current - 1);
+    };
+    nextBtn.onclick = (e) => {
+      e.stopPropagation();
+      const current = parseInt(container.dataset.currentPage);
+      if (current < totalPages) this._renderPdfPage(container, pdf, current + 1);
+    };
     pageIndicator.onclick = (e) => {
       e.stopPropagation();
       e.preventDefault();
-      // 使用自定义 Modal 替代 prompt()
+      const current = parseInt(container.dataset.currentPage);
       const { Modal, Setting } = require('obsidian');
       class PageJumpModal extends Modal {
-        constructor(app, currentPage, totalPages, onSubmit) {
+        constructor(app, cur, total, onSubmit) {
           super(app);
-          this.currentPage = currentPage;
-          this.totalPages = totalPages;
+          this.cur = cur;
+          this.total = total;
           this.onSubmit = onSubmit;
         }
         onOpen() {
           const { contentEl } = this;
-          contentEl.createEl('h2', { text: '跳转到页码' });
-          let inputValue = this.currentPage.toString();
+          contentEl.createEl('h4', { text: '跳转到页码' });
+          let val = this.cur.toString();
           new Setting(contentEl)
-            .setName(`页码 (1-${this.totalPages})`)
+            .setName(`页码 (1-${this.total})`)
             .addText(text => {
-              text.setValue(inputValue);
+              text.setValue(val);
               text.inputEl.type = 'number';
               text.inputEl.min = '1';
-              text.inputEl.max = this.totalPages.toString();
-              text.onChange(value => { inputValue = value; });
+              text.inputEl.max = this.total.toString();
+              text.onChange(v => { val = v; });
             });
           new Setting(contentEl)
             .addButton(btn => btn
               .setButtonText('跳转')
               .setCta()
               .onClick(() => {
-                const targetPage = parseInt(inputValue);
-                if (!isNaN(targetPage) && targetPage >= 1 && targetPage <= this.totalPages) {
-                  this.onSubmit(targetPage);
+                const p = parseInt(val);
+                if (!isNaN(p) && p >= 1 && p <= this.total) {
+                  this.onSubmit(p);
                   this.close();
                 }
               }));
         }
-        onClose() {
-          const { contentEl } = this;
-          contentEl.empty();
-        }
+        onClose() { this.contentEl.empty(); }
       }
-      new PageJumpModal(this.app, currentPage, totalPages, (targetPage) => {
-        this._renderPdfPage(container, pdf, targetPage);
+      new PageJumpModal(this.app, current, totalPages, (p) => {
+        this._renderPdfPage(container, pdf, p);
       }).open();
     };
-    toolbar.appendChild(pageIndicator);
-    
-    // 下一页按钮
-    if (currentPage < totalPages) {
-      const nextBtn = document.createElement('span');
-      nextBtn.textContent = '➡️';
-      nextBtn.style.cursor = 'pointer';
-      nextBtn.onclick = async () => {
-        const newPage = currentPage + 1;
-        await this._renderPdfPage(container, pdf, newPage);
-      };
-      toolbar.appendChild(nextBtn);
-    }
     
     container.appendChild(toolbar);
+    // 首次更新状态
+    this._updatePdfToolbar(container, pdf);
+  }
+
+  // 更新工具栏状态（不重建 DOM，只改文字和可见性）
+  _updatePdfToolbar(container, pdf) {
+    const toolbar = container.querySelector('.cloudattach-pdf-toolbar');
+    if (!toolbar) return;
+    const currentPage = parseInt(container.dataset.currentPage);
+    const totalPages = parseInt(container.dataset.totalPages);
+    
+    // 更新页码文字
+    const pageIndicator = toolbar.querySelector('[data-role="pageIndicator"]');
+    if (pageIndicator) pageIndicator.textContent = `${currentPage} / ${totalPages}`;
+    
+    // 更新按钮可见性
+    const prevBtn = toolbar.querySelector('[data-role="prev"]');
+    const nextBtn = toolbar.querySelector('[data-role="next"]');
+    if (prevBtn) prevBtn.style.visibility = currentPage > 1 ? 'visible' : 'hidden';
+    if (nextBtn) nextBtn.style.visibility = currentPage < totalPages ? 'visible' : 'hidden';
   }
 
   _observePdfEmbeds() {
