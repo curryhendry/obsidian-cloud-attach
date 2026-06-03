@@ -1,3 +1,10 @@
+## [0.3.060.dev] - 2026-06-03
+
+### 修复
+- **双层容器结构**：外层 container `overflow:hidden` 做裁剪，内层 scrollArea `position:absolute; inset:0; overflow-y:auto` 负责滚动（仿 Obsidian 原生 .pdf-embed）
+- **CSS 修复**：添加 `.cloudattach-pdf-scroll` 样式规则
+- **Canvas 挂载修正**：所有 canvas 改挂到 scrollArea 上，而非直接挂 container
+
 ## [0.3.059.dev] - 2026-06-03
 
 ### 修复
