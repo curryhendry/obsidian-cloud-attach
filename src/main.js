@@ -3474,6 +3474,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
       // 添加 CSS 到 Shadow DOM（所有 PDF 相关样式都在 Shadow DOM 内，不受外部影响）
       const style = document.createElement('style');
       style.textContent = `
+        :host {
+          display: inline-block !important;
+          max-width: 100%;
+          position: relative;
+          vertical-align: top;
+        }
         .cloudattach-pdf-container {
           display: inline-block !important;
           position: relative !important;
