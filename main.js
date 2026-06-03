@@ -3188,8 +3188,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
       .cloud-attach-add-btn:hover { background: var(--background-modifier-hover); }
     
     /* PDF \u9884\u89C8\u5BB9\u5668 - \u53CC\u5C42\u7ED3\u6784\uFF0C\u4EFF Obsidian \u539F\u751F .pdf-embed */
-    .cloudattach-pdf-container { display: block !important; position: relative !important; max-width: 100% !important; overflow: hidden !important; border: 1px solid var(--background-modifier-border) !important; border-radius: 8px !important; background: var(--background-secondary) !important; }
-    .cloudattach-pdf-scroll { position: absolute !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; overflow-y: auto !important; }
+    .cloudattach-pdf-container { display: inline-block !important; position: relative !important; max-width: 100% !important; overflow: hidden !important; border: 1px solid var(--background-modifier-border) !important; border-radius: 8px !important; background: var(--background-secondary) !important; vertical-align: top !important; }
+    .cloudattach-pdf-scroll { overflow-y: auto !important; overflow-x: hidden !important; }
     .cloudattach-pdf-page { display: block !important; width: 100% !important; height: auto !important; }
     `;
     const styleEl = document.createElement("style");
@@ -3264,8 +3264,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (widthClassMatch && !imgWidth) {
         imgWidth = widthClassMatch[1] + "px";
       }
-      const container = document.createElement("div");
+      const container = document.createElement("span");
       container.className = "cloudattach-pdf-container";
+      container.style.display = "inline-block";
+      container.style.position = "relative";
+      container.style.verticalAlign = "top";
       container.dataset.currentPage = "1";
       container.dataset.totalPages = pdf.numPages.toString();
       container.dataset.pdfUrl = url;
@@ -3283,8 +3286,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const firstVp = firstPage.getViewport({ scale: 1.5 });
       const finalContainerHeight = userHeightStr || Math.round(firstVp.height) + "px";
       container.style.height = finalContainerHeight;
+      container.style.overflow = "hidden";
       const scrollArea = document.createElement("div");
       scrollArea.className = "cloudattach-pdf-scroll";
+      scrollArea.style.height = finalContainerHeight;
+      scrollArea.style.overflowY = "auto";
+      scrollArea.style.overflowX = "hidden";
       container.appendChild(scrollArea);
       for (let i = 1; i <= pdf.numPages; i++) {
         const canvas = document.createElement("canvas");
