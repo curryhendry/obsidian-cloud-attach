@@ -3266,9 +3266,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
       const container = document.createElement("span");
       container.className = "cloudattach-pdf-container";
-      container.style.display = "inline-block";
-      container.style.position = "relative";
-      container.style.verticalAlign = "top";
+      container.style.cssText = "display: inline-block !important; position: relative; vertical-align: top; overflow: hidden;";
       container.dataset.currentPage = "1";
       container.dataset.totalPages = pdf.numPages.toString();
       container.dataset.pdfUrl = url;
