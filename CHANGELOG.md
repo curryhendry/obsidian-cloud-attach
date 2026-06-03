@@ -1,3 +1,9 @@
+## [0.3.058.dev] - 2026-06-03
+
+### 变更
+- **PDF 连续滚动方案重构**: 参考 Obsidian 原生 `.pdf-embed` CSS 方案，使用 `display:flex; flex-direction:column` + 固定 `height` + `overflow:hidden` 作为外层容器，内部滚动容器使用 `flex:1; min-height:0; overflow:auto`
+- 默认高度改为 800px + max-height:80vh（与 Obsidian 原生 PDF 内嵌一致）
+
 ## [0.3.051.dev] - 2026-06-03
 
 ### 修复
