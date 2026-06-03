@@ -3246,6 +3246,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     try {
       const pdfjsLib = await this._loadPdfJs();
       const loadingTask = pdfjsLib.getDocument(url);
+      console.log("[CloudAttach] PDF doc loaded, pages:", (await loadingTask.promise).numPages);
       const pdf = await loadingTask.promise;
       let imgWidth = imgEl.getAttribute("width") || imgEl.style.width || "";
       let imgHeight = imgEl.getAttribute("height") || imgEl.style.height || "";
@@ -3333,6 +3334,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       });
       heightObserver.observe(container, { attributes: true, attributeFilter: ["style"] });
       container._heightObserver = heightObserver;
+      console.log("[CloudAttach] PDF container built, height:", finalContainerHeight, "width:", finalContainerWidth);
       imgEl.replaceWith(container);
     } catch (e) {
       console.error("[CloudAttach] PDF render failed:", e);
