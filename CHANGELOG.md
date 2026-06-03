@@ -1,3 +1,11 @@
+## [0.3.035] - 2026-06-03
+
+### 修复
+- **翻页跳转页面顶部**: `_renderPdfPage` 添加滚动位置保存/恢复（`requestAnimationFrame` 延迟恢复）
+- **页码点击无法输入**: `InputModal` 用法错误，改用自定义 `PageJumpModal`（基于 `Modal` + `Setting`）
+
+- 更新人：Garry
+
 ## [0.3.034] - 2026-06-03
 
 ### 修复

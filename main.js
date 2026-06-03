@@ -3193,6 +3193,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
   // 渲染指定页码的 PDF 页面
   async _renderPdfPage(container, pdf, pageNum) {
+    const scrollContainer = container.closest(".markdown-preview-view, .markdown-source-view") || window;
+    const scrollTop = scrollContainer.scrollTop || window.scrollY;
     const existingToolbar = container.querySelector(".cloudattach-pdf-toolbar");
     container.innerHTML = "";
     if (existingToolbar)
@@ -3208,6 +3210,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
     container.appendChild(canvas);
     container.dataset.currentPage = pageNum.toString();
     this._addPdfToolbar(container, pdf);
+    requestAnimationFrame(() => {
+      if (scrollContainer.scrollTo) {
+        scrollContainer.scrollTo({ top: scrollTop, behavior: "instant" });
+      } else {
+        window.scrollTo({ top: scrollTop, behavior: "instant" });
+      }
+    });
   }
   // 添加 PDF 翻页工具栏
   _addPdfToolbar(container, pdf) {
@@ -3253,23 +3262,43 @@ module.exports = class CloudAttachPlugin extends Plugin {
     pageIndicator.onclick = (e) => {
       e.stopPropagation();
       e.preventDefault();
-      const { InputModal } = require("obsidian");
-      const modal = new InputModal(this.app, "\u8DF3\u8F6C\u5230\u9875\u7801", currentPage.toString());
-      modal.onOpen = () => {
-        const inputEl = modal.inputEl;
-        if (inputEl) {
-          inputEl.type = "number";
-          inputEl.min = "1";
-          inputEl.max = totalPages.toString();
+      const { Modal: Modal2, Setting } = require("obsidian");
+      class PageJumpModal extends Modal2 {
+        constructor(app, currentPage2, totalPages2, onSubmit) {
+          super(app);
+          this.currentPage = currentPage2;
+          this.totalPages = totalPages2;
+          this.onSubmit = onSubmit;
         }
-      };
-      modal.onSubmit = (val) => {
-        const targetPage = parseInt(val);
-        if (!isNaN(targetPage) && targetPage >= 1 && targetPage <= totalPages) {
-          this._renderPdfPage(container, pdf, targetPage);
+        onOpen() {
+          const { contentEl } = this;
+          contentEl.createEl("h2", { text: "\u8DF3\u8F6C\u5230\u9875\u7801" });
+          let inputValue = this.currentPage.toString();
+          new Setting(contentEl).setName(`\u9875\u7801 (1-${this.totalPages})`).addText((text) => {
+            text.setValue(inputValue);
+            text.inputEl.type = "number";
+            text.inputEl.min = "1";
+            text.inputEl.max = this.totalPages.toString();
+            text.onChange((value) => {
+              inputValue = value;
+            });
+          });
+          new Setting(contentEl).addButton((btn) => btn.setButtonText("\u8DF3\u8F6C").setCta().onClick(() => {
+            const targetPage = parseInt(inputValue);
+            if (!isNaN(targetPage) && targetPage >= 1 && targetPage <= this.totalPages) {
+              this.onSubmit(targetPage);
+              this.close();
+            }
+          }));
         }
-      };
-      modal.open();
+        onClose() {
+          const { contentEl } = this;
+          contentEl.empty();
+        }
+      }
+      new PageJumpModal(this.app, currentPage, totalPages, (targetPage) => {
+        this._renderPdfPage(container, pdf, targetPage);
+      }).open();
     };
     toolbar.appendChild(pageIndicator);
     if (currentPage < totalPages) {
