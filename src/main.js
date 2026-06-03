@@ -3377,6 +3377,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
       .cloud-attach-card-btns { display: flex; gap: 8px; margin-top: 12px; }
       .cloud-attach-add-btn { width: 100%; padding: 10px; font-size: 14px; border: 1px dashed var(--background-modifier-border); border-radius: 4px; background: transparent; color: var(--text-accent); cursor: pointer; margin-top: 8px; }
       .cloud-attach-add-btn:hover { background: var(--background-modifier-hover); }
+    
+    /* PDF 预览容器 - 强制约束，覆盖 Obsidian 全局样式 */
+    .cloudattach-pdf-container { display: inline-block !important; position: relative !important; max-width: 100% !important; overflow: hidden !important; vertical-align: top; }
+    .cloudattach-pdf-scroll-area { width: 100% !important; height: 100% !important; overflow-y: auto !important; overflow-x: hidden !important; }
+    .cloudattach-pdf-page { display: block !important; width: 100% !important; height: auto !important; }
     `;
     const styleEl = document.createElement('style');
     styleEl.textContent = css;
@@ -3458,7 +3463,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         imgWidth = widthClassMatch[1] + 'px';
       }
       
-      // 创建外层容器（固定高度，用于悬浮按钮）
+      // 创建外层容器（复用 v0.3.042 宽高逻辑）
       const container = document.createElement('span');
       container.className = 'cloudattach-pdf-container';
       container.style.position = 'relative';
@@ -3468,41 +3473,49 @@ module.exports = class CloudAttachPlugin extends Plugin {
       container.dataset.totalPages = pdf.numPages.toString();
       container.dataset.pdfUrl = url;
       
-      // 应用尺寸属性到容器
+      // 应用尺寸属性到容器（与 042 一致）
       if (imgWidth) {
         container.style.width = imgWidth.includes('%') || imgWidth.includes('px') || imgWidth.includes('vw') ? imgWidth : imgWidth + 'px';
       }
       if (imgStyleMaxWidth) container.style.maxWidth = imgStyleMaxWidth;
       
-      // 设置固定高度（优先使用用户指定的高度，否则默认 600px）
-      const containerHeight = (imgHeight && imgHeight !== 'auto') 
-        ? (imgHeight.includes('%') || imgHeight.includes('px') || imgHeight.includes('vh') ? imgHeight : imgHeight + 'px')
-        : '600px';
-      container.style.height = containerHeight;
-      container.style.overflow = 'hidden'; // 外层容器不滚动
+      // 记录用户指定的高度（与 042 一致：存 dataset，不直接设容器高度）
+      let userHeightStr = '';
+      if (imgHeight && imgHeight !== 'auto') {
+        userHeightStr = imgHeight.includes('%') || imgHeight.includes('px') || imgHeight.includes('vh') ? imgHeight : imgHeight + 'px';
+        container.dataset.userHeight = userHeightStr;
+      }
       
-      // 创建内部滚动区域
+      // 预渲染第1页，获取实际尺寸来决定容器高度
+      const firstPage = await pdf.getPage(1);
+      const firstVp = firstPage.getViewport({ scale: 1.5 });
+      
+      // 容器高度 = 用户指定 ? 用用户值 : 第一页实际像素高度（与 042 行为一致）
+      const finalContainerHeight = userHeightStr || (Math.round(firstVp.height) + 'px');
+      container.style.height = finalContainerHeight;
+      container.style.overflow = 'hidden'; // 固定高度，内容超出隐藏
+      
+      // 内部滚动区域（不设高度，由内容自然撑开；容器 overflow:hidden 截断）
       const scrollArea = document.createElement('div');
       scrollArea.className = 'cloudattach-pdf-scroll-area';
-      scrollArea.style.width = '100%';
-      scrollArea.height = '100%';
-      scrollArea.style.overflowY = 'auto';
-      scrollArea.style.overflowX = 'hidden';
+      scrollArea.style.cssText = 'width:100%;height:100%;overflow-y:auto;overflow-x:hidden;';
       container.appendChild(scrollArea);
       
       // 渲染所有页面为独立 canvas，纵向堆叠（连续滚动）
       for (let i = 1; i <= pdf.numPages; i++) {
         const canvas = document.createElement('canvas');
         canvas.className = 'cloudattach-pdf-page';
-        canvas.dataset.pageNum = i.toString();
-        canvas.style.width = '100%';
-        canvas.style.height = 'auto';
-        canvas.style.display = 'block';
+        canvas.dataset.pageNum = String(i);
+        canvas.style.cssText = 'width:100%;height:auto;display:block;';
+        if (userHeightStr) {
+          canvas.style.height = userHeightStr;
+          canvas.style.objectFit = 'contain';
+        }
         scrollArea.appendChild(canvas);
         await this._renderPdfPage(canvas, pdf, i);
       }
       
-      // 初始化工具栏（只需一次）
+      // 初始化工具栏
       this._initPdfToolbar(container, pdf);
       
       // 监听滚动更新页码
