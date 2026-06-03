@@ -3458,7 +3458,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         imgWidth = widthClassMatch[1] + 'px';
       }
       
-      // 创建容器（相对定位，用于悬浮按钮）
+      // 创建外层容器（固定高度，用于悬浮按钮）
       const container = document.createElement('span');
       container.className = 'cloudattach-pdf-container';
       container.style.position = 'relative';
@@ -3473,9 +3473,22 @@ module.exports = class CloudAttachPlugin extends Plugin {
         container.style.width = imgWidth.includes('%') || imgWidth.includes('px') || imgWidth.includes('vw') ? imgWidth : imgWidth + 'px';
       }
       if (imgStyleMaxWidth) container.style.maxWidth = imgStyleMaxWidth;
-      if (imgHeight && imgHeight !== 'auto') {
-        container.dataset.userHeight = imgHeight.includes('%') || imgHeight.includes('px') || imgHeight.includes('vh') ? imgHeight : imgHeight + 'px';
-      }
+      
+      // 设置固定高度（优先使用用户指定的高度，否则默认 600px）
+      const containerHeight = (imgHeight && imgHeight !== 'auto') 
+        ? (imgHeight.includes('%') || imgHeight.includes('px') || imgHeight.includes('vh') ? imgHeight : imgHeight + 'px')
+        : '600px';
+      container.style.height = containerHeight;
+      container.style.overflow = 'hidden'; // 外层容器不滚动
+      
+      // 创建内部滚动区域
+      const scrollArea = document.createElement('div');
+      scrollArea.className = 'cloudattach-pdf-scroll-area';
+      scrollArea.style.width = '100%';
+      scrollArea.height = '100%';
+      scrollArea.style.overflowY = 'auto';
+      scrollArea.style.overflowX = 'hidden';
+      container.appendChild(scrollArea);
       
       // 渲染所有页面为独立 canvas，纵向堆叠（连续滚动）
       for (let i = 1; i <= pdf.numPages; i++) {
@@ -3485,11 +3498,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         canvas.style.width = '100%';
         canvas.style.height = 'auto';
         canvas.style.display = 'block';
-        if (container.dataset.userHeight) {
-          canvas.style.height = container.dataset.userHeight;
-          canvas.style.objectFit = 'contain';
-        }
-        container.appendChild(canvas);
+        scrollArea.appendChild(canvas);
         await this._renderPdfPage(canvas, pdf, i);
       }
       
@@ -3517,6 +3526,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
 
   // 监听滚动更新当前页码（连续滚动模式）
   _bindPdfScroll(container, pdf) {
+    const scrollArea = container.querySelector('.cloudattach-pdf-scroll-area');
+    if (!scrollArea) return;
+    
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
@@ -3525,9 +3537,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
           this._updatePdfToolbar(container, pdf);
         }
       });
-    }, { root: container, threshold: 0.5 });
+    }, { root: scrollArea, threshold: 0.5 });
     
-    const canvases = container.querySelectorAll('.cloudattach-pdf-page');
+    const canvases = scrollArea.querySelectorAll('.cloudattach-pdf-page');
     canvases.forEach(canvas => observer.observe(canvas));
   }
 
@@ -3592,16 +3604,25 @@ module.exports = class CloudAttachPlugin extends Plugin {
     container.addEventListener('mouseenter', () => { toolbar.style.display = 'flex'; });
     container.addEventListener('mouseleave', () => { toolbar.style.display = 'none'; });
     
-    // 事件绑定：翻页按钮 → 渲染指定页
+    // 事件绑定：翻页按钮 → 滚动到指定页
+    const scrollToPage = (pageNum) => {
+      const scrollArea = container.querySelector('.cloudattach-pdf-scroll-area');
+      if (!scrollArea) return;
+      const targetCanvas = scrollArea.querySelector(`.cloudattach-pdf-page[data-page-num="${pageNum}"]`);
+      if (targetCanvas) {
+        targetCanvas.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    };
+    
     prevBtn.onclick = (e) => {
       e.stopPropagation();
       const current = parseInt(container.dataset.currentPage);
-      if (current > 1) this._renderPdfPage(container, pdf, current - 1);
+      if (current > 1) scrollToPage(current - 1);
     };
     nextBtn.onclick = (e) => {
       e.stopPropagation();
       const current = parseInt(container.dataset.currentPage);
-      if (current < totalPages) this._renderPdfPage(container, pdf, current + 1);
+      if (current < totalPages) scrollToPage(current + 1);
     };
     pageIndicator.onclick = (e) => {
       e.stopPropagation();
@@ -3643,7 +3664,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         onClose() { this.contentEl.empty(); }
       }
       new PageJumpModal(this.app, current, totalPages, (p) => {
-        this._renderPdfPage(container, pdf, p);
+        scrollToPage(p);
       }).open();
     };
     
