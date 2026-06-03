@@ -3293,10 +3293,21 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const finalContainerWidth = Math.round(firstVp.width) + "px";
       const TOOLBAR_HEIGHT = 28;
       const finalContainerHeight = `calc(${finalScrollHeight} + ${TOOLBAR_HEIGHT}px)`;
-      container.style.cssText = `display:block !important; position:relative !important; height:${finalContainerHeight} !important; width:${finalContainerWidth} !important; max-width:100% !important; overflow:hidden !important;`;
+      container.style.setProperty("display", "block", "important");
+      container.style.setProperty("position", "relative", "important");
+      container.style.setProperty("height", finalContainerHeight, "important");
+      container.style.setProperty("width", finalContainerWidth, "important");
+      container.style.setProperty("max-width", "100%", "important");
+      container.style.setProperty("overflow", "hidden", "important");
       const scrollArea = document.createElement("div");
       scrollArea.className = "cloudattach-pdf-scroll";
-      scrollArea.style.cssText = `position:absolute !important; top:${TOOLBAR_HEIGHT}px !important; left:0 !important; right:0 !important; bottom:0 !important; overflow-y:auto !important; overflow-x:hidden !important;`;
+      scrollArea.style.setProperty("position", "absolute", "important");
+      scrollArea.style.setProperty("top", TOOLBAR_HEIGHT + "px", "important");
+      scrollArea.style.setProperty("left", "0", "important");
+      scrollArea.style.setProperty("right", "0", "important");
+      scrollArea.style.setProperty("bottom", "0", "important");
+      scrollArea.style.setProperty("overflow-y", "auto", "important");
+      scrollArea.style.setProperty("overflow-x", "hidden", "important");
       container.appendChild(scrollArea);
       for (let i = 1; i <= pdf.numPages; i++) {
         const canvas = document.createElement("canvas");
@@ -3312,7 +3323,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
       this._bindPdfScroll(container, pdf);
       const heightObserver = new MutationObserver(() => {
         if (container.style.height !== finalContainerHeight) {
-          container.style.cssText = `display:block !important; position:relative !important; height:${finalContainerHeight} !important; width:${finalContainerWidth} !important; max-width:100% !important; overflow:hidden !important;`;
+          container.style.setProperty("display", "block", "important");
+          container.style.setProperty("position", "relative", "important");
+          container.style.setProperty("height", finalContainerHeight, "important");
+          container.style.setProperty("width", finalContainerWidth, "important");
+          container.style.setProperty("max-width", "100%", "important");
+          container.style.setProperty("overflow", "hidden", "important");
         }
       });
       heightObserver.observe(container, { attributes: true, attributeFilter: ["style"] });
