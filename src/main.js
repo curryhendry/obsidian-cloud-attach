@@ -3498,7 +3498,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       // 内部滚动区域（不设高度，由内容自然撑开；容器 overflow:hidden 截断）
       const scrollArea = document.createElement('div');
       scrollArea.className = 'cloudattach-pdf-scroll-area';
-      scrollArea.style.cssText = 'width:100%;height:100%;overflow-y:auto;overflow-x:hidden;';
+      scrollArea.style.cssText = 'width:100%;height:' + finalContainerHeight + ';overflow-y:auto;overflow-x:hidden;';
       container.appendChild(scrollArea);
       
       // 渲染所有页面为独立 canvas，纵向堆叠（连续滚动）
