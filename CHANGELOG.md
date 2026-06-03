@@ -1,4 +1,10 @@
-## [0.3.036] - 2026-06-03
+## [0.3.037] - 2026-06-03
+
+### 修复
+- **PDF 尺寸属性不生效**: 读取原始 img 的 width/height/maxWidth/style 属性，应用替换后的 PDF 容器
+- **支持多种 Obsidian 尺寸语法**: `![|500](url)`、`![](url){width=500}`、`<img width="500">`、parent span 样式、`cm-image-width-*` class
+
+- 更新人：Garry
 
 ### 修复
 - **翻页无感切换**: 复用 canvas 只更新渲染内容，不再清空容器重建 DOM

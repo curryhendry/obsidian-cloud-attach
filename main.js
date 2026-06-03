@@ -3177,6 +3177,23 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const pdfjsLib = await this._loadPdfJs();
       const loadingTask = pdfjsLib.getDocument(url);
       const pdf = await loadingTask.promise;
+      let imgWidth = imgEl.getAttribute("width") || imgEl.style.width || "";
+      let imgHeight = imgEl.getAttribute("height") || imgEl.style.height || "";
+      let imgStyleMaxWidth = imgEl.style.maxWidth;
+      const parentSpan = imgEl.parentElement;
+      if (parentSpan && parentSpan.tagName === "SPAN") {
+        if (!imgWidth && parentSpan.style.width)
+          imgWidth = parentSpan.style.width;
+        if (!imgHeight && parentSpan.style.height)
+          imgHeight = parentSpan.style.height;
+        if (!imgStyleMaxWidth && parentSpan.style.maxWidth)
+          imgStyleMaxWidth = parentSpan.style.maxWidth;
+      }
+      const imgClasses = imgEl.className || "";
+      const widthClassMatch = imgClasses.match(/cm-image-width-(\d+)/);
+      if (widthClassMatch && !imgWidth) {
+        imgWidth = widthClassMatch[1] + "px";
+      }
       const container = document.createElement("span");
       container.className = "cloudattach-pdf-container";
       container.style.position = "relative";
@@ -3185,9 +3202,21 @@ module.exports = class CloudAttachPlugin extends Plugin {
       container.dataset.currentPage = "1";
       container.dataset.totalPages = pdf.numPages.toString();
       container.dataset.pdfUrl = url;
+      if (imgWidth) {
+        container.style.width = imgWidth.includes("%") || imgWidth.includes("px") || imgWidth.includes("vw") ? imgWidth : imgWidth + "px";
+      }
+      if (imgStyleMaxWidth)
+        container.style.maxWidth = imgStyleMaxWidth;
+      if (imgHeight && imgHeight !== "auto") {
+        container.dataset.userHeight = imgHeight.includes("%") || imgHeight.includes("px") || imgHeight.includes("vh") ? imgHeight : imgHeight + "px";
+      }
       const canvas = document.createElement("canvas");
       canvas.style.width = "100%";
       canvas.style.height = "auto";
+      if (container.dataset.userHeight) {
+        canvas.style.height = container.dataset.userHeight;
+        canvas.style.objectFit = "contain";
+      }
       container.appendChild(canvas);
       await this._renderPdfPage(container, pdf, 1);
       this._initPdfToolbar(container, pdf);

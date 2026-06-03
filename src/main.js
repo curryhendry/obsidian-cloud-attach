@@ -3363,6 +3363,29 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const loadingTask = pdfjsLib.getDocument(url);
       const pdf = await loadingTask.promise;
       
+      // 读取原始 img 的尺寸属性（支持 Obsidian 多种尺寸语法）
+      // 语法1: ![](url){width=500} → img.style.width / img.width
+      // 语法2: ![|500](url) → Obsidian 给 img 加 width 属性或 parent span 加样式
+      // 语法3: <img src="url" width="500"> → img.width / img.style.width
+      let imgWidth = imgEl.getAttribute('width') || imgEl.style.width || '';
+      let imgHeight = imgEl.getAttribute('height') || imgEl.style.height || '';
+      let imgStyleMaxWidth = imgEl.style.maxWidth;
+      
+      // 检查 parent span（Obsidian 偶尔把尺寸放在 parent 上）
+      const parentSpan = imgEl.parentElement;
+      if (parentSpan && parentSpan.tagName === 'SPAN') {
+        if (!imgWidth && parentSpan.style.width) imgWidth = parentSpan.style.width;
+        if (!imgHeight && parentSpan.style.height) imgHeight = parentSpan.style.height;
+        if (!imgStyleMaxWidth && parentSpan.style.maxWidth) imgStyleMaxWidth = parentSpan.style.maxWidth;
+      }
+      
+      // 检查 Obsidian 的 image-width class（![|300] 语法可能生成 cm-image-width-* class）
+      const imgClasses = imgEl.className || '';
+      const widthClassMatch = imgClasses.match(/cm-image-width-(\d+)/);
+      if (widthClassMatch && !imgWidth) {
+        imgWidth = widthClassMatch[1] + 'px';
+      }
+      
       // 创建容器（相对定位，用于悬浮按钮）
       const container = document.createElement('span');
       container.className = 'cloudattach-pdf-container';
@@ -3373,10 +3396,24 @@ module.exports = class CloudAttachPlugin extends Plugin {
       container.dataset.totalPages = pdf.numPages.toString();
       container.dataset.pdfUrl = url;
       
+      // 应用尺寸属性到容器
+      if (imgWidth) {
+        container.style.width = imgWidth.includes('%') || imgWidth.includes('px') || imgWidth.includes('vw') ? imgWidth : imgWidth + 'px';
+      }
+      if (imgStyleMaxWidth) container.style.maxWidth = imgStyleMaxWidth;
+      if (imgHeight && imgHeight !== 'auto') {
+        container.dataset.userHeight = imgHeight.includes('%') || imgHeight.includes('px') || imgHeight.includes('vh') ? imgHeight : imgHeight + 'px';
+      }
+      
       // 创建 canvas（首次）
       const canvas = document.createElement('canvas');
       canvas.style.width = '100%';
       canvas.style.height = 'auto';
+      // 如果用户指定了高度，应用到 canvas
+      if (container.dataset.userHeight) {
+        canvas.style.height = container.dataset.userHeight;
+        canvas.style.objectFit = 'contain';
+      }
       container.appendChild(canvas);
       
       // 渲染第1页
