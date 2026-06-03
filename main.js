@@ -2230,7 +2230,8 @@ var CloudAttachView = class extends ItemView {
     const videoExts = ["mp4", "mov", "avi", "mkv", "webm", "flv"];
     const audioExts = ["mp3", "wav", "flac", "aac", "ogg", "m4a"];
     const docExts = ["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx"];
-    const useRawUrl = docExts.includes(ext);
+    const isPdfJsInsert = ext === "pdf" && this.plugin.settings.pdfPreview === "pdfjs";
+    const useRawUrl = docExts.includes(ext) && !isPdfJsInsert;
     let url;
     if (useRawUrl) {
       url = this.client.getRawUrl ? this.client.getRawUrl(file.path) : this.client.getFileUrl(file.path);

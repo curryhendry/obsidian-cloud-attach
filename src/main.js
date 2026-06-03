@@ -2387,7 +2387,8 @@ class CloudAttachView extends ItemView {
     const audioExts = ['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a'];
     const docExts = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'];
     // 文档类型（iframe 预览）使用原始 URL（无 /d/、无 sign）
-    const useRawUrl = docExts.includes(ext);
+    const isPdfJsInsert = ext === 'pdf' && this.plugin.settings.pdfPreview === 'pdfjs';
+    const useRawUrl = docExts.includes(ext) && !isPdfJsInsert;
     let url;
     if (useRawUrl) {
       // iframe 预览：用 getRawUrl（OpenList）或 getFileUrl（S3），不带签名
