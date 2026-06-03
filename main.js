@@ -3259,73 +3259,107 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (widthClassMatch && !imgWidth) {
         imgWidth = widthClassMatch[1] + "px";
       }
-      const container = document.createElement("span");
+      const container = document.createElement("div");
       container.className = "cloudattach-pdf-container";
-      container.style.position = "relative";
-      container.style.display = "inline-block";
-      container.style.maxWidth = "100%";
-      container.dataset.currentPage = "1";
       container.dataset.totalPages = pdf.numPages.toString();
+      container.dataset.currentPage = "1";
       container.dataset.pdfUrl = url;
+      container.style.maxWidth = "100%";
       if (imgWidth) {
         container.style.width = imgWidth.includes("%") || imgWidth.includes("px") || imgWidth.includes("vw") ? imgWidth : imgWidth + "px";
       }
       if (imgStyleMaxWidth)
         container.style.maxWidth = imgStyleMaxWidth;
-      if (imgHeight && imgHeight !== "auto") {
-        container.dataset.userHeight = imgHeight.includes("%") || imgHeight.includes("px") || imgHeight.includes("vh") ? imgHeight : imgHeight + "px";
+      const pagesWrapper = document.createElement("div");
+      pagesWrapper.className = "cloudattach-pdf-pages";
+      pagesWrapper.style.display = "flex";
+      pagesWrapper.style.flexDirection = "column";
+      pagesWrapper.style.alignItems = "center";
+      pagesWrapper.style.gap = "0";
+      pagesWrapper.style.width = "100%";
+      container.appendChild(pagesWrapper);
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const viewport = page.getViewport({ scale: 1.5 });
+        const canvas = document.createElement("canvas");
+        canvas.className = "cloudattach-pdf-page-canvas";
+        canvas.dataset.pageNum = i.toString();
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        canvas.style.width = "100%";
+        canvas.style.height = "auto";
+        canvas.style.display = "block";
+        if (imgHeight && imgHeight !== "auto") {
+          const h = imgHeight.includes("%") || imgHeight.includes("px") || imgHeight.includes("vh") ? imgHeight : imgHeight + "px";
+          canvas.style.height = h;
+          canvas.style.objectFit = "contain";
+        }
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        pagesWrapper.appendChild(canvas);
       }
-      const canvas = document.createElement("canvas");
-      canvas.style.width = "100%";
-      canvas.style.height = "auto";
-      if (container.dataset.userHeight) {
-        canvas.style.height = container.dataset.userHeight;
-        canvas.style.objectFit = "contain";
-      }
-      container.appendChild(canvas);
-      await this._renderPdfPage(container, pdf, 1);
       this._initPdfToolbar(container, pdf);
+      const scrollParent = container.closest(".markdown-preview-view, .markdown-source-view") || container.closest('[class*="scroll"]') || window;
+      const updateCurrentPage = () => {
+        const canvases = pagesWrapper.querySelectorAll(".cloudattach-pdf-page-canvas");
+        if (!canvases.length)
+          return;
+        const containerRect = container.getBoundingClientRect();
+        const viewportCenter = containerRect.top + containerRect.height * 0.3;
+        let closest = 1;
+        let minDist = Infinity;
+        canvases.forEach((c) => {
+          const rect = c.getBoundingClientRect();
+          const center = rect.top + rect.height / 2;
+          const dist = Math.abs(center - viewportCenter);
+          if (dist < minDist) {
+            minDist = dist;
+            closest = parseInt(c.dataset.pageNum);
+          }
+        });
+        if (container.dataset.currentPage !== closest.toString()) {
+          container.dataset.currentPage = closest.toString();
+          this._updatePdfToolbar(container, pdf);
+        }
+      };
+      const observer = new IntersectionObserver((entries) => {
+        updateCurrentPage();
+      }, { root: null, rootMargin: "0px", threshold: 0.5 });
+      pagesWrapper.querySelectorAll(".cloudattach-pdf-page-canvas").forEach((c) => observer.observe(c));
+      const scrollHandler = () => {
+        updateCurrentPage();
+      };
+      container.addEventListener("scroll", scrollHandler);
+      document.addEventListener("scroll", scrollHandler, true);
       imgEl.replaceWith(container);
     } catch (e) {
       console.error("[CloudAttach] PDF render failed:", e);
     }
   }
-  // 渲染指定页码的 PDF 页面（无感翻页：复用 canvas，只更新内容）
-  async _renderPdfPage(container, pdf, pageNum) {
-    let canvas = container.querySelector("canvas");
-    if (!canvas) {
-      canvas = document.createElement("canvas");
-      canvas.style.width = "100%";
-      canvas.style.height = "auto";
-      container.insertBefore(canvas, container.querySelector(".cloudattach-pdf-toolbar"));
+  // 滚动到指定页码
+  _scrollToPage(container, pageNum) {
+    const canvas = container.querySelector(`.cloudattach-pdf-page-canvas[data-page-num="${pageNum}"]`);
+    if (canvas) {
+      canvas.scrollIntoView({ behavior: "smooth", block: "start" });
     }
-    const page = await pdf.getPage(pageNum);
-    const viewport = page.getViewport({ scale: 1.5 });
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
-    await page.render({ canvasContext: ctx, viewport }).promise;
-    container.dataset.currentPage = pageNum.toString();
-    this._updatePdfToolbar(container, pdf);
   }
-  // 初始化 PDF 翻页工具栏（只创建一次）
+  // 初始化 PDF 工具栏（顶部固定）
   _initPdfToolbar(container, pdf) {
     const totalPages = parseInt(container.dataset.totalPages);
     const toolbar = document.createElement("div");
     toolbar.className = "cloudattach-pdf-toolbar";
-    toolbar.style.position = "absolute";
-    toolbar.style.bottom = "8px";
-    toolbar.style.right = "8px";
-    toolbar.style.background = "rgba(0, 0, 0, 0.6)";
-    toolbar.style.color = "white";
-    toolbar.style.padding = "4px 8px";
-    toolbar.style.borderRadius = "4px";
-    toolbar.style.display = "none";
-    toolbar.style.gap = "6px";
+    toolbar.style.display = "flex";
     toolbar.style.alignItems = "center";
-    toolbar.style.fontSize = "12px";
-    toolbar.style.zIndex = "10";
+    toolbar.style.justifyContent = "center";
+    toolbar.style.gap = "12px";
+    toolbar.style.padding = "6px 12px";
+    toolbar.style.background = "var(--background-secondary)";
+    toolbar.style.borderBottom = "1px solid var(--background-modifier-border)";
+    toolbar.style.fontSize = "13px";
     toolbar.style.userSelect = "none";
+    toolbar.style.position = "sticky";
+    toolbar.style.top = "0";
+    toolbar.style.zIndex = "10";
     const prevBtn = document.createElement("span");
     prevBtn.textContent = "\u25C0";
     prevBtn.style.cursor = "pointer";
@@ -3352,23 +3386,17 @@ module.exports = class CloudAttachPlugin extends Plugin {
     fullscreenBtn.title = "\u5168\u5C4F\u9884\u89C8\uFF08\u656C\u8BF7\u671F\u5F85\uFF09";
     fullscreenBtn.dataset.role = "fullscreen";
     toolbar.appendChild(fullscreenBtn);
-    container.addEventListener("mouseenter", () => {
-      toolbar.style.display = "flex";
-    });
-    container.addEventListener("mouseleave", () => {
-      toolbar.style.display = "none";
-    });
     prevBtn.onclick = (e) => {
       e.stopPropagation();
       const current = parseInt(container.dataset.currentPage);
       if (current > 1)
-        this._renderPdfPage(container, pdf, current - 1);
+        this._scrollToPage(container, current - 1);
     };
     nextBtn.onclick = (e) => {
       e.stopPropagation();
       const current = parseInt(container.dataset.currentPage);
       if (current < totalPages)
-        this._renderPdfPage(container, pdf, current + 1);
+        this._scrollToPage(container, current + 1);
     };
     pageIndicator.onclick = (e) => {
       e.stopPropagation();
@@ -3408,7 +3436,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         }
       }
       new PageJumpModal(this.app, current, totalPages, (p) => {
-        this._renderPdfPage(container, pdf, p);
+        this._scrollToPage(container, p);
       }).open();
     };
     fullscreenBtn.onclick = (e) => {
@@ -3416,7 +3444,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const { Notice: Notice2 } = require("obsidian");
       new Notice2("\u{1F50D} \u5168\u5C4F\u9884\u89C8\u529F\u80FD\uFF0C\u656C\u8BF7\u671F\u5F85");
     };
-    container.appendChild(toolbar);
+    container.insertBefore(toolbar, container.firstChild);
     this._updatePdfToolbar(container, pdf);
   }
   // 更新工具栏状态（不重建 DOM，只改文字和可见性）
