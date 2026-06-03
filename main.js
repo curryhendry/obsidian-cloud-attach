@@ -3249,14 +3249,27 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const pageIndicator = document.createElement("span");
     pageIndicator.textContent = `${currentPage} / ${totalPages}`;
     pageIndicator.style.cursor = "pointer";
-    pageIndicator.onclick = () => {
-      const input = prompt("\u8DF3\u8F6C\u5230\u9875\u7801\uFF1A", currentPage.toString());
-      if (input) {
-        const targetPage = parseInt(input);
-        if (targetPage >= 1 && targetPage <= totalPages) {
+    pageIndicator.title = "\u70B9\u51FB\u8DF3\u8F6C\u5230\u6307\u5B9A\u9875\u7801";
+    pageIndicator.onclick = (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      const { InputModal } = require("obsidian");
+      const modal = new InputModal(this.app, "\u8DF3\u8F6C\u5230\u9875\u7801", currentPage.toString());
+      modal.onOpen = () => {
+        const inputEl = modal.inputEl;
+        if (inputEl) {
+          inputEl.type = "number";
+          inputEl.min = "1";
+          inputEl.max = totalPages.toString();
+        }
+      };
+      modal.onSubmit = (val) => {
+        const targetPage = parseInt(val);
+        if (!isNaN(targetPage) && targetPage >= 1 && targetPage <= totalPages) {
           this._renderPdfPage(container, pdf, targetPage);
         }
-      }
+      };
+      modal.open();
     };
     toolbar.appendChild(pageIndicator);
     if (currentPage < totalPages) {
@@ -3281,8 +3294,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
         m.addedNodes.forEach((n) => {
           if (n.nodeType !== 1)
             return;
-          const imgs = n.tagName === "IMG" ? [n] : n.querySelectorAll("img");
+          const imgs = n.tagName === "IMG" ? [n] : Array.from(n.querySelectorAll("img"));
           imgs.forEach((img) => {
+            if (img.closest(".cloudattach-pdf-container"))
+              return;
             const src = img.getAttribute("src") || "";
             if (this._isPdfUrl(src)) {
               this._renderPdfAsCanvas(img, src);
@@ -3292,7 +3307,17 @@ module.exports = class CloudAttachPlugin extends Plugin {
       });
     });
     this._pdfObserver.observe(document.body, { childList: true, subtree: true });
+    setTimeout(() => this._scanAllPdfImgs(), 500);
+    this.registerEvent(this.app.workspace.on("active-leaf-change", () => {
+      setTimeout(() => this._scanAllPdfImgs(), 300);
+    }));
+  }
+  _scanAllPdfImgs() {
+    if (this.settings.pdfPreview !== "pdfjs")
+      return;
     document.querySelectorAll("img").forEach((img) => {
+      if (img.closest(".cloudattach-pdf-container"))
+        return;
       const src = img.getAttribute("src") || "";
       if (this._isPdfUrl(src)) {
         this._renderPdfAsCanvas(img, src);

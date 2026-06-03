@@ -1,3 +1,12 @@
+## [0.3.034] - 2026-06-03
+
+### 修复
+- **编辑模式 PDF 预览不生效**: MutationObserver 增加编辑区覆盖，初始扫描延迟执行 + active-leaf-change 事件重新扫描
+- **页码跳转无法输入**: `prompt()` 替换为 Obsidian 原生 InputModal（支持 number 类型 + min/max 校验）
+- **Git 推送冲突修复**: rebase 合并远程 README.md 更新
+
+- 更新人：Garry
+
 ## [0.3.033] - 2026-06-03
 
 ### 新增
