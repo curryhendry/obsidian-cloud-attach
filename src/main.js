@@ -3364,9 +3364,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const pdf = await loadingTask.promise;
       
       // 读取原始 img 的尺寸属性（支持 Obsidian 多种尺寸语法）
-      // 语法1: ![](url){width=500} → img.style.width / img.width
-      // 语法2: ![|500](url) → Obsidian 给 img 加 width 属性或 parent span 加样式
-      // 语法3: <img src="url" width="500"> → img.width / img.style.width
       let imgWidth = imgEl.getAttribute('width') || imgEl.style.width || '';
       let imgHeight = imgEl.getAttribute('height') || imgEl.style.height || '';
       let imgStyleMaxWidth = imgEl.style.maxWidth;
