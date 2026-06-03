@@ -3010,24 +3010,62 @@ class AdvancedSettingModal extends Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.innerHTML = '';
-    contentEl.style.padding = '20px';
+    contentEl.style.padding = '24px';
+    contentEl.style.maxWidth = '520px';
     
+    // 标题
     const title = contentEl.createEl('h2', { text: t('settings.advanced_title') });
     title.style.marginTop = '0';
+    title.style.marginBottom = '20px';
     
-    // === 文件预览分类 ===
-    const catTitle = contentEl.createEl('h3', { text: t('settings.preview_category') });
-    catTitle.style.marginTop = '20px';
+    // === 文件预览（卡片容器）===
+    const card = contentEl.createDiv();
+    card.className = 'cloudattach-settings-card';
+    card.style.background = 'var(--background-secondary)';
+    card.style.borderRadius = '8px';
+    card.style.padding = '20px';
+    card.style.marginBottom = '16px';
     
-    // --- PDF 预览 ---
-    const pdfSection = contentEl.createDiv();
-    pdfSection.style.marginBottom = '16px';
-    pdfSection.createEl('div', { text: t('settings.pdf_preview'), attr: { style: 'font-weight:600;margin-bottom:8px;' } });
+    // 分类标题
+    const catTitle = card.createEl('h3', { text: t('settings.preview_category') });
+    catTitle.style.marginTop = '0';
+    catTitle.style.marginBottom = '16px';
+    catTitle.style.fontSize = '14px';
+    catTitle.style.fontWeight = '600';
+    catTitle.style.color = 'var(--text-normal)';
+    catTitle.style.textTransform = 'uppercase';
+    catTitle.style.letterSpacing = '0.5px';
+    catTitle.style.opacity = '0.7';
     
-    const pdfRadioGroup = pdfSection.createDiv();
-    pdfRadioGroup.style.display = 'flex';
-    pdfRadioGroup.style.gap = '16px';
-    pdfRadioGroup.style.marginBottom = '8px';
+    // --- PDF 预览（带缩进层级）---
+    const pdfGroup = card.createDiv();
+    pdfGroup.style.marginBottom = '16px';
+    
+    // PDF 标签行
+    const pdfLabelRow = pdfGroup.createDiv();
+    pdfLabelRow.style.display = 'flex';
+    pdfLabelRow.style.alignItems = 'center';
+    pdfLabelRow.style.gap = '6px';
+    pdfLabelRow.style.marginBottom = '10px';
+    
+    // 层级缩进指示器
+    const pdfIndent = pdfLabelRow.createSpan();
+    pdfIndent.textContent = '▸';
+    pdfIndent.style.color = 'var(--text-accent)';
+    pdfIndent.style.fontWeight = '700';
+    pdfIndent.style.fontSize = '11px';
+    
+    const pdfLabel = pdfLabelRow.createEl('span', { text: t('settings.pdf_preview') });
+    pdfLabel.style.fontWeight = '600';
+    pdfLabel.style.fontSize = '13px';
+    
+    // PDF 选项行（radio + 卸载按钮 同一行）
+    const pdfOptRow = pdfGroup.createDiv();
+    pdfOptRow.style.marginLeft = '18px';
+    pdfOptRow.style.display = 'flex';
+    pdfOptRow.style.flexWrap = 'wrap';
+    pdfOptRow.style.alignItems = 'center';
+    pdfOptRow.style.gap = '12px';
     
     const mkRadio = (label, value, group) => {
       const opt = group.createDiv();
@@ -3047,12 +3085,10 @@ class AdvancedSettingModal extends Modal {
       return radio;
     };
     
-    mkRadio(t('settings.pdf_preview_iframe'), 'iframe', pdfRadioGroup);
+    mkRadio(t('settings.pdf_preview_iframe'), 'iframe', pdfOptRow);
     
-    // PDF.js 整体（第二行）：radio + 状态文字
-    const pdfjsRow = pdfSection.createDiv();
-    pdfjsRow.style.marginTop = '4px';
-    const pdfjsOpt = pdfjsRow.createDiv();
+    // PDF.js radio + 卸载按钮（同一行）
+    const pdfjsOpt = pdfOptRow.createDiv();
     pdfjsOpt.style.display = 'flex';
     pdfjsOpt.style.alignItems = 'center';
     pdfjsOpt.style.gap = '4px';
@@ -3070,47 +3106,83 @@ class AdvancedSettingModal extends Modal {
       if (!require('path').isAbsolute(cd)) {
         cd = require('path').resolve(this.app.vault.adapter?.basePath || process.cwd(), cd);
       }
-      const finalPath = cd + '/plugins/cloud-attach/libs/pdfjs/';
-      console.log('[CloudAttach] pdfjsPath resolved:', finalPath, 'exists:', require('fs').existsSync(finalPath + 'pdf.js'));
-      return finalPath;
+      return cd + '/plugins/cloud-attach/libs/pdfjs/';
     })();
     const fs = require('fs');
     const hasPdfjs = fs.existsSync(pdfjsPath + 'pdf.js');
     pdfjsOpt.createEl('label', { text: hasPdfjs ? ('PDF.js' + (t('settings.pdfjs_installed') || '')) : ('PDF.js' + (t('settings.pdfjs_auto_install') || '')) });
     if (hasPdfjs) {
-      const delBtn = pdfjsRow.createEl('button', { text: t('settings.pdfjs_uninstall') || '卸载' });
+      const delBtn = pdfjsOpt.createEl('button', { text: t('settings.pdfjs_uninstall') || '卸载' });
+      delBtn.style.marginLeft = '4px';
       delBtn.onclick = async () => {
         try { fs.rmSync(pdfjsPath, { recursive: true }); } catch(e) {}
         this.onOpen();
       };
     }
     
-    // --- Excel 预览 ---
-    const excelSection = contentEl.createDiv();
-    excelSection.style.marginBottom = '16px';
-    excelSection.createEl('div', { text: t('settings.excel_preview'), attr: { style: 'font-weight:600;margin-bottom:8px;' } });
-    const excelNote = excelSection.createEl('div', { text: t('settings.preview_coming_soon') });
+    // PDF 说明文字
+    const pdfNote = pdfGroup.createDiv();
+    pdfNote.style.marginLeft = '18px';
+    pdfNote.style.marginTop = '6px';
+    pdfNote.style.fontSize = '12px';
+    pdfNote.style.color = 'var(--text-muted)';
+    pdfNote.textContent = '选定后使用 `![]()` 语法插入预览';
+    
+    // --- Excel 预览（带缩进层级）---
+    const excelGroup = card.createDiv();
+    excelGroup.style.marginBottom = '16px';
+    const excelLabelRow = excelGroup.createDiv();
+    excelLabelRow.style.display = 'flex';
+    excelLabelRow.style.alignItems = 'center';
+    excelLabelRow.style.gap = '6px';
+    excelLabelRow.style.marginBottom = '6px';
+    const excelIndent = excelLabelRow.createSpan();
+    excelIndent.textContent = '▸';
+    excelIndent.style.color = 'var(--text-muted)';
+    excelIndent.style.fontWeight = '700';
+    excelIndent.style.fontSize = '11px';
+    const excelLabel = excelLabelRow.createEl('span', { text: t('settings.excel_preview') });
+    excelLabel.style.fontWeight = '600';
+    excelLabel.style.fontSize = '13px';
+    excelLabel.style.color = 'var(--text-muted)';
+    const excelNote = excelGroup.createDiv();
+    excelNote.style.marginLeft = '18px';
     excelNote.style.fontSize = '12px';
-    excelNote.style.color = 'var(--text-muted)';
+    excelNote.style.color = 'var(--text-faint)';
+    excelNote.textContent = t('settings.preview_coming_soon');
     
-    // --- Word 预览 ---
-    const wordSection = contentEl.createDiv();
-    wordSection.style.marginBottom = '16px';
-    wordSection.createEl('div', { text: t('settings.word_preview'), attr: { style: 'font-weight:600;margin-bottom:8px;' } });
-    const wordNote = wordSection.createEl('div', { text: t('settings.preview_coming_soon') });
+    // --- Word 预览（带缩进层级）---
+    const wordGroup = card.createDiv();
+    const wordLabelRow = wordGroup.createDiv();
+    wordLabelRow.style.display = 'flex';
+    wordLabelRow.style.alignItems = 'center';
+    wordLabelRow.style.gap = '6px';
+    wordLabelRow.style.marginBottom = '6px';
+    const wordIndent = wordLabelRow.createSpan();
+    wordIndent.textContent = '▸';
+    wordIndent.style.color = 'var(--text-muted)';
+    wordIndent.style.fontWeight = '700';
+    wordIndent.style.fontSize = '11px';
+    const wordLabel = wordLabelRow.createEl('span', { text: t('settings.word_preview') });
+    wordLabel.style.fontWeight = '600';
+    wordLabel.style.fontSize = '13px';
+    wordLabel.style.color = 'var(--text-muted)';
+    const wordNote = wordGroup.createDiv();
+    wordNote.style.marginLeft = '18px';
     wordNote.style.fontSize = '12px';
-    wordNote.style.color = 'var(--text-muted)';
+    wordNote.style.color = 'var(--text-faint)';
+    wordNote.textContent = t('settings.preview_coming_soon');
     
-    // 底部按钮行：保存 + 取消
+    // 底部按钮行
     const btnRow = contentEl.createDiv();
-    btnRow.style.marginTop = '24px';
+    btnRow.style.marginTop = '20px';
     btnRow.style.display = 'flex';
+    btnRow.style.justifyContent = 'flex-end';
     btnRow.style.gap = '8px';
     
     const saveBtn = btnRow.createEl('button', { text: t('settings.save') || '保存' });
     saveBtn.className = 'mod-cta';
     saveBtn.onclick = async () => {
-      // 如果选了 PDF.js 但未安装，先安装
       const pdfjsPath2 = (() => {
         let cd = this.app.vault.configDir || '.obsidian';
         if (!require('path').isAbsolute(cd)) {
@@ -3126,7 +3198,7 @@ class AdvancedSettingModal extends Modal {
           new Notice('✅ PDF.js ' + (t('settings.pdfjs_installed') || '安装成功'));
         } catch(e) {
           new Notice('❌ PDF.js 安装失败: ' + e.message);
-          return; // 失败不关闭，用户可重试（保存）或取消
+          return;
         }
       }
       await this.plugin.saveSettings();
@@ -3158,7 +3230,6 @@ class AdvancedSettingModal extends Modal {
       if (buf.byteLength < 1000) throw new Error('file too small: ' + f.name + ' (' + buf.byteLength + ' bytes, possibly HTML error page)');
       fs.writeFileSync(path.join(destDirNorm, f.name), Buffer.from(buf));
     }
-    // 动态加载 pdfjs 到全局
     try { delete globalThis.pdfjsLib; } catch(e) {}
   }
 }
@@ -3441,7 +3512,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const viewport = page.getViewport({ scale: 1.5 });
     canvas.width = viewport.width;
     canvas.height = viewport.height;
-    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    await page.render({ canvasContext: ctx, viewport }).promise;
     
     // 更新当前页码
     container.dataset.currentPage = pageNum.toString();
@@ -3491,6 +3563,21 @@ module.exports = class CloudAttachPlugin extends Plugin {
     nextBtn.style.cursor = 'pointer';
     nextBtn.dataset.role = 'next';
     toolbar.appendChild(nextBtn);
+    
+    // 分隔符
+    const sep = document.createElement('span');
+    sep.textContent = '|';
+    sep.style.opacity = '0.5';
+    sep.style.margin = '0 2px';
+    toolbar.appendChild(sep);
+    
+    // 全屏按钮
+    const fullscreenBtn = document.createElement('span');
+    fullscreenBtn.textContent = '⛶';
+    fullscreenBtn.style.cursor = 'pointer';
+    fullscreenBtn.title = '全屏预览（敬请期待）';
+    fullscreenBtn.dataset.role = 'fullscreen';
+    toolbar.appendChild(fullscreenBtn);
     
     // hover 显示/隐藏
     container.addEventListener('mouseenter', () => { toolbar.style.display = 'flex'; });
@@ -3549,6 +3636,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
       new PageJumpModal(this.app, current, totalPages, (p) => {
         this._renderPdfPage(container, pdf, p);
       }).open();
+    };
+    
+    // 全屏按钮：敬请期待
+    fullscreenBtn.onclick = (e) => {
+      e.stopPropagation();
+      const { Notice } = require('obsidian');
+      new Notice('🔍 全屏预览功能，敬请期待');
     };
     
     container.appendChild(toolbar);
