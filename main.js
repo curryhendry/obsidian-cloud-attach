@@ -3188,8 +3188,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
       .cloud-attach-add-btn:hover { background: var(--background-modifier-hover); }
     
     /* PDF \u9884\u89C8\u5BB9\u5668 - \u5F3A\u5236\u7EA6\u675F\uFF0C\u8986\u76D6 Obsidian \u5168\u5C40\u6837\u5F0F */
-    .cloudattach-pdf-container { display: block !important; position: relative !important; max-width: 100% !important; overflow: hidden !important; }
-    .cloudattach-pdf-page { display: block !important; width: 100% !important; height: auto !important; }
+    .cloudattach-pdf-container { display: block !important; position: relative !important; max-width: 100% !important; max-height: var(--pdf-viewer-max-height, 600px) !important; overflow: auto !important; border: 1px solid var(--background-modifier-border) !important; border-radius: 8px !important; background: var(--background-secondary) !important; }
+    .cloudattach-pdf-canvas-container { text-align: center; padding: 0.5em; }
+    .cloudattach-pdf-page { max-width: 100% !important; height: auto !important; display: block !important; margin: 0 auto !important; border-radius: 4px !important; }
     `;
     const styleEl = document.createElement("style");
     styleEl.textContent = css;
@@ -3283,23 +3284,18 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const firstPage = await pdf.getPage(1);
       const firstVp = firstPage.getViewport({ scale: 1.5 });
       const finalContainerHeight = userHeightStr || Math.round(firstVp.height) + "px";
-      container.style.height = finalContainerHeight;
+      container.style.setProperty("--pdf-viewer-max-height", finalContainerHeight);
+      container.style.maxHeight = finalContainerHeight;
       container.style.overflowY = "auto";
       container.style.overflowX = "hidden";
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const canvas = document.createElement("canvas");
-        canvas.className = "cloudattach-pdf-page";
-        canvas.dataset.pageNum = String(i);
-        canvas.style.cssText = "width:100%;height:auto;display:block;";
-        if (userHeightStr) {
-          canvas.style.height = userHeightStr;
-          canvas.style.objectFit = "contain";
-        }
-        container.appendChild(canvas);
-        await this._renderPdfPage(canvas, pdf, i);
-      }
-      this._initPdfToolbar(container, pdf);
-      this._bindPdfScroll(container, pdf);
+      const canvasContainer = document.createElement("div");
+      canvasContainer.className = "cloudattach-pdf-canvas-container";
+      container.appendChild(canvasContainer);
+      const canvas = document.createElement("canvas");
+      canvas.className = "cloudattach-pdf-page";
+      canvasContainer.appendChild(canvas);
+      await this._renderPdfPage(canvas, pdf, 1);
+      this._initPdfToolbar(container, pdf, canvas);
       imgEl.replaceWith(container);
     } catch (e) {
       console.error("[CloudAttach] PDF render failed:", e);
@@ -3315,21 +3311,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
     await page.render({ canvasContext: ctx, viewport }).promise;
   }
   // 监听滚动更新当前页码（连续滚动模式）
+  // 监听滚动更新当前页码（连续滚动模式）- 已弃用，保留空方法避免报错
   _bindPdfScroll(container, pdf) {
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          const pageNum = entry.target.dataset.pageNum;
-          container.dataset.currentPage = pageNum;
-          this._updatePdfToolbar(container, pdf);
-        }
-      });
-    }, { root: container, threshold: 0.5 });
-    const canvases = container.querySelectorAll(".cloudattach-pdf-page");
-    canvases.forEach((canvas) => observer.observe(canvas));
   }
-  // 初始化 PDF 翻页工具栏（只创建一次）
-  _initPdfToolbar(container, pdf) {
+  // 初始化 PDF 翻页工具栏（单 canvas 翻页模式）
+  _initPdfToolbar(container, pdf, canvas) {
     const totalPages = parseInt(container.dataset.totalPages);
     const toolbar = document.createElement("div");
     toolbar.className = "cloudattach-pdf-toolbar";
@@ -3378,23 +3364,24 @@ module.exports = class CloudAttachPlugin extends Plugin {
     container.addEventListener("mouseleave", () => {
       toolbar.style.display = "none";
     });
-    const scrollToPage = (pageNum) => {
-      const targetCanvas = container.querySelector(`.cloudattach-pdf-page[data-page-num="${pageNum}"]`);
-      if (targetCanvas) {
-        targetCanvas.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
+    const goToPage = async (pageNum) => {
+      if (pageNum < 1 || pageNum > totalPages)
+        return;
+      container.dataset.currentPage = String(pageNum);
+      await this._renderPdfPage(canvas, pdf, pageNum);
+      this._updatePdfToolbar(container, pdf);
     };
     prevBtn.onclick = (e) => {
       e.stopPropagation();
       const current = parseInt(container.dataset.currentPage);
       if (current > 1)
-        scrollToPage(current - 1);
+        goToPage(current - 1);
     };
     nextBtn.onclick = (e) => {
       e.stopPropagation();
       const current = parseInt(container.dataset.currentPage);
       if (current < totalPages)
-        scrollToPage(current + 1);
+        goToPage(current + 1);
     };
     pageIndicator.onclick = (e) => {
       e.stopPropagation();
@@ -3434,7 +3421,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         }
       }
       new PageJumpModal(this.app, current, totalPages, (p) => {
-        scrollToPage(p);
+        goToPage(p);
       }).open();
     };
     fullscreenBtn.onclick = (e) => {
