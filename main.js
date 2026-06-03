@@ -3326,7 +3326,17 @@ module.exports = class CloudAttachPlugin extends Plugin {
         container.dataset.userHeight = userHeightStr;
       }
       const firstPage = await pdf.getPage(1);
-      const firstVp = firstPage.getViewport({ scale: 1.5 });
+      const firstVpRaw = firstPage.getViewport({ scale: 1 });
+      let targetWidth;
+      if (imgWidth) {
+        targetWidth = parseInt(imgWidth) || firstVpRaw.width * 1.5;
+      } else if (imgEl.width) {
+        targetWidth = imgEl.width;
+      } else {
+        targetWidth = Math.min(firstVpRaw.width * 1.5, 800);
+      }
+      const actualScale = targetWidth / firstVpRaw.width;
+      const firstVp = firstPage.getViewport({ scale: actualScale });
       const finalContainerHeight = userHeightStr || Math.round(firstVp.height) + "px";
       container.style.height = finalContainerHeight;
       container.style.overflow = "hidden";
@@ -3346,7 +3356,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         canvas.className = "cloudattach-pdf-page";
         canvas.dataset.pageNum = String(i);
         scrollArea.appendChild(canvas);
-        await this._renderPdfPage(canvas, pdf, i);
+        await this._renderPdfPage(canvas, pdf, i, actualScale);
       }
       this._initPdfToolbar(container, pdf);
       this._bindPdfScroll(container, pdf);
@@ -3356,9 +3366,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
   }
   // 渲染指定页码的 PDF 页面到指定 canvas
-  async _renderPdfPage(canvas, pdf, pageNum) {
+  async _renderPdfPage(canvas, pdf, pageNum, scale) {
     const page = await pdf.getPage(pageNum);
-    const viewport = page.getViewport({ scale: 1.5 });
+    const viewport = page.getViewport({ scale });
     canvas.width = viewport.width;
     canvas.height = viewport.height;
     const ctx = canvas.getContext("2d", { willReadFrequently: true });

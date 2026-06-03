@@ -3534,9 +3534,24 @@ module.exports = class CloudAttachPlugin extends Plugin {
         container.dataset.userHeight = userHeightStr;
       }
       
-      // 预渲染第1页，获取实际尺寸来决定容器高度
+      // 预渲染第1页，获取实际尺寸来决定容器高度和缩放比例
       const firstPage = await pdf.getPage(1);
-      const firstVp = firstPage.getViewport({ scale: 1.5 });
+      const firstVpRaw = firstPage.getViewport({ scale: 1 });
+      
+      // 计算目标宽度：用户指定 > imgEl原始宽度 > 笔记区域可用宽度
+      let targetWidth;
+      if (imgWidth) {
+        targetWidth = parseInt(imgWidth) || firstVpRaw.width * 1.5;
+      } else if (imgEl.width) {
+        targetWidth = imgEl.width;
+      } else {
+        // 默认：取笔记内容区域宽度的合理值，或用 PDF 原始宽度 * 1.5
+        targetWidth = Math.min(firstVpRaw.width * 1.5, 800);
+      }
+      
+      // 根据目标宽度计算实际 scale
+      const actualScale = targetWidth / firstVpRaw.width;
+      const firstVp = firstPage.getViewport({ scale: actualScale });
       
       // 容器高度 = 用户指定 ? 用用户值 : 第一页实际像素高度
       const finalContainerHeight = userHeightStr || (Math.round(firstVp.height) + 'px');
@@ -3565,7 +3580,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         canvas.className = 'cloudattach-pdf-page';
         canvas.dataset.pageNum = String(i);
         scrollArea.appendChild(canvas);
-        await this._renderPdfPage(canvas, pdf, i);
+        await this._renderPdfPage(canvas, pdf, i, actualScale);
       }
       
       // 初始化工具栏（放在容器内、scrollArea 前，flex 布局下自然在顶部）
@@ -3582,9 +3597,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
 
   // 渲染指定页码的 PDF 页面到指定 canvas
-  async _renderPdfPage(canvas, pdf, pageNum) {
+  async _renderPdfPage(canvas, pdf, pageNum, scale) {
     const page = await pdf.getPage(pageNum);
-    const viewport = page.getViewport({ scale: 1.5 });
+    const viewport = page.getViewport({ scale });
     canvas.width = viewport.width;
     canvas.height = viewport.height;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
