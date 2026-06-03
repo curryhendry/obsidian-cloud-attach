@@ -3380,7 +3380,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     
     /* PDF 预览容器 - 强制约束，覆盖 Obsidian 全局样式 */
     .cloudattach-pdf-container { display: block !important; position: relative !important; max-width: 100% !important; overflow: hidden !important; }
-    .cloudattach-pdf-scroll-area { width: 100% !important; height: 100% !important; overflow-y: auto !important; overflow-x: hidden !important; }
     .cloudattach-pdf-page { display: block !important; width: 100% !important; height: auto !important; }
     `;
     const styleEl = document.createElement('style');
@@ -3492,13 +3491,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
       // 容器高度 = 用户指定 ? 用用户值 : 第一页实际像素高度（与 042 行为一致）
       const finalContainerHeight = userHeightStr || (Math.round(firstVp.height) + 'px');
       container.style.height = finalContainerHeight;
-      container.style.overflow = 'hidden'; // 固定高度，内容超出隐藏
-      
-      // 内部滚动区域（不设高度，由内容自然撑开；容器 overflow:hidden 截断）
-      const scrollArea = document.createElement('div');
-      scrollArea.className = 'cloudattach-pdf-scroll-area';
-      scrollArea.style.cssText = 'width:100%;height:' + finalContainerHeight + ';overflow-y:auto;overflow-x:hidden;';
-      container.appendChild(scrollArea);
+      container.style.overflowY = 'auto';
+      container.style.overflowX = 'hidden';
       
       // 渲染所有页面为独立 canvas，纵向堆叠（连续滚动）
       for (let i = 1; i <= pdf.numPages; i++) {
@@ -3510,7 +3504,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
           canvas.style.height = userHeightStr;
           canvas.style.objectFit = 'contain';
         }
-        scrollArea.appendChild(canvas);
+        container.appendChild(canvas);
         await this._renderPdfPage(canvas, pdf, i);
       }
       
@@ -3538,9 +3532,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
 
   // 监听滚动更新当前页码（连续滚动模式）
   _bindPdfScroll(container, pdf) {
-    const scrollArea = container.querySelector('.cloudattach-pdf-scroll-area');
-    if (!scrollArea) return;
-    
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
@@ -3549,9 +3540,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
           this._updatePdfToolbar(container, pdf);
         }
       });
-    }, { root: scrollArea, threshold: 0.5 });
+    }, { root: container, threshold: 0.5 });
     
-    const canvases = scrollArea.querySelectorAll('.cloudattach-pdf-page');
+    const canvases = container.querySelectorAll('.cloudattach-pdf-page');
     canvases.forEach(canvas => observer.observe(canvas));
   }
 
@@ -3618,9 +3609,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     
     // 事件绑定：翻页按钮 → 滚动到指定页
     const scrollToPage = (pageNum) => {
-      const scrollArea = container.querySelector('.cloudattach-pdf-scroll-area');
-      if (!scrollArea) return;
-      const targetCanvas = scrollArea.querySelector(`.cloudattach-pdf-page[data-page-num="${pageNum}"]`);
+      const targetCanvas = container.querySelector(`.cloudattach-pdf-page[data-page-num="${pageNum}"]`);
       if (targetCanvas) {
         targetCanvas.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
