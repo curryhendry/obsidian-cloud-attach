@@ -3465,6 +3465,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
       
       // 创建 Shadow DOM 宿主元素（彻底隔离 Obsidian 渲染器的样式覆盖）
       const host = document.createElement('cloudattach-pdf');
+      // host 必须是 inline-block 且有 overflow:hidden，否则会被 Obsidian 或内容撑开
+      host.style.display = 'inline-block';
+      host.style.position = 'relative';
+      host.style.verticalAlign = 'top';
       const shadow = host.attachShadow({ mode: 'open' });
       
       // 添加 CSS 到 Shadow DOM（所有 PDF 相关样式都在 Shadow DOM 内，不受外部影响）
@@ -3532,6 +3536,14 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const finalContainerHeight = userHeightStr || (Math.round(firstVp.height) + 'px');
       container.style.height = finalContainerHeight;
       container.style.overflow = 'hidden';
+      
+      // 同步尺寸到 host（host 是实际参与 Obsidian 布局的元素）
+      if (imgWidth) {
+        host.style.width = container.style.width;
+      }
+      host.style.height = finalContainerHeight;
+      host.style.overflow = 'hidden';
+      host.style.maxWidth = imgStyleMaxWidth || '';
       
       shadow.appendChild(container);
       
