@@ -3365,8 +3365,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         scrollArea.appendChild(canvas);
         await this._renderPdfPage(canvas, pdf, i, actualScale);
       }
-      const toolbarEl = this._createPdfToolbar(container, pdf);
-      container.appendChild(toolbarEl);
+      this._initPdfToolbar(container, pdf);
       this._bindPdfScroll(container, pdf);
       imgEl.replaceWith(host);
     } catch (e) {
