@@ -3477,23 +3477,31 @@ module.exports = class CloudAttachPlugin extends Plugin {
         container.dataset.userHeight = imgHeight.includes('%') || imgHeight.includes('px') || imgHeight.includes('vh') ? imgHeight : imgHeight + 'px';
       }
       
-      // 渲染所有页面为独立 canvas，纵向堆叠（自然滚动）
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const canvas = document.createElement('canvas');
-        canvas.style.width = '100%';
-        canvas.style.display = 'block';
-        canvas.dataset.pageNum = i.toString();
-        // 如果用户指定了高度，应用到每个 canvas
-        if (container.dataset.userHeight) {
-          canvas.style.height = container.dataset.userHeight;
-          canvas.style.objectFit = 'contain';
-        }
-        container.appendChild(canvas);
-        await this._renderPdfPage(canvas, pdf, i);
+      // 创建 canvas（首次，复用）
+      const canvas = document.createElement('canvas');
+      canvas.style.width = '100%';
+      canvas.style.height = 'auto';
+      if (container.dataset.userHeight) {
+        canvas.style.height = container.dataset.userHeight;
+        canvas.style.objectFit = 'contain';
       }
+      container.appendChild(canvas);
+      
+      // 遍历所有页面获取最大高度，设为容器固定高度（一页视口）
+      let maxPageHeight = 0;
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const p = await pdf.getPage(i);
+        const vp = p.getViewport({ scale: 1.5 });
+        if (vp.height > maxPageHeight) maxPageHeight = vp.height;
+      }
+      container.style.height = maxPageHeight + 'px';
+      container.style.overflow = 'hidden';
 
-      // 监听滚动实时更新页码
-      this._bindPdfScrollTracking(container, pdf);
+      // 渲染第1页
+      await this._renderPdfPage(container, pdf, 1);
+      
+      // 绑定滚轮连续翻页（标准 PDF 阅读器行为）
+      this._bindPdfScroll(container, pdf);
 
       // 初始化工具栏（只需一次）
       this._initPdfToolbar(container, pdf);
@@ -3504,46 +3512,41 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
   }
 
-  // 渲染指定页到给定 canvas
-  async _renderPdfPage(canvas, pdf, pageNum) {
+  // 渲染指定页码的 PDF 页面（复用 canvas，无感翻页）
+  async _renderPdfPage(container, pdf, pageNum) {
+    let canvas = container.querySelector('canvas');
+    if (!canvas) {
+      canvas = document.createElement('canvas');
+      canvas.style.width = '100%';
+      canvas.style.height = 'auto';
+      container.insertBefore(canvas, container.querySelector('.cloudattach-pdf-toolbar'));
+    }
     const page = await pdf.getPage(pageNum);
     const viewport = page.getViewport({ scale: 1.5 });
     canvas.width = viewport.width;
     canvas.height = viewport.height;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     await page.render({ canvasContext: ctx, viewport }).promise;
+    container.dataset.currentPage = pageNum.toString();
+    this._updatePdfToolbar(container, pdf);
   }
 
-  // 监听容器滚动，实时计算当前页码并更新工具栏
-  _bindPdfScrollTracking(container, pdf) {
-    const scrollParent = container.closest('.markdown-preview-view')
-      || container.closest('.markdown-source-view')
-      || container.closest('.scrollbar-content')
-      || document.scrollingElement;
-    if (!scrollParent) return;
-
-    const getVisiblePage = () => {
-      const canvases = container.querySelectorAll('canvas[data-page-num]');
-      if (!canvases.length) return 1;
-      const containerRect = container.getBoundingClientRect();
-      const containerMidY = containerRect.top + containerRect.height / 4;
-      let closest = 1;
-      let closestDist = Infinity;
-      canvases.forEach(c => {
-        const rect = c.getBoundingClientRect();
-        const dist = Math.abs(rect.top - containerMidY);
-        if (dist < closestDist) { closestDist = dist; closest = parseInt(c.dataset.pageNum); }
-      });
-      return closest;
-    };
-
-    scrollParent.addEventListener('scroll', () => {
- const page = getVisiblePage();
- if (parseInt(container.dataset.currentPage) !== page) {
- container.dataset.currentPage = page.toString();
- this._updatePdfToolbar(container, pdf);
- }
- }, { passive: true });
+  // 滚轮连续翻页（标准 PDF 阅读器行为：一页视口内滚动切页）
+  _bindPdfScroll(container, pdf) {
+    let turning = false;
+    container.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      if (turning) return;
+      const current = parseInt(container.dataset.currentPage);
+      const total = parseInt(container.dataset.totalPages);
+      let target = current;
+      if (e.deltaY > 0 && current < total) target = current + 1;
+      else if (e.deltaY < 0 && current > 1) target = current - 1;
+      if (target !== current) {
+        turning = true;
+        this._renderPdfPage(container, pdf, target).finally(() => { turning = false; });
+      }
+    }, { passive: false });
   }
 
   // 初始化 PDF 翻页工具栏（只创建一次）
@@ -3607,20 +3610,16 @@ module.exports = class CloudAttachPlugin extends Plugin {
     container.addEventListener('mouseenter', () => { toolbar.style.display = 'flex'; });
     container.addEventListener('mouseleave', () => { toolbar.style.display = 'none'; });
     
-    // 事件绑定：翻页按钮 → scrollIntoView
-    const scrollToPage = (pageNum) => {
-      const target = container.querySelector(`canvas[data-page-num="${pageNum}"]`);
-      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    };
+    // 事件绑定：翻页按钮 → 渲染指定页
     prevBtn.onclick = (e) => {
       e.stopPropagation();
       const current = parseInt(container.dataset.currentPage);
-      if (current > 1) scrollToPage(current - 1);
+      if (current > 1) this._renderPdfPage(container, pdf, current - 1);
     };
     nextBtn.onclick = (e) => {
       e.stopPropagation();
       const current = parseInt(container.dataset.currentPage);
-      if (current < totalPages) scrollToPage(current + 1);
+      if (current < totalPages) this._renderPdfPage(container, pdf, current + 1);
     };
     pageIndicator.onclick = (e) => {
       e.stopPropagation();
@@ -3662,7 +3661,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         onClose() { this.contentEl.empty(); }
       }
       new PageJumpModal(this.app, current, totalPages, (p) => {
-        scrollToPage(p);
+        this._renderPdfPage(container, pdf, p);
       }).open();
     };
     
