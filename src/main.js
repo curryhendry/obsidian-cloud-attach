@@ -3059,13 +3059,12 @@ class AdvancedSettingModal extends Modal {
     pdfLabel.style.fontWeight = '600';
     pdfLabel.style.fontSize = '13px';
     
-    // PDF 选项行（radio + 卸载按钮 同一行）
+    // PDF 选项（每个选项一行）
     const pdfOptRow = pdfGroup.createDiv();
     pdfOptRow.style.marginLeft = '18px';
     pdfOptRow.style.display = 'flex';
-    pdfOptRow.style.flexWrap = 'wrap';
-    pdfOptRow.style.alignItems = 'center';
-    pdfOptRow.style.gap = '12px';
+    pdfOptRow.style.flexDirection = 'column';
+    pdfOptRow.style.gap = '8px';
     
     const mkRadio = (label, value, group) => {
       const opt = group.createDiv();
@@ -3087,7 +3086,7 @@ class AdvancedSettingModal extends Modal {
     
     mkRadio(t('settings.pdf_preview_iframe'), 'iframe', pdfOptRow);
     
-    // PDF.js radio + 卸载按钮（同一行）
+    // PDF.js radio + 卸载按钮（同一行，作为第二个选项）
     const pdfjsOpt = pdfOptRow.createDiv();
     pdfjsOpt.style.display = 'flex';
     pdfjsOpt.style.alignItems = 'center';
@@ -3126,7 +3125,7 @@ class AdvancedSettingModal extends Modal {
     pdfNote.style.marginTop = '6px';
     pdfNote.style.fontSize = '12px';
     pdfNote.style.color = 'var(--text-muted)';
-    pdfNote.textContent = '选定后使用 `![]()` 语法插入预览';
+    pdfNote.textContent = '选定 PDF.js 后使用 `![]()` 语法插入预览';
     
     // --- Excel 预览（带缩进层级）---
     const excelGroup = card.createDiv();
