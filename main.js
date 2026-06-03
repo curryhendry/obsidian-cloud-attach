@@ -3271,6 +3271,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const shadow = host.attachShadow({ mode: "open" });
       const style = document.createElement("style");
       style.textContent = `
+        :host {
+          display: inline-block !important;
+          max-width: 100%;
+          position: relative;
+          vertical-align: top;
+        }
         .cloudattach-pdf-container {
           display: inline-block !important;
           position: relative !important;
