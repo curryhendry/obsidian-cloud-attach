@@ -3264,12 +3264,45 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (widthClassMatch && !imgWidth) {
         imgWidth = widthClassMatch[1] + "px";
       }
+      const host = document.createElement("cloudattach-pdf");
+      const shadow = host.attachShadow({ mode: "open" });
+      const style = document.createElement("style");
+      style.textContent = `
+        .cloudattach-pdf-container {
+          display: inline-block !important;
+          position: relative !important;
+          vertical-align: top !important;
+          overflow: hidden !important;
+        }
+        .cloudattach-pdf-scroll {
+          overflow-y: auto;
+          overflow-x: hidden;
+        }
+        .cloudattach-pdf-page {
+          display: block;
+        }
+        .cloudattach-pdf-toolbar {
+          background: rgba(0, 0, 0, 0.6);
+          color: white;
+          padding: 4px 8px;
+          border-radius: 4px;
+          display: flex;
+          gap: 6px;
+          align-items: center;
+          font-size: 12px;
+          z-index: 10;
+          user-select: none;
+          justify-content: center;
+          flex-shrink: 0;
+          position: relative;
+        }
+        .cloudattach-pdf-toolbar span {
+          cursor: pointer;
+        }
+      `;
+      shadow.appendChild(style);
       const container = document.createElement("span");
       container.className = "cloudattach-pdf-container";
-      container.style.setProperty("display", "inline-block", "important");
-      container.style.position = "relative";
-      container.style.verticalAlign = "top";
-      container.style.overflow = "hidden";
       container.dataset.currentPage = "1";
       container.dataset.totalPages = pdf.numPages.toString();
       container.dataset.pdfUrl = url;
@@ -3288,11 +3321,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const finalContainerHeight = userHeightStr || Math.round(firstVp.height) + "px";
       container.style.height = finalContainerHeight;
       container.style.overflow = "hidden";
+      shadow.appendChild(container);
       const scrollArea = document.createElement("div");
       scrollArea.className = "cloudattach-pdf-scroll";
       scrollArea.style.height = finalContainerHeight;
-      scrollArea.style.overflowY = "auto";
-      scrollArea.style.overflowX = "hidden";
       container.appendChild(scrollArea);
       for (let i = 1; i <= pdf.numPages; i++) {
         const canvas = document.createElement("canvas");
@@ -3303,7 +3335,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
       this._initPdfToolbar(container, pdf);
       this._bindPdfScroll(container, pdf);
-      imgEl.replaceWith(container);
+      imgEl.replaceWith(host);
     } catch (e) {
       console.error("[CloudAttach] PDF render failed:", e);
     }

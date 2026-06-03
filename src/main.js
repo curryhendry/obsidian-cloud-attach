@@ -3463,19 +3463,55 @@ module.exports = class CloudAttachPlugin extends Plugin {
         imgWidth = widthClassMatch[1] + 'px';
       }
       
-      // 创建外层容器（与 v0.3.042 一致：span + inline-block，避免 Obsidian 撑开 div）
+      // 创建 Shadow DOM 宿主元素（彻底隔离 Obsidian 渲染器的样式覆盖）
+      const host = document.createElement('cloudattach-pdf');
+      const shadow = host.attachShadow({ mode: 'open' });
+      
+      // 添加 CSS 到 Shadow DOM（所有 PDF 相关样式都在 Shadow DOM 内，不受外部影响）
+      const style = document.createElement('style');
+      style.textContent = `
+        .cloudattach-pdf-container {
+          display: inline-block !important;
+          position: relative !important;
+          vertical-align: top !important;
+          overflow: hidden !important;
+        }
+        .cloudattach-pdf-scroll {
+          overflow-y: auto;
+          overflow-x: hidden;
+        }
+        .cloudattach-pdf-page {
+          display: block;
+        }
+        .cloudattach-pdf-toolbar {
+          background: rgba(0, 0, 0, 0.6);
+          color: white;
+          padding: 4px 8px;
+          border-radius: 4px;
+          display: flex;
+          gap: 6px;
+          align-items: center;
+          font-size: 12px;
+          z-index: 10;
+          user-select: none;
+          justify-content: center;
+          flex-shrink: 0;
+          position: relative;
+        }
+        .cloudattach-pdf-toolbar span {
+          cursor: pointer;
+        }
+      `;
+      shadow.appendChild(style);
+      
+      // 在 Shadow DOM 内创建容器
       const container = document.createElement('span');
       container.className = 'cloudattach-pdf-container';
-      // 强制 inline-block（避免 Obsidian CSS 覆盖）
-      container.style.setProperty('display', 'inline-block', 'important');
-      container.style.position = 'relative';
-      container.style.verticalAlign = 'top';
-      container.style.overflow = 'hidden';
       container.dataset.currentPage = '1';
       container.dataset.totalPages = pdf.numPages.toString();
       container.dataset.pdfUrl = url;
       
-      // 应用尺寸属性到容器
+      // 应用尺寸属性到容器（直接设置样式，不受外部 CSS 干扰）
       if (imgWidth) {
         container.style.width = imgWidth.includes('%') || imgWidth.includes('px') || imgWidth.includes('vw') ? imgWidth : imgWidth + 'px';
       }
@@ -3497,12 +3533,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
       container.style.height = finalContainerHeight;
       container.style.overflow = 'hidden';
       
+      shadow.appendChild(container);
+      
       // 创建滚动中间层（固定高度 = 容器高度，overflow-y: auto 实现连续滚动）
       const scrollArea = document.createElement('div');
       scrollArea.className = 'cloudattach-pdf-scroll';
       scrollArea.style.height = finalContainerHeight;
-      scrollArea.style.overflowY = 'auto';
-      scrollArea.style.overflowX = 'hidden';
       container.appendChild(scrollArea);
       
       // 连续滚动模式：所有页面 canvas 纵向堆叠在 scrollArea 内
@@ -3520,7 +3556,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
       // 监听滚动更新页码（监听 scrollArea）
       this._bindPdfScroll(container, pdf);
       
-      imgEl.replaceWith(container);
+      // 用 Shadow DOM 宿主元素替换原始 img
+      imgEl.replaceWith(host);
     } catch (e) {
       console.error('[CloudAttach] PDF render failed:', e);
     }
