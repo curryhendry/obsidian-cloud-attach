@@ -3452,14 +3452,28 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const pageIndicator = document.createElement('span');
     pageIndicator.textContent = `${currentPage} / ${totalPages}`;
     pageIndicator.style.cursor = 'pointer';
-    pageIndicator.onclick = () => {
-      const input = prompt('跳转到页码：', currentPage.toString());
-      if (input) {
-        const targetPage = parseInt(input);
-        if (targetPage >= 1 && targetPage <= totalPages) {
+    pageIndicator.title = '点击跳转到指定页码';
+    pageIndicator.onclick = (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      // 用 Obsidian 的 InputPrompt 替代 prompt()
+      const { InputModal } = require('obsidian');
+      const modal = new InputModal(this.app, '跳转到页码', currentPage.toString());
+      modal.onOpen = () => {
+        const inputEl = modal.inputEl;
+        if (inputEl) {
+          inputEl.type = 'number';
+          inputEl.min = '1';
+          inputEl.max = totalPages.toString();
+        }
+      };
+      modal.onSubmit = (val) => {
+        const targetPage = parseInt(val);
+        if (!isNaN(targetPage) && targetPage >= 1 && targetPage <= totalPages) {
           this._renderPdfPage(container, pdf, targetPage);
         }
-      }
+      };
+      modal.open();
     };
     toolbar.appendChild(pageIndicator);
     
@@ -3485,8 +3499,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
       mutations.forEach(m => {
         m.addedNodes.forEach(n => {
           if (n.nodeType !== 1) return;
-          const imgs = n.tagName === 'IMG' ? [n] : n.querySelectorAll('img');
+          // 匹配直接 img 节点或子树中的 img
+          const imgs = n.tagName === 'IMG' ? [n] : Array.from(n.querySelectorAll('img'));
           imgs.forEach(img => {
+            // 避免重复处理已替换的容器
+            if (img.closest('.cloudattach-pdf-container')) return;
             const src = img.getAttribute('src') || '';
             if (this._isPdfUrl(src)) {
               this._renderPdfAsCanvas(img, src);
@@ -3495,9 +3512,21 @@ module.exports = class CloudAttachPlugin extends Plugin {
         });
       });
     });
+    // 监听 document.body + Obsidian 的编辑区容器
     this._pdfObserver.observe(document.body, { childList: true, subtree: true });
-    // 初始扫描
+
+    // 初始扫描：延迟执行确保编辑模式 DOM 已渲染
+    setTimeout(() => this._scanAllPdfImgs(), 500);
+    // 切换笔记时也重新扫描
+    this.registerEvent(this.app.workspace.on('active-leaf-change', () => {
+      setTimeout(() => this._scanAllPdfImgs(), 300);
+    }));
+  }
+
+  _scanAllPdfImgs() {
+    if (this.settings.pdfPreview !== 'pdfjs') return;
     document.querySelectorAll('img').forEach(img => {
+      if (img.closest('.cloudattach-pdf-container')) return;
       const src = img.getAttribute('src') || '';
       if (this._isPdfUrl(src)) {
         this._renderPdfAsCanvas(img, src);
