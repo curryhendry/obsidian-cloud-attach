@@ -3614,11 +3614,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     pageIndicator.dataset.role = 'pageIndicator';
     pageIndicator.style.cursor = 'pointer';
     pageIndicator.title = '点击跳转到指定页码';
-    toolbar.appendChild(pageIndicator);
-    
-    // 下一页
-    toolbar.appendChild(fullscreenBtn);
-    
     // 翻页：在 container 内滚动到对应 canvas
     const scrollToPage = (pageNum) => {
       const targetCanvas = container.querySelector(`.cloudattach-pdf-page[data-page-num="${pageNum}"]`);
@@ -3681,25 +3676,16 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }).open();
     };
     
-    // 全屏按钮：敬请期待
-    fullscreenBtn.onclick = (e) => {
-      e.stopPropagation();
-      const { Notice } = require('obsidian');
-      new Notice('🔍 全屏预览功能，敬请期待');
-    };
-    
-    // 插入工具栏到 scrollArea 前面（固定在顶部）
+    // 插入工具栏到 container（absolute 定位，固定在右上角）
     const scrollArea = container.querySelector('.cloudattach-pdf-scrollarea');
     if (scrollArea) {
       container.insertBefore(toolbar, scrollArea);
     } else {
       container.insertBefore(toolbar, container.firstChild);
     }
-    // 首次更新状态（container 已是 absolute，flexGrow/minHeight 不影响 absolute）
-    this._updatePdfToolbar(container, pdf);
-  }
 
   // 更新工具栏状态（不重建 DOM，只改文字和可见性）
+  }
   _updatePdfToolbar(container, pdf) {
     const toolbar = container.querySelector('.cloudattach-pdf-toolbar');
     if (!toolbar) return;
