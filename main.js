@@ -3377,8 +3377,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     pageIndicator.dataset.role = "pageIndicator";
     pageIndicator.style.cursor = "pointer";
     pageIndicator.title = "\u70B9\u51FB\u8DF3\u8F6C\u5230\u6307\u5B9A\u9875\u7801";
-    toolbar.appendChild(pageIndicator);
-    toolbar.appendChild(fullscreenBtn);
     const scrollToPage = (pageNum) => {
       const targetCanvas = container.querySelector(`.cloudattach-pdf-page[data-page-num="${pageNum}"]`);
       if (targetCanvas) {
@@ -3438,20 +3436,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
         scrollToPage(p);
       }).open();
     };
-    fullscreenBtn.onclick = (e) => {
-      e.stopPropagation();
-      const { Notice: Notice2 } = require("obsidian");
-      new Notice2("\u{1F50D} \u5168\u5C4F\u9884\u89C8\u529F\u80FD\uFF0C\u656C\u8BF7\u671F\u5F85");
-    };
     const scrollArea = container.querySelector(".cloudattach-pdf-scrollarea");
     if (scrollArea) {
       container.insertBefore(toolbar, scrollArea);
     } else {
       container.insertBefore(toolbar, container.firstChild);
     }
-    this._updatePdfToolbar(container, pdf);
   }
-  // 更新工具栏状态（不重建 DOM，只改文字和可见性）
   _updatePdfToolbar(container, pdf) {
     const toolbar = container.querySelector(".cloudattach-pdf-toolbar");
     if (!toolbar)

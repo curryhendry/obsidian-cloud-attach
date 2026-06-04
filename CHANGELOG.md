@@ -550,3 +550,14 @@
 - **.DS_Store**：添加到 .gitignore 并从 Git 缓存中移除
 
 - 更新人：Garry
+
+## [0.3.083.dev] - 2026-06-05
+
+### 修复
+- **删除 fullscreenBtn 引用**：修复 `ReferenceError: fullscreenBtn is not defined` 错误
+- **修复损坏的代码块**：替换 `_initPdfToolbar` 中损坏的 toolbar 插入代码
+
+### 优化
+- **添加去重机制**：避免同一 PDF 被重复渲染 3 次（MutationObserver + setTimeout + active-leaf-change）
+
+- 更新人：Garry
