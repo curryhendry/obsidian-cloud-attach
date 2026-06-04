@@ -3188,7 +3188,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       .cloud-attach-add-btn:hover { background: var(--background-modifier-hover); }
     
     /* PDF \u9884\u89C8\u5BB9\u5668 - \u53CC\u5C42\u7ED3\u6784\uFF0C\u4EFF Obsidian \u539F\u751F .pdf-embed */
-    .cloudattach-pdf-container { box-sizing: border-box !important; display: block !important; width: 100% !important; max-width: 100% !important; min-width: 0 !important; border: 1px solid var(--background-modifier-border) !important; border-radius: 8px !important; background: var(--background-secondary) !important; vertical-align: top !important; overflow-y: auto !important; }
+    .cloudattach-pdf-container { box-sizing: border-box !important; display: flex !important; flex-direction: column !important; width: 100% !important; max-width: 100% !important; min-width: 0 !important; border: 1px solid var(--background-modifier-border) !important; border-radius: 8px !important; background: var(--background-secondary) !important; vertical-align: top !important; overflow: hidden !important; }
 
     .cloudattach-pdf-page { display: block !important; box-sizing: border-box !important; width: 100% !important; max-width: 100% !important; min-width: 0 !important; }
     `;
@@ -3284,21 +3284,26 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const firstVpRaw = firstPage.getViewport({ scale: 1 });
       let targetWidth;
       if (imgWidth) {
-        targetWidth = parseInt(imgWidth) || firstVpRaw.width * 1.5;
+        targetWidth = parseInt(imgWidth) || firstVpRaw.width;
       } else {
-        targetWidth = Math.min(firstVpRaw.width * 1.5, 1200);
+        targetWidth = firstVpRaw.width;
       }
-      const actualScale = targetWidth / firstVpRaw.width;
+      const actualScale = (container.offsetWidth || 800) / firstVpRaw.width;
       const firstVp = firstPage.getViewport({ scale: actualScale });
       console.log("[CloudAttach] scale: targetW=" + targetWidth + " actualScale=" + actualScale + " vp=" + Math.round(firstVp.width) + "x" + Math.round(firstVp.height));
       const finalScrollHeight = userHeightStr || Math.round(firstVp.height) + "px";
-      const finalContainerWidth = Math.round(firstVp.width) + "px";
       const TOOLBAR_HEIGHT = 28;
       const finalContainerHeight = parseInt(finalScrollHeight) + TOOLBAR_HEIGHT + "px";
+      container.style.setProperty("display", "flex", "important");
+      container.style.setProperty("flex-direction", "column", "important");
       container.style.setProperty("height", finalContainerHeight, "important");
-      container.style.setProperty("width", finalContainerWidth, "important");
       container.style.setProperty("max-width", "100%", "important");
-      container.style.setProperty("overflow-y", "auto", "important");
+      container.style.setProperty("overflow", "hidden", "important");
+      const scrollArea = document.createElement("div");
+      scrollArea.className = "cloudattach-pdf-scrollarea";
+      scrollArea.style.setProperty("flex", "1", "important");
+      scrollArea.style.setProperty("overflow-y", "auto", "important");
+      container.appendChild(scrollArea);
       for (let i = 1; i <= pdf.numPages; i++) {
         const canvas = document.createElement("canvas");
         canvas.className = "cloudattach-pdf-page";
@@ -3308,14 +3313,14 @@ module.exports = class CloudAttachPlugin extends Plugin {
         canvas.style.setProperty("width", "100%", "important");
         const vp = await pdf.getPage(i).then((p) => p.getViewport({ scale: actualScale }));
         canvas.style.setProperty("height", Math.round(vp.height) + "px", "important");
-        container.appendChild(canvas);
+        scrollArea.appendChild(canvas);
         await this._renderPdfPage(canvas, pdf, i, actualScale);
         console.log("[CloudAttach] page", i, "/", pdf.numPages, "cw:", canvas.width, "ch:", canvas.height);
       }
       console.log("[CloudAttach] ALL DONE, children:", container.children.length);
       this._initPdfToolbar(container, pdf);
       this._bindPdfScroll(container, pdf);
-      console.log("[CloudAttach] PDF container built, height:", finalContainerHeight, "width:", finalContainerWidth);
+      console.log("[CloudAttach] PDF container built, height:", finalContainerHeight, "width:", "dynamic");
       imgEl.replaceWith(container);
     } catch (e) {
       console.error("[CloudAttach] PDF render failed:", e);
@@ -3330,8 +3335,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     await page.render({ canvasContext: ctx, viewport }).promise;
   }
-  // 监听滚动更新当前页码（连续滚动模式，监听 container）
+  // 监听滚动更新当前页码（连续滚动模式，监听 scrollArea）
   _bindPdfScroll(container, pdf) {
+    const scrollArea = container.querySelector(".cloudattach-pdf-scrollarea") || container;
     const observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
@@ -3340,7 +3346,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
           this._updatePdfToolbar(container, pdf);
         }
       });
-    }, { root: container, threshold: 0.5 });
+    }, { root: scrollArea, threshold: 0.5 });
     const canvases = container.querySelectorAll(".cloudattach-pdf-page");
     canvases.forEach((canvas) => observer.observe(canvas));
   }
@@ -3357,8 +3363,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
     toolbar.style.gap = "6px";
     toolbar.style.alignItems = "center";
     toolbar.style.fontSize = "12px";
-    toolbar.style.position = "sticky";
-    toolbar.style.top = "0";
+    toolbar.style.height = "28px";
+    toolbar.style.lineHeight = "20px";
     toolbar.style.zIndex = "10";
     toolbar.style.userSelect = "none";
     toolbar.style.justifyContent = "center";
@@ -3453,7 +3459,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const { Notice: Notice2 } = require("obsidian");
       new Notice2("\u{1F50D} \u5168\u5C4F\u9884\u89C8\u529F\u80FD\uFF0C\u656C\u8BF7\u671F\u5F85");
     };
-    container.insertBefore(toolbar, container.firstChild);
+    const scrollArea = container.querySelector(".cloudattach-pdf-scrollarea");
+    if (scrollArea) {
+      container.insertBefore(toolbar, scrollArea);
+    } else {
+      container.insertBefore(toolbar, container.firstChild);
+    }
     this._updatePdfToolbar(container, pdf);
   }
   // 更新工具栏状态（不重建 DOM，只改文字和可见性）
