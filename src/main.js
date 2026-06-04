@@ -3579,27 +3579,28 @@ module.exports = class CloudAttachPlugin extends Plugin {
     canvases.forEach(canvas => observer.observe(canvas));
   }
 
-  // 初始化 PDF 翻页工具栏（连续滚动模式，flex 布局下固定在顶部）
+  // 初始化 PDF 翻页工具栏（参考 v0.3.042 样式）
   _initPdfToolbar(container, pdf) {
     const totalPages = parseInt(container.dataset.totalPages);
     
-    // 创建工具栏（flex 布局：固定在容器顶部，不随内容滚动）
+    // 创建工具栏（absolute 定位在容器右上角，不随内容滚动）
     const toolbar = document.createElement('div');
     toolbar.className = 'cloudattach-pdf-toolbar';
+    toolbar.style.position = 'absolute';
+    toolbar.style.top = '4px';
+    toolbar.style.right = '4px';
     toolbar.style.background = 'rgba(0, 0, 0, 0.6)';
     toolbar.style.color = 'white';
-    toolbar.style.padding = '4px 8px';
+    toolbar.style.padding = '2px 6px';
     toolbar.style.borderRadius = '4px';
     toolbar.style.display = 'flex';
-    toolbar.style.gap = '6px';
+    toolbar.style.gap = '4px';
     toolbar.style.alignItems = 'center';
     toolbar.style.fontSize = '12px';
-    toolbar.style.height = '28px';
-    toolbar.style.lineHeight = '20px';
+    toolbar.style.height = '24px';
+    toolbar.style.lineHeight = '18px';
     toolbar.style.zIndex = '10';
     toolbar.style.userSelect = 'none';
-    toolbar.style.justifyContent = 'center';
-    toolbar.style.flexShrink = '0';
     
     // 上一页
     const prevBtn = document.createElement('span');
@@ -3616,25 +3617,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     toolbar.appendChild(pageIndicator);
     
     // 下一页
-    const nextBtn = document.createElement('span');
-    nextBtn.textContent = '▶';
-    nextBtn.style.cursor = 'pointer';
-    nextBtn.dataset.role = 'next';
-    toolbar.appendChild(nextBtn);
-    
-    // 分隔符
-    const sep = document.createElement('span');
-    sep.textContent = '|';
-    sep.style.opacity = '0.5';
-    sep.style.margin = '0 2px';
-    toolbar.appendChild(sep);
-    
-    // 全屏按钮
-    const fullscreenBtn = document.createElement('span');
-    fullscreenBtn.textContent = '⛶';
-    fullscreenBtn.style.cursor = 'pointer';
-    fullscreenBtn.title = '全屏预览（敬请期待）';
-    fullscreenBtn.dataset.role = 'fullscreen';
     toolbar.appendChild(fullscreenBtn);
     
     // 翻页：在 container 内滚动到对应 canvas
