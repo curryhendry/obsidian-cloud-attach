@@ -3244,6 +3244,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
   async _renderPdfAsCanvas(imgEl, url) {
     try {
+      const existingContainer = imgEl.parentElement?.querySelector(".cloudattach-pdf-container");
+      if (existingContainer && existingContainer.querySelectorAll(".cloudattach-pdf-page").length > 0) {
+        console.log("[CloudAttach] Skip duplicate render for:", url);
+        return;
+      }
       const pdfjsLib = await this._loadPdfJs();
       const loadingTask = pdfjsLib.getDocument(url);
       console.log("[CloudAttach] PDF doc loaded, pages:", (await loadingTask.promise).numPages);
