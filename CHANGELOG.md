@@ -561,3 +561,13 @@
 - **添加去重机制**：避免同一 PDF 被重复渲染 3 次（MutationObserver + setTimeout + active-leaf-change）
 
 - 更新人：Garry
+
+## [0.3.084.dev] - 2026-06-05
+
+### 修复
+- **去重机制**：防止同一 PDF 被重复渲染 3 次（MutationObserver + setTimeout + active-leaf-change）
+
+### 优化
+- 在 `_renderPdfAsCanvas` 开头添加检查：如果 container 已有 `.cloudattach-pdf-page` 子元素，跳过渲染
+
+- 更新人：Garry
