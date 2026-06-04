@@ -3506,18 +3506,20 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const finalContainerHeight = (parseInt(finalScrollHeight) + TOOLBAR_HEIGHT) + 'px';
 
       // inline style 强制设高度，宽度交给 CSS width:100% 控制
-      // flex 布局：container = flex column, scrollArea = flex:1 overflow-y:auto
+      // flex 布局：container = flex column, scrollArea = 文档流 overflow-y:auto
+      // 注意：container 不用 overflow:hidden，否则会作用在 scrollArea 上导致无法滚动
       container.style.setProperty('display', 'flex', 'important');
       container.style.setProperty('flex-direction', 'column', 'important');
       container.style.setProperty('height', finalContainerHeight, 'important');
       container.style.setProperty('max-width', '100%', 'important');
-      container.style.setProperty('overflow', 'hidden', 'important');
+      // 不设置 overflow（让 scrollArea 独立控制滚动）
       // 不设置 width，让 CSS .cloudattach-pdf-container { width: 100% !important; } 生效
 
       const scrollArea = document.createElement('div');
       scrollArea.className = 'cloudattach-pdf-scrollarea';
-      scrollArea.style.setProperty('flex', '1', 'important');
+      // scrollArea 作为 container 的普通子元素（文档流），不用 absolute/flex
       scrollArea.style.setProperty('overflow-y', 'auto', 'important');
+      // 不设置 flex:1（会受 container 的 flex 影响）
       container.appendChild(scrollArea);
 
       // 渲染所有页面（挂到 scrollArea，而非 container）

@@ -1,3 +1,26 @@
+## [0.3.082.dev] - 2026-06-04
+
+### 修复
+- **修复连续滚动布局**：去掉 container 的 `overflow:hidden`（会作用在 scrollArea 导致无法滚动）
+- **scrollArea 回到文档流**：不设置 `flex:1`，让 scrollArea 作为 container 的普通子元素，独立控制 `overflow-y:auto`
+- **参考 v0.3.079 成功方案**：absolute 元素脱离文档流，容易被父级 absolute 覆盖；去掉 `absolute` 让 scrollArea 回到文档流
+
+## [0.3.081.dev] - 2026-06-04
+
+### 修复
+- **使用容器宽度计算 PDF 缩放比例**：修复 v0.3.060~v0.3.080 连续滚动模式迭代中的宽度计算问题
+
+## [0.3.080.dev] - 2026-06-04
+
+### 修复
+- **简化容器结构**：移除 container 的 `overflow:hidden`，避免作用在 scrollArea 上导致无法滚动
+
+## [0.3.079.dev] - 2026-06-04
+
+### 修复
+- **scrollArea 回到文档流**：去掉 `position:absolute`，让 scrollArea 作为 container 的普通子元素，避免被 absolute 覆盖
+- **核心原理**：`absolute` 元素脱离文档流，容易被父级 absolute 覆盖；去掉 `absolute` 让 scrollArea 回到文档流，才能独立控制 overflow
+
 ## [0.3.060.dev] - 2026-06-03
 
 ### 修复
