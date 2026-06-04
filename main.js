@@ -3348,25 +3348,26 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const canvases = container.querySelectorAll(".cloudattach-pdf-page");
     canvases.forEach((canvas) => observer.observe(canvas));
   }
-  // 初始化 PDF 翻页工具栏（连续滚动模式，flex 布局下固定在顶部）
+  // 初始化 PDF 翻页工具栏（参考 v0.3.042 样式）
   _initPdfToolbar(container, pdf) {
     const totalPages = parseInt(container.dataset.totalPages);
     const toolbar = document.createElement("div");
     toolbar.className = "cloudattach-pdf-toolbar";
+    toolbar.style.position = "absolute";
+    toolbar.style.top = "4px";
+    toolbar.style.right = "4px";
     toolbar.style.background = "rgba(0, 0, 0, 0.6)";
     toolbar.style.color = "white";
-    toolbar.style.padding = "4px 8px";
+    toolbar.style.padding = "2px 6px";
     toolbar.style.borderRadius = "4px";
     toolbar.style.display = "flex";
-    toolbar.style.gap = "6px";
+    toolbar.style.gap = "4px";
     toolbar.style.alignItems = "center";
     toolbar.style.fontSize = "12px";
-    toolbar.style.height = "28px";
-    toolbar.style.lineHeight = "20px";
+    toolbar.style.height = "24px";
+    toolbar.style.lineHeight = "18px";
     toolbar.style.zIndex = "10";
     toolbar.style.userSelect = "none";
-    toolbar.style.justifyContent = "center";
-    toolbar.style.flexShrink = "0";
     const prevBtn = document.createElement("span");
     prevBtn.textContent = "\u25C0";
     prevBtn.style.cursor = "pointer";
@@ -3377,21 +3378,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     pageIndicator.style.cursor = "pointer";
     pageIndicator.title = "\u70B9\u51FB\u8DF3\u8F6C\u5230\u6307\u5B9A\u9875\u7801";
     toolbar.appendChild(pageIndicator);
-    const nextBtn = document.createElement("span");
-    nextBtn.textContent = "\u25B6";
-    nextBtn.style.cursor = "pointer";
-    nextBtn.dataset.role = "next";
-    toolbar.appendChild(nextBtn);
-    const sep = document.createElement("span");
-    sep.textContent = "|";
-    sep.style.opacity = "0.5";
-    sep.style.margin = "0 2px";
-    toolbar.appendChild(sep);
-    const fullscreenBtn = document.createElement("span");
-    fullscreenBtn.textContent = "\u26F6";
-    fullscreenBtn.style.cursor = "pointer";
-    fullscreenBtn.title = "\u5168\u5C4F\u9884\u89C8\uFF08\u656C\u8BF7\u671F\u5F85\uFF09";
-    fullscreenBtn.dataset.role = "fullscreen";
     toolbar.appendChild(fullscreenBtn);
     const scrollToPage = (pageNum) => {
       const targetCanvas = container.querySelector(`.cloudattach-pdf-page[data-page-num="${pageNum}"]`);
@@ -3476,11 +3462,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (pageIndicator)
       pageIndicator.textContent = `${currentPage} / ${totalPages}`;
     const prevBtn = toolbar.querySelector('[data-role="prev"]');
-    const nextBtn = toolbar.querySelector('[data-role="next"]');
+    const nextBtn2 = toolbar.querySelector('[data-role="next"]');
     if (prevBtn)
       prevBtn.style.visibility = currentPage > 1 ? "visible" : "hidden";
-    if (nextBtn)
-      nextBtn.style.visibility = currentPage < totalPages ? "visible" : "hidden";
+    if (nextBtn2)
+      nextBtn2.style.visibility = currentPage < totalPages ? "visible" : "hidden";
   }
   _observePdfEmbeds() {
     if (this._pdfObserver)
