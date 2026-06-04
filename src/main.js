@@ -3379,9 +3379,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
       .cloud-attach-add-btn:hover { background: var(--background-modifier-hover); }
     
     /* PDF 预览容器 - 双层结构，仿 Obsidian 原生 .pdf-embed */
-    .cloudattach-pdf-container { display: block !important; max-width: 100% !important; border: 1px solid var(--background-modifier-border) !important; border-radius: 8px !important; background: var(--background-secondary) !important; vertical-align: top !important; overflow-y: auto !important; }
+    .cloudattach-pdf-container { box-sizing: border-box !important; display: block !important; width: 100% !important; max-width: 100% !important; min-width: 0 !important; border: 1px solid var(--background-modifier-border) !important; border-radius: 8px !important; background: var(--background-secondary) !important; vertical-align: top !important; overflow-y: auto !important; }
 
-    .cloudattach-pdf-page { display: block !important; width: 100% !important; height: auto !important; }
+    .cloudattach-pdf-page { display: block !important; box-sizing: border-box !important; width: 100% !important; max-width: 100% !important; min-width: 0 !important; }
     `;
     const styleEl = document.createElement('style');
     styleEl.textContent = css;
