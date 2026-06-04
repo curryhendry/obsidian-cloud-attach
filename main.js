@@ -3298,8 +3298,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
       container.style.setProperty("flex-direction", "column", "important");
       container.style.setProperty("height", finalContainerHeight, "important");
       container.style.setProperty("max-width", "100%", "important");
+      container.style.setProperty("overflow", "hidden", "important");
       const scrollArea = document.createElement("div");
       scrollArea.className = "cloudattach-pdf-scrollarea";
+      scrollArea.style.setProperty("flex", "1", "important");
       scrollArea.style.setProperty("overflow-y", "auto", "important");
       container.appendChild(scrollArea);
       for (let i = 1; i <= pdf.numPages; i++) {
