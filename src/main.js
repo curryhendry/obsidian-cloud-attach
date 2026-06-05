@@ -3496,6 +3496,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
         targetWidth = firstVpRaw.width;
       }
 
+      // 先插入 DOM，确保 offsetWidth 能正确获取
+      imgEl.replaceWith(container);
+
       const actualScale = (container.offsetWidth || 800) / firstVpRaw.width;
       const firstVp = firstPage.getViewport({ scale: actualScale });
       console.log('[CloudAttach] scale: targetW=' + targetWidth + ' actualScale=' + actualScale + ' vp=' + Math.round(firstVp.width) + 'x' + Math.round(firstVp.height));
@@ -3547,8 +3550,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       this._bindPdfScroll(container, pdf);
 
 
-      console.log('[CloudAttach] PDF container built, height:', finalContainerHeight, 'width:', "dynamic");
-      imgEl.replaceWith(container);
+      console.log('[CloudAttach] PDF container built, height:', finalContainerHeight, 'width:', 'dynamic');
     } catch (e) {
       console.error('[CloudAttach] PDF render failed:', e);
     }
@@ -3585,7 +3587,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
   _initPdfToolbar(container, pdf) {
     const totalPages = parseInt(container.dataset.totalPages);
     
-    // 创建工具栏（flex 布局：固定在容器顶部，不随内容滚动）
+    // 创建工具栏（042 风格：右下角悬浮，hover 显示）
     const toolbar = document.createElement('div');
     toolbar.className = 'cloudattach-pdf-toolbar';
     toolbar.style.background = 'rgba(0, 0, 0, 0.6)';
@@ -3600,8 +3602,19 @@ module.exports = class CloudAttachPlugin extends Plugin {
     toolbar.style.lineHeight = '20px';
     toolbar.style.zIndex = '10';
     toolbar.style.userSelect = 'none';
-    toolbar.style.justifyContent = 'center';
-    toolbar.style.flexShrink = '0';
+    // 042 风格：右下角悬浮 + hover 显示
+    toolbar.style.position = 'absolute';
+    toolbar.style.bottom = '8px';
+    toolbar.style.right = '8px';
+    toolbar.style.opacity = '0';
+    toolbar.style.transition = 'opacity 0.2s';
+    
+    // 容器设置为 relative（让工具栏相对于容器定位）
+    container.style.position = 'relative';
+    
+    // hover 显示工具栏
+    container.addEventListener('mouseenter', () => { toolbar.style.opacity = '1'; });
+    container.addEventListener('mouseleave', () => { toolbar.style.opacity = '0'; });
     
     // 上一页
     const prevBtn = document.createElement('span');
@@ -3704,8 +3717,14 @@ module.exports = class CloudAttachPlugin extends Plugin {
     // 全屏按钮：敬请期待
     fullscreenBtn.onclick = (e) => {
       e.stopPropagation();
-      const { Notice } = require('obsidian');
-      new Notice('🔍 全屏预览功能，敬请期待');
+      if (container.requestFullscreen) {
+        container.requestFullscreen().catch(err => {
+          console.error('[CloudAttach] Fullscreen failed:', err);
+          new Notice('⚠️ 全屏失败，请检查浏览器权限');
+        });
+      } else {
+        new Notice('⚠️ 当前环境不支持全屏');
+      }
     };
     
     // 插入工具栏到 scrollArea 前面（固定在顶部）
