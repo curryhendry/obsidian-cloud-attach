@@ -3498,9 +3498,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
         targetWidth = firstVpRaw.width;
       }
 
-      // 修复：container 还未插入 DOM，offsetWidth=0，改用 imgEl 或其父元素宽度
-      const containerWidth = imgEl.offsetWidth || imgEl.parentElement?.offsetWidth || 800;
-      const actualScale = containerWidth / firstVpRaw.width;
+      // === 新增：先插入 container 到 DOM，再计算 scale ===
+      // 理由：imgEl 可能尚未完成布局，offsetWidth 返回 0
+      // 插入后 container 就在 DOM 中，offsetWidth 就能拿到正确值
+      imgEl.replaceWith(container);
+      
+      // 计算实际缩放比（现在 container 已在 DOM 中）
+      const actualScale = (container.offsetWidth || 800) / firstVpRaw.width;
       const firstVp = firstPage.getViewport({ scale: actualScale });
       console.log('[CloudAttach] scale: targetW=' + targetWidth + ' actualScale=' + actualScale + ' vp=' + Math.round(firstVp.width) + 'x' + Math.round(firstVp.height));
 
@@ -3550,7 +3554,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
 
 
       console.log('[CloudAttach] PDF container built, height:', finalContainerHeight, 'width:', "dynamic");
-      imgEl.replaceWith(container);
     } catch (e) {
       console.error('[CloudAttach] PDF render failed:', e);
     }
