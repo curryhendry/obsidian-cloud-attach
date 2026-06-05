@@ -1,3 +1,10 @@
+## v0.3.085.dev - 2026-06-05
+
+### 修复
+- **修复去重机制**：使用 `Set` 替代无效 DOM 检查（`existingContainer` 永远为 null），解决 PDF 被重复渲染 3 次的问题
+- **补回翻页按钮**：`_initPdfToolbar` 补回 `prevBtn`/`nextBtn` 创建代码，恢复 v0.3.042 简约风格
+- **完善工具栏状态更新**：`_updatePdfToolbar` 补回按钮 `disabled` 状态更新逻辑
+
 ## [0.3.082.dev] - 2026-06-04
 
 ### 修复
