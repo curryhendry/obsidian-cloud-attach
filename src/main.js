@@ -3498,7 +3498,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
         targetWidth = firstVpRaw.width;
       }
 
-      const actualScale = (container.offsetWidth || 800) / firstVpRaw.width;
+      // 修复：container 还未插入 DOM，offsetWidth=0，改用 imgEl 或其父元素宽度
+      const containerWidth = imgEl.offsetWidth || imgEl.parentElement?.offsetWidth || 800;
+      const actualScale = containerWidth / firstVpRaw.width;
       const firstVp = firstPage.getViewport({ scale: actualScale });
       console.log('[CloudAttach] scale: targetW=' + targetWidth + ' actualScale=' + actualScale + ' vp=' + Math.round(firstVp.width) + 'x' + Math.round(firstVp.height));
 
