@@ -79,7 +79,10 @@ if [ "$MODE" = "release" ]; then
   echo "==> 创建并推送 tag: $VERSION"
   git tag -a "$VERSION" -m "release: $VERSION" && git push origin "$VERSION" || echo "⚠️  Tag 推送失败，继续执行..."
 else
-  echo "==> [跳过] 开发模式不创建 tag"
+  # dev 模式：打 .dev tag
+  DEV_TAG="${VERSION}.dev"
+  echo "==> 创建并推送 dev tag: $DEV_TAG"
+  git tag -a "$DEV_TAG" -m "dev: $VERSION" && git push origin "$DEV_TAG" || echo "⚠️  Dev tag 推送失败，继续执行..."
 fi
 
 # ----------------------------------------------------------
