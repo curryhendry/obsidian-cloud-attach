@@ -1,3 +1,16 @@
+
+## v0.3.086.dev - 2026-06-05
+
+### 修复
+- **还原 042 单 canvas 翻页架构**：修复 060-085 迭代中的 `actualScale` 计算问题（container 未插入 DOM 时 `offsetWidth` 为 0 导致 scale=0），恢复后可正常渲染 PDF
+- **工具栏还原 042 样式**：修复 `data-role` 名称（prevBtn→prev/nextBtn→next），还原 bottom-right 定位 + hover 显示 + 全屏按钮
+- **按钮状态更新修复**：prev/next 按钮 `opacity` 随翻页正确变化
+
+### 变更
+- **支持 PDF 宽度语法**：`getInsertMarkdown(file, width)` 支持 `![name|WIDTH](url)` 语法
+
+> 修复 PDF 渲染失效 + 翻页/全屏交互与 042 对齐
+
 ## v0.3.085.dev - 2026-06-05
 
 ### 修复
