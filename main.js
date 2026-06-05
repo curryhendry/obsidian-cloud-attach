@@ -3496,8 +3496,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
         targetWidth = firstVpRaw.width;
       }
 
-      // 先插入 DOM，确保 offsetWidth 能正确获取
+      // 先插入 DOM，等浏览器完成布局后再读取 offsetWidth
       imgEl.replaceWith(container);
+      await new Promise(resolve => requestAnimationFrame(resolve));
 
       const actualScale = (container.offsetWidth || 800) / firstVpRaw.width;
       const firstVp = firstPage.getViewport({ scale: actualScale });
@@ -3518,13 +3519,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
       // 不设置 width，让 CSS .cloudattach-pdf-container { width: 100% !important; } 生效
 
       const scrollArea = document.createElement('div');
-      scrollArea.className = 'cloudattach-pdf-scrollarea'
-      scrollArea.style.setProperty('overflow-y', 'auto', 'important');
-      // 不设置 flex:1（会受 container 的 flex 影响）
-=======
+      scrollArea.className = 'cloudattach-pdf-scrollarea';
       scrollArea.style.setProperty('flex', '1', 'important');
       scrollArea.style.setProperty('overflow-y', 'auto', 'important');
->>>>>>> a24479e (fix: use container width for PDF scale calculation (v0.3.081.dev))
       container.appendChild(scrollArea);
 
       // 渲染所有页面（挂到 scrollArea，而非 container）
