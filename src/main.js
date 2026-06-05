@@ -3439,13 +3439,14 @@ module.exports = class CloudAttachPlugin extends Plugin {
 
   async _renderPdfAsCanvas(imgEl, url) {
     try {
-      // 去重检查：如果 container 已经有 canvas，跳过（防止 MutationObserver + setTimeout + active-leaf-change 重复触发）
-      const existingContainer = imgEl.parentElement?.querySelector('.cloudattach-pdf-container');
-      if (existingContainer && existingContainer.querySelectorAll('.cloudattach-pdf-page').length > 0) {
+      // 去重检查：如果已处理过这个 URL，跳过（防止 MutationObserver + setTimeout + active-leaf-change 重复触发）
+      this._renderedPdfUrls = this._renderedPdfUrls || new Set();
+      if (this._renderedPdfUrls.has(url)) {
         console.log('[CloudAttach] Skip duplicate render for:', url);
         return;
       }
-      
+      // 立即标记为已处理，防止竞态
+      this._renderedPdfUrls.add(url);
       const pdfjsLib = await this._loadPdfJs();
       const loadingTask = pdfjsLib.getDocument(url);
       console.log('[CloudAttach] PDF doc loaded, pages:', (await loadingTask.promise).numPages);
@@ -3556,6 +3557,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
       imgEl.replaceWith(container);
     } catch (e) {
       console.error('[CloudAttach] PDF render failed:', e);
+      // 失败时从 Set 移除，允许重试
+      this._renderedPdfUrls?.delete(url);
     }
   }
 
@@ -3609,12 +3612,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     toolbar.style.zIndex = '10';
     toolbar.style.userSelect = 'none';
     
-    // 上一页
-    const prevBtn = document.createElement('span');
-    prevBtn.textContent = '◀';
-    prevBtn.style.cursor = 'pointer';
-    prevBtn.dataset.role = 'prev';
-    toolbar.appendChild(prevBtn);
     
     // 页码
     const pageIndicator = document.createElement('span');
@@ -3629,11 +3626,35 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
     };
     
+    // 上一页
+    const prevBtn = document.createElement('button');
+    prevBtn.textContent = '◀';
+    prevBtn.dataset.role = 'prevBtn';
+    prevBtn.style.background = 'none';
+    prevBtn.style.border = 'none';
+    prevBtn.style.color = 'white';
+    prevBtn.style.cursor = 'pointer';
+    prevBtn.style.padding = '0 4px';
+    prevBtn.title = '上一页';
+    toolbar.appendChild(prevBtn);
+
     prevBtn.onclick = (e) => {
       e.stopPropagation();
       const current = parseInt(container.dataset.currentPage);
       if (current > 1) scrollToPage(current - 1);
     };
+    // 下一页
+    const nextBtn = document.createElement('button');
+    nextBtn.textContent = '▶';
+    nextBtn.dataset.role = 'nextBtn';
+    nextBtn.style.background = 'none';
+    nextBtn.style.border = 'none';
+    nextBtn.style.color = 'white';
+    nextBtn.style.cursor = 'pointer';
+    nextBtn.style.padding = '0 4px';
+    nextBtn.title = '下一页';
+    toolbar.appendChild(nextBtn);
+
     nextBtn.onclick = (e) => {
       e.stopPropagation();
       const current = parseInt(container.dataset.currentPage);
@@ -3703,11 +3724,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const pageIndicator = toolbar.querySelector('[data-role="pageIndicator"]');
     if (pageIndicator) pageIndicator.textContent = `${currentPage} / ${totalPages}`;
     
-    // 更新按钮可见性
-    const prevBtn = toolbar.querySelector('[data-role="prev"]');
-    const nextBtn = toolbar.querySelector('[data-role="next"]');
-    if (prevBtn) prevBtn.style.visibility = currentPage > 1 ? 'visible' : 'hidden';
-    if (nextBtn) nextBtn.style.visibility = currentPage < totalPages ? 'visible' : 'hidden';
+    // 更新按钮禁用状态
+    const prevBtn = toolbar.querySelector('[data-role="prevBtn"]');
+    const nextBtn = toolbar.querySelector('[data-role="nextBtn"]');
+    if (prevBtn) prevBtn.disabled = (currentPage <= 1);
+    if (nextBtn) nextBtn.disabled = (currentPage >= totalPages);
   }
 
   _observePdfEmbeds() {

@@ -3244,11 +3244,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
   async _renderPdfAsCanvas(imgEl, url) {
     try {
-      const existingContainer = imgEl.parentElement?.querySelector(".cloudattach-pdf-container");
-      if (existingContainer && existingContainer.querySelectorAll(".cloudattach-pdf-page").length > 0) {
+      this._renderedPdfUrls = this._renderedPdfUrls || /* @__PURE__ */ new Set();
+      if (this._renderedPdfUrls.has(url)) {
         console.log("[CloudAttach] Skip duplicate render for:", url);
         return;
       }
+      this._renderedPdfUrls.add(url);
       const pdfjsLib = await this._loadPdfJs();
       const loadingTask = pdfjsLib.getDocument(url);
       console.log("[CloudAttach] PDF doc loaded, pages:", (await loadingTask.promise).numPages);
@@ -3327,6 +3328,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       imgEl.replaceWith(container);
     } catch (e) {
       console.error("[CloudAttach] PDF render failed:", e);
+      this._renderedPdfUrls?.delete(url);
     }
   }
   // 渲染指定页码的 PDF 页面到指定 canvas
@@ -3373,11 +3375,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     toolbar.style.lineHeight = "18px";
     toolbar.style.zIndex = "10";
     toolbar.style.userSelect = "none";
-    const prevBtn = document.createElement("span");
-    prevBtn.textContent = "\u25C0";
-    prevBtn.style.cursor = "pointer";
-    prevBtn.dataset.role = "prev";
-    toolbar.appendChild(prevBtn);
     const pageIndicator = document.createElement("span");
     pageIndicator.dataset.role = "pageIndicator";
     pageIndicator.style.cursor = "pointer";
@@ -3388,12 +3385,32 @@ module.exports = class CloudAttachPlugin extends Plugin {
         targetCanvas.scrollIntoView({ behavior: "smooth", block: "start" });
       }
     };
+    const prevBtn = document.createElement("button");
+    prevBtn.textContent = "\u25C0";
+    prevBtn.dataset.role = "prevBtn";
+    prevBtn.style.background = "none";
+    prevBtn.style.border = "none";
+    prevBtn.style.color = "white";
+    prevBtn.style.cursor = "pointer";
+    prevBtn.style.padding = "0 4px";
+    prevBtn.title = "\u4E0A\u4E00\u9875";
+    toolbar.appendChild(prevBtn);
     prevBtn.onclick = (e) => {
       e.stopPropagation();
       const current = parseInt(container.dataset.currentPage);
       if (current > 1)
         scrollToPage(current - 1);
     };
+    const nextBtn = document.createElement("button");
+    nextBtn.textContent = "\u25B6";
+    nextBtn.dataset.role = "nextBtn";
+    nextBtn.style.background = "none";
+    nextBtn.style.border = "none";
+    nextBtn.style.color = "white";
+    nextBtn.style.cursor = "pointer";
+    nextBtn.style.padding = "0 4px";
+    nextBtn.title = "\u4E0B\u4E00\u9875";
+    toolbar.appendChild(nextBtn);
     nextBtn.onclick = (e) => {
       e.stopPropagation();
       const current = parseInt(container.dataset.currentPage);
@@ -3457,12 +3474,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const pageIndicator = toolbar.querySelector('[data-role="pageIndicator"]');
     if (pageIndicator)
       pageIndicator.textContent = `${currentPage} / ${totalPages}`;
-    const prevBtn = toolbar.querySelector('[data-role="prev"]');
-    const nextBtn2 = toolbar.querySelector('[data-role="next"]');
+    const prevBtn = toolbar.querySelector('[data-role="prevBtn"]');
+    const nextBtn = toolbar.querySelector('[data-role="nextBtn"]');
     if (prevBtn)
-      prevBtn.style.visibility = currentPage > 1 ? "visible" : "hidden";
-    if (nextBtn2)
-      nextBtn2.style.visibility = currentPage < totalPages ? "visible" : "hidden";
+      prevBtn.disabled = currentPage <= 1;
+    if (nextBtn)
+      nextBtn.disabled = currentPage >= totalPages;
   }
   _observePdfEmbeds() {
     if (this._pdfObserver)
