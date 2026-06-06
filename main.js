@@ -19,7 +19,7 @@ const I18n = {
     en: {}
   },
   setLang(lang) {
-    // 规范化 locale：zh-cn / zh-tw → zh, en-us / en-gb → en
+    // 规范化 locale:zh-cn / zh-tw → zh, en-us / en-gb → en
     if (!lang) lang = 'zh';
     const normalized = lang.toLowerCase().split('-')[0];
     this.currentLang = normalized in this.translations ? normalized : 'zh';
@@ -32,25 +32,25 @@ const I18n = {
 // 注册所有翻译
 Object.assign(I18n.translations.zh, {
   // Notice 消息
-  'notice.sign_expired_403': '⚠️ Sign 已过期，请刷新',
+  'notice.sign_expired_403': '⚠️ Sign 已过期,请刷新',
   'notice.sign_invalid': '❌ Sign 无效',
-  'notice.sign_ok': '✅ Sign 有效，无需刷新',
+  'notice.sign_ok': '✅ Sign 有效,无需刷新',
   'notice.check_start': '🔍 开始检查 {count} 个 URL...',
-  'notice.check_complete': '✅ 检查完成：{parts}',
-  'notice.check_complete_partial': '📋 检查完成：{parts}',
+  'notice.check_complete': '✅ 检查完成:{parts}',
+  'notice.check_complete_partial': '📋 检查完成:{parts}',
   'notice.no_urls_in_note': '📭 笔记中未发现任何 URL',
   'notice.no_attachment': '⚠️ 当前光标附近未找到附件',
   'notice.no_url_near_cursor': '❌ 光标附近未找到 URL',
   'notice.open_note_first': '❌ 请先打开一个笔记',
   'notice.no_file_selected': '⚠️ 请先选择文件',
-  'notice.file_not_found': '⚠️ 文件不存在（可能在服务器上被删除或移动）',
+  'notice.file_not_found': '⚠️ 文件不存在(可能在服务器上被删除或移动)',
   'notice.cannot_extract_path': '❌ 无法提取路径或无 Token',
-  'notice.cannot_refresh': '❌ 无法提取路径或无 Token，无法刷新',
+  'notice.cannot_refresh': '❌ 无法提取路径或无 Token,无法刷新',
   'notice.select_account_first': '❌ 请先选择一个账户',
-  'notice.select_dir_first': '⚠️ 请先在 CloudAttach 标签页中选择上传目录（不能是根目录）',
+  'notice.select_dir_first': '⚠️ 请先在 CloudAttach 标签页中选择上传目录(不能是根目录)',
   'notice.upload_start': '📤 开始上传 {count} 个附件...',
   'notice.upload_success': '✅ 上传成功 {count} 个',
-  'notice.upload_partial': '⚠️ 部分成功：{success} 成功，{failed} 失败',
+  'notice.upload_partial': '⚠️ 部分成功:{success} 成功,{failed} 失败',
   'notice.upload_all_failed': '❌ 上传全部失败',
   'notice.upload_failed': '❌ 上传失败: {error}',
   'notice.file_deleted': '✅ 已删除本地文件: {path}',
@@ -63,22 +63,22 @@ Object.assign(I18n.translations.zh, {
   'notice.inserted_count': '✅ 已插入 {count} 个文件',
   'notice.open_note_first_insert': '❌ 请先打开一个笔记',
   'notice.check_url': '🔍 检查 URL: {url}...',
-  'notice.no_openlist_url': '⚠️ 非 OpenList URL，跳过',
-  'notice.not_my_url_skip': '⚠️ 未匹配到账户，跳过',
+  'notice.no_openlist_url': '⚠️ 非 OpenList URL,跳过',
+  'notice.not_my_url_skip': '⚠️ 未匹配到账户,跳过',
   'notice.s3_upload_success': '✅ 上传成功: {path}',
   'notice.s3_upload_failed': '❌ S3 上传失败: {error}',
-  'notice.s3_test_403': '✅ 连接成功(403无权限，但签名正确)',
-  'notice.s3_test_401': '❌ 签名错误(401)，请检查AccessKey/SecretKey/Region',
+  'notice.s3_test_403': '✅ 连接成功(403无权限,但签名正确)',
+  'notice.s3_test_401': '❌ 签名错误(401),请检查AccessKey/SecretKey/Region',
   'notice.s3_test_404': '❌ 存储桶未找到(404)',
   'notice.s3_test_ok': '✅ 连接成功!',
   'notice.s3_test_failed': '❌ 失败 status={status}',
   'notice.s3_test_error': '❌ 连接异常: {error}',
   'notice.plugin_reloaded': '✅ CloudAttach 已重新加载',
   'notice.delete_success': '✅ 已删除 {count} 项',
-  'notice.delete_partial': '⚠️ 删除成功 {success} 项，失败 {failed} 项',
-  'notice.delete_failed': '❌ 删除失败：{error}',
-  'notice.rename_conflict': '❌ 重命名失败：目标文件名已存在',
-  'notice.rename_failed': '❌ 重命名失败：{error}',
+  'notice.delete_partial': '⚠️ 删除成功 {success} 项,失败 {failed} 项',
+  'notice.delete_failed': '❌ 删除失败:{error}',
+  'notice.rename_conflict': '❌ 重命名失败:目标文件名已存在',
+  'notice.rename_failed': '❌ 重命名失败:{error}',
   'notice.rename_success': '✅ 重命名成功',
   'notice.reload_failed': '❌ 重载失败: {error}',
   'notice.connect_success': '✅ 连接成功',
@@ -99,18 +99,18 @@ Object.assign(I18n.translations.zh, {
   'settings.endpoint': '端点',
   'settings.bucket': '存储桶',
   'settings.region': '地域',
-  'settings.prefix': '存储路径（选填）',
-  'settings.prefix_placeholder': 'obsidian/，默认根目录',
+  'settings.prefix': '存储路径(选填)',
+  'settings.prefix_placeholder': 'obsidian/,默认根目录',
   'settings.username': '用户名',
   'settings.password': '密码',
-  'settings.token': 'Token（选填）',
-  'settings.token_hint': '在 OpenList 后台获取，不填则不签名',
+  'settings.token': 'Token(选填)',
+  'settings.token_hint': '在 OpenList 后台获取,不填则不签名',
   'settings.access_key': '访问密钥 ID',
   'settings.secret_key': '访问密钥',
   'settings.public_url': '自定义主机',
-  'settings.public_url_hint': 'auto（Cloudflare R2 可留空）',
-  'settings.cdn_url': 'CDN 加速地址（选填）',
-  'settings.cdn_url_hint': 'https://cdn.example.com（选填，用于拼公共访问URL）',
+  'settings.public_url_hint': 'auto(Cloudflare R2 可留空)',
+  'settings.cdn_url': 'CDN 加速地址(选填)',
+  'settings.cdn_url_hint': 'https://cdn.example.com(选填,用于拼公共访问URL)',
   'settings.storage_type': '存储类型',
   'settings.openlist': '对象存储',
   'settings.openlist_desc': '连接 OpenList 管理云附件',
@@ -118,24 +118,24 @@ Object.assign(I18n.translations.zh, {
   'settings.advanced_title': '高级设置',
   'settings.preview_category': '文件预览',
   'settings.pdf_preview': 'PDF 预览方式',
-  'settings.pdf_preview_iframe': 'iframe（默认）',
+  'settings.pdf_preview_iframe': 'iframe(默认)',
   'settings.pdf_preview_pdfjs': 'PDF.js',
-  'settings.pdfjs_auto_install': '（保存后自动安装 约1.6MB）',
-  'settings.pdfjs_installed': '（已安装）',
+  'settings.pdfjs_auto_install': '(保存后自动安装 约1.6MB)',
+  'settings.pdfjs_installed': '(已安装)',
   'settings.pdfjs_installing': '正在安装 PDF.js...',
-  'settings.pdfjs_downloaded': 'PDF.js（已安装）',
+  'settings.pdfjs_downloaded': 'PDF.js(已安装)',
   'settings.pdfjs_uninstall': '卸载',
   'settings.excel_preview': 'Excel 预览方式',
-  'settings.excel_preview_iframe': 'iframe（默认）',
+  'settings.excel_preview_iframe': 'iframe(默认)',
   'settings.excel_preview_sheetjs': 'SheetJS',
   'settings.word_preview': 'Word 预览方式',
-  'settings.word_preview_iframe': 'iframe（默认）',
+  'settings.word_preview_iframe': 'iframe(默认)',
   'settings.word_preview_mammoth': 'mammoth.js',
   'settings.preview_coming_soon': '敬请期待...',
   'settings.s3': '对象存储 (S3)',
   'settings.s3_desc': '支持 S3 协议的对象存储',
-  'settings.account_name_placeholder': '例如：我的COS桶',
-  'settings.folder_required': '⚠️ 请选择上传到的文件夹，不能是根目录',
+  'settings.account_name_placeholder': '例如:我的COS桶',
+  'settings.folder_required': '⚠️ 请选择上传到的文件夹,不能是根目录',
 
   // 视图界面
   'view.select_account': '选择账户',
@@ -152,7 +152,7 @@ Object.assign(I18n.translations.zh, {
   'view.delete_btn': '🗑 删除所选',
   'view.confirm_delete': '确认删除 ({count})',
   'view.delete_confirm_title': '确认删除',
-  'view.delete_confirm_body': '确定要删除以下 {count} 项吗？此操作不可恢复。',
+  'view.delete_confirm_body': '确定要删除以下 {count} 项吗?此操作不可恢复。',
   'view.delete_item': '📄 {name}',
   'view.delete_folder': '📁 {name}',
   'view.delete_and_more': '等 {count} 项',
@@ -165,7 +165,7 @@ Object.assign(I18n.translations.zh, {
   'view.select_all': '全选',
   'view.select_invert': '反选',
   'view.upload_confirm_title': '📤 确认上传附件',
-  'view.upload_confirm_msg': '将上传 {count} 个附件到 {target}，本地文件将被删除。',
+  'view.upload_confirm_msg': '将上传 {count} 个附件到 {target},本地文件将被删除。',
   'view.confirm_upload': '确认上传',
   'view.cancel': '取消',
   'view.upload_btn': '上传 {count} 个文件',
@@ -223,9 +223,9 @@ Object.assign(I18n.translations.zh, {
   'settings.account_label': '账户 {n}',
   'notice.sign_refreshed': '✅ Sign 已刷新',
   'notice.refresh_failed': '❌ 刷新失败: {error}',
-  'notice.url_invalid': '❌ URL 失效：{reason}',
+  'notice.url_invalid': '❌ URL 失效:{reason}',
   'notice.no_attachment_found': '📭 笔记中没有本地附件',
-  'notice.upload_complete': '📤 上传完成：{parts}',
+  'notice.upload_complete': '📤 上传完成:{parts}',
   'notice.url_parts_valid': '{count} 个有效',
   'notice.urls_refreshed': '✅ {count} 个已刷新',
   'notice.urls_failed': '❌ {count} 个失败',
@@ -237,7 +237,7 @@ Object.assign(I18n.translations.zh, {
   'error.unsupported_type': '不支持的文件类型',
   'error.upload_failed': '上传失败: HTTP {status}',
   'error.s3_upload_failed': 'S3 上传失败: HTTP {status}',
-  'error.file_not_found': '文件不存在（可能在服务器上被删除或移动）',
+  'error.file_not_found': '文件不存在(可能在服务器上被删除或移动)',
   'error.network_error': '网络错误',
   'error.no_view_or_folder': '请先打开 CloudAttach 标签页并选择上传目录',
   'error.no_account': '请先选择一个账户',
@@ -255,9 +255,9 @@ Object.assign(I18n.translations.zh, {
   'settings.server_address_placeholder': 'http://192.168.62.200:5244',
   'settings.endpoint_placeholder': 'https://xxx.r2.cloudflarestorage.com',
   'settings.bucket_placeholder': 'my-vault-attach',
-  'settings.region_placeholder': 'auto（Cloudflare R2 可留空）',
-  'settings.cdn_url_placeholder': 'https://cdn.example.com（选填，用于拼公共访问URL）',
-  'view.upload_to': '上传到：<code style="background:var(--background-secondary);padding:2px 6px;border-radius:3px;">{path}</code>',
+  'settings.region_placeholder': 'auto(Cloudflare R2 可留空)',
+  'settings.cdn_url_placeholder': 'https://cdn.example.com(选填,用于拼公共访问URL)',
+  'view.upload_to': '上传到:<code style="background:var(--background-secondary);padding:2px 6px;border-radius:3px;">{path}</code>',
   'error.rebuild_failed': '重建失败: {error}',
   'error.sign_rebuild_failed': '补 sign 失败: {error}',
   'settings.check_account_settings': '请检查账户设置',
@@ -496,7 +496,7 @@ Object.assign(I18n.translations.en, {
   'settings.cdn_url_placeholder': 'https://cdn.example.com (optional)',
 });
 
-// 辅助函数：格式化翻译字符串（替换 {placeholder}）
+// 辅助函数:格式化翻译字符串(替换 {placeholder})
 function t(key, params = {}) {
   let str = I18n.t(key);
   for (const [k, v] of Object.entries(params)) {
@@ -517,9 +517,9 @@ class OpenListClient {
   }
 
   /**
-   * 对 URL 路径部分做安全解码：把 %XX 编码的中文还原为原文，但保留空格等必须编码的字符。
+   * 对 URL 路径部分做安全解码:把 %XX 编码的中文还原为原文,但保留空格等必须编码的字符。
    * 用于服务器返回的全编码 URL → 插入笔记时保留中文原文。
-   * @param {string} url - 完整 URL（可能含 query string）
+   * @param {string} url - 完整 URL(可能含 query string)
    * @returns {string} 解码后的 URL
    */
   safeDecodeUrl(url) {
@@ -527,14 +527,14 @@ class OpenListClient {
       const qIdx = url.indexOf('?');
       const path = qIdx >= 0 ? url.substring(0, qIdx) : url;
       const query = qIdx >= 0 ? url.substring(qIdx) : '';
-      // 先完整解码（处理多层编码），再用 safePath 规则重新编码
+      // 先完整解码(处理多层编码),再用 safePath 规则重新编码
       let decoded = path;
       for (let i = 0; i < 5; i++) {
         const next = decodeURIComponent(decoded);
         if (next === decoded) break;
         decoded = next;
       }
-      // 重新编码：中文保留原文，空格及特殊字符才编码
+      // 重新编码:中文保留原文,空格及特殊字符才编码
       const safePath = decoded.replace(/[\s#?&<>"'\\|{}]/g, c => encodeURIComponent(c));
       return safePath + query;
     } catch (e) {
@@ -543,13 +543,13 @@ class OpenListClient {
   }
 
   /**
-   * 登录获取 token（用于 API 操作）
+   * 登录获取 token(用于 API 操作)
    * @returns {Promise<boolean>}
    */
   async login() {
     if (this.token) return true;
     if (!this.username || !this.password) return false;
-    
+
     try {
       const url = `${this.serverUrl}/api/auth/login`;
       const response = await this.requestViaObsidian(url, {
@@ -557,7 +557,7 @@ class OpenListClient {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: this.username, password: this.password })
       });
-      
+
       if (response.ok) {
         const data = JSON.parse(response.text);
         if (data.code === 200 && data.data?.token) {
@@ -576,8 +576,8 @@ class OpenListClient {
 
 
   /**
-   * 通过 Obsidian requestUrl 发请求（绕过 CORS，适用于 WebDAV）
-   * 优先使用 app.requestUrl，不可用时回退到原生 fetch
+   * 通过 Obsidian requestUrl 发请求(绕过 CORS,适用于 WebDAV)
+   * 优先使用 app.requestUrl,不可用时回退到原生 fetch
    * @param {string} url - 目标 URL
    * @param {Object} options - { method, headers, body }
    * @returns {Promise<{status: number, text: string, ok: boolean}>}
@@ -589,12 +589,12 @@ class OpenListClient {
       // Obsidian 环境中 require 是全局的
       requestUrl = require('obsidian').requestUrl;
     } catch (e) {
-      // 如果 require 失败，尝试其他方式
+      // 如果 require 失败,尝试其他方式
       requestUrl = globalThis.requestUrl || this.app?.requestUrl;
     }
-    
+
     console.log('[CloudAttach] requestViaObsidian url:', url.substring(0, 80), 'hasRequestUrl:', !!requestUrl);
-    
+
     if (requestUrl) {
       try {
         const result = await requestUrl({
@@ -611,7 +611,7 @@ class OpenListClient {
         };
       } catch (e) {
         console.error('[CloudAttach] requestUrl error:', e.message || e);
-        // Obsidian requestUrl 对非 2xx 响应会抛异常，尝试从异常中解析 status 和 text
+        // Obsidian requestUrl 对非 2xx 响应会抛异常,尝试从异常中解析 status 和 text
         // 常见错误格式: "Request failed, status 401" 或 { status: 401, ... }
         let status = 0;
         let text = '';
@@ -632,7 +632,7 @@ class OpenListClient {
         } else if (e.json && typeof e.json === 'function') {
           try { text = JSON.stringify(e.json()); } catch {}
         }
-        // WebDAV 207 Multi-Status 是有效响应，返回成功
+        // WebDAV 207 Multi-Status 是有效响应,返回成功
         if (status === 207) {
           return { ok: true, status, text };
         }
@@ -653,7 +653,7 @@ class OpenListClient {
   }
 
   /**
-   * 通过 Obsidian requestUrl 获取二进制数据（用于 PDF 等文件）
+   * 通过 Obsidian requestUrl 获取二进制数据(用于 PDF 等文件)
    * @returns {Promise<Uint8Array|null>}
    */
   async requestBinary(url) {
@@ -665,14 +665,14 @@ class OpenListClient {
       try {
         const result = await requestUrl({ url, method: 'GET', throw: false });
         if (result.status >= 200 && result.status < 300) {
-          // 优先用 arrayBuffer，其次 blob
+          // 优先用 arrayBuffer,其次 blob
           if (result.arrayBuffer) {
             return new Uint8Array(result.arrayBuffer);
           } else if (result.blob) {
             const buf = await result.blob.arrayBuffer();
             return new Uint8Array(buf);
           } else if (result.text) {
-            // 回退：将 text 当作二进制（会有编码问题，但尽量尝试）
+            // 回退:将 text 当作二进制(会有编码问题,但尽量尝试)
             const bytes = new TextEncoder().encode(result.text);
             return bytes;
           }
@@ -684,7 +684,7 @@ class OpenListClient {
         return null;
       }
     }
-    // 完全不可用时，用 fetch 回退
+    // 完全不可用时,用 fetch 回退
     try {
       const resp = await fetch(url);
       if (!resp.ok) return null;
@@ -697,23 +697,23 @@ class OpenListClient {
   }
 
   /**
-   * 带认证的 API 请求（token 优先，401 fallback 到 login）
+   * 带认证的 API 请求(token 优先,401 fallback 到 login)
    */
   async authFetch(path, options = {}) {
     // 确保有 token
     if (!this.token && !(await this.login())) {
       return { status: 401, text: '{"code":401,"message":"Authentication required"}', ok: false };
     }
-    
+
     const url = `${this.baseUrl}${path}`;
     const headers = {
       ...options.headers,
       'Authorization': this.token,
     };
-    
+
     let response = await this.requestViaObsidian(url, { ...options, headers });
-    
-    // 检查 HTTP 401 或响应体中的 code 401（token 失效）
+
+    // 检查 HTTP 401 或响应体中的 code 401(token 失效)
     let tokenInvalidated = response.status === 401;
     if (response.status === 200 && response.text) {
       try {
@@ -723,11 +723,11 @@ class OpenListClient {
           tokenInvalidated = true;
         }
       } catch (e) {
-        // 解析失败，忽略
+        // 解析失败,忽略
       }
     }
-    
-    // token 过期，尝试重新登录
+
+    // token 过期,尝试重新登录
     if (tokenInvalidated && this.username && this.password) {
       console.log('[CloudAttach] token expired, re-login');
       this.token = '';
@@ -740,28 +740,28 @@ class OpenListClient {
         });
       }
     }
-    
+
     return response;
   }
 
   async getSignedUrl(remotePath, preferredPrefix = 'p') {
     // 优先使用 OpenList API 获取带签名的 URL
     const apiUrl = `${this.serverUrl}/api/fs/get`;
-    
-    // 构造请求头 - 注意：没有 Bearer 前缀
+
+    // 构造请求头 - 注意:没有 Bearer 前缀
     const headers = {
       'Content-Type': 'application/json'
     };
-    
-    // 添加 Token 认证（无 Bearer）
+
+    // 添加 Token 认证(无 Bearer)
     if (this.token) {
       headers['Authorization'] = this.token;
     }
-    
+
     try {
-      // 直接使用 remotePath（不再次解码），保持与服务器路径一致
+      // 直接使用 remotePath(不再次解码),保持与服务器路径一致
       console.log('[CloudAttach] getSignedUrl calling API:', apiUrl, 'path:', remotePath, 'prefix:', preferredPrefix);
-      
+
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: headers,
@@ -772,42 +772,42 @@ class OpenListClient {
 
       const data = await response.json();
       console.log('[CloudAttach] getSignedUrl response:', data);
-      
+
       if (data.code === 200) {
-        // raw_url 全编码，用 safeDecodeUrl 解码保留中文，特殊字符编码
+        // raw_url 全编码,用 safeDecodeUrl 解码保留中文,特殊字符编码
         let newUrl = this.safeDecodeUrl(data.data.raw_url);
-        // 保持原 URL 的前缀（/d/ 或 /p/）
+        // 保持原 URL 的前缀(/d/ 或 /p/)
         newUrl = newUrl.replace(/\/(d|p)\//, `/${preferredPrefix}/`);
         return newUrl;
       }
-      
+
       // API 返回错误
       console.log('[CloudAttach] API returned error:', data.message);
-      
+
     } catch (e) {
       console.log('[CloudAttach] API call failed:', e.message);
     }
-    
-    // 回退：使用传入的 preferredPrefix（默认 p）
+
+    // 回退:使用传入的 preferredPrefix(默认 p)
     // 保留原协议、保留中文原文
     const proto = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, '$1');
     const host = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, '$3');
     return `${proto}${host}/${preferredPrefix}${remotePath.startsWith('/') ? remotePath : '/' + remotePath}`;
   }
 
-  // 获取文件的 WebDAV URL（用于插入到笔记）
+  // 获取文件的 WebDAV URL(用于插入到笔记)
   getFileUrl(remotePath) {
     const webdavPath = this.webdavPath || '';
-    // 保留原协议，不要写死 https
+    // 保留原协议,不要写死 https
     const proto = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, '$1');
     const host = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, '$3');
-    // 统一编码规则：保留中文，编码空格和特殊字符（与 OpenList/S3 一致）
+    // 统一编码规则:保留中文,编码空格和特殊字符(与 OpenList/S3 一致)
     const fullPath = webdavPath + remotePath;
     const encodedPath = fullPath.replace(/[\s#?&<>"'\\|{}]/g, c => encodeURIComponent(c));
     return `${proto}${host}${encodedPath}`;
   }
 
-  // 获取原始 URL（无签名、无 /dav /d 前缀，用于 iframe 预览）
+  // 获取原始 URL(无签名、无 /dav /d 前缀,用于 iframe 预览)
   getRawUrl(remotePath) {
     // 保留原协议、保留中文原文
     const proto = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, '$1');
@@ -817,23 +817,23 @@ class OpenListClient {
 
   /**
    * 从 OpenList URL 中提取真实文件路径
-   * URL 格式：https://host:port/p/Local/share/photo.jpg?sign=xxx:0
+   * URL 格式:https://host:port/p/Local/share/photo.jpg?sign=xxx:0
    *           或 https://host:port/d/Local/share/photo.jpg?sign=xxx:0
-   * 去掉开头的 /p/ 或 /d/ 前缀，返回真实路径 /Local/share/photo.jpg
+   * 去掉开头的 /p/ 或 /d/ 前缀,返回真实路径 /Local/share/photo.jpg
    * @param {string} url - 完整的 OpenList URL
-   * @returns {string|null} 真实文件路径，或 null（不是 OpenList URL）
+   * @returns {string|null} 真实文件路径,或 null(不是 OpenList URL)
    */
   extractRealPath(url) {
     try {
-      // 注意：不能用 new URL(url).pathname，因为它会自动解码 %20→空格
-      // 必须从 URL 字符串手动提取路径部分，保留编码
+      // 注意:不能用 new URL(url).pathname,因为它会自动解码 %20→空格
+      // 必须从 URL 字符串手动提取路径部分,保留编码
       const match = url.match(/^https?:\/\/[^\/]+\/\w+\/(.+?)(?:\?|$)/);
       if (!match) return null;
-      
+
       let pathSegment = match[1];
-      // 去掉 sign 参数（如果有）
+      // 去掉 sign 参数(如果有)
       pathSegment = pathSegment.split('?')[0].split('&')[0];
-      
+
       return '/' + pathSegment;
     } catch {
       return null;
@@ -850,22 +850,22 @@ class OpenListClient {
       urlObj.searchParams.delete("sign");
       return urlObj.toString();
     } catch {
-      // 回退：字符串处理
+      // 回退:字符串处理
       return url.replace(/[?&]sign=[^&]*/g, "").replace(/&$/, "").replace(/\?$/, "");
     }
   }
 
   /**
-   * 在文本中查找并替换 URL（简化版：遍历文本中的 URL，解码后比对路径）
+   * 在文本中查找并替换 URL(简化版:遍历文本中的 URL,解码后比对路径)
    */
   findAndReplaceUrl(text, realPath, newUrl) {
-    // 精确匹配：去掉 sign 参数后完整 URL 对比（保留文件名）
-    // 不再按文件夹路径前缀匹配——会导致同一文件夹所有文件被替换成同一个 URL
+    // 精确匹配:去掉 sign 参数后完整 URL 对比(保留文件名)
+    // 不再按文件夹路径前缀匹配--会导致同一文件夹所有文件被替换成同一个 URL
     const urlRegex = /https?:\/\/[^\s()"']+/g;
     const matches = text.match(urlRegex);
     if (!matches) return text;
 
-    // 去掉 newUrl 的 sign 参数，取完整路径作为匹配 key
+    // 去掉 newUrl 的 sign 参数,取完整路径作为匹配 key
     const newUrlClean = newUrl.split('?')[0];
     const newUrlPath = newUrlClean.replace(/^https?:\/\/[^\/]+/, '');
     const newUrlDecoded = decodeURIComponent(newUrlPath);
@@ -880,10 +880,10 @@ class OpenListClient {
         const foundUrlDecoded = decodeURIComponent(foundUrlPath);
         const foundUrlNormalized = foundUrlDecoded.replace(/^\/(p|d)\//, '/').replace(/^\/+|\/+$/g, '');
 
-        // 精确匹配完整 URL 路径（含文件名），而非路径前缀
+        // 精确匹配完整 URL 路径(含文件名),而非路径前缀
         if (foundUrlNormalized === newUrlNormalized) {
           console.log('[CloudAttach] findAndReplaceUrl: exact match ' + foundUrlNormalized + ', replacing: ' + foundUrl.substring(0, 80) + '...');
-          // 从 newUrl 提取 sign 参数，拼到原始 URL 路径上（保留文件名）
+          // 从 newUrl 提取 sign 参数,拼到原始 URL 路径上(保留文件名)
           const newSignMatch = newUrl.match(/\?sign=([^\s"']+)/);
           const newSign = newSignMatch ? '?sign=' + newSignMatch[1] : '';
           newText = newText.replace(foundUrl, foundUrlClean + newSign);
@@ -896,14 +896,14 @@ class OpenListClient {
   }
 
   /**
-   * 解码 URL 中的中文字符（处理 encodeURI / encodeURIComponent / safeEncodePath 各种形式）
-   * safeEncodePath 只编码特殊字符保留中文，所以解码只需处理 %XX
+   * 解码 URL 中的中文字符(处理 encodeURI / encodeURIComponent / safeEncodePath 各种形式)
+   * safeEncodePath 只编码特殊字符保留中文,所以解码只需处理 %XX
    * @param {string} url
    * @returns {string} 解码后的 URL
    */
   static safeDecodeUrl(url) {
     if (!url || typeof url !== 'string') return url || '';
-    // 只解码一次，不要循环解码（%20→空格、%E2%80%93→异形破折号会导致路径与服务器不匹配）
+    // 只解码一次,不要循环解码(%20→空格、%E2%80%93→异形破折号会导致路径与服务器不匹配)
     try {
       return decodeURIComponent(url);
     } catch {
@@ -912,7 +912,7 @@ class OpenListClient {
   }
 
   /**
-   * 验证 OpenList sign URL 是否有效（通过 HEAD 请求）
+   * 验证 OpenList sign URL 是否有效(通过 HEAD 请求)
    * @param {string} url - 完整的 sign URL
    * @returns {Promise<{ok: boolean, status: number, reason: string}>}
    */
@@ -926,7 +926,7 @@ class OpenListClient {
       if (response.ok) {
         return { ok: true, status: response.status, reason: 'valid' };
       }
-      // OpenList 对无效/过期 sign 返回 401（认证失败），也当作 sign_expired 处理
+      // OpenList 对无效/过期 sign 返回 401(认证失败),也当作 sign_expired 处理
       if (response.status === 403 || response.status === 401) {
         return { ok: false, status: response.status, reason: 'sign_expired' };
       }
@@ -952,7 +952,7 @@ class OpenListClient {
         });
         if (response.ok || response.status === 207) return true;
       }
-      
+
       const apiUrl = `${this.serverUrl}/api/fs/list`;
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -975,11 +975,11 @@ class OpenListClient {
   }
 
   /**
-   * 删除文件或文件夹（批量）
+   * 删除文件或文件夹(批量)
    * @param {string[]} paths - 要删除的路径列表
    * @returns {Promise<{success: string[], failed: Array<{path, error}>}>}
    */
-  /** 对 URL 路径分段编码，保留 / 分隔符 */
+  /** 对 URL 路径分段编码,保留 / 分隔符 */
   encodePath(path) {
     return path.split('/').map(seg => encodeURIComponent(seg)).join('/');
   }
@@ -1046,7 +1046,7 @@ class OpenListClient {
   }
 
   /**
-   * @param {string} path - 原路径（如 /Local/share/.../file.txt）
+   * @param {string} path - 原路径(如 /Local/share/.../file.txt)
    * @param {string} newName - 新文件名
    * @returns {Promise<void>}
    */
@@ -1058,7 +1058,7 @@ class OpenListClient {
       const dstPath = `${dstDir}/${newName}`;
       const dstUrl = `${this.serverUrl}${this.encodePath(this.webdavPath + dstPath)}`;
       console.log("[CloudAttach] rename WebDAV MOVE: src:", srcUrl, "dst:", dstUrl);
-      
+
       const response = await this.requestViaObsidian(srcUrl, {
         method: 'MOVE',
         headers: {
@@ -1067,14 +1067,14 @@ class OpenListClient {
         }
       });
       console.log("[CloudAttach] rename WebDAV response status:", response.status);
-      
+
       // WebDAV MOVE 成功返回 201 Created 或 204 No Content
       if (response.status !== 201 && response.status !== 204 && !response.ok) {
         throw new Error(response.text || 'Rename failed');
       }
       return;
     }
-    
+
     // OpenList 账户使用 API
     const response = await this.authFetch('/api/fs/rename', {
       method: 'POST',
@@ -1096,8 +1096,8 @@ class OpenListClient {
 
   /**
    * 上传文件到远程目录
-   * @param {string} localPath - 本地文件路径（vault 内）
-   * @param {string} remoteDir - 远程目录路径（以 / 开头）
+   * @param {string} localPath - 本地文件路径(vault 内)
+   * @param {string} remoteDir - 远程目录路径(以 / 开头)
    * @returns {Promise<{ok: boolean, remotePath: string, url: string, error?: string}>}
    */
   async uploadFile(localPath, remoteDir) {
@@ -1121,7 +1121,7 @@ class OpenListClient {
         return { ok: false, error: t('error.unsupported_type') };
       }
 
-      // 构造上传 URL（WebDAV PUT 需要全编码路径）
+      // 构造上传 URL(WebDAV PUT 需要全编码路径)
       const encodedPath = this.encodePath ? this.encodePath(remotePath) : encodeURIComponent(remotePath);
       const uploadUrl = `${this.serverUrl}${this.webdavPath}${encodedPath}`;
 
@@ -1138,7 +1138,7 @@ class OpenListClient {
       });
 
       if (response.ok || response.status === 201 || response.status === 204) {
-        // 有 token 的走签名 URL（OpenList），无 token 的走 Basic Auth URL（纯 WebDAV）
+        // 有 token 的走签名 URL(OpenList),无 token 的走 Basic Auth URL(纯 WebDAV)
         const url = this.token
           ? await this.getSignedUrl(remotePath)
           : this.getFileUrl(remotePath);
@@ -1169,7 +1169,7 @@ class OpenListClient {
   async listDirectoryWebDAV(remotePath) {
     const webdavUrl = `${this.serverUrl}${this.webdavPath}${remotePath}`;
     const propfindBody = `<?xml version="1.0" encoding="utf-8" ?><D:propfind xmlns:D="DAV:"><D:prop><D:displayname/><D:getcontentlength/><D:getlastmodified/><D:resourcetype/></D:prop></D:propfind>`;
-    
+
     const response = await this.requestViaObsidian(webdavUrl, {
       method: 'PROPFIND',
       headers: {
@@ -1182,7 +1182,7 @@ class OpenListClient {
 
     if (!response.ok && response.status !== 207) throw new Error(`WebDAV error: ${response.status}`);
 
-    // 如果 text 为空（requestUrl 异常未捕获响应体），使用原生 fetch 重试
+    // 如果 text 为空(requestUrl 异常未捕获响应体),使用原生 fetch 重试
     let text = response.text;
     if (!text) {
       console.log('[CloudAttach] WebDAV 207 response text is empty, retrying with fetch');
@@ -1202,10 +1202,10 @@ class OpenListClient {
     const parser = new DOMParser();
     const doc = parser.parseFromString(text, 'text/xml');
 
-    // 尝试多种方式匹配 XML 元素（跨平台兼容性）
+    // 尝试多种方式匹配 XML 元素(跨平台兼容性)
     let responses = doc.getElementsByTagNameNS('DAV:', 'response');
     if (responses.length === 0) {
-      // 尝试字面标签匹配（D:response 或 d:response，大小写均可）
+      // 尝试字面标签匹配(D:response 或 d:response,大小写均可)
       const upper = doc.getElementsByTagName('D:response');
       const lower = doc.getElementsByTagName('d:response');
       responses = upper.length > 0 ? upper : lower;
@@ -1220,14 +1220,14 @@ class OpenListClient {
     }
 
     if (responses.length === 0) {
-      // 兜底：直接查找所有元素看结构
+      // 兜底:直接查找所有元素看结构
       const allElements = doc.getElementsByTagName('*');
       const tagNames = [];
       for (let i = 0; i < Math.min(allElements.length, 20); i++) tagNames.push(allElements[i].tagName);
       console.log('[CloudAttach] XML elements found (sample):', tagNames.join(', '));
     }
     function getTag(el, prefix, localName) {
-      // 优先用命名空间匹配，兜底用字面匹配（兼容不同大小写前缀）
+      // 优先用命名空间匹配,兜底用字面匹配(兼容不同大小写前缀)
       const ns = el.getElementsByTagNameNS('DAV:', localName);
       if (ns.length > 0) return ns[0];
       const upper = el.getElementsByTagName(prefix + ':' + localName);
@@ -1249,33 +1249,33 @@ class OpenListClient {
       const collLower = resp.getElementsByTagName('d:collection');
       const isDirectory = collUpper.length > 0 || collLower.length > 0;
       let decodedHref = decodeURIComponent(href);
-      
-      // Synology WebDAV 返回完整 URL（https://domain:5006/path/file.txt），需要提取路径部分
+
+      // Synology WebDAV 返回完整 URL(https://domain:5006/path/file.txt),需要提取路径部分
       if (decodedHref.startsWith('http')) {
         try {
           const url = new URL(decodedHref);
           decodedHref = url.pathname;
-          console.log('[CloudAttach] WebDAV: href 是完整 URL，提取路径:', url.pathname);
+          console.log('[CloudAttach] WebDAV: href 是完整 URL,提取路径:', url.pathname);
         } catch (e) {
           console.warn('[CloudAttach] WebDAV: 解析 href URL 失败:', decodedHref);
         }
       }
-      
+
       const name = displayName || decodedHref.split('/').pop();
-      
+
       let relativePath = decodedHref;
       if (relativePath.startsWith(this.webdavPath)) {
         relativePath = relativePath.slice(this.webdavPath.length) || '/';
       }
-      
+
       if (relativePath === remotePath || relativePath === remotePath + '/') continue;
-      
+
       files.push({ name, path: relativePath, isDirectory, size: contentLength });
     }
 
-    // XML 有条目但全部被过滤，可能是路径匹配问题
+    // XML 有条目但全部被过滤,可能是路径匹配问题
     if (responses.length > 0 && files.length === 0) {
-      console.warn('[CloudAttach] WebDAV: XML解析到', responses.length, '条目但全部被过滤，remotePath=', remotePath, 'webdavPath=', this.webdavPath);
+      console.warn('[CloudAttach] WebDAV: XML解析到', responses.length, '条目但全部被过滤,remotePath=', remotePath, 'webdavPath=', this.webdavPath);
     }
 
     return files.sort((a, b) => {
@@ -1326,11 +1326,11 @@ class OpenListClient {
 
 /**
  * S3 兼容对象存储客户端
- * 支持所有使用 S3 协议的对象存储服务：
+ * 支持所有使用 S3 协议的对象存储服务:
  * - 腾讯云 COS
  * - 阿里云 OSS
  * - AWS S3
- * - 兼容 S3 的自建存储（MinIO、Ceph RGW 等）
+ * - 兼容 S3 的自建存储(MinIO、Ceph RGW 等)
  */
 class S3Client {
   constructor(account, app) {
@@ -1345,7 +1345,7 @@ class S3Client {
   }
 
   /**
-   * 通过 Obsidian requestUrl 发请求，绕过 CORS
+   * 通过 Obsidian requestUrl 发请求,绕过 CORS
    */
   async requestViaObsidian(url, options = {}) {
     let requestUrl = null;
@@ -1386,16 +1386,16 @@ class S3Client {
 
   /**
    * 列出目录内容
-   * @param {string} remotePath - 远程路径，如 "/" 或 "/folder/"
+   * @param {string} remotePath - 远程路径,如 "/" 或 "/folder/"
    * @returns {Promise<Array>} 文件列表
    */
   async listDirectory(remotePath = '/') {
     try {
-      // 规范化路径：去除两端斜杠，转为 prefix 格式
+      // 规范化路径:去除两端斜杠,转为 prefix 格式
       const cleanPath = remotePath === '/' ? '' : remotePath.replace(/^\/|\/$/g, '');
-      // S3 prefix：拼接 base prefix + 当前路径（不以 / 开头）
+      // S3 prefix:拼接 base prefix + 当前路径(不以 / 开头)
       const basePrefix = this.prefix ? this.prefix.replace(/\/$/, '') : '';
-      const s3Prefix = cleanPath 
+      const s3Prefix = cleanPath
         ? (basePrefix ? basePrefix + '/' + cleanPath + '/' : cleanPath + '/')
         : (basePrefix ? basePrefix + '/' : '');
 
@@ -1424,18 +1424,18 @@ class S3Client {
   }
 
   /**
-   * 构造文件公共访问 URL（无签名，适用于公共读桶）
-   * @param {string} remotePath - 远程路径，如 "/images/photo.jpg"
+   * 构造文件公共访问 URL(无签名,适用于公共读桶)
+   * @param {string} remotePath - 远程路径,如 "/images/photo.jpg"
    * @returns {string} 公共 URL
    */
   getFileUrl(remotePath) {
     const encodePath = (p) => p.split('/').map(s => encodeURIComponent(s)).join('/');
-    // 去除前缀的尾斜杠，拼到 publicUrl
+    // 去除前缀的尾斜杠,拼到 publicUrl
     const basePrefix = this.prefix ? this.prefix.replace(/\/$/, '') : '';
     const cleanPath = remotePath.replace(/^\/+/, '');
     const fullPath = basePrefix ? `${basePrefix}/${cleanPath}` : cleanPath;
     // 确保 protocol
-    // 协议继承：customHost 无协议则从 endpoint 取；endpoint 也无协议则默认 http
+    // 协议继承:customHost 无协议则从 endpoint 取;endpoint 也无协议则默认 http
     let base = this.publicUrl || this.endpoint;
     const protoFromEndpoint = (this.endpoint || '').match(/^https?:/)?.[0] || 'http:';
     if (!base.startsWith('http')) {
@@ -1445,9 +1445,9 @@ class S3Client {
   }
 
   /**
-   * 获取文件预签名 URL（适用于私有桶，按需签名）
+   * 获取文件预签名 URL(适用于私有桶,按需签名)
    * @param {string} remotePath - 远程路径
-   * @param {number} expires - 过期时间（秒），默认 3600
+   * @param {number} expires - 过期时间(秒),默认 3600
    * @returns {Promise<string>} 预签名 URL
    */
   async getSignedUrl(remotePath, expires = 3600) {
@@ -1455,7 +1455,7 @@ class S3Client {
       const cleanPath = remotePath.replace(/^\/+/, '');
       const params = new URLSearchParams({ 'X-Amz-Expires': expires.toString() });
       const signedQuery = await this.signQuery(params, cleanPath);
-      // S3 路径必须保持编码，中文不能解码（签名依赖路径编码）
+      // S3 路径必须保持编码,中文不能解码(签名依赖路径编码)
       const objectKey = encodeURIComponent(cleanPath);
       return `${this.endpoint}/${this.bucket}/${objectKey}?${signedQuery}`;
     } catch (e) {
@@ -1467,7 +1467,7 @@ class S3Client {
   /**
    * 上传文件到 S3
    * @param {string} localPath - vault 内文件路径
-   * @param {string} remoteDir - 远程目录路径（以 / 开头）
+   * @param {string} remoteDir - 远程目录路径(以 / 开头)
    * @returns {Promise<{ok: boolean, remotePath: string, url: string, error?: string}>}
    */
   async uploadFile(localPath, remoteDir) {
@@ -1487,7 +1487,7 @@ class S3Client {
       const objectKey = basePrefix ? `${basePrefix}/${dirClean}${fileName}` : `${dirClean}${fileName}`;
       const remotePath = `${normalizedDir}${fileName}`;
 
-      // 用 presigned URL PUT 上传（通过 requestViaObsidian 绕过 CORS）
+      // 用 presigned URL PUT 上传(通过 requestViaObsidian 绕过 CORS)
       const mimeType = this.getMimeType(fileName);
       const params = new URLSearchParams({ 'X-Amz-Expires': '3600' });
       const signedQuery = await this.signQuery(params, objectKey, 'PUT', { 'content-type': mimeType });
@@ -1542,7 +1542,7 @@ class S3Client {
       const status = response.status;
       const text = typeof response.text === 'function' ? await response.text().catch(() => '') : (response.text || '');
       console.log('[CloudAttach] S3 testConnection status:', status, 'body:', text.slice(0, 200));
-      // 403 = 签名正确但无权限，401 = 签名错误，其他 2xx = 成功
+      // 403 = 签名正确但无权限,401 = 签名错误,其他 2xx = 成功
       if (status === 403 || status === 401 || status === 404 || response.ok) {
         return response.ok || status === 403;
       }
@@ -1556,33 +1556,33 @@ class S3Client {
   // ============ 内部方法 ============
 
   /**
-   * 发送 S3 请求（自动附加 AWS Signature V4 签名）
-   * @param {string} path - 请求路径（相对桶）
+   * 发送 S3 请求(自动附加 AWS Signature V4 签名)
+   * @param {string} path - 请求路径(相对桶)
    * @param {string} method - HTTP 方法
    * @param {Object} options - fetch 选项
    * @returns {Promise<Response>}
    */
   async s3Request(path, method = 'GET', options = {}) {
-    // 用 presigned URL 方式，绕过 CORS
+    // 用 presigned URL 方式,绕过 CORS
     const url = `${this.endpoint}/${this.bucket}${path}`;
     const urlObj = new URL(url);
     // pathname = /obsidian-attachments/ 或 /obsidian-attachments/path/to/file
-    // 去掉 bucket 前缀，得到 objectKey
+    // 去掉 bucket 前缀,得到 objectKey
     const prefix = `/${this.bucket}/`;
-    const objectKey = urlObj.pathname.startsWith(prefix) 
-      ? urlObj.pathname.slice(prefix.length) 
+    const objectKey = urlObj.pathname.startsWith(prefix)
+      ? urlObj.pathname.slice(prefix.length)
       : urlObj.pathname.slice(1); // fallback
-    
+
     // 构建查询参数
     const params = new URLSearchParams(urlObj.search);
     const signedQuery = await this.signQuery(params, objectKey);
-    
-    // 拼接 URL：endpoint/bucket/objectKey?signedQuery
-    const baseUrl = objectKey 
+
+    // 拼接 URL:endpoint/bucket/objectKey?signedQuery
+    const baseUrl = objectKey
       ? `${this.endpoint}/${this.bucket}/${objectKey}`
       : `${this.endpoint}/${this.bucket}`;
     const signedUrl = `${baseUrl}?${signedQuery}`;
-    
+
     return this.requestViaObsidian(signedUrl, { method: 'GET', ...options });
   }
 
@@ -1604,7 +1604,7 @@ class S3Client {
     const dateOnly = dateStr.slice(0, 8);
 
     const urlObj = new URL(url);
-    // URL 已包含 bucket（格式: https://endpoint/bucket/path），直接用 pathname
+    // URL 已包含 bucket(格式: https://endpoint/bucket/path),直接用 pathname
     const canonicalUri = encodeURIComponent(urlObj.pathname.replace(/\\/g, '/')).replace(/%2F/g, '/');
     const canonicalQueryString = urlObj.search.slice(1).split('&').filter(Boolean).sort().map(p => {
       const [k, v] = p.split('=');
@@ -1642,7 +1642,7 @@ class S3Client {
     const dateStr = now.toISOString().replace(/[:-]|\.\d{3}/g, '');
     const dateOnly = dateStr.slice(0, 8);
 
-    // 构建签名 headers：host + 额外 headers
+    // 构建签名 headers:host + 额外 headers
     const hostHeader = { 'host': new URL(this.endpoint).host };
     const allSignedHeaders = { ...hostHeader, ...extraHeaders };
     const signedHeaderNames = Object.keys(allSignedHeaders).sort().join(';');
@@ -1658,7 +1658,7 @@ class S3Client {
 
     const sortedParams = Object.entries(params).sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0);
     const canonicalQueryString = sortedParams.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');
-    const canonicalUri = objectKey 
+    const canonicalUri = objectKey
       ? encodeURIComponent(`/${this.bucket}/${objectKey}`).replace(/%2F/g, '/')
       : encodeURIComponent(`/${this.bucket}`).replace(/%2F/g, '/');
 
@@ -1720,11 +1720,11 @@ class S3Client {
     const commonPrefixes = doc.getElementsByTagName('CommonPrefixes');
     for (let i = 0; i < commonPrefixes.length; i++) {
       const prefix = commonPrefixes[i].getElementsByTagName('Prefix')[0]?.textContent || '';
-      // S3 返回的 prefix 是 URL 编码的，需要解码
+      // S3 返回的 prefix 是 URL 编码的,需要解码
       const decodedPrefix = decodeURIComponent(prefix);
       const decodedCurrentPrefix = decodeURIComponent(currentPrefix);
       const name = decodedPrefix.slice(decodedCurrentPrefix.length).replace(/\/$/, '');
-      // path 应该是完整路径，包含父目录
+      // path 应该是完整路径,包含父目录
       const fullPath = decodedPrefix.replace(/\/$/, '');
       files.push({ name, path: '/' + fullPath + '/', isDirectory: true, size: 0 });
     }
@@ -1740,7 +1740,7 @@ class S3Client {
       if (!key || key === currentPrefix) continue;
       if (key.endsWith('/')) continue; // 目录占位符跳过
 
-      // S3 返回的 key 是 URL 编码的，需要解码
+      // S3 返回的 key 是 URL 编码的,需要解码
       const decodedKey = decodeURIComponent(key);
       const decodedCurrentPrefix = decodeURIComponent(currentPrefix);
       const relativePath = decodedKey.slice(decodedCurrentPrefix.length);
@@ -1759,8 +1759,8 @@ class S3Client {
   }
 
   /**
-   * 通用 S3 请求（直接 Authorization header，非 presigned URL）
-   * @param {string} objectKey - S3 object key（不含 /bucket/ 前缀）
+   * 通用 S3 请求(直接 Authorization header,非 presigned URL)
+   * @param {string} objectKey - S3 object key(不含 /bucket/ 前缀)
    * @param {string} method - HTTP 方法
    * @param {Object} extraHeaders - 额外请求头
    * @returns {Promise<{ok: boolean, status: number, error?: string}>}
@@ -1836,7 +1836,7 @@ class S3Client {
   }
 
   /**
-   * 删除文件或文件夹（批量）
+   * 删除文件或文件夹(批量)
    * @param {string[]} paths - 要删除的路径列表
    * @returns {Promise<{success: string[], failed: Array<{path, error}>}>}
    */
@@ -1845,10 +1845,10 @@ class S3Client {
     for (const fullPath of paths) {
       try {
         const objectKey = this._objectKey(fullPath);
-        // 判断是文件还是文件夹（文件夹以 / 结尾或通过 listDirectory 判断）
+        // 判断是文件还是文件夹(文件夹以 / 结尾或通过 listDirectory 判断)
         const isDir = fullPath.endsWith('/');
         if (isDir) {
-          // S3 无原生目录，列出所有子对象后逐个删除
+          // S3 无原生目录,列出所有子对象后逐个删除
           const dirContents = await this.listDirectory(fullPath);
           for (const item of dirContents) {
             const itemKey = this._objectKey(item.path);
@@ -1875,7 +1875,7 @@ class S3Client {
   }
 
   /**
-   * 重命名文件或文件夹（S3 无原生 rename，用 Copy + Delete）
+   * 重命名文件或文件夹(S3 无原生 rename,用 Copy + Delete)
    * @param {string} path - 原路径
    * @param {string} newName - 新文件名
    * @returns {Promise<void>}
@@ -2013,7 +2013,7 @@ class CloudAttachView extends ItemView {
   renderBreadcrumb() {
     if (!this.breadcrumbEl) return;
     this.breadcrumbEl.innerHTML = '';
-    // 如果账户有 webdavPath，显示配置的目录名而不是“根目录”
+    // 如果账户有 webdavPath,显示配置的目录名而不是"根目录"
     const webdavPath = this.client?.webdavPath;
     const rootLabel = webdavPath
       ? '📁 ' + webdavPath.replace(/^\/+/, '').split('/').pop() || webdavPath
@@ -2098,7 +2098,7 @@ class CloudAttachView extends ItemView {
     insertBtn.textContent = t('view.insert');
     insertBtn.onclick = () => this.insertSelectedFiles();
     this.batchBarEl.appendChild(insertBtn);
-    // 复制 URL 按钮（复制所有选中文件的 URL）
+    // 复制 URL 按钮(复制所有选中文件的 URL)
     const copyUrlBtn = document.createElement('button');
     copyUrlBtn.className = 'cloud-attach-batch-btn mod-secondary';
     copyUrlBtn.textContent = t('view.copy_url');
@@ -2355,7 +2355,7 @@ class CloudAttachView extends ItemView {
         name.onclick = () => { this.currentPath = file.path; this.selectedFiles.clear(); this.loadDir(); };
       } else {
         const ext = file.name.split('.').pop()?.toLowerCase() || '';
-        // PDF 也通过 insertFile 插入 ![]()，后续渲染时会用 MutationObserver + PDF.js canvas 替换
+        // PDF 也通过 insertFile 插入 ![](),后续渲染时会用 MutationObserver + PDF.js canvas 替换
         name.onclick = () => this.insertFile(file);
       }
       name.style.cursor = 'pointer';
@@ -2378,7 +2378,7 @@ class CloudAttachView extends ItemView {
     };
     return icons[ext] || '📄';
   }
-  // 获取要插入的 Markdown 格式（异步）
+  // 获取要插入的 Markdown 格式(异步)
   async getInsertMarkdown(file) {
     const ext = file.name.split('.').pop()?.toLowerCase() || '';
     const nameWithoutExt = file.name.replace(/\.[^.]+$/, '');
@@ -2386,17 +2386,17 @@ class CloudAttachView extends ItemView {
     const videoExts = ['mp4', 'mov', 'avi', 'mkv', 'webm', 'flv'];
     const audioExts = ['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a'];
     const docExts = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'];
-    // 文档类型（iframe 预览）使用原始 URL（无 /d/、无 sign）
+    // 文档类型(iframe 预览)使用原始 URL(无 /d/、无 sign)
     const isPdfJsInsert = ext === 'pdf' && this.plugin.settings.pdfPreview === 'pdfjs';
     const useRawUrl = docExts.includes(ext) && !isPdfJsInsert;
     let url;
     if (useRawUrl) {
-      // iframe 预览：用 getRawUrl（OpenList）或 getFileUrl（S3），不带签名
+      // iframe 预览:用 getRawUrl(OpenList)或 getFileUrl(S3),不带签名
       url = this.client.getRawUrl
         ? this.client.getRawUrl(file.path)
         : this.client.getFileUrl(file.path);
     } else {
-      // 有 token 的走签名 URL（OpenList/S3），无 token 的走 Basic Auth URL（纯 WebDAV）
+      // 有 token 的走签名 URL(OpenList/S3),无 token 的走 Basic Auth URL(纯 WebDAV)
       const client = this.client;
       url = client.token
         ? await (client.getSignedUrl
@@ -2411,7 +2411,7 @@ class CloudAttachView extends ItemView {
     } else if (audioExts.includes(ext)) {
       return `<audio controls>\n <source src="${url}" type="audio/mpeg">\n</audio>`;
     } else if (docExts.includes(ext)) {
-      // PDF 文件：若启用 PDF.js 预览则用 ![]() 语法（MutationObserver 会拦截替换为 canvas）
+      // PDF 文件:若启用 PDF.js 预览则用 ![]() 语法(MutationObserver 会拦截替换为 canvas)
       if (ext === 'pdf' && this.plugin.settings.pdfPreview === 'pdfjs') {
         return `![${nameWithoutExt}](${url})`;
       }
@@ -2420,22 +2420,22 @@ class CloudAttachView extends ItemView {
       return `[${file.name}](${url})`;
     }
   }
-  // 查找最近使用的 MarkdownView（排除自身侧边栏）
+  // 查找最近使用的 MarkdownView(排除自身侧边栏)
   findMostRecentMarkdownView() {
     const { workspace } = this.plugin.app;
-    // 优先使用 activeMarkdownView（实时跟踪，用户最后操作的 Markdown view）
+    // 优先使用 activeMarkdownView(实时跟踪,用户最后操作的 Markdown view)
     if (this.plugin.activeMarkdownView?.editor) {
       return this.plugin.activeMarkdownView;
     }
-    // 备用：获取当前聚焦的 MarkdownView
+    // 备用:获取当前聚焦的 MarkdownView
     let view = workspace.getActiveViewOfType(MarkdownView);
     if (view?.editor) return view;
-    // 备用：获取最近使用的 leaf
+    // 备用:获取最近使用的 leaf
     const recentLeaf = workspace.getMostRecentLeaf();
     if (recentLeaf?.view instanceof MarkdownView && recentLeaf.view.editor) {
       return recentLeaf.view;
     }
-    // 备用：遍历所有 markdown leaf
+    // 备用:遍历所有 markdown leaf
     const leaves = workspace.getLeavesOfType('markdown');
     for (const leaf of leaves) {
       if (leaf.view instanceof MarkdownView && leaf.view.editor) {
@@ -2444,7 +2444,7 @@ class CloudAttachView extends ItemView {
     }
     return null;
   }
-  // 插入单个文件到笔记（异步）
+  // 插入单个文件到笔记(异步)
   async insertFile(file) {
     const md = await this.getInsertMarkdown(file);
     const view = this.findMostRecentMarkdownView();
@@ -2456,7 +2456,7 @@ class CloudAttachView extends ItemView {
       new Notice(t('notice.open_note_first'));
     }
   }
-  // 批量插入（异步）
+  // 批量插入(异步)
   async insertSelectedFiles() {
     if (!this.client || this.selectedFiles.size === 0) return;
     const selected = this.files.filter(f => this.selectedFiles.has(f.path));
@@ -2476,7 +2476,7 @@ class CloudAttachView extends ItemView {
   showMenu(file, event) {
     const menu = new Menu(this.plugin.app);
     if (!file.isDirectory) {
-      // 插入到笔记（多选时插入所有选中，否则只插当前）
+      // 插入到笔记(多选时插入所有选中,否则只插当前)
       menu.addItem(item => {
         const isMulti = this.selectedFiles.size > 1;
         item.setTitle(isMulti ? t('menu.insert_note_multi', {count: this.selectedFiles.size}) : t('menu.insert_note')).setIcon('link');
@@ -2485,7 +2485,7 @@ class CloudAttachView extends ItemView {
           else this.insertFile(file);
         });
       });
-      // 复制链接（多选时复制所有选中文件，否则复制当前文件）
+      // 复制链接(多选时复制所有选中文件,否则复制当前文件)
       menu.addItem(item => {
         item.setTitle(t('menu.copy_link'));
         item.onClick(async () => {
@@ -2581,7 +2581,7 @@ class AddAccountModal extends Modal {
     typeRow.appendChild(typeS3);
     typeDiv.appendChild(typeRow);
     this.contentEl.appendChild(typeDiv);
-    // ---- 账户名称（通用）----
+    // ---- 账户名称(通用)----
     const nameDiv = this.createFieldDiv(t('settings.account_name'), t('settings.account_name_placeholder'));
     const nameInput = document.createElement('input');
     nameInput.type = 'text';
@@ -2866,7 +2866,7 @@ class CloudAttachSettingTab extends PluginSettingTab {
     advBtn.onclick = () => new AdvancedSettingModal(this.app, this.plugin).open();
     titleRow.appendChild(advBtn);
     this.containerEl.appendChild(titleRow);
-    // 移除「连接OpenList管理云附件」描述文字（无用）
+    // 移除「连接OpenList管理云附件」描述文字(无用)
     // 刷新按钮 - 移到下面
     if (this.plugin.accounts.length > 0) {
       this.plugin.accounts.forEach(account => this.renderAccount(account));
@@ -3017,20 +3017,20 @@ class AdvancedSettingModal extends Modal {
     contentEl.innerHTML = '';
     contentEl.style.padding = '24px';
     contentEl.style.maxWidth = '520px';
-    
+
     // 标题
     const title = contentEl.createEl('h2', { text: t('settings.advanced_title') });
     title.style.marginTop = '0';
     title.style.marginBottom = '20px';
-    
-    // === 文件预览（卡片容器）===
+
+    // === 文件预览(卡片容器)===
     const card = contentEl.createDiv();
     card.className = 'cloudattach-settings-card';
     card.style.background = 'var(--background-secondary)';
     card.style.borderRadius = '8px';
     card.style.padding = '20px';
     card.style.marginBottom = '16px';
-    
+
     // 分类标题
     const catTitle = card.createEl('h3', { text: t('settings.preview_category') });
     catTitle.style.marginTop = '0';
@@ -3041,36 +3041,36 @@ class AdvancedSettingModal extends Modal {
     catTitle.style.textTransform = 'uppercase';
     catTitle.style.letterSpacing = '0.5px';
     catTitle.style.opacity = '0.7';
-    
-    // --- PDF 预览（带缩进层级）---
+
+    // --- PDF 预览(带缩进层级)---
     const pdfGroup = card.createDiv();
     pdfGroup.style.marginBottom = '16px';
-    
+
     // PDF 标签行
     const pdfLabelRow = pdfGroup.createDiv();
     pdfLabelRow.style.display = 'flex';
     pdfLabelRow.style.alignItems = 'center';
     pdfLabelRow.style.gap = '6px';
     pdfLabelRow.style.marginBottom = '10px';
-    
+
     // 层级缩进指示器
     const pdfIndent = pdfLabelRow.createSpan();
     pdfIndent.textContent = '▸';
     pdfIndent.style.color = 'var(--text-accent)';
     pdfIndent.style.fontWeight = '700';
     pdfIndent.style.fontSize = '11px';
-    
+
     const pdfLabel = pdfLabelRow.createEl('span', { text: t('settings.pdf_preview') });
     pdfLabel.style.fontWeight = '600';
     pdfLabel.style.fontSize = '13px';
-    
-    // PDF 选项（每个选项一行）
+
+    // PDF 选项(每个选项一行)
     const pdfOptRow = pdfGroup.createDiv();
     pdfOptRow.style.marginLeft = '18px';
     pdfOptRow.style.display = 'flex';
     pdfOptRow.style.flexDirection = 'column';
     pdfOptRow.style.gap = '8px';
-    
+
     const mkRadio = (label, value, group) => {
       const opt = group.createDiv();
       opt.style.display = 'flex';
@@ -3088,10 +3088,10 @@ class AdvancedSettingModal extends Modal {
       opt.createEl('label', { text: label });
       return radio;
     };
-    
+
     mkRadio(t('settings.pdf_preview_iframe'), 'iframe', pdfOptRow);
-    
-    // PDF.js radio + 卸载按钮（同一行，作为第二个选项）
+
+    // PDF.js radio + 卸载按钮(同一行,作为第二个选项)
     const pdfjsOpt = pdfOptRow.createDiv();
     pdfjsOpt.style.display = 'flex';
     pdfjsOpt.style.alignItems = 'center';
@@ -3123,7 +3123,7 @@ class AdvancedSettingModal extends Modal {
         this.onOpen();
       };
     }
-    
+
     // PDF 说明文字
     const pdfNote = pdfGroup.createDiv();
     pdfNote.style.marginLeft = '18px';
@@ -3131,8 +3131,8 @@ class AdvancedSettingModal extends Modal {
     pdfNote.style.fontSize = '12px';
     pdfNote.style.color = 'var(--text-muted)';
     pdfNote.textContent = '选定 PDF.js 后使用 `![]()` 语法插入预览';
-    
-    // --- Excel 预览（带缩进层级）---
+
+    // --- Excel 预览(带缩进层级)---
     const excelGroup = card.createDiv();
     excelGroup.style.marginBottom = '16px';
     const excelLabelRow = excelGroup.createDiv();
@@ -3154,8 +3154,8 @@ class AdvancedSettingModal extends Modal {
     excelNote.style.fontSize = '12px';
     excelNote.style.color = 'var(--text-faint)';
     excelNote.textContent = t('settings.preview_coming_soon');
-    
-    // --- Word 预览（带缩进层级）---
+
+    // --- Word 预览(带缩进层级)---
     const wordGroup = card.createDiv();
     const wordLabelRow = wordGroup.createDiv();
     wordLabelRow.style.display = 'flex';
@@ -3176,14 +3176,14 @@ class AdvancedSettingModal extends Modal {
     wordNote.style.fontSize = '12px';
     wordNote.style.color = 'var(--text-faint)';
     wordNote.textContent = t('settings.preview_coming_soon');
-    
+
     // 底部按钮行
     const btnRow = contentEl.createDiv();
     btnRow.style.marginTop = '20px';
     btnRow.style.display = 'flex';
     btnRow.style.justifyContent = 'flex-end';
     btnRow.style.gap = '8px';
-    
+
     const saveBtn = btnRow.createEl('button', { text: t('settings.save') || '保存' });
     saveBtn.className = 'mod-cta';
     saveBtn.onclick = async () => {
@@ -3209,11 +3209,11 @@ class AdvancedSettingModal extends Modal {
       new Notice(t('settings.saved') || '设置已保存');
       this.close();
     };
-    
+
     const cancelBtn = btnRow.createEl('button', { text: t('settings.cancel') });
     cancelBtn.onclick = () => this.close();
   }
-  
+
   async downloadPdfjs(destDir) {
     const fs = require('fs');
     const path = require('path');
@@ -3247,14 +3247,14 @@ module.exports = class CloudAttachPlugin extends Plugin {
     this.accounts = [];
   }
   async onload() {
-    // 初始化语言（Obsidian 界面语言是应用级设置，不在 vault config 里）
-    // 优先使用 moment.locale()，这是 Obsidian 内置的国际化方案
+    // 初始化语言(Obsidian 界面语言是应用级设置,不在 vault config 里)
+    // 优先使用 moment.locale(),这是 Obsidian 内置的国际化方案
     const momentLocale = (window.moment || moment).locale();
     const lang = this.app.vault.config?.language || momentLocale || 'zh';
     I18n.setLang(lang);
     console.log('CloudAttach loading, language:', I18n.currentLang, 'momentLocale:', momentLocale);
     await this.loadSettings();
-    // 全局引用，供 MutationObserver callback 使用（避免 this 上下文问题）
+    // 全局引用,供 MutationObserver callback 使用(避免 this 上下文问题)
     globalThis._cloudAttachPlugin = this;
     this.addStyles();
     this.addRibbonIcon('folder-open', t('cmd.open_browser'), () => this.activateView());
@@ -3294,7 +3294,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       this.app.workspace.on('editor-menu', (menu, editor, view) => {
         menu.addItem(item => {
           item.setTitle('CloudAttach');
-          item.setSubmenu(); // 不传参数，创建空 submenu
+          item.setSubmenu(); // 不传参数,创建空 submenu
           const submenu = item.submenu;
           if (!submenu) return;
           submenu.addItem(si => {
@@ -3322,7 +3322,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         });
       })
     );
-    // 监听活跃 leaf 变化，实时记录当前活跃的 markdown view
+    // 监听活跃 leaf 变化,实时记录当前活跃的 markdown view
     this.activeMarkdownView = null;
     this.registerEvent(this.app.workspace.on('active-leaf-change', (leaf) => {
       if (leaf?.view instanceof MarkdownView && leaf.view.editor) {
@@ -3334,11 +3334,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (activeLeaf?.view instanceof MarkdownView && activeLeaf.view.editor) {
       this.activeMarkdownView = activeLeaf.view;
     }
-    // PDF.js 内联预览（v0.3.026）
+    // PDF.js 内联预览(v0.3.026)
     if (this.settings.pdfPreview === 'pdfjs') {
       this._observePdfEmbeds();
     }
-    // 注册视图类型（必须，否则 setViewState 静默失败）
+    // 注册视图类型(必须,否则 setViewState 静默失败)
     this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf, this));
     console.log('CloudAttach loaded');
   }
@@ -3377,11 +3377,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
       .cloud-attach-card-btns { display: flex; gap: 8px; margin-top: 12px; }
       .cloud-attach-add-btn { width: 100%; padding: 10px; font-size: 14px; border: 1px dashed var(--background-modifier-border); border-radius: 4px; background: transparent; color: var(--text-accent); cursor: pointer; margin-top: 8px; }
       .cloud-attach-add-btn:hover { background: var(--background-modifier-hover); }
-    
-    /* PDF 预览容器 - 双层结构，仿 Obsidian 原生 .pdf-embed */
-    .cloudattach-pdf-container { box-sizing: border-box !important; display: flex !important; flex-direction: column !important; width: 100% !important; max-width: 100% !important; min-width: 0 !important; border: 1px solid var(--background-modifier-border) !important; border-radius: 8px !important; background: var(--background-secondary) !important; vertical-align: top !important; overflow: hidden !important; }
 
-    .cloudattach-pdf-page { display: block !important; box-sizing: border-box !important; width: 100% !important; max-width: 100% !important; min-width: 0 !important; }
+    /* PDF 预览容器 - 双层结构,仿 Obsidian 原生 .pdf-embed */
+    .cloudattach-pdf-container { box-sizing: border-box !important; display: inline-block !important; width: 100% !important; max-width: 100% !important; border: 1px solid var(--background-modifier-border) !important; border-radius: 8px !important; background: var(--background-secondary) !important; vertical-align: top !important; position: relative !important; overflow: hidden !important; }
+
+    .cloudattach-pdf-page { display: block !important; box-sizing: border-box !important; width: 100% !important; height: auto !important; max-width: 100% !important; min-width: 0 !important; }
     `;
     const styleEl = document.createElement('style');
     styleEl.textContent = css;
@@ -3391,7 +3391,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
   async activateView() {
     const { workspace } = this.app;
     console.log('[CloudAttach] activateView called');
-    // 检查视图是否已打开，如果已打开则聚焦
+    // 检查视图是否已打开,如果已打开则聚焦
     const existingLeaves = workspace.getLeavesOfType(VIEW_TYPE_CLOUDATTACH);
     console.log('[CloudAttach] existing leaves:', existingLeaves.length);
     if (existingLeaves.length > 0) {
@@ -3399,7 +3399,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       workspace.revealLeaf(existingLeaves[0]);
       return;
     }
-    // 没有打开的视图，创建新的
+    // 没有打开的视图,创建新的
     console.log('[CloudAttach] creating new leaf');
     let leaf = workspace.getRightLeaf(false);
     if (!leaf) {
@@ -3410,13 +3410,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
     workspace.revealLeaf(leaf);
     console.log('[CloudAttach] new leaf created');
   }
-  onunload() { 
-    console.log('CloudAttach unloading...'); 
+  onunload() {
+    console.log('CloudAttach unloading...');
     if (this._pdfObserver) this._pdfObserver.disconnect();
   }
 
   // ============================================================
-  // PDF.js 内联预览（v0.3.026）
+  // PDF.js 内联预览(v0.3.026)
   // ============================================================
   async _loadPdfJs() {
     if (window.pdfjsLib) return window.pdfjsLib;
@@ -3444,12 +3444,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
       console.log('[CloudAttach] PDF doc loaded, pages:', (await loadingTask.promise).numPages);
       const pdf = await loadingTask.promise;
 
-      // 读取原始 img 的尺寸属性（支持 Obsidian 多种尺寸语法）
+      // 读取原始 img 的尺寸属性(支持 Obsidian 多种尺寸语法)
       let imgWidth = imgEl.getAttribute('width') || imgEl.style.width || '';
       let imgHeight = imgEl.getAttribute('height') || imgEl.style.height || '';
       let imgStyleMaxWidth = imgEl.style.maxWidth;
 
-      // 检查 parent span（Obsidian 偶尔把尺寸放在 parent 上）
+      // 检查 parent span(Obsidian 偶尔把尺寸放在 parent 上)
       const parentSpan = imgEl.parentElement;
       if (parentSpan && parentSpan.tagName === 'SPAN') {
         if (!imgWidth && parentSpan.style.width) imgWidth = parentSpan.style.width;
@@ -3457,15 +3457,15 @@ module.exports = class CloudAttachPlugin extends Plugin {
         if (!imgStyleMaxWidth && parentSpan.style.maxWidth) imgStyleMaxWidth = parentSpan.style.maxWidth;
       }
 
-      // 检查 Obsidian 的 image-width class（![|300] 语法可能生成 cm-image-width-* class）
+      // 检查 Obsidian 的 image-width class(![|300] 语法可能生成 cm-image-width-* class)
       const imgClasses = imgEl.className || '';
       const widthClassMatch = imgClasses.match(/cm-image-width-(\d+)/);
       if (widthClassMatch && !imgWidth) {
         imgWidth = widthClassMatch[1] + 'px';
       }
 
-      // 创建外层容器（参考 v0.3.060 成功方案：inline style 强制设高宽，overflow:hidden 裁剪）
-      const container = document.createElement('div');
+      // 创建外层容器（inline-block，与 v0.3.042 一致）
+      const container = document.createElement('span');
       container.className = 'cloudattach-pdf-container';
       container.dataset.currentPage = '1';
       container.dataset.totalPages = pdf.numPages.toString();
@@ -3484,70 +3484,51 @@ module.exports = class CloudAttachPlugin extends Plugin {
         container.dataset.userHeight = userHeightStr;
       }
 
+      // 固定 scale(与 v0.3.042 一致),不依赖 DOM offsetWidth
+      const FIXED_SCALE = 1.5;
+
       // 预渲染第1页，获取实际尺寸来决定容器高度
       const firstPage = await pdf.getPage(1);
-      const firstVpRaw = firstPage.getViewport({ scale: 1 });
+      const firstVp = firstPage.getViewport({ scale: FIXED_SCALE });
 
-      // 计算目标宽度：用户指定 > 默认值
-      let targetWidth;
-      if (imgWidth) {
-        targetWidth = parseInt(imgWidth) || firstVpRaw.width;
-      } else {
-        targetWidth = firstVpRaw.width;
-      }
-
-      // 用 imgEl 的原始宽度计算 scale（替换前读取，此时 imgEl 已在 DOM 中有布局）
-      const availWidth = imgEl.offsetWidth || imgEl.parentElement?.offsetWidth || 800;
-      const actualScale = availWidth / firstVpRaw.width;
-
-      imgEl.replaceWith(container);
-      const firstVp = firstPage.getViewport({ scale: actualScale });
-      console.log('[CloudAttach] scale: targetW=' + targetWidth + ' actualScale=' + actualScale + ' vp=' + Math.round(firstVp.width) + 'x' + Math.round(firstVp.height));
-
-      // 容器最终尺寸（inline style 设像素值，强制覆盖）
-      const finalScrollHeight = userHeightStr || (Math.round(firstVp.height) + 'px');
+      // 容器高度：用户指定 或 第一页渲染高度
       const TOOLBAR_HEIGHT = 28;
-      const finalContainerHeight = (parseInt(finalScrollHeight) + TOOLBAR_HEIGHT) + 'px';
+      const finalScrollHeight = userHeightStr || (Math.round(firstVp.height) + 'px');
+      const finalContainerHeight = parseInt(finalScrollHeight) + TOOLBAR_HEIGHT + 'px';
 
-      // inline style 强制设高度，宽度交给 CSS width:100% 控制
       // flex 布局：container = flex column, scrollArea = flex:1 overflow-y:auto
-      container.style.setProperty('display', 'flex', 'important');
-      container.style.setProperty('flex-direction', 'column', 'important');
+      container.style.setProperty('display', 'block', 'important');
       container.style.setProperty('height', finalContainerHeight, 'important');
-      container.style.setProperty('max-width', '100%', 'important');
       container.style.setProperty('overflow', 'hidden', 'important');
-      // 不设置 width，让 CSS .cloudattach-pdf-container { width: 100% !important; } 生效
 
       const scrollArea = document.createElement('div');
       scrollArea.className = 'cloudattach-pdf-scrollarea';
-      scrollArea.style.setProperty('flex', '1', 'important');
-      scrollArea.style.setProperty('overflow-y', 'auto', 'important');
+      scrollArea.style.height = '100%';
+      scrollArea.style.overflowY = 'auto';
+      scrollArea.style.overflowX = 'hidden';
       container.appendChild(scrollArea);
 
-      // 渲染所有页面（挂到 scrollArea，而非 container）
+      imgEl.replaceWith(container);
+
+      // 渲染所有页面,canvas CSS width:100% + height:auto 自动缩放
       for (let i = 1; i <= pdf.numPages; i++) {
         const canvas = document.createElement('canvas');
         canvas.className = 'cloudattach-pdf-page';
         canvas.dataset.pageNum = String(i);
-        canvas.style.setProperty('display', 'block', 'important');
-        canvas.style.setProperty('max-width', '100%', 'important');
-        canvas.style.setProperty('width', '100%', 'important');
-        const vp = await pdf.getPage(i).then(p => p.getViewport({ scale: actualScale }));
-        canvas.style.setProperty('height', Math.round(vp.height) + 'px', 'important');
         scrollArea.appendChild(canvas);
-        await this._renderPdfPage(canvas, pdf, i, actualScale);
+        await this._renderPdfPage(canvas, pdf, i, FIXED_SCALE);
         console.log('[CloudAttach] page', i, '/', pdf.numPages, 'cw:', canvas.width, 'ch:', canvas.height);
       }
-      console.log('[CloudAttach] ALL DONE, children:', container.children.length);
+      console.log('[CloudAttach] ALL DONE, pages:', pdf.numPages);
 
-      // 初始化工具栏（absolute 浮在容器顶部，不随内容滚动）
+      // 初始化工具栏(absolute 浮在容器顶部,不随内容滚动)
       this._initPdfToolbar(container, pdf);
 
       // 监听滚动更新页码
       this._bindPdfScroll(container, pdf);
 
 
-      console.log('[CloudAttach] PDF container built, height:', finalContainerHeight, 'width:', 'dynamic');
+      console.log('[CloudAttach] PDF container built, pages:', pdf.numPages);
     } catch (e) {
       console.error('[CloudAttach] PDF render failed:', e);
     }
@@ -3563,9 +3544,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
     await page.render({ canvasContext: ctx, viewport }).promise;
   }
 
-  // 监听滚动更新当前页码（连续滚动模式，监听 scrollArea）
+  // 监听滚动更新当前页码(连续滚动模式,监听容器本身)
   _bindPdfScroll(container, pdf) {
-    const scrollArea = container.querySelector('.cloudattach-pdf-scrollarea') || container;
+    const scrollArea = container.querySelector('.cloudattach-pdf-scrollarea');
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
@@ -3575,16 +3556,16 @@ module.exports = class CloudAttachPlugin extends Plugin {
         }
       });
     }, { root: scrollArea, threshold: 0.5 });
-    
-    const canvases = container.querySelectorAll('.cloudattach-pdf-page');
+
+    const canvases = scrollArea.querySelectorAll('.cloudattach-pdf-page');
     canvases.forEach(canvas => observer.observe(canvas));
   }
 
-  // 初始化 PDF 翻页工具栏（连续滚动模式，flex 布局下固定在顶部）
+  // 初始化 PDF 翻页工具栏(连续滚动模式,flex 布局下固定在顶部)
   _initPdfToolbar(container, pdf) {
     const totalPages = parseInt(container.dataset.totalPages);
-    
-    // 创建工具栏（042 风格：右下角悬浮，hover 显示）
+
+    // 创建工具栏(042 风格:右下角悬浮,hover 显示)
     const toolbar = document.createElement('div');
     toolbar.className = 'cloudattach-pdf-toolbar';
     toolbar.style.background = 'rgba(0, 0, 0, 0.6)';
@@ -3599,64 +3580,56 @@ module.exports = class CloudAttachPlugin extends Plugin {
     toolbar.style.lineHeight = '20px';
     toolbar.style.zIndex = '10';
     toolbar.style.userSelect = 'none';
-    // 042 风格：右下角悬浮 + hover 显示
+    // 042 风格:右下角悬浮 + hover 显示
     toolbar.style.position = 'absolute';
     toolbar.style.bottom = '8px';
     toolbar.style.right = '8px';
     toolbar.style.opacity = '0';
     toolbar.style.transition = 'opacity 0.2s';
-    
-    // 容器设置为 relative（让工具栏相对于容器定位）
+
+    // 容器设置为 relative(让工具栏相对于容器定位)
     container.style.position = 'relative';
-    
+
     // hover 显示工具栏
     container.addEventListener('mouseenter', () => { toolbar.style.opacity = '1'; });
     container.addEventListener('mouseleave', () => { toolbar.style.opacity = '0'; });
-    
+
     // 上一页
     const prevBtn = document.createElement('span');
     prevBtn.textContent = '◀';
     prevBtn.style.cursor = 'pointer';
     prevBtn.dataset.role = 'prev';
     toolbar.appendChild(prevBtn);
-    
+
     // 页码
     const pageIndicator = document.createElement('span');
     pageIndicator.dataset.role = 'pageIndicator';
     pageIndicator.style.cursor = 'pointer';
     pageIndicator.title = '点击跳转到指定页码';
     toolbar.appendChild(pageIndicator);
-    
+
     // 下一页
     const nextBtn = document.createElement('span');
     nextBtn.textContent = '▶';
     nextBtn.style.cursor = 'pointer';
     nextBtn.dataset.role = 'next';
     toolbar.appendChild(nextBtn);
-    
+
     // 分隔符
     const sep = document.createElement('span');
     sep.textContent = '|';
     sep.style.opacity = '0.5';
     sep.style.margin = '0 2px';
     toolbar.appendChild(sep);
-    
-    // 全屏按钮
-    const fullscreenBtn = document.createElement('span');
-    fullscreenBtn.textContent = '⛶';
-    fullscreenBtn.style.cursor = 'pointer';
-    fullscreenBtn.title = '全屏预览（敬请期待）';
-    fullscreenBtn.dataset.role = 'fullscreen';
-    toolbar.appendChild(fullscreenBtn);
-    
-    // 翻页：在 container 内滚动到对应 canvas
+
+    // 翻页:在 container 内滚动到对应 canvas
     const scrollToPage = (pageNum) => {
       const targetCanvas = container.querySelector(`.cloudattach-pdf-page[data-page-num="${pageNum}"]`);
       if (targetCanvas) {
         targetCanvas.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     };
-    
+
     prevBtn.onclick = (e) => {
       e.stopPropagation();
       const current = parseInt(container.dataset.currentPage);
@@ -3710,42 +3683,24 @@ module.exports = class CloudAttachPlugin extends Plugin {
         scrollToPage(p);
       }).open();
     };
-    
-    // 全屏按钮：敬请期待
-    fullscreenBtn.onclick = (e) => {
-      e.stopPropagation();
-      if (container.requestFullscreen) {
-        container.requestFullscreen().catch(err => {
-          console.error('[CloudAttach] Fullscreen failed:', err);
-          new Notice('⚠️ 全屏失败，请检查浏览器权限');
-        });
-      } else {
-        new Notice('⚠️ 当前环境不支持全屏');
-      }
-    };
-    
-    // 插入工具栏到 scrollArea 前面（固定在顶部）
-    const scrollArea = container.querySelector('.cloudattach-pdf-scrollarea');
-    if (scrollArea) {
-      container.insertBefore(toolbar, scrollArea);
-    } else {
-      container.insertBefore(toolbar, container.firstChild);
-    }
-    // 首次更新状态（container 已是 absolute，flexGrow/minHeight 不影响 absolute）
+
+    // 插入工具栏到容器
+    container.appendChild(toolbar);
+    // 首次更新状态
     this._updatePdfToolbar(container, pdf);
   }
 
-  // 更新工具栏状态（不重建 DOM，只改文字和可见性）
+  // 更新工具栏状态(不重建 DOM,只改文字和可见性)
   _updatePdfToolbar(container, pdf) {
     const toolbar = container.querySelector('.cloudattach-pdf-toolbar');
     if (!toolbar) return;
     const currentPage = parseInt(container.dataset.currentPage);
     const totalPages = parseInt(container.dataset.totalPages);
-    
+
     // 更新页码文字
     const pageIndicator = toolbar.querySelector('[data-role="pageIndicator"]');
     if (pageIndicator) pageIndicator.textContent = `${currentPage} / ${totalPages}`;
-    
+
     // 更新按钮可见性
     const prevBtn = toolbar.querySelector('[data-role="prev"]');
     const nextBtn = toolbar.querySelector('[data-role="next"]');
@@ -3776,7 +3731,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     // 监听 document.body + Obsidian 的编辑区容器
     this._pdfObserver.observe(document.body, { childList: true, subtree: true });
 
-    // 初始扫描：延迟执行确保编辑模式 DOM 已渲染
+    // 初始扫描:延迟执行确保编辑模式 DOM 已渲染
     setTimeout(() => this._scanAllPdfImgs(), 500);
     // 切换笔记时也重新扫描
     this.registerEvent(this.app.workspace.on('active-leaf-change', () => {
@@ -3798,7 +3753,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
   // Sign 检查与刷新
   // ============================================================
   /**
-   * 从文本内容中提取所有 URL（Markdown 图片、链接、iframe src）
+   * 从文本内容中提取所有 URL(Markdown 图片、链接、iframe src)
    * @param {string} text - 笔记文本
    * @returns {string[]} URL 列表
    */
@@ -3810,7 +3765,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const linkRe = /(?<![!])\[([^\]]*)\]\(([^)]+)\)/g;
     // iframe src: <iframe src="url">
     const iframeRe = /<iframe[^>]+src=["']([^"']+)["']/gi;
-    // 直接裸 URL（宽松匹配，支持 query string 中的 = 和 &）
+    // 直接裸 URL(宽松匹配,支持 query string 中的 = 和 &)
     const bareRe = /(?:^|\s)(https?:\/\/[^\s<>"\)\]&?=]+)/gm;
     let m;
     while ((m = imgRe.exec(text)) !== null) urls.push(m[2]);
@@ -3831,7 +3786,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
   matchAccount(url) {
     try {
       const urlObj = new URL(url);
-      const host = urlObj.host; // 包含端口，如 "curryhendry.mycloudnas.com:5555"
+      const host = urlObj.host; // 包含端口,如 "curryhendry.mycloudnas.com:5555"
       for (const account of this.accounts) {
         if (account.type === 's3') continue; // S3 暂不处理
         const accountUrl = account.url?.replace(/\/$/, '') || '';
@@ -3860,7 +3815,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
     new Notice(t('notice.check_start', {count: urls.length}), 3000);
     const results = { valid: 0, refreshed: 0, refreshedPaths: [], failed: 0, failedUrls: [], skipped: 0 };
-    // 累积修改的文本，避免每次都从原始文本重新读取
+    // 累积修改的文本,避免每次都从原始文本重新读取
     let accumulatedText = text;
     let cursorPos = null;
     for (const url of urls) {
@@ -3874,22 +3829,22 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const { account, client } = match;
       const urlObj = new URL(url);
       const path = urlObj.pathname;
-      // 判断是否为 OpenList URL（有 /p/ 或 /d/ 前缀）
+      // 判断是否为 OpenList URL(有 /p/ 或 /d/ 前缀)
       const isOpenListUrl = path.startsWith('/p/') || path.startsWith('/d/');
       if (!isOpenListUrl) {
-        // 非 OpenList URL，跳过（iframe 等）
+        // 非 OpenList URL,跳过(iframe 等)
         results.skipped++;
         continue;
       }
       if (url.includes('sign=')) {
-        // 有 sign 参数：验证有效性
+        // 有 sign 参数:验证有效性
         console.log('[CloudAttach] 验证 sign URL...');
         const verify = await client.verifySignUrl(url);
         console.log('[CloudAttach] 验证结果:', verify);
         if (verify.ok) {
           results.valid++;
         } else if (verify.reason === 'sign_expired') {
-          // sign 过期，尝试重建
+          // sign 过期,尝试重建
           const realPath = client.extractRealPath(url);
           console.log('[CloudAttach] 提取真实路径:', realPath, 'token:', account.token ? '有' : '无');
           if (!realPath || !account.token) {
@@ -3898,13 +3853,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
             continue;
           }
           try {
-            // 保持原 URL 的前缀（/d/ 或 /p/）
+            // 保持原 URL 的前缀(/d/ 或 /p/)
             const originalPrefix = url.match(/\/(d|p)\//)?.[1] || 'p';
             const newUrl = await client.getSignedUrl(realPath, originalPrefix[0]);
             if (newUrl && newUrl !== url) {
               const newVerify = await client.verifySignUrl(newUrl);
               if (newVerify.ok) {
-              // 使用累积的文本进行替换，而非每次从原始文本重新读取
+              // 使用累积的文本进行替换,而非每次从原始文本重新读取
               const newText = client.findAndReplaceUrl(accumulatedText, realPath, newUrl);
               if (newText !== accumulatedText) {
                 // 首次修改时保存光标位置
@@ -3916,8 +3871,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
                 results.valid++;
               }
               } else {
-                // 新 URL 验证失败，保留原 URL
-                console.log('[CloudAttach] 新 URL 验证失败，保留原 URL:', newVerify.reason);
+                // 新 URL 验证失败,保留原 URL
+                console.log('[CloudAttach] 新 URL 验证失败,保留原 URL:', newVerify.reason);
                 results.failed++;
                 results.failedUrls.push({ url, reason: t('error.sign_rebuild_failed', {error: newVerify.reason}) });
               }
@@ -3933,17 +3888,17 @@ module.exports = class CloudAttachPlugin extends Plugin {
           results.failedUrls.push({ url, reason: verify.reason });
         }
       } else {
-        // 无 sign 参数：检查文件是否存在
+        // 无 sign 参数:检查文件是否存在
         const verify = await client.verifySignUrl(url);
         if (verify.ok) {
-          // 文件存在，跳过
+          // 文件存在,跳过
           results.skipped++;
         } else if (verify.reason === 'sign_expired' && account.token) {
-          // 需要 sign 但没有，补 sign
+          // 需要 sign 但没有,补 sign
           const realPath = client.extractRealPath(url);
           if (realPath) {
             try {
-              // 保持原 URL 的前缀（/d/ 或 /p/）
+              // 保持原 URL 的前缀(/d/ 或 /p/)
               const originalPrefix = url.match(/\/(d|p)\//)?.[1] || 'p';
               const newUrl = await client.getSignedUrl(realPath, originalPrefix[0]);
               if (newUrl && newUrl !== url) {
@@ -3959,7 +3914,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
                 }
               }
                 } else {
-                  console.log('[CloudAttach] 新 URL 验证失败，保留原 URL:', newVerify.reason);
+                  console.log('[CloudAttach] 新 URL 验证失败,保留原 URL:', newVerify.reason);
                   results.failed++;
                   results.failedUrls.push({ url, reason: t('error.sign_rebuild_failed', {error: newVerify.reason}) });
                 }
@@ -3983,7 +3938,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     // 一次性写入累积的修改
     if (accumulatedText !== text && cursorPos) {
       view.editor.setValue(accumulatedText);
-      // 恢复光标位置，并清除选择区
+      // 恢复光标位置,并清除选择区
       view.editor.setCursor(cursorPos);
       view.editor.setSelection(cursorPos);
     }
@@ -4009,8 +3964,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const cursor = view.editor.getCursor();
     const fullText = view.editor.getValue();
     const selection = view.editor.getSelection();
-    // 策略1: 如果有选中文本，从选中文本中提取 URL
-    // 策略2: 从光标位置前后扩展，找到最近的 URL
+    // 策略1: 如果有选中文本,从选中文本中提取 URL
+    // 策略2: 从光标位置前后扩展,找到最近的 URL
     let url = null;
     let urlType = '';
     if (selection) {
@@ -4032,7 +3987,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         offset += view.editor.getLine(i).length + 1; // +1 for newline
       }
       offset += cursor.ch;
-      // 在全文中查找所有 URL（Markdown 图片语法和裸 URL）
+      // 在全文中查找所有 URL(Markdown 图片语法和裸 URL)
       const urlPattern = /(!\[([^\]]*)\]\(([^)]+)\)|\[([^\]]*)\]\(([^)]+)\)|https?:\/\/[^\s<>"\)\]]+)/g;
       let match;
       let nearestUrl = null;
@@ -4060,7 +4015,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
           }
         }
       }
-      // 如果光标附近 500 字符内有 URL，使用它
+      // 如果光标附近 500 字符内有 URL,使用它
       if (nearestDist < 500) {
         url = nearestUrl;
       }
@@ -4096,7 +4051,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         return;
       }
       try {
-        // 保持原 URL 的前缀（/d/ 或 /p/）
+        // 保持原 URL 的前缀(/d/ 或 /p/)
         const originalPrefix = url.match(/\/(d|p)\//)?.[1] || 'p';
         const newUrl = await client.getSignedUrl(realPath, originalPrefix[0]);
         if (newUrl) {
@@ -4168,7 +4123,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     return new OpenListClient(account, this.app);
   }
   /**
-   * 检查是否可以上传（需要至少一个账户且当前打开了视图并选中了目录）
+   * 检查是否可以上传(需要至少一个账户且当前打开了视图并选中了目录)
    * @returns {{ok: boolean, client: object, remotePath: string, account: object}|null}
    */
   getUploadContext() {
@@ -4184,7 +4139,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (!view.accountId) {
       return { ok: false, error: t('error.no_account') };
     }
-    // WebDAV 账户：currentPath 为 / 时，实际对应 webdavPath 下的内容，允许上传
+    // WebDAV 账户:currentPath 为 / 时,实际对应 webdavPath 下的内容,允许上传
     const isWebDAV = view.client.webdavPath;
     if (!view.currentPath || view.currentPath === '/') {
       if (!isWebDAV) {
@@ -4235,7 +4190,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         localPath = imgMatch[2];
         markdownSyntax = imgMatch[0];
       } else {
-        // 尝试匹配任何本地附件（![] 格式，排除 http/https）
+        // 尝试匹配任何本地附件(![] 格式,排除 http/https)
         const attachMatch = line.match(/!\[([^\]]*)\]\((?!http)([^)#\s?]+)/);
         if (attachMatch) {
           localPath = attachMatch[2];
@@ -4250,23 +4205,23 @@ module.exports = class CloudAttachPlugin extends Plugin {
         }
       }
     }
-    // 检查是否为本地文件（不是 URL）
+    // 检查是否为本地文件(不是 URL)
     if (!localPath || localPath.startsWith('http://') || localPath.startsWith('https://')) {
       new Notice(t('notice.no_attachment'), 3000);
       return;
     }
     // 解析附件路径
-    // wiki-link 可能包含相对路径（如 ../xxx/yyy.pdf）或绝对路径（如 家庭/xxx.pdf）
-    // 用 metadataCache.getFirstLinkpathDest 做正确解析，fallback 到手动拼接
+    // wiki-link 可能包含相对路径(如 ../xxx/yyy.pdf)或绝对路径(如 家庭/xxx.pdf)
+    // 用 metadataCache.getFirstLinkpathDest 做正确解析,fallback 到手动拼接
     let absolutePath;
     const notePath = view.file?.path || '';
     const noteDir = notePath.substring(0, notePath.lastIndexOf('/') + 1);
-    // 先用 metadataCache 解析（支持相对路径、绝对路径、../ 导航）
+    // 先用 metadataCache 解析(支持相对路径、绝对路径、../ 导航)
     const cacheResolved = this.app.metadataCache.getFirstLinkpathDest(localPath, notePath);
     if (cacheResolved && cacheResolved.path) {
       absolutePath = cacheResolved.path;
     } else {
-      // fallback：手动拼接（相对路径基于 noteDir，绝对路径直接用）
+      // fallback:手动拼接(相对路径基于 noteDir,绝对路径直接用)
       if (localPath.startsWith('/')) {
         absolutePath = localPath.substring(1); // 去掉开头的 /
       } else {
@@ -4299,19 +4254,19 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const text = view.editor.getValue();
     const notePath = view.file?.path || '';
     const noteDir = notePath.substring(0, notePath.lastIndexOf('/') + 1);
-    // 匹配所有本地附件（![] 格式，排除 http/https）
+    // 匹配所有本地附件(![] 格式,排除 http/https)
     const attachmentRegex = /!\[([^\]]*)\]\((?!http)([^)#\s?]+)/g;
     const attachments = [];
     let match;
     while ((match = attachmentRegex.exec(text)) !== null) {
       const localPath = match[2];
-      // 使用 metadataCache 正确解析（支持相对路径、绝对路径、../ 导航）
+      // 使用 metadataCache 正确解析(支持相对路径、绝对路径、../ 导航)
       const cacheResolved = this.app.metadataCache.getFirstLinkpathDest(localPath, notePath);
       let absolutePath;
       if (cacheResolved && cacheResolved.path) {
         absolutePath = cacheResolved.path;
       } else {
-        // fallback：手动拼接（相对路径基于 noteDir，绝对路径直接用）
+        // fallback:手动拼接(相对路径基于 noteDir,绝对路径直接用)
         if (localPath.startsWith('/')) {
           absolutePath = localPath.substring(1); // 去掉开头的 /
         } else {
@@ -4330,13 +4285,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const wikiRegex = /!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g;
     while ((match = wikiRegex.exec(text)) !== null) {
       const localPath = match[1];
-      // 使用 metadataCache 正确解析（支持相对路径、绝对路径、../ 导航）
+      // 使用 metadataCache 正确解析(支持相对路径、绝对路径、../ 导航)
       const cacheResolved = this.app.metadataCache.getFirstLinkpathDest(localPath, notePath);
       let absolutePath;
       if (cacheResolved && cacheResolved.path) {
         absolutePath = cacheResolved.path;
       } else {
-        // fallback：手动拼接（相对路径基于 noteDir，绝对路径直接用）
+        // fallback:手动拼接(相对路径基于 noteDir,绝对路径直接用)
         if (localPath.startsWith('/')) {
           absolutePath = localPath.substring(1); // 去掉开头的 /
         } else {
@@ -4444,10 +4399,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const replacements = [];
     for (const att of attachments) {
       console.log('[CloudAttach] 上传:', att.localPath);
-      // 检查本地文件是否存在（先用精确路径，再尝试模糊匹配）
+      // 检查本地文件是否存在(先用精确路径,再尝试模糊匹配)
       let file = this.app.vault.getAbstractFileByPath(att.localPath);
-      // 注意：localPath 已在 uploadCurrentAttachment / uploadAllAttachments 中解析为绝对路径
-      // 如果仍找不到文件（可能文件被删除或路径错误），直接跳过
+      // 注意:localPath 已在 uploadCurrentAttachment / uploadAllAttachments 中解析为绝对路径
+      // 如果仍找不到文件(可能文件被删除或路径错误),直接跳过
       if (!file) {
         console.log('[CloudAttach] 本地文件不存在:', att.localPath);
         results.skipped++;
@@ -4471,7 +4426,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     // 更新笔记内容
     if (replacements.length > 0 && view?.editor) {
       let text = view.editor.getValue();
-      // 文件类型分类（与插入逻辑一致）
+      // 文件类型分类(与插入逻辑一致)
       const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico'];
       const videoExts = ['mp4', 'mov', 'avi', 'mkv', 'webm', 'flv'];
       const audioExts = ['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a'];
@@ -4480,15 +4435,15 @@ module.exports = class CloudAttachPlugin extends Plugin {
         const ext = rep.localPath.split('.').pop().toLowerCase();
         const fileName = rep.localPath.split('/').pop();
         const nameWithoutExt = fileName.replace(/\.[^.]+$/, '');
-        // 根据文件类型选择 URL（文档类型用不带签名的原始 URL）
+        // 根据文件类型选择 URL(文档类型用不带签名的原始 URL)
         let url;
         if (docExts.includes(ext)) {
-          // 文档类型（iframe 预览）：用 getRawUrl（OpenList）或 getFileUrl（S3），不带签名
+          // 文档类型(iframe 预览):用 getRawUrl(OpenList)或 getFileUrl(S3),不带签名
           url = client.getRawUrl
             ? client.getRawUrl(rep.remotePath)
             : client.getFileUrl(rep.remotePath);
         } else {
-          // 图片/链接：使用上传返回的签名 URL
+          // 图片/链接:使用上传返回的签名 URL
           url = rep.newUrl;
         }
         let newSyntax;
@@ -4523,7 +4478,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
             newSyntax = `[${alt}](${url})`;
           }
         } else {
-          // 其他格式，保持原样替换 URL
+          // 其他格式,保持原样替换 URL
           newSyntax = rep.oldSyntax.replace(/file:\S+/, url);
         }
         text = text.replace(rep.oldSyntax, newSyntax);
