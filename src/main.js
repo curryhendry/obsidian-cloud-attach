@@ -3509,6 +3509,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       console.log('[CloudAttach] first page rendered, cw:', firstCanvas.width, 'ch:', firstCanvas.height);
 
       // 等 CSS 渲染后，读 canvas 的实际显示高度
+      await new Promise(r => requestAnimationFrame(r));
       const firstActualHeight = firstCanvas.getBoundingClientRect().height;
       console.log('[CloudAttach] first page actual display height:', firstActualHeight);
 
@@ -3516,6 +3517,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const finalScrollHeight = userHeightStr || (Math.round(firstActualHeight) + 'px');
       const finalContainerHeight = parseInt(finalScrollHeight) + TOOLBAR_HEIGHT + 'px';
       container.style.setProperty('height', finalContainerHeight, 'important');
+      
+      // 关键：scrollArea 必须设 height:100% 才能被 container 高度约束，产生内部滚动
+      scrollArea.style.setProperty('height', '100%', 'important');
 
       // 渲染剩余页面
       for (let i = 2; i <= pdf.numPages; i++) {
