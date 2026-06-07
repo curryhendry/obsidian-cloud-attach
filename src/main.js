@@ -3526,14 +3526,18 @@ module.exports = class CloudAttachPlugin extends Plugin {
       } else {
         finalContainerHeight = Math.round(displayH) + TOOLBAR_HEIGHT + 'px';
       }
+      // 容器高度 = 1页显示高度（固定，内部滚动）或 用户指定
+      // 工具栏是 absolute 浮动，不占文档流，不需要给 scrollArea 预留 margin
       container.style.setProperty('height', finalContainerHeight, 'important');
-      scrollArea.style.setProperty('height', 'calc(100% - ' + TOOLBAR_HEIGHT + 'px)', 'important');
-      scrollArea.style.setProperty('margin-top', TOOLBAR_HEIGHT + 'px', 'important');
+      scrollArea.style.setProperty('height', '100%', 'important');
 
       // 显示（opacity:1）
       container.style.setProperty('opacity', '1', 'important');
 
-      // 渲染剩余页面
+      // 先初始化工具栏（首屏渲染完就显示，不等后续页面）
+      this._initPdfToolbar(container, pdf);
+
+      // 渲染剩余页面（异步，不阻塞工具栏显示）
       for (let i = 2; i <= pdf.numPages; i++) {
         const canvas = document.createElement('canvas');
         canvas.className = 'cloudattach-pdf-page';
@@ -3543,9 +3547,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
         console.log('[CloudAttach] page', i, '/', pdf.numPages, 'cw:', canvas.width, 'ch:', canvas.height);
       }
       console.log('[CloudAttach] ALL DONE, pages:', pdf.numPages);
-
-      // 初始化工具栏(absolute 浮在容器顶部,不随内容滚动)
-      this._initPdfToolbar(container, pdf);
 
       // 监听滚动更新页码
       this._bindPdfScroll(container, pdf);
@@ -3644,6 +3645,24 @@ module.exports = class CloudAttachPlugin extends Plugin {
     sep.style.opacity = '0.5';
     sep.style.margin = '0 2px';
     toolbar.appendChild(sep);
+
+    // 全屏按钮
+    const fullscreenBtn = document.createElement('span');
+    fullscreenBtn.textContent = '⛶';
+    fullscreenBtn.style.cursor = 'pointer';
+    fullscreenBtn.title = '全屏';
+    fullscreenBtn.dataset.role = 'fullscreen';
+    toolbar.appendChild(fullscreenBtn);
+
+    fullscreenBtn.onclick = (e) => {
+      e.stopPropagation();
+      const fsDoc = container.closest('.markdown-preview-view') || document;
+      if (container.requestFullscreen) {
+        container.requestFullscreen();
+      } else if (container.webkitRequestFullscreen) {
+        container.webkitRequestFullscreen();
+      }
+    };
 
     // 翻页:在 container 内滚动到对应 canvas
     const scrollToPage = (pageNum) => {

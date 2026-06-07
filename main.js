@@ -3310,9 +3310,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
         finalContainerHeight = Math.round(displayH) + TOOLBAR_HEIGHT + "px";
       }
       container.style.setProperty("height", finalContainerHeight, "important");
-      scrollArea.style.setProperty("height", "calc(100% - " + TOOLBAR_HEIGHT + "px)", "important");
-      scrollArea.style.setProperty("margin-top", TOOLBAR_HEIGHT + "px", "important");
+      scrollArea.style.setProperty("height", "100%", "important");
       container.style.setProperty("opacity", "1", "important");
+      this._initPdfToolbar(container, pdf);
       for (let i = 2; i <= pdf.numPages; i++) {
         const canvas = document.createElement("canvas");
         canvas.className = "cloudattach-pdf-page";
@@ -3322,7 +3322,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
         console.log("[CloudAttach] page", i, "/", pdf.numPages, "cw:", canvas.width, "ch:", canvas.height);
       }
       console.log("[CloudAttach] ALL DONE, pages:", pdf.numPages);
-      this._initPdfToolbar(container, pdf);
       this._bindPdfScroll(container, pdf);
       console.log("[CloudAttach] PDF container built, pages:", pdf.numPages);
     } catch (e) {
@@ -3402,6 +3401,21 @@ module.exports = class CloudAttachPlugin extends Plugin {
     sep.style.opacity = "0.5";
     sep.style.margin = "0 2px";
     toolbar.appendChild(sep);
+    const fullscreenBtn = document.createElement("span");
+    fullscreenBtn.textContent = "\u26F6";
+    fullscreenBtn.style.cursor = "pointer";
+    fullscreenBtn.title = "\u5168\u5C4F";
+    fullscreenBtn.dataset.role = "fullscreen";
+    toolbar.appendChild(fullscreenBtn);
+    fullscreenBtn.onclick = (e) => {
+      e.stopPropagation();
+      const fsDoc = container.closest(".markdown-preview-view") || document;
+      if (container.requestFullscreen) {
+        container.requestFullscreen();
+      } else if (container.webkitRequestFullscreen) {
+        container.webkitRequestFullscreen();
+      }
+    };
     const scrollToPage = (pageNum) => {
       const targetCanvas = container.querySelector(`.cloudattach-pdf-page[data-page-num="${pageNum}"]`);
       if (targetCanvas) {
