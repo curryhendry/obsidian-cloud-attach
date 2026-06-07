@@ -3486,28 +3486,59 @@ module.exports = class CloudAttachPlugin extends Plugin {
 
       // 固定 scale(与 v0.3.042 一致),不依赖 DOM offsetWidth
       const FIXED_SCALE = 1.5;
+      const TOOLBAR_HEIGHT = 28;
 
-      // 与 042 一致：不设容器高度，让内容自然撑开
-      container.style.setProperty('display', 'inline-block', 'important');
-      container.style.setProperty('max-width', '100%', 'important');
+      // 先设为 opacity:0（不可见但已渲染，可以读实际尺寸）
+      container.style.setProperty('display', 'block', 'important');
+      container.style.setProperty('overflow', 'hidden', 'important');
+      container.style.setProperty('opacity', '0', 'important');
+
+      const scrollArea = document.createElement('div');
+      scrollArea.className = 'cloudattach-pdf-scrollarea';
+      scrollArea.style.overflowY = 'auto';
+      scrollArea.style.overflowX = 'hidden';
+      container.appendChild(scrollArea);
 
       imgEl.replaceWith(container);
 
-      // 渲染所有页面，直接 append 到 container（无 scrollArea）
-      for (let i = 1; i <= pdf.numPages; i++) {
+      // 先渲染第1页，等渲染完成后读实际显示高度
+      const firstCanvas = document.createElement('canvas');
+      firstCanvas.className = 'cloudattach-pdf-page';
+      firstCanvas.dataset.pageNum = '1';
+      scrollArea.appendChild(firstCanvas);
+      await this._renderPdfPage(firstCanvas, pdf, 1, FIXED_SCALE);
+
+      // 等两帧确保 layout + paint 完成，才能读到正确的实际高度
+      await new Promise(r => requestAnimationFrame(r));
+      await new Promise(r => requestAnimationFrame(r));
+      const actualH = firstCanvas.getBoundingClientRect().height;
+      console.log('[CloudAttach] first page actual display height:', actualH);
+
+      // 容器高度 = 实际渲染高度 或 用户指定
+      const finalScrollHeight = userHeightStr || (Math.round(actualH) + 'px');
+      const finalContainerHeight = parseInt(finalScrollHeight) + TOOLBAR_HEIGHT + 'px';
+      container.style.setProperty('height', finalContainerHeight, 'important');
+      scrollArea.style.setProperty('height', '100%', 'important');
+
+      // 显示（opacity:1）
+      container.style.setProperty('opacity', '1', 'important');
+
+      // 渲染剩余页面
+      for (let i = 2; i <= pdf.numPages; i++) {
         const canvas = document.createElement('canvas');
         canvas.className = 'cloudattach-pdf-page';
         canvas.dataset.pageNum = String(i);
-        canvas.style.width = '100%';
-        canvas.style.height = 'auto';
-        container.appendChild(canvas);
+        scrollArea.appendChild(canvas);
         await this._renderPdfPage(canvas, pdf, i, FIXED_SCALE);
         console.log('[CloudAttach] page', i, '/', pdf.numPages, 'cw:', canvas.width, 'ch:', canvas.height);
       }
       console.log('[CloudAttach] ALL DONE, pages:', pdf.numPages);
 
-      // 初始化工具栏(absolute 浮在容器底部)
+      // 初始化工具栏(absolute 浮在容器顶部,不随内容滚动)
       this._initPdfToolbar(container, pdf);
+
+      // 监听滚动更新页码
+      this._bindPdfScroll(container, pdf);
 
 
       console.log('[CloudAttach] PDF container built, pages:', pdf.numPages);
