@@ -3519,11 +3519,16 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const displayH = canvasH * (containerW / canvasW);
       console.log('[CloudAttach] canvas WxH:', canvasW, 'x', canvasH, 'containerW:', containerW, 'displayH:', displayH);
       
-      // 容器高度 = 显示高度 或 用户指定
-      const finalScrollHeight = userHeightStr || (Math.round(displayH) + 'px');
-      const finalContainerHeight = parseInt(finalScrollHeight) + TOOLBAR_HEIGHT + 'px';
+      // 容器高度 = 1页显示高度（固定，内部滚动）或 用户指定
+      let finalContainerHeight;
+      if (userHeightStr) {
+        finalContainerHeight = parseInt(userHeightStr) + TOOLBAR_HEIGHT + 'px';
+      } else {
+        finalContainerHeight = Math.round(displayH) + TOOLBAR_HEIGHT + 'px';
+      }
       container.style.setProperty('height', finalContainerHeight, 'important');
-      scrollArea.style.setProperty('height', '100%', 'important');
+      scrollArea.style.setProperty('height', 'calc(100% - ' + TOOLBAR_HEIGHT + 'px)', 'important');
+      scrollArea.style.setProperty('margin-top', TOOLBAR_HEIGHT + 'px', 'important');
 
       // 显示（opacity:1）
       container.style.setProperty('opacity', '1', 'important');
