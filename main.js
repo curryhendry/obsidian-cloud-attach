@@ -3403,6 +3403,17 @@ module.exports = class CloudAttachPlugin extends Plugin {
     sep.style.opacity = "0.5";
     sep.style.margin = "0 2px";
     toolbar.appendChild(sep);
+    const fullscreenBtn = document.createElement("span");
+    fullscreenBtn.textContent = "\u26F6";
+    fullscreenBtn.style.cursor = "pointer";
+    fullscreenBtn.title = "\u5168\u5C4F\u9884\u89C8\uFF08\u656C\u8BF7\u671F\u5F85\uFF09";
+    fullscreenBtn.dataset.role = "fullscreen";
+    toolbar.appendChild(fullscreenBtn);
+    fullscreenBtn.onclick = (e) => {
+      e.stopPropagation();
+      const { Notice: Notice2 } = require("obsidian");
+      new Notice2("\u{1F50D} \u5168\u5C4F\u9884\u89C8\u529F\u80FD\uFF0C\u656C\u8BF7\u671F\u5F85");
+    };
     const scrollArea = container.querySelector(".cloudattach-pdf-scrollarea");
     const scrollToPage = (pageNum) => {
       const targetCanvas = scrollArea.querySelector(`.cloudattach-pdf-page[data-page-num="${pageNum}"]`);

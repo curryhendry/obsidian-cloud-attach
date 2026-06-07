@@ -3648,6 +3648,19 @@ module.exports = class CloudAttachPlugin extends Plugin {
     sep.style.margin = '0 2px';
     toolbar.appendChild(sep);
 
+    // 全屏按钮（042 风格：敬请期待）
+    const fullscreenBtn = document.createElement('span');
+    fullscreenBtn.textContent = '⛶';
+    fullscreenBtn.style.cursor = 'pointer';
+    fullscreenBtn.title = '全屏预览（敬请期待）';
+    fullscreenBtn.dataset.role = 'fullscreen';
+    toolbar.appendChild(fullscreenBtn);
+    fullscreenBtn.onclick = (e) => {
+      e.stopPropagation();
+      const { Notice } = require('obsidian');
+      new Notice('🔍 全屏预览功能，敬请期待');
+    };
+
     // 翻页:在 scrollArea 内滚动到对应 canvas
     const scrollArea = container.querySelector('.cloudattach-pdf-scrollarea');
     const scrollToPage = (pageNum) => {
