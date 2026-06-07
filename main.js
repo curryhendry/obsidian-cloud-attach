@@ -3246,16 +3246,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
   async _renderPdfAsCanvas(imgEl, url) {
     try {
-      this._renderedPdfUrls = this._renderedPdfUrls || /* @__PURE__ */ new Set();
-      if (this._renderedPdfUrls.has(url)) {
-        console.log("[CloudAttach] Skip duplicate render for:", url);
-        return;
-      }
-      this._renderedPdfUrls.add(url);
       const pdfjsLib = await this._loadPdfJs();
       const loadingTask = pdfjsLib.getDocument(url);
+      console.log("[CloudAttach] PDF doc loaded, pages:", (await loadingTask.promise).numPages);
       const pdf = await loadingTask.promise;
-      console.log("[CloudAttach] PDF loaded, pages:", pdf.numPages);
       let imgWidth = imgEl.getAttribute("width") || imgEl.style.width || "";
       let imgHeight = imgEl.getAttribute("height") || imgEl.style.height || "";
       let imgStyleMaxWidth = imgEl.style.maxWidth;
@@ -3275,9 +3269,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
       const container = document.createElement("span");
       container.className = "cloudattach-pdf-container";
-      container.style.position = "relative";
-      container.style.display = "inline-block";
-      container.style.maxWidth = "100%";
       container.dataset.currentPage = "1";
       container.dataset.totalPages = pdf.numPages.toString();
       container.dataset.pdfUrl = url;
@@ -3291,38 +3282,45 @@ module.exports = class CloudAttachPlugin extends Plugin {
         userHeightStr = imgHeight.includes("%") || imgHeight.includes("px") || imgHeight.includes("vh") ? imgHeight : imgHeight + "px";
         container.dataset.userHeight = userHeightStr;
       }
-      imgEl.replaceWith(container);
       const firstPage = await pdf.getPage(1);
       const firstVpRaw = firstPage.getViewport({ scale: 1 });
-      const BASE_SCALE = 1.5;
-      const containerWidth = container.offsetWidth || firstVpRaw.width;
-      const actualScale = containerWidth / firstVpRaw.width * BASE_SCALE;
-      console.log("[CloudAttach] PDF scale: containerW=" + containerWidth + " actualScale=" + actualScale.toFixed(3));
+      let targetWidth;
+      if (imgWidth) {
+        targetWidth = parseInt(imgWidth) || firstVpRaw.width;
+      } else {
+        targetWidth = firstVpRaw.width;
+      }
+      imgEl.replaceWith(container);
+      const actualScale = container.offsetWidth / firstVpRaw.width * 1.5;
+      const firstVp = firstPage.getViewport({ scale: actualScale });
+      console.log("[CloudAttach] scale: targetW=" + targetWidth + " actualScale=" + actualScale + " vp=" + Math.round(firstVp.width) + "x" + Math.round(firstVp.height));
+      const finalScrollHeight = userHeightStr || Math.round(firstVp.height) + "px";
+      const TOOLBAR_HEIGHT = 28;
+      const finalContainerHeight = parseInt(finalScrollHeight) + TOOLBAR_HEIGHT + "px";
+      container.style.setProperty("max-width", "100%", "important");
       const scrollArea = document.createElement("div");
       scrollArea.className = "cloudattach-pdf-scrollarea";
-      scrollArea.style.overflowY = "auto";
-      if (userHeightStr) {
-        scrollArea.style.height = userHeightStr;
-        scrollArea.style.maxHeight = userHeightStr;
-      }
+      scrollArea.style.setProperty("overflow-y", "auto", "important");
       container.appendChild(scrollArea);
       for (let i = 1; i <= pdf.numPages; i++) {
         const canvas = document.createElement("canvas");
         canvas.className = "cloudattach-pdf-page";
         canvas.dataset.pageNum = String(i);
-        canvas.style.display = "block";
-        canvas.style.width = "100%";
-        canvas.style.height = "auto";
+        canvas.style.setProperty("display", "block", "important");
+        canvas.style.setProperty("max-width", "100%", "important");
+        canvas.style.setProperty("width", "100%", "important");
+        const vp = await pdf.getPage(i).then((p) => p.getViewport({ scale: actualScale }));
+        canvas.style.setProperty("height", Math.round(vp.height) + "px", "important");
         scrollArea.appendChild(canvas);
         await this._renderPdfPage(canvas, pdf, i, actualScale);
         console.log("[CloudAttach] page", i, "/", pdf.numPages, "cw:", canvas.width, "ch:", canvas.height);
       }
+      console.log("[CloudAttach] ALL DONE, children:", container.children.length);
       this._initPdfToolbar(container, pdf);
       this._bindPdfScroll(container, pdf);
-      console.log("[CloudAttach] PDF container built");
+      console.log("[CloudAttach] PDF container built, height:", finalContainerHeight, "width:", "dynamic");
     } catch (e) {
       console.error("[CloudAttach] PDF render failed:", e);
-      this._renderedPdfUrls?.delete(url);
     }
   }
   // 渲染指定页码的 PDF 页面到指定 canvas
@@ -3441,11 +3439,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         }
       }
       new PageJumpModal(this.app, current, totalPages, (p) => {
-        const scrollArea = container.querySelector(".cloudattach-pdf-scrollarea");
-        const targetCanvas = scrollArea.querySelectorAll(".cloudattach-pdf-page")[p - 1];
-        if (targetCanvas) {
-          targetCanvas.scrollIntoView({ behavior: "smooth" });
-        }
+        this._renderPdfPage(container, container.querySelector("canvas"), pdf, p, this._getPdfScale(container));
       }).open();
     };
     toolbar.appendChild(pageIndicator);
