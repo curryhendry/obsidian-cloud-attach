@@ -1,7 +1,7 @@
 {
   "id": "cloud-attach",
   "name": "CloudAttach",
-  "version": "0.3.087",
+  "version": "0.3.095",
   "minAppVersion": "1.0.0",
   "description": "Connect OpenList/WebDAV/S3, insert cloud attachments in notes.",
   "author": "Garry",
