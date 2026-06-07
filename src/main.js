@@ -3479,11 +3479,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
       if (imgStyleMaxWidth) container.style.maxWidth = imgStyleMaxWidth;
 
-      // 记录用户指定的高度
-      let userHeightStr = '';
+      // 记录用户指定的宽度（从 ![](url|WIDTH) 语法）
+      let userWidthStr = '';
       if (imgHeight && imgHeight !== 'auto') {
-        userHeightStr = imgHeight.includes('%') || imgHeight.includes('px') || imgHeight.includes('vh') ? imgHeight : imgHeight + 'px';
-        container.dataset.userHeight = userHeightStr;
+        userWidthStr = imgHeight.includes('%') || imgHeight.includes('px') || imgHeight.includes('vh') ? imgHeight : imgHeight + 'px';
+        container.dataset.userWidth = userWidthStr;
       }
 
       // 预渲染第1页，获取实际尺寸来决定容器高度
@@ -3507,20 +3507,26 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const firstVp = firstPage.getViewport({ scale: actualScale });
       console.log('[CloudAttach] scale: targetW=' + targetWidth + ' actualScale=' + actualScale + ' vp=' + Math.round(firstVp.width) + 'x' + Math.round(firstVp.height));
 
-      // 容器最终尺寸（inline style 设像素值，强制覆盖）
-      const finalScrollHeight = userHeightStr || (Math.round(firstVp.height) + 'px');
+      // 高度 = 第一页高度（缩放后）+ 工具栏高度
       const TOOLBAR_HEIGHT = 28;
-      const finalContainerHeight = (parseInt(finalScrollHeight) + TOOLBAR_HEIGHT) + 'px';
-
-      // inline style 强制设高度，宽度交给 CSS width:100% 控制
+      const finalContainerHeight = Math.round(firstVp.height) + TOOLBAR_HEIGHT + 'px';
+      
+      // inline style 强制设高度，宽度通过 inline style 控制
       // flex 布局：container = flex column, scrollArea = 文档流 overflow-y:auto
       // 注意：container 不用 overflow:hidden，否则会作用在 scrollArea 上导致无法滚动
       container.style.setProperty('display', 'flex', 'important');
       container.style.setProperty('flex-direction', 'column', 'important');
       container.style.setProperty('height', finalContainerHeight, 'important');
       container.style.setProperty('max-width', '100%', 'important');
+      
+      // 设置宽度（用户指定 或 100%）
+      if (userWidthStr) {
+        container.style.setProperty('width', userWidthStr, 'important');
+      } else {
+        container.style.setProperty('width', '100%', 'important');
+      }
+      
       // 不设置 overflow（让 scrollArea 独立控制滚动）
-      // 不设置 width，让 CSS .cloudattach-pdf-container { width: 100% !important; } 生效
 
       const scrollArea = document.createElement('div');
       scrollArea.className = 'cloudattach-pdf-scrollarea';

@@ -3214,10 +3214,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
         container.style.width = imgWidth.includes("%") || imgWidth.includes("px") || imgWidth.includes("vw") ? imgWidth : imgWidth + "px";
       }
       if (imgStyleMaxWidth) container.style.maxWidth = imgStyleMaxWidth;
-      let userHeightStr = "";
+      let userWidthStr = "";
       if (imgHeight && imgHeight !== "auto") {
-        userHeightStr = imgHeight.includes("%") || imgHeight.includes("px") || imgHeight.includes("vh") ? imgHeight : imgHeight + "px";
-        container.dataset.userHeight = userHeightStr;
+        userWidthStr = imgHeight.includes("%") || imgHeight.includes("px") || imgHeight.includes("vh") ? imgHeight : imgHeight + "px";
+        container.dataset.userWidth = userWidthStr;
       }
       const firstPage = await pdf.getPage(1);
       const firstVpRaw = firstPage.getViewport({ scale: 1 });
@@ -3232,13 +3232,17 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const actualScale = refWidth / firstVpRaw.width;
       const firstVp = firstPage.getViewport({ scale: actualScale });
       console.log("[CloudAttach] scale: targetW=" + targetWidth + " actualScale=" + actualScale + " vp=" + Math.round(firstVp.width) + "x" + Math.round(firstVp.height));
-      const finalScrollHeight = userHeightStr || Math.round(firstVp.height) + "px";
       const TOOLBAR_HEIGHT = 28;
-      const finalContainerHeight = parseInt(finalScrollHeight) + TOOLBAR_HEIGHT + "px";
+      const finalContainerHeight = Math.round(firstVp.height) + TOOLBAR_HEIGHT + "px";
       container.style.setProperty("display", "flex", "important");
       container.style.setProperty("flex-direction", "column", "important");
       container.style.setProperty("height", finalContainerHeight, "important");
       container.style.setProperty("max-width", "100%", "important");
+      if (userWidthStr) {
+        container.style.setProperty("width", userWidthStr, "important");
+      } else {
+        container.style.setProperty("width", "100%", "important");
+      }
       const scrollArea = document.createElement("div");
       scrollArea.className = "cloudattach-pdf-scrollarea";
       scrollArea.style.setProperty("overflow-y", "auto", "important");
