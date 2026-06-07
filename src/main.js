@@ -3724,11 +3724,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
     fullscreenBtn.dataset.role = 'fullscreen';
     fullscreenBtn.onclick = (e) => {
       e.stopPropagation();
-      if (container.requestFullscreen) {
-        container.requestFullscreen();
-      } else if (container.webkitRequestFullscreen) {
-        container.webkitRequestFullscreen();
-      }
+      const { Notice } = require('obsidian');
+      new Notice('🔍 全屏预览功能，敬请期待');
     };
     toolbar.appendChild(fullscreenBtn);
 
