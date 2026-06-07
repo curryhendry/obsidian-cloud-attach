@@ -34,15 +34,21 @@ echo "==> 模式: $MODE"
 # ----------------------------------------------------------
 # 1. 版本号处理
 # ----------------------------------------------------------
-CURRENT_VERSION=$(node -e "console.log(require('./manifest.json').version)")
-VERSION="$CURRENT_VERSION"
+# 从 CHANGELOG.md 首行读取版本号
+# 格式：## v0.3.101.dev - 2026-06-08
+CHANGELOG_FIRST_LINE=$(head -n 1 CHANGELOG.md)
+# 提取版本号（去掉 '## v' 前缀和 '.dev' 后缀）
+CURRENT_VERSION=$(echo "$CHANGELOG_FIRST_LINE" | sed 's/## v//' | sed 's/\.dev.*//')
+
+# 递增 PATCH 版本号
+VERSION_PARTS=($(echo "$CURRENT_VERSION" | tr '.' ' '))
+PATCH=${VERSION_PARTS[2]}
+NEW_PATCH=$((10#$PATCH + 1))
+# 格式化为 3 位（保留前导零）
+NEW_PATCH_FMT=$(printf "%03d" $NEW_PATCH)
+VERSION="${VERSION_PARTS[0]}.${VERSION_PARTS[1]}.$NEW_PATCH_FMT"
 
 if [ "$MODE" = "release" ]; then
-  # 发布模式：自动版本号 +1（最后一位）
-  VERSION_PARTS=(${(s:.:)CURRENT_VERSION})
-  VERSION_PARTS[3]=$((${VERSION_PARTS[3]} + 1))
-  VERSION="${VERSION_PARTS[1]}.${VERSION_PARTS[2]}.${VERSION_PARTS[3]}"
-  
   echo "==> 版本: $CURRENT_VERSION → $VERSION"
   
   # 更新 manifest.json
@@ -52,8 +58,18 @@ if [ "$MODE" = "release" ]; then
   m.version = '$VERSION';
   fs.writeFileSync('manifest.json', JSON.stringify(m, null, 2) + '\n');
   "
+  
+  # 更新 CHANGELOG.md 首行
+  sed -i.bak "1s/.*/## v$VERSION - $(date +%Y-%m-%d)/" CHANGELOG.md
+  rm -f CHANGELOG.md.bak
 else
-  echo "==> 版本: $VERSION (开发模式，不更新版本号)"
+  # dev 模式：版本号 + .dev 后缀
+  DEV_VERSION="${VERSION}.dev"
+  echo "==> 版本: $CURRENT_VERSION → $DEV_VERSION (开发模式)"
+  
+  # 更新 CHANGELOG.md 首行
+  sed -i.bak "1s/.*/## v$DEV_VERSION - $(date +%Y-%m-%d)/" CHANGELOG.md
+  rm -f CHANGELOG.md.bak
 fi
 
 # ----------------------------------------------------------
