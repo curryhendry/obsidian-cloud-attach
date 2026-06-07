@@ -3498,13 +3498,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
         targetWidth = firstVpRaw.width;
       }
 
-      // === 新增：先插入 container 到 DOM，再计算 scale ===
-      // 理由：imgEl 可能尚未完成布局，offsetWidth 返回 0
-      // 插入后 container 就在 DOM 中，offsetWidth 就能拿到正确值
+      // 在替换前读取 imgEl 的布局宽度作为参考（避免读空容器 offsetWidth 得到 1）
+      const refWidth = imgEl.offsetWidth || imgEl.parentElement?.offsetWidth || 800;
       imgEl.replaceWith(container);
       
-      // 计算实际缩放比（现在 container 已在 DOM 中）
-      const actualScale = (container.offsetWidth || 800) / firstVpRaw.width;
+      // 计算实际缩放比（使用替换前的参考宽度）
+      const actualScale = refWidth / firstVpRaw.width;
       const firstVp = firstPage.getViewport({ scale: actualScale });
       console.log('[CloudAttach] scale: targetW=' + targetWidth + ' actualScale=' + actualScale + ' vp=' + Math.round(firstVp.width) + 'x' + Math.round(firstVp.height));
 
