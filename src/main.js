@@ -3441,10 +3441,18 @@ module.exports = class CloudAttachPlugin extends Plugin {
 
   async _renderPdfAsCanvas(imgEl, url) {
     try {
+      // 去重：防止同一 PDF 被重复渲染
+      this._renderedPdfUrls = this._renderedPdfUrls || new Set();
+      if (this._renderedPdfUrls.has(url)) {
+        console.log('[CloudAttach] Skip duplicate render for:', url);
+        return;
+      }
+      this._renderedPdfUrls.add(url);
+
       const pdfjsLib = await this._loadPdfJs();
       const loadingTask = pdfjsLib.getDocument(url);
-      console.log('[CloudAttach] PDF doc loaded, pages:', (await loadingTask.promise).numPages);
       const pdf = await loadingTask.promise;
+      console.log('[CloudAttach] PDF loaded, pages:', pdf.numPages);
 
       // 读取原始 img 的尺寸属性（支持 Obsidian 多种尺寸语法）
       let imgWidth = imgEl.getAttribute('width') || imgEl.style.width || '';
@@ -3466,9 +3474,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
         imgWidth = widthClassMatch[1] + 'px';
       }
 
-      // 创建外层容器（参考 v0.3.060 成功方案：inline style 强制设高宽，overflow:hidden 裁剪）
-      const container = document.createElement('div');
+      // 创建容器（用 <span> + inline-block，参考下载版本的自适应方案）
+      const container = document.createElement('span');
       container.className = 'cloudattach-pdf-container';
+      container.style.position = 'relative';
+      container.style.display = 'inline-block';
+      container.style.maxWidth = '100%';
       container.dataset.currentPage = '1';
       container.dataset.totalPages = pdf.numPages.toString();
       container.dataset.pdfUrl = url;
@@ -3486,76 +3497,52 @@ module.exports = class CloudAttachPlugin extends Plugin {
         container.dataset.userHeight = userHeightStr;
       }
 
+      // 先插入 container 到 DOM，再计算 scale
+      imgEl.replaceWith(container);
+
       // 预渲染第1页，获取实际尺寸来决定容器高度
       const firstPage = await pdf.getPage(1);
       const firstVpRaw = firstPage.getViewport({ scale: 1 });
 
-      // 计算目标宽度：用户指定 > 默认值
-      let targetWidth;
-      if (imgWidth) {
-        targetWidth = parseInt(imgWidth) || firstVpRaw.width;
-      } else {
-        targetWidth = firstVpRaw.width;
-      }
+      // 计算实际缩放比（参考下载版本：* BASE_SCALE 1.5）
+      const BASE_SCALE = 1.5;
+      const containerWidth = container.offsetWidth || firstVpRaw.width;
+      const actualScale = containerWidth / firstVpRaw.width * BASE_SCALE;
+      console.log('[CloudAttach] PDF scale: containerW=' + containerWidth + ' actualScale=' + actualScale.toFixed(3));
 
-      // === 新增：先插入 container 到 DOM，再计算 scale ===
-      // 理由：imgEl 可能尚未完成布局，offsetWidth 返回 0
-      // 插入后 container 就在 DOM 中，offsetWidth 就能拿到正确值
-      imgEl.replaceWith(container);
-      
-      // 计算实际缩放比（现在 container 已在 DOM 中）
-      const actualScale = (container.offsetWidth || 800) / firstVpRaw.width;
-      const firstVp = firstPage.getViewport({ scale: actualScale });
-      console.log('[CloudAttach] scale: targetW=' + targetWidth + ' actualScale=' + actualScale + ' vp=' + Math.round(firstVp.width) + 'x' + Math.round(firstVp.height));
-
-      // 容器最终尺寸（inline style 设像素值，强制覆盖）
-      const finalScrollHeight = userHeightStr || (Math.round(firstVp.height) + 'px');
-      const TOOLBAR_HEIGHT = 28;
-      const finalContainerHeight = (parseInt(finalScrollHeight) + TOOLBAR_HEIGHT) + 'px';
-
-      // inline style 强制设高度，宽度交给 CSS width:100% 控制
-      // flex 布局：container = flex column, scrollArea = 文档流 overflow-y:auto
-      // 注意：container 不用 overflow:hidden，否则会作用在 scrollArea 上导致无法滚动
-      container.style.setProperty('display', 'flex', 'important');
-      container.style.setProperty('flex-direction', 'column', 'important');
-      container.style.setProperty('height', finalContainerHeight, 'important');
-      container.style.setProperty('max-width', '100%', 'important');
-      // 不设置 overflow（让 scrollArea 独立控制滚动）
-      // 不设置 width，让 CSS .cloudattach-pdf-container { width: 100% !important; } 生效
-
+      // 创建滚动区域（连续滚动模式）
       const scrollArea = document.createElement('div');
       scrollArea.className = 'cloudattach-pdf-scrollarea';
-      // scrollArea 作为 container 的普通子元素（文档流），不用 absolute/flex
-      scrollArea.style.setProperty('overflow-y', 'auto', 'important');
-      // 不设置 flex:1（会受 container 的 flex 影响）
+      scrollArea.style.overflowY = 'auto';
+      if (userHeightStr) {
+        scrollArea.style.height = userHeightStr;
+        scrollArea.style.maxHeight = userHeightStr;
+      }
       container.appendChild(scrollArea);
 
-      // 渲染所有页面（挂到 scrollArea，而非 container）
+      // 渲染所有页面
       for (let i = 1; i <= pdf.numPages; i++) {
         const canvas = document.createElement('canvas');
         canvas.className = 'cloudattach-pdf-page';
         canvas.dataset.pageNum = String(i);
-        canvas.style.setProperty('display', 'block', 'important');
-        canvas.style.setProperty('max-width', '100%', 'important');
-        canvas.style.setProperty('width', '100%', 'important');
-        const vp = await pdf.getPage(i).then(p => p.getViewport({ scale: actualScale }));
-        canvas.style.setProperty('height', Math.round(vp.height) + 'px', 'important');
+        canvas.style.display = 'block';
+        canvas.style.width = '100%';
+        canvas.style.height = 'auto';
         scrollArea.appendChild(canvas);
         await this._renderPdfPage(canvas, pdf, i, actualScale);
         console.log('[CloudAttach] page', i, '/', pdf.numPages, 'cw:', canvas.width, 'ch:', canvas.height);
       }
-      console.log('[CloudAttach] ALL DONE, children:', container.children.length);
 
-      // 初始化工具栏（absolute 浮在容器顶部，不随内容滚动）
+      // 初始化工具栏
       this._initPdfToolbar(container, pdf);
 
       // 监听滚动更新页码
       this._bindPdfScroll(container, pdf);
 
-
-      console.log('[CloudAttach] PDF container built, height:', finalContainerHeight, 'width:', "dynamic");
+      console.log('[CloudAttach] PDF container built');
     } catch (e) {
       console.error('[CloudAttach] PDF render failed:', e);
+      this._renderedPdfUrls?.delete(url);
     }
   }
 
@@ -3686,7 +3673,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
         onClose() { this.contentEl.empty(); }
       }
       new PageJumpModal(this.app, current, totalPages, (p) => {
-        this._renderPdfPage(container, container.querySelector('canvas'), pdf, p, this._getPdfScale(container));
+        const scrollArea = container.querySelector('.cloudattach-pdf-scrollarea');
+        const targetCanvas = scrollArea.querySelectorAll('.cloudattach-pdf-page')[p - 1];
+        if (targetCanvas) {
+          targetCanvas.scrollIntoView({ behavior: 'smooth' });
+        }
       }).open();
     };
     toolbar.appendChild(pageIndicator);
