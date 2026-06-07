@@ -1,0 +1,19 @@
+/* CloudAttach styles */
+
+/* PDF 页面：宽度撑满容器，高度自动按比例缩放 */
+.cloudattach-pdf-page {
+    width: 100% !important;
+    height: auto !important;
+    display: block !important;
+}
+
+/* PDF 滚动区域 */
+.cloudattach-pdf-scrollarea {
+    width: 100%;
+    height: 100%;
+}
+
+/* PDF 容器 */
+.cloudattach-pdf-container {
+    position: relative;
+}
