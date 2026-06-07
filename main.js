@@ -3289,6 +3289,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       scrollArea.className = "cloudattach-pdf-scrollarea";
       scrollArea.style.overflowY = "auto";
       scrollArea.style.overflowX = "hidden";
+      scrollArea.style.position = "relative";
       container.appendChild(scrollArea);
       imgEl.replaceWith(container);
       const firstPage = await pdf.getPage(1);
@@ -3305,12 +3306,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
       console.log("[CloudAttach] canvas WxH:", canvasW, "x", canvasH, "containerW:", containerW, "displayH:", displayH);
       let finalContainerHeight;
       if (userHeightStr) {
-        finalContainerHeight = parseInt(userHeightStr) + TOOLBAR_HEIGHT + "px";
+        finalContainerHeight = userHeightStr;
       } else {
-        finalContainerHeight = Math.round(displayH) + TOOLBAR_HEIGHT + "px";
+        finalContainerHeight = Math.round(displayH) + "px";
       }
       container.style.setProperty("height", finalContainerHeight, "important");
       scrollArea.style.setProperty("height", "100%", "important");
+      scrollArea.style.setProperty("padding-bottom", TOOLBAR_HEIGHT + "px", "important");
       container.style.setProperty("opacity", "1", "important");
       this._initPdfToolbar(container, pdf);
       for (let i = 2; i <= pdf.numPages; i++) {
@@ -3401,25 +3403,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
     sep.style.opacity = "0.5";
     sep.style.margin = "0 2px";
     toolbar.appendChild(sep);
-    const fullscreenBtn = document.createElement("span");
-    fullscreenBtn.textContent = "\u26F6";
-    fullscreenBtn.style.cursor = "pointer";
-    fullscreenBtn.title = "\u5168\u5C4F";
-    fullscreenBtn.dataset.role = "fullscreen";
-    toolbar.appendChild(fullscreenBtn);
-    fullscreenBtn.onclick = (e) => {
-      e.stopPropagation();
-      const fsDoc = container.closest(".markdown-preview-view") || document;
-      if (container.requestFullscreen) {
-        container.requestFullscreen();
-      } else if (container.webkitRequestFullscreen) {
-        container.webkitRequestFullscreen();
-      }
-    };
+    const scrollArea = container.querySelector(".cloudattach-pdf-scrollarea");
     const scrollToPage = (pageNum) => {
-      const targetCanvas = container.querySelector(`.cloudattach-pdf-page[data-page-num="${pageNum}"]`);
+      const targetCanvas = scrollArea.querySelector(`.cloudattach-pdf-page[data-page-num="${pageNum}"]`);
       if (targetCanvas) {
-        targetCanvas.scrollIntoView({ behavior: "smooth", block: "start" });
+        scrollArea.scrollTop = targetCanvas.offsetTop;
       }
     };
     prevBtn.onclick = (e) => {

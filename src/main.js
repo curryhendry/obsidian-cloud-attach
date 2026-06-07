@@ -3497,6 +3497,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       scrollArea.className = 'cloudattach-pdf-scrollarea';
       scrollArea.style.overflowY = 'auto';
       scrollArea.style.overflowX = 'hidden';
+      scrollArea.style.position = 'relative';
       container.appendChild(scrollArea);
 
       imgEl.replaceWith(container);
@@ -3520,16 +3521,17 @@ module.exports = class CloudAttachPlugin extends Plugin {
       console.log('[CloudAttach] canvas WxH:', canvasW, 'x', canvasH, 'containerW:', containerW, 'displayH:', displayH);
       
       // 容器高度 = 1页显示高度（固定，内部滚动）或 用户指定
+      // 工具栏是 absolute 浮动，不占文档流，容器高度不含工具栏
       let finalContainerHeight;
       if (userHeightStr) {
-        finalContainerHeight = parseInt(userHeightStr) + TOOLBAR_HEIGHT + 'px';
+        finalContainerHeight = userHeightStr;
       } else {
-        finalContainerHeight = Math.round(displayH) + TOOLBAR_HEIGHT + 'px';
+        finalContainerHeight = Math.round(displayH) + 'px';
       }
-      // 容器高度 = 1页显示高度（固定，内部滚动）或 用户指定
-      // 工具栏是 absolute 浮动，不占文档流，不需要给 scrollArea 预留 margin
       container.style.setProperty('height', finalContainerHeight, 'important');
+      // scrollArea 内部滚动，底部留 toolbar 高度防止最后一行内容被遮挡
       scrollArea.style.setProperty('height', '100%', 'important');
+      scrollArea.style.setProperty('padding-bottom', TOOLBAR_HEIGHT + 'px', 'important');
 
       // 显示（opacity:1）
       container.style.setProperty('opacity', '1', 'important');
@@ -3646,29 +3648,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
     sep.style.margin = '0 2px';
     toolbar.appendChild(sep);
 
-    // 全屏按钮
-    const fullscreenBtn = document.createElement('span');
-    fullscreenBtn.textContent = '⛶';
-    fullscreenBtn.style.cursor = 'pointer';
-    fullscreenBtn.title = '全屏';
-    fullscreenBtn.dataset.role = 'fullscreen';
-    toolbar.appendChild(fullscreenBtn);
-
-    fullscreenBtn.onclick = (e) => {
-      e.stopPropagation();
-      const fsDoc = container.closest('.markdown-preview-view') || document;
-      if (container.requestFullscreen) {
-        container.requestFullscreen();
-      } else if (container.webkitRequestFullscreen) {
-        container.webkitRequestFullscreen();
-      }
-    };
-
-    // 翻页:在 container 内滚动到对应 canvas
+    // 翻页:在 scrollArea 内滚动到对应 canvas
+    const scrollArea = container.querySelector('.cloudattach-pdf-scrollarea');
     const scrollToPage = (pageNum) => {
-      const targetCanvas = container.querySelector(`.cloudattach-pdf-page[data-page-num="${pageNum}"]`);
+      const targetCanvas = scrollArea.querySelector(`.cloudattach-pdf-page[data-page-num="${pageNum}"]`);
       if (targetCanvas) {
-        targetCanvas.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        scrollArea.scrollTop = targetCanvas.offsetTop;
       }
     };
 
