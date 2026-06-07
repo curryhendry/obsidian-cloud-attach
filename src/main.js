@@ -3488,10 +3488,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const FIXED_SCALE = 1.5;
       const TOOLBAR_HEIGHT = 28;
 
-      // 先隐藏，避免闪烁
+      // 先设为 opacity:0（不可见但已渲染，可以读实际尺寸）
       container.style.setProperty('display', 'block', 'important');
       container.style.setProperty('overflow', 'hidden', 'important');
-      container.style.setProperty('visibility', 'hidden', 'important');
+      container.style.setProperty('opacity', '0', 'important');
 
       const scrollArea = document.createElement('div');
       scrollArea.className = 'cloudattach-pdf-scrollarea';
@@ -3501,28 +3501,30 @@ module.exports = class CloudAttachPlugin extends Plugin {
 
       imgEl.replaceWith(container);
 
-      // 获取容器实际宽度（已入 DOM，可读 offsetWidth）
-      const containerWidth = container.offsetWidth || imgEl.offsetWidth || 800;
+      // 先渲染第1页，等渲染完成后读实际显示高度
+      const firstCanvas = document.createElement('canvas');
+      firstCanvas.className = 'cloudattach-pdf-page';
+      firstCanvas.dataset.pageNum = '1';
+      scrollArea.appendChild(firstCanvas);
+      await this._renderPdfPage(firstCanvas, pdf, 1, FIXED_SCALE);
 
-      // 渲染第1页，用 canvas 像素尺寸算出 CSS 显示高度
-      const firstPage = await pdf.getPage(1);
-      const firstVp = firstPage.getViewport({ scale: FIXED_SCALE });
-      const canvasPixelW = firstVp.width;
-      const canvasPixelH = firstVp.height;
-      // CSS width:100% 会把 canvas 缩到 containerWidth，高度按比例
-      const displayH = Math.round(canvasPixelH * (containerWidth / canvasPixelW));
-      console.log('[CloudAttach] containerWidth:', containerWidth, 'canvasPx:', canvasPixelW, 'x', canvasPixelH, 'displayH:', displayH);
+      // 等两帧确保 layout + paint 完成，才能读到正确的实际高度
+      await new Promise(r => requestAnimationFrame(r));
+      await new Promise(r => requestAnimationFrame(r));
+      const actualH = firstCanvas.getBoundingClientRect().height;
+      console.log('[CloudAttach] first page actual display height:', actualH);
 
-      // 容器高度 = CSS 显示高度 或 用户指定
-      const finalScrollHeight = userHeightStr || (displayH + 'px');
+      // 容器高度 = 实际渲染高度 或 用户指定
+      const finalScrollHeight = userHeightStr || (Math.round(actualH) + 'px');
       const finalContainerHeight = parseInt(finalScrollHeight) + TOOLBAR_HEIGHT + 'px';
       container.style.setProperty('height', finalContainerHeight, 'important');
       scrollArea.style.setProperty('height', '100%', 'important');
-      // 显示
-      container.style.setProperty('visibility', 'visible', 'important');
 
-      // 渲染所有页面
-      for (let i = 1; i <= pdf.numPages; i++) {
+      // 显示（opacity:1）
+      container.style.setProperty('opacity', '1', 'important');
+
+      // 渲染剩余页面
+      for (let i = 2; i <= pdf.numPages; i++) {
         const canvas = document.createElement('canvas');
         canvas.className = 'cloudattach-pdf-page';
         canvas.dataset.pageNum = String(i);
