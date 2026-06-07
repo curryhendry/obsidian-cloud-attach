@@ -22,25 +22,25 @@ var I18n = {
 };
 Object.assign(I18n.translations.zh, {
   // Notice 消息
-  "notice.sign_expired_403": "\u26A0\uFE0F Sign \u5DF2\u8FC7\u671F\uFF0C\u8BF7\u5237\u65B0",
+  "notice.sign_expired_403": "\u26A0\uFE0F Sign \u5DF2\u8FC7\u671F,\u8BF7\u5237\u65B0",
   "notice.sign_invalid": "\u274C Sign \u65E0\u6548",
-  "notice.sign_ok": "\u2705 Sign \u6709\u6548\uFF0C\u65E0\u9700\u5237\u65B0",
+  "notice.sign_ok": "\u2705 Sign \u6709\u6548,\u65E0\u9700\u5237\u65B0",
   "notice.check_start": "\u{1F50D} \u5F00\u59CB\u68C0\u67E5 {count} \u4E2A URL...",
-  "notice.check_complete": "\u2705 \u68C0\u67E5\u5B8C\u6210\uFF1A{parts}",
-  "notice.check_complete_partial": "\u{1F4CB} \u68C0\u67E5\u5B8C\u6210\uFF1A{parts}",
+  "notice.check_complete": "\u2705 \u68C0\u67E5\u5B8C\u6210:{parts}",
+  "notice.check_complete_partial": "\u{1F4CB} \u68C0\u67E5\u5B8C\u6210:{parts}",
   "notice.no_urls_in_note": "\u{1F4ED} \u7B14\u8BB0\u4E2D\u672A\u53D1\u73B0\u4EFB\u4F55 URL",
   "notice.no_attachment": "\u26A0\uFE0F \u5F53\u524D\u5149\u6807\u9644\u8FD1\u672A\u627E\u5230\u9644\u4EF6",
   "notice.no_url_near_cursor": "\u274C \u5149\u6807\u9644\u8FD1\u672A\u627E\u5230 URL",
   "notice.open_note_first": "\u274C \u8BF7\u5148\u6253\u5F00\u4E00\u4E2A\u7B14\u8BB0",
   "notice.no_file_selected": "\u26A0\uFE0F \u8BF7\u5148\u9009\u62E9\u6587\u4EF6",
-  "notice.file_not_found": "\u26A0\uFE0F \u6587\u4EF6\u4E0D\u5B58\u5728\uFF08\u53EF\u80FD\u5728\u670D\u52A1\u5668\u4E0A\u88AB\u5220\u9664\u6216\u79FB\u52A8\uFF09",
+  "notice.file_not_found": "\u26A0\uFE0F \u6587\u4EF6\u4E0D\u5B58\u5728(\u53EF\u80FD\u5728\u670D\u52A1\u5668\u4E0A\u88AB\u5220\u9664\u6216\u79FB\u52A8)",
   "notice.cannot_extract_path": "\u274C \u65E0\u6CD5\u63D0\u53D6\u8DEF\u5F84\u6216\u65E0 Token",
-  "notice.cannot_refresh": "\u274C \u65E0\u6CD5\u63D0\u53D6\u8DEF\u5F84\u6216\u65E0 Token\uFF0C\u65E0\u6CD5\u5237\u65B0",
+  "notice.cannot_refresh": "\u274C \u65E0\u6CD5\u63D0\u53D6\u8DEF\u5F84\u6216\u65E0 Token,\u65E0\u6CD5\u5237\u65B0",
   "notice.select_account_first": "\u274C \u8BF7\u5148\u9009\u62E9\u4E00\u4E2A\u8D26\u6237",
-  "notice.select_dir_first": "\u26A0\uFE0F \u8BF7\u5148\u5728 CloudAttach \u6807\u7B7E\u9875\u4E2D\u9009\u62E9\u4E0A\u4F20\u76EE\u5F55\uFF08\u4E0D\u80FD\u662F\u6839\u76EE\u5F55\uFF09",
+  "notice.select_dir_first": "\u26A0\uFE0F \u8BF7\u5148\u5728 CloudAttach \u6807\u7B7E\u9875\u4E2D\u9009\u62E9\u4E0A\u4F20\u76EE\u5F55(\u4E0D\u80FD\u662F\u6839\u76EE\u5F55)",
   "notice.upload_start": "\u{1F4E4} \u5F00\u59CB\u4E0A\u4F20 {count} \u4E2A\u9644\u4EF6...",
   "notice.upload_success": "\u2705 \u4E0A\u4F20\u6210\u529F {count} \u4E2A",
-  "notice.upload_partial": "\u26A0\uFE0F \u90E8\u5206\u6210\u529F\uFF1A{success} \u6210\u529F\uFF0C{failed} \u5931\u8D25",
+  "notice.upload_partial": "\u26A0\uFE0F \u90E8\u5206\u6210\u529F:{success} \u6210\u529F,{failed} \u5931\u8D25",
   "notice.upload_all_failed": "\u274C \u4E0A\u4F20\u5168\u90E8\u5931\u8D25",
   "notice.upload_failed": "\u274C \u4E0A\u4F20\u5931\u8D25: {error}",
   "notice.file_deleted": "\u2705 \u5DF2\u5220\u9664\u672C\u5730\u6587\u4EF6: {path}",
@@ -53,22 +53,22 @@ Object.assign(I18n.translations.zh, {
   "notice.inserted_count": "\u2705 \u5DF2\u63D2\u5165 {count} \u4E2A\u6587\u4EF6",
   "notice.open_note_first_insert": "\u274C \u8BF7\u5148\u6253\u5F00\u4E00\u4E2A\u7B14\u8BB0",
   "notice.check_url": "\u{1F50D} \u68C0\u67E5 URL: {url}...",
-  "notice.no_openlist_url": "\u26A0\uFE0F \u975E OpenList URL\uFF0C\u8DF3\u8FC7",
-  "notice.not_my_url_skip": "\u26A0\uFE0F \u672A\u5339\u914D\u5230\u8D26\u6237\uFF0C\u8DF3\u8FC7",
+  "notice.no_openlist_url": "\u26A0\uFE0F \u975E OpenList URL,\u8DF3\u8FC7",
+  "notice.not_my_url_skip": "\u26A0\uFE0F \u672A\u5339\u914D\u5230\u8D26\u6237,\u8DF3\u8FC7",
   "notice.s3_upload_success": "\u2705 \u4E0A\u4F20\u6210\u529F: {path}",
   "notice.s3_upload_failed": "\u274C S3 \u4E0A\u4F20\u5931\u8D25: {error}",
-  "notice.s3_test_403": "\u2705 \u8FDE\u63A5\u6210\u529F(403\u65E0\u6743\u9650\uFF0C\u4F46\u7B7E\u540D\u6B63\u786E)",
-  "notice.s3_test_401": "\u274C \u7B7E\u540D\u9519\u8BEF(401)\uFF0C\u8BF7\u68C0\u67E5AccessKey/SecretKey/Region",
+  "notice.s3_test_403": "\u2705 \u8FDE\u63A5\u6210\u529F(403\u65E0\u6743\u9650,\u4F46\u7B7E\u540D\u6B63\u786E)",
+  "notice.s3_test_401": "\u274C \u7B7E\u540D\u9519\u8BEF(401),\u8BF7\u68C0\u67E5AccessKey/SecretKey/Region",
   "notice.s3_test_404": "\u274C \u5B58\u50A8\u6876\u672A\u627E\u5230(404)",
   "notice.s3_test_ok": "\u2705 \u8FDE\u63A5\u6210\u529F!",
   "notice.s3_test_failed": "\u274C \u5931\u8D25 status={status}",
   "notice.s3_test_error": "\u274C \u8FDE\u63A5\u5F02\u5E38: {error}",
   "notice.plugin_reloaded": "\u2705 CloudAttach \u5DF2\u91CD\u65B0\u52A0\u8F7D",
   "notice.delete_success": "\u2705 \u5DF2\u5220\u9664 {count} \u9879",
-  "notice.delete_partial": "\u26A0\uFE0F \u5220\u9664\u6210\u529F {success} \u9879\uFF0C\u5931\u8D25 {failed} \u9879",
-  "notice.delete_failed": "\u274C \u5220\u9664\u5931\u8D25\uFF1A{error}",
-  "notice.rename_conflict": "\u274C \u91CD\u547D\u540D\u5931\u8D25\uFF1A\u76EE\u6807\u6587\u4EF6\u540D\u5DF2\u5B58\u5728",
-  "notice.rename_failed": "\u274C \u91CD\u547D\u540D\u5931\u8D25\uFF1A{error}",
+  "notice.delete_partial": "\u26A0\uFE0F \u5220\u9664\u6210\u529F {success} \u9879,\u5931\u8D25 {failed} \u9879",
+  "notice.delete_failed": "\u274C \u5220\u9664\u5931\u8D25:{error}",
+  "notice.rename_conflict": "\u274C \u91CD\u547D\u540D\u5931\u8D25:\u76EE\u6807\u6587\u4EF6\u540D\u5DF2\u5B58\u5728",
+  "notice.rename_failed": "\u274C \u91CD\u547D\u540D\u5931\u8D25:{error}",
   "notice.rename_success": "\u2705 \u91CD\u547D\u540D\u6210\u529F",
   "notice.reload_failed": "\u274C \u91CD\u8F7D\u5931\u8D25: {error}",
   "notice.connect_success": "\u2705 \u8FDE\u63A5\u6210\u529F",
@@ -88,18 +88,18 @@ Object.assign(I18n.translations.zh, {
   "settings.endpoint": "\u7AEF\u70B9",
   "settings.bucket": "\u5B58\u50A8\u6876",
   "settings.region": "\u5730\u57DF",
-  "settings.prefix": "\u5B58\u50A8\u8DEF\u5F84\uFF08\u9009\u586B\uFF09",
-  "settings.prefix_placeholder": "obsidian/\uFF0C\u9ED8\u8BA4\u6839\u76EE\u5F55",
+  "settings.prefix": "\u5B58\u50A8\u8DEF\u5F84(\u9009\u586B)",
+  "settings.prefix_placeholder": "obsidian/,\u9ED8\u8BA4\u6839\u76EE\u5F55",
   "settings.username": "\u7528\u6237\u540D",
   "settings.password": "\u5BC6\u7801",
-  "settings.token": "Token\uFF08\u9009\u586B\uFF09",
-  "settings.token_hint": "\u5728 OpenList \u540E\u53F0\u83B7\u53D6\uFF0C\u4E0D\u586B\u5219\u4E0D\u7B7E\u540D",
+  "settings.token": "Token(\u9009\u586B)",
+  "settings.token_hint": "\u5728 OpenList \u540E\u53F0\u83B7\u53D6,\u4E0D\u586B\u5219\u4E0D\u7B7E\u540D",
   "settings.access_key": "\u8BBF\u95EE\u5BC6\u94A5 ID",
   "settings.secret_key": "\u8BBF\u95EE\u5BC6\u94A5",
   "settings.public_url": "\u81EA\u5B9A\u4E49\u4E3B\u673A",
-  "settings.public_url_hint": "auto\uFF08Cloudflare R2 \u53EF\u7559\u7A7A\uFF09",
-  "settings.cdn_url": "CDN \u52A0\u901F\u5730\u5740\uFF08\u9009\u586B\uFF09",
-  "settings.cdn_url_hint": "https://cdn.example.com\uFF08\u9009\u586B\uFF0C\u7528\u4E8E\u62FC\u516C\u5171\u8BBF\u95EEURL\uFF09",
+  "settings.public_url_hint": "auto(Cloudflare R2 \u53EF\u7559\u7A7A)",
+  "settings.cdn_url": "CDN \u52A0\u901F\u5730\u5740(\u9009\u586B)",
+  "settings.cdn_url_hint": "https://cdn.example.com(\u9009\u586B,\u7528\u4E8E\u62FC\u516C\u5171\u8BBF\u95EEURL)",
   "settings.storage_type": "\u5B58\u50A8\u7C7B\u578B",
   "settings.openlist": "\u5BF9\u8C61\u5B58\u50A8",
   "settings.openlist_desc": "\u8FDE\u63A5 OpenList \u7BA1\u7406\u4E91\u9644\u4EF6",
@@ -107,24 +107,24 @@ Object.assign(I18n.translations.zh, {
   "settings.advanced_title": "\u9AD8\u7EA7\u8BBE\u7F6E",
   "settings.preview_category": "\u6587\u4EF6\u9884\u89C8",
   "settings.pdf_preview": "PDF \u9884\u89C8\u65B9\u5F0F",
-  "settings.pdf_preview_iframe": "iframe\uFF08\u9ED8\u8BA4\uFF09",
+  "settings.pdf_preview_iframe": "iframe(\u9ED8\u8BA4)",
   "settings.pdf_preview_pdfjs": "PDF.js",
-  "settings.pdfjs_auto_install": "\uFF08\u4FDD\u5B58\u540E\u81EA\u52A8\u5B89\u88C5 \u7EA61.6MB\uFF09",
-  "settings.pdfjs_installed": "\uFF08\u5DF2\u5B89\u88C5\uFF09",
+  "settings.pdfjs_auto_install": "(\u4FDD\u5B58\u540E\u81EA\u52A8\u5B89\u88C5 \u7EA61.6MB)",
+  "settings.pdfjs_installed": "(\u5DF2\u5B89\u88C5)",
   "settings.pdfjs_installing": "\u6B63\u5728\u5B89\u88C5 PDF.js...",
-  "settings.pdfjs_downloaded": "PDF.js\uFF08\u5DF2\u5B89\u88C5\uFF09",
+  "settings.pdfjs_downloaded": "PDF.js(\u5DF2\u5B89\u88C5)",
   "settings.pdfjs_uninstall": "\u5378\u8F7D",
   "settings.excel_preview": "Excel \u9884\u89C8\u65B9\u5F0F",
-  "settings.excel_preview_iframe": "iframe\uFF08\u9ED8\u8BA4\uFF09",
+  "settings.excel_preview_iframe": "iframe(\u9ED8\u8BA4)",
   "settings.excel_preview_sheetjs": "SheetJS",
   "settings.word_preview": "Word \u9884\u89C8\u65B9\u5F0F",
-  "settings.word_preview_iframe": "iframe\uFF08\u9ED8\u8BA4\uFF09",
+  "settings.word_preview_iframe": "iframe(\u9ED8\u8BA4)",
   "settings.word_preview_mammoth": "mammoth.js",
   "settings.preview_coming_soon": "\u656C\u8BF7\u671F\u5F85...",
   "settings.s3": "\u5BF9\u8C61\u5B58\u50A8 (S3)",
   "settings.s3_desc": "\u652F\u6301 S3 \u534F\u8BAE\u7684\u5BF9\u8C61\u5B58\u50A8",
-  "settings.account_name_placeholder": "\u4F8B\u5982\uFF1A\u6211\u7684COS\u6876",
-  "settings.folder_required": "\u26A0\uFE0F \u8BF7\u9009\u62E9\u4E0A\u4F20\u5230\u7684\u6587\u4EF6\u5939\uFF0C\u4E0D\u80FD\u662F\u6839\u76EE\u5F55",
+  "settings.account_name_placeholder": "\u4F8B\u5982:\u6211\u7684COS\u6876",
+  "settings.folder_required": "\u26A0\uFE0F \u8BF7\u9009\u62E9\u4E0A\u4F20\u5230\u7684\u6587\u4EF6\u5939,\u4E0D\u80FD\u662F\u6839\u76EE\u5F55",
   // 视图界面
   "view.select_account": "\u9009\u62E9\u8D26\u6237",
   "view.no_account": "\u8BF7\u5148\u5728\u8BBE\u7F6E\u4E2D\u6DFB\u52A0\u8D26\u6237",
@@ -140,7 +140,7 @@ Object.assign(I18n.translations.zh, {
   "view.delete_btn": "\u{1F5D1} \u5220\u9664\u6240\u9009",
   "view.confirm_delete": "\u786E\u8BA4\u5220\u9664 ({count})",
   "view.delete_confirm_title": "\u786E\u8BA4\u5220\u9664",
-  "view.delete_confirm_body": "\u786E\u5B9A\u8981\u5220\u9664\u4EE5\u4E0B {count} \u9879\u5417\uFF1F\u6B64\u64CD\u4F5C\u4E0D\u53EF\u6062\u590D\u3002",
+  "view.delete_confirm_body": "\u786E\u5B9A\u8981\u5220\u9664\u4EE5\u4E0B {count} \u9879\u5417?\u6B64\u64CD\u4F5C\u4E0D\u53EF\u6062\u590D\u3002",
   "view.delete_item": "\u{1F4C4} {name}",
   "view.delete_folder": "\u{1F4C1} {name}",
   "view.delete_and_more": "\u7B49 {count} \u9879",
@@ -153,7 +153,7 @@ Object.assign(I18n.translations.zh, {
   "view.select_all": "\u5168\u9009",
   "view.select_invert": "\u53CD\u9009",
   "view.upload_confirm_title": "\u{1F4E4} \u786E\u8BA4\u4E0A\u4F20\u9644\u4EF6",
-  "view.upload_confirm_msg": "\u5C06\u4E0A\u4F20 {count} \u4E2A\u9644\u4EF6\u5230 {target}\uFF0C\u672C\u5730\u6587\u4EF6\u5C06\u88AB\u5220\u9664\u3002",
+  "view.upload_confirm_msg": "\u5C06\u4E0A\u4F20 {count} \u4E2A\u9644\u4EF6\u5230 {target},\u672C\u5730\u6587\u4EF6\u5C06\u88AB\u5220\u9664\u3002",
   "view.confirm_upload": "\u786E\u8BA4\u4E0A\u4F20",
   "view.cancel": "\u53D6\u6D88",
   "view.upload_btn": "\u4E0A\u4F20 {count} \u4E2A\u6587\u4EF6",
@@ -208,9 +208,9 @@ Object.assign(I18n.translations.zh, {
   "settings.account_label": "\u8D26\u6237 {n}",
   "notice.sign_refreshed": "\u2705 Sign \u5DF2\u5237\u65B0",
   "notice.refresh_failed": "\u274C \u5237\u65B0\u5931\u8D25: {error}",
-  "notice.url_invalid": "\u274C URL \u5931\u6548\uFF1A{reason}",
+  "notice.url_invalid": "\u274C URL \u5931\u6548:{reason}",
   "notice.no_attachment_found": "\u{1F4ED} \u7B14\u8BB0\u4E2D\u6CA1\u6709\u672C\u5730\u9644\u4EF6",
-  "notice.upload_complete": "\u{1F4E4} \u4E0A\u4F20\u5B8C\u6210\uFF1A{parts}",
+  "notice.upload_complete": "\u{1F4E4} \u4E0A\u4F20\u5B8C\u6210:{parts}",
   "notice.url_parts_valid": "{count} \u4E2A\u6709\u6548",
   "notice.urls_refreshed": "\u2705 {count} \u4E2A\u5DF2\u5237\u65B0",
   "notice.urls_failed": "\u274C {count} \u4E2A\u5931\u8D25",
@@ -222,7 +222,7 @@ Object.assign(I18n.translations.zh, {
   "error.unsupported_type": "\u4E0D\u652F\u6301\u7684\u6587\u4EF6\u7C7B\u578B",
   "error.upload_failed": "\u4E0A\u4F20\u5931\u8D25: HTTP {status}",
   "error.s3_upload_failed": "S3 \u4E0A\u4F20\u5931\u8D25: HTTP {status}",
-  "error.file_not_found": "\u6587\u4EF6\u4E0D\u5B58\u5728\uFF08\u53EF\u80FD\u5728\u670D\u52A1\u5668\u4E0A\u88AB\u5220\u9664\u6216\u79FB\u52A8\uFF09",
+  "error.file_not_found": "\u6587\u4EF6\u4E0D\u5B58\u5728(\u53EF\u80FD\u5728\u670D\u52A1\u5668\u4E0A\u88AB\u5220\u9664\u6216\u79FB\u52A8)",
   "error.network_error": "\u7F51\u7EDC\u9519\u8BEF",
   "error.no_view_or_folder": "\u8BF7\u5148\u6253\u5F00 CloudAttach \u6807\u7B7E\u9875\u5E76\u9009\u62E9\u4E0A\u4F20\u76EE\u5F55",
   "error.no_account": "\u8BF7\u5148\u9009\u62E9\u4E00\u4E2A\u8D26\u6237",
@@ -240,9 +240,9 @@ Object.assign(I18n.translations.zh, {
   "settings.server_address_placeholder": "http://192.168.62.200:5244",
   "settings.endpoint_placeholder": "https://xxx.r2.cloudflarestorage.com",
   "settings.bucket_placeholder": "my-vault-attach",
-  "settings.region_placeholder": "auto\uFF08Cloudflare R2 \u53EF\u7559\u7A7A\uFF09",
-  "settings.cdn_url_placeholder": "https://cdn.example.com\uFF08\u9009\u586B\uFF0C\u7528\u4E8E\u62FC\u516C\u5171\u8BBF\u95EEURL\uFF09",
-  "view.upload_to": '\u4E0A\u4F20\u5230\uFF1A<code style="background:var(--background-secondary);padding:2px 6px;border-radius:3px;">{path}</code>',
+  "settings.region_placeholder": "auto(Cloudflare R2 \u53EF\u7559\u7A7A)",
+  "settings.cdn_url_placeholder": "https://cdn.example.com(\u9009\u586B,\u7528\u4E8E\u62FC\u516C\u5171\u8BBF\u95EEURL)",
+  "view.upload_to": '\u4E0A\u4F20\u5230:<code style="background:var(--background-secondary);padding:2px 6px;border-radius:3px;">{path}</code>',
   "error.rebuild_failed": "\u91CD\u5EFA\u5931\u8D25: {error}",
   "error.sign_rebuild_failed": "\u8865 sign \u5931\u8D25: {error}",
   "settings.check_account_settings": "\u8BF7\u68C0\u67E5\u8D26\u6237\u8BBE\u7F6E"
@@ -489,9 +489,9 @@ var OpenListClient = class {
     this.app = app;
   }
   /**
-   * 对 URL 路径部分做安全解码：把 %XX 编码的中文还原为原文，但保留空格等必须编码的字符。
+   * 对 URL 路径部分做安全解码:把 %XX 编码的中文还原为原文,但保留空格等必须编码的字符。
    * 用于服务器返回的全编码 URL → 插入笔记时保留中文原文。
-   * @param {string} url - 完整 URL（可能含 query string）
+   * @param {string} url - 完整 URL(可能含 query string)
    * @returns {string} 解码后的 URL
    */
   safeDecodeUrl(url) {
@@ -513,7 +513,7 @@ var OpenListClient = class {
     }
   }
   /**
-   * 登录获取 token（用于 API 操作）
+   * 登录获取 token(用于 API 操作)
    * @returns {Promise<boolean>}
    */
   async login() {
@@ -544,8 +544,8 @@ var OpenListClient = class {
     }
   }
   /**
-   * 通过 Obsidian requestUrl 发请求（绕过 CORS，适用于 WebDAV）
-   * 优先使用 app.requestUrl，不可用时回退到原生 fetch
+   * 通过 Obsidian requestUrl 发请求(绕过 CORS,适用于 WebDAV)
+   * 优先使用 app.requestUrl,不可用时回退到原生 fetch
    * @param {string} url - 目标 URL
    * @param {Object} options - { method, headers, body }
    * @returns {Promise<{status: number, text: string, ok: boolean}>}
@@ -614,7 +614,7 @@ var OpenListClient = class {
     };
   }
   /**
-   * 通过 Obsidian requestUrl 获取二进制数据（用于 PDF 等文件）
+   * 通过 Obsidian requestUrl 获取二进制数据(用于 PDF 等文件)
    * @returns {Promise<Uint8Array|null>}
    */
   async requestBinary(url) {
@@ -657,7 +657,7 @@ var OpenListClient = class {
     }
   }
   /**
-   * 带认证的 API 请求（token 优先，401 fallback 到 login）
+   * 带认证的 API 请求(token 优先,401 fallback 到 login)
    */
   async authFetch(path, options = {}) {
     if (!this.token && !await this.login()) {
@@ -726,7 +726,7 @@ var OpenListClient = class {
     const host = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, "$3");
     return `${proto}${host}/${preferredPrefix}${remotePath.startsWith("/") ? remotePath : "/" + remotePath}`;
   }
-  // 获取文件的 WebDAV URL（用于插入到笔记）
+  // 获取文件的 WebDAV URL(用于插入到笔记)
   getFileUrl(remotePath) {
     const webdavPath = this.webdavPath || "";
     const proto = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, "$1");
@@ -735,7 +735,7 @@ var OpenListClient = class {
     const encodedPath = fullPath.replace(/[\s#?&<>"'\\|{}]/g, (c) => encodeURIComponent(c));
     return `${proto}${host}${encodedPath}`;
   }
-  // 获取原始 URL（无签名、无 /dav /d 前缀，用于 iframe 预览）
+  // 获取原始 URL(无签名、无 /dav /d 前缀,用于 iframe 预览)
   getRawUrl(remotePath) {
     const proto = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, "$1");
     const host = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, "$3");
@@ -743,11 +743,11 @@ var OpenListClient = class {
   }
   /**
    * 从 OpenList URL 中提取真实文件路径
-   * URL 格式：https://host:port/p/Local/share/photo.jpg?sign=xxx:0
+   * URL 格式:https://host:port/p/Local/share/photo.jpg?sign=xxx:0
    *           或 https://host:port/d/Local/share/photo.jpg?sign=xxx:0
-   * 去掉开头的 /p/ 或 /d/ 前缀，返回真实路径 /Local/share/photo.jpg
+   * 去掉开头的 /p/ 或 /d/ 前缀,返回真实路径 /Local/share/photo.jpg
    * @param {string} url - 完整的 OpenList URL
-   * @returns {string|null} 真实文件路径，或 null（不是 OpenList URL）
+   * @returns {string|null} 真实文件路径,或 null(不是 OpenList URL)
    */
   extractRealPath(url) {
     try {
@@ -776,7 +776,7 @@ var OpenListClient = class {
     }
   }
   /**
-   * 在文本中查找并替换 URL（简化版：遍历文本中的 URL，解码后比对路径）
+   * 在文本中查找并替换 URL(简化版:遍历文本中的 URL,解码后比对路径)
    */
   findAndReplaceUrl(text, realPath, newUrl) {
     const urlRegex = /https?:\/\/[^\s()"']+/g;
@@ -807,8 +807,8 @@ var OpenListClient = class {
     return newText;
   }
   /**
-   * 解码 URL 中的中文字符（处理 encodeURI / encodeURIComponent / safeEncodePath 各种形式）
-   * safeEncodePath 只编码特殊字符保留中文，所以解码只需处理 %XX
+   * 解码 URL 中的中文字符(处理 encodeURI / encodeURIComponent / safeEncodePath 各种形式)
+   * safeEncodePath 只编码特殊字符保留中文,所以解码只需处理 %XX
    * @param {string} url
    * @returns {string} 解码后的 URL
    */
@@ -822,7 +822,7 @@ var OpenListClient = class {
     }
   }
   /**
-   * 验证 OpenList sign URL 是否有效（通过 HEAD 请求）
+   * 验证 OpenList sign URL 是否有效(通过 HEAD 请求)
    * @param {string} url - 完整的 sign URL
    * @returns {Promise<{ok: boolean, status: number, reason: string}>}
    */
@@ -881,11 +881,11 @@ var OpenListClient = class {
     }
   }
   /**
-   * 删除文件或文件夹（批量）
+   * 删除文件或文件夹(批量)
    * @param {string[]} paths - 要删除的路径列表
    * @returns {Promise<{success: string[], failed: Array<{path, error}>}>}
    */
-  /** 对 URL 路径分段编码，保留 / 分隔符 */
+  /** 对 URL 路径分段编码,保留 / 分隔符 */
   encodePath(path) {
     return path.split("/").map((seg) => encodeURIComponent(seg)).join("/");
   }
@@ -947,7 +947,7 @@ var OpenListClient = class {
     return results;
   }
   /**
-   * @param {string} path - 原路径（如 /Local/share/.../file.txt）
+   * @param {string} path - 原路径(如 /Local/share/.../file.txt)
    * @param {string} newName - 新文件名
    * @returns {Promise<void>}
    */
@@ -992,8 +992,8 @@ var OpenListClient = class {
   }
   /**
    * 上传文件到远程目录
-   * @param {string} localPath - 本地文件路径（vault 内）
-   * @param {string} remoteDir - 远程目录路径（以 / 开头）
+   * @param {string} localPath - 本地文件路径(vault 内)
+   * @param {string} remoteDir - 远程目录路径(以 / 开头)
    * @returns {Promise<{ok: boolean, remotePath: string, url: string, error?: string}>}
    */
   async uploadFile(localPath, remoteDir) {
@@ -1135,7 +1135,7 @@ var OpenListClient = class {
         try {
           const url = new URL(decodedHref);
           decodedHref = url.pathname;
-          console.log("[CloudAttach] WebDAV: href \u662F\u5B8C\u6574 URL\uFF0C\u63D0\u53D6\u8DEF\u5F84:", url.pathname);
+          console.log("[CloudAttach] WebDAV: href \u662F\u5B8C\u6574 URL,\u63D0\u53D6\u8DEF\u5F84:", url.pathname);
         } catch (e) {
           console.warn("[CloudAttach] WebDAV: \u89E3\u6790 href URL \u5931\u8D25:", decodedHref);
         }
@@ -1150,7 +1150,7 @@ var OpenListClient = class {
       files.push({ name, path: relativePath, isDirectory, size: contentLength });
     }
     if (responses.length > 0 && files.length === 0) {
-      console.warn("[CloudAttach] WebDAV: XML\u89E3\u6790\u5230", responses.length, "\u6761\u76EE\u4F46\u5168\u90E8\u88AB\u8FC7\u6EE4\uFF0CremotePath=", remotePath, "webdavPath=", this.webdavPath);
+      console.warn("[CloudAttach] WebDAV: XML\u89E3\u6790\u5230", responses.length, "\u6761\u76EE\u4F46\u5168\u90E8\u88AB\u8FC7\u6EE4,remotePath=", remotePath, "webdavPath=", this.webdavPath);
     }
     return files.sort((a, b) => {
       if (a.isDirectory !== b.isDirectory)
@@ -1208,7 +1208,7 @@ var S3Client = class {
     this.prefix = account.prefix ? account.prefix.replace(/^\/+|\/+$/g, "") + "/" : "";
   }
   /**
-   * 通过 Obsidian requestUrl 发请求，绕过 CORS
+   * 通过 Obsidian requestUrl 发请求,绕过 CORS
    */
   async requestViaObsidian(url, options = {}) {
     let requestUrl = null;
@@ -1246,7 +1246,7 @@ var S3Client = class {
   }
   /**
    * 列出目录内容
-   * @param {string} remotePath - 远程路径，如 "/" 或 "/folder/"
+   * @param {string} remotePath - 远程路径,如 "/" 或 "/folder/"
    * @returns {Promise<Array>} 文件列表
    */
   async listDirectory(remotePath = "/") {
@@ -1274,8 +1274,8 @@ var S3Client = class {
     }
   }
   /**
-   * 构造文件公共访问 URL（无签名，适用于公共读桶）
-   * @param {string} remotePath - 远程路径，如 "/images/photo.jpg"
+   * 构造文件公共访问 URL(无签名,适用于公共读桶)
+   * @param {string} remotePath - 远程路径,如 "/images/photo.jpg"
    * @returns {string} 公共 URL
    */
   getFileUrl(remotePath) {
@@ -1291,9 +1291,9 @@ var S3Client = class {
     return `${base}/${encodePath(fullPath)}`;
   }
   /**
-   * 获取文件预签名 URL（适用于私有桶，按需签名）
+   * 获取文件预签名 URL(适用于私有桶,按需签名)
    * @param {string} remotePath - 远程路径
-   * @param {number} expires - 过期时间（秒），默认 3600
+   * @param {number} expires - 过期时间(秒),默认 3600
    * @returns {Promise<string>} 预签名 URL
    */
   async getSignedUrl(remotePath, expires = 3600) {
@@ -1311,7 +1311,7 @@ var S3Client = class {
   /**
    * 上传文件到 S3
    * @param {string} localPath - vault 内文件路径
-   * @param {string} remoteDir - 远程目录路径（以 / 开头）
+   * @param {string} remoteDir - 远程目录路径(以 / 开头)
    * @returns {Promise<{ok: boolean, remotePath: string, url: string, error?: string}>}
    */
   async uploadFile(localPath, remoteDir) {
@@ -1404,8 +1404,8 @@ var S3Client = class {
   }
   // ============ 内部方法 ============
   /**
-   * 发送 S3 请求（自动附加 AWS Signature V4 签名）
-   * @param {string} path - 请求路径（相对桶）
+   * 发送 S3 请求(自动附加 AWS Signature V4 签名)
+   * @param {string} path - 请求路径(相对桶)
    * @param {string} method - HTTP 方法
    * @param {Object} options - fetch 选项
    * @returns {Promise<Response>}
@@ -1567,8 +1567,8 @@ var S3Client = class {
     });
   }
   /**
-   * 通用 S3 请求（直接 Authorization header，非 presigned URL）
-   * @param {string} objectKey - S3 object key（不含 /bucket/ 前缀）
+   * 通用 S3 请求(直接 Authorization header,非 presigned URL)
+   * @param {string} objectKey - S3 object key(不含 /bucket/ 前缀)
    * @param {string} method - HTTP 方法
    * @param {Object} extraHeaders - 额外请求头
    * @returns {Promise<{ok: boolean, status: number, error?: string}>}
@@ -1632,7 +1632,7 @@ var S3Client = class {
     return this.prefix ? this.prefix.replace(/\/$/, "") + "/" + clean : clean;
   }
   /**
-   * 删除文件或文件夹（批量）
+   * 删除文件或文件夹(批量)
    * @param {string[]} paths - 要删除的路径列表
    * @returns {Promise<{success: string[], failed: Array<{path, error}>}>}
    */
@@ -1672,7 +1672,7 @@ var S3Client = class {
     return results;
   }
   /**
-   * 重命名文件或文件夹（S3 无原生 rename，用 Copy + Delete）
+   * 重命名文件或文件夹(S3 无原生 rename,用 Copy + Delete)
    * @param {string} path - 原路径
    * @param {string} newName - 新文件名
    * @returns {Promise<void>}
@@ -2222,7 +2222,7 @@ var CloudAttachView = class extends ItemView {
     };
     return icons[ext] || "\u{1F4C4}";
   }
-  // 获取要插入的 Markdown 格式（异步）
+  // 获取要插入的 Markdown 格式(异步)
   async getInsertMarkdown(file) {
     const ext = file.name.split(".").pop()?.toLowerCase() || "";
     const nameWithoutExt = file.name.replace(/\.[^.]+$/, "");
@@ -2258,7 +2258,7 @@ var CloudAttachView = class extends ItemView {
       return `[${file.name}](${url})`;
     }
   }
-  // 查找最近使用的 MarkdownView（排除自身侧边栏）
+  // 查找最近使用的 MarkdownView(排除自身侧边栏)
   findMostRecentMarkdownView() {
     const { workspace } = this.plugin.app;
     if (this.plugin.activeMarkdownView?.editor) {
@@ -2279,7 +2279,7 @@ var CloudAttachView = class extends ItemView {
     }
     return null;
   }
-  // 插入单个文件到笔记（异步）
+  // 插入单个文件到笔记(异步)
   async insertFile(file) {
     const md = await this.getInsertMarkdown(file);
     const view = this.findMostRecentMarkdownView();
@@ -2291,7 +2291,7 @@ var CloudAttachView = class extends ItemView {
       new Notice(t("notice.open_note_first"));
     }
   }
-  // 批量插入（异步）
+  // 批量插入(异步)
   async insertSelectedFiles() {
     if (!this.client || this.selectedFiles.size === 0)
       return;
@@ -3186,6 +3186,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
       .cloud-attach-card-btns { display: flex; gap: 8px; margin-top: 12px; }
       .cloud-attach-add-btn { width: 100%; padding: 10px; font-size: 14px; border: 1px dashed var(--background-modifier-border); border-radius: 4px; background: transparent; color: var(--text-accent); cursor: pointer; margin-top: 8px; }
       .cloud-attach-add-btn:hover { background: var(--background-modifier-hover); }
+
+    /* PDF \u9884\u89C8\u5BB9\u5668 - \u53CC\u5C42\u7ED3\u6784,\u4EFF Obsidian \u539F\u751F .pdf-embed */
+    .cloudattach-pdf-container { box-sizing: border-box !important; display: inline-block !important; width: 100% !important; max-width: 100% !important; border: 1px solid var(--background-modifier-border) !important; border-radius: 8px !important; background: var(--background-secondary) !important; vertical-align: top !important; position: relative !important; overflow: hidden !important; }
+
+    .cloudattach-pdf-page { display: block !important; box-sizing: border-box !important; width: 100% !important; height: auto !important; max-width: 100% !important; min-width: 0 !important; }
     `;
     const styleEl = document.createElement("style");
     styleEl.textContent = css;
@@ -3218,7 +3223,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       this._pdfObserver.disconnect();
   }
   // ============================================================
-  // PDF.js 内联预览（v0.3.026）
+  // PDF.js 内联预览(v0.3.026)
   // ============================================================
   async _loadPdfJs() {
     if (window.pdfjsLib)
@@ -3241,6 +3246,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     try {
       const pdfjsLib = await this._loadPdfJs();
       const loadingTask = pdfjsLib.getDocument(url);
+      console.log("[CloudAttach] PDF doc loaded, pages:", (await loadingTask.promise).numPages);
       const pdf = await loadingTask.promise;
       let imgWidth = imgEl.getAttribute("width") || imgEl.style.width || "";
       let imgHeight = imgEl.getAttribute("height") || imgEl.style.height || "";
@@ -3261,9 +3267,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
       const container = document.createElement("span");
       container.className = "cloudattach-pdf-container";
-      container.style.position = "relative";
-      container.style.display = "inline-block";
-      container.style.maxWidth = "100%";
       container.dataset.currentPage = "1";
       container.dataset.totalPages = pdf.numPages.toString();
       container.dataset.pdfUrl = url;
@@ -3272,60 +3275,113 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
       if (imgStyleMaxWidth)
         container.style.maxWidth = imgStyleMaxWidth;
+      let userHeightStr = "";
       if (imgHeight && imgHeight !== "auto") {
-        container.dataset.userHeight = imgHeight.includes("%") || imgHeight.includes("px") || imgHeight.includes("vh") ? imgHeight : imgHeight + "px";
+        userHeightStr = imgHeight.includes("%") || imgHeight.includes("px") || imgHeight.includes("vh") ? imgHeight : imgHeight + "px";
+        container.dataset.userHeight = userHeightStr;
       }
-      const canvas = document.createElement("canvas");
-      canvas.style.width = "100%";
-      canvas.style.height = "auto";
-      if (container.dataset.userHeight) {
-        canvas.style.height = container.dataset.userHeight;
-        canvas.style.objectFit = "contain";
-      }
-      container.appendChild(canvas);
-      await this._renderPdfPage(container, pdf, 1);
-      this._initPdfToolbar(container, pdf);
+      const FIXED_SCALE = 1.5;
+      const TOOLBAR_HEIGHT = 28;
+      container.style.setProperty("display", "block", "important");
+      container.style.setProperty("overflow", "hidden", "important");
+      container.style.setProperty("opacity", "0", "important");
+      const scrollArea = document.createElement("div");
+      scrollArea.className = "cloudattach-pdf-scrollarea";
+      scrollArea.style.overflowY = "auto";
+      scrollArea.style.overflowX = "hidden";
+      container.appendChild(scrollArea);
       imgEl.replaceWith(container);
+      const firstPage = await pdf.getPage(1);
+      const firstViewport = firstPage.getViewport({ scale: FIXED_SCALE });
+      const canvasW = firstViewport.width;
+      const canvasH = firstViewport.height;
+      const firstCanvas = document.createElement("canvas");
+      firstCanvas.className = "cloudattach-pdf-page";
+      firstCanvas.dataset.pageNum = "1";
+      scrollArea.appendChild(firstCanvas);
+      await this._renderPdfPage(firstCanvas, pdf, 1, FIXED_SCALE);
+      const containerW = container.clientWidth || 800;
+      const displayH = canvasH * (containerW / canvasW);
+      console.log("[CloudAttach] canvas WxH:", canvasW, "x", canvasH, "containerW:", containerW, "displayH:", displayH);
+      let finalContainerHeight;
+      if (userHeightStr) {
+        finalContainerHeight = parseInt(userHeightStr) + TOOLBAR_HEIGHT + "px";
+      } else {
+        finalContainerHeight = Math.round(displayH) + TOOLBAR_HEIGHT + "px";
+      }
+      container.style.setProperty("height", finalContainerHeight, "important");
+      scrollArea.style.setProperty("height", "calc(100% - " + TOOLBAR_HEIGHT + "px)", "important");
+      scrollArea.style.setProperty("margin-top", TOOLBAR_HEIGHT + "px", "important");
+      container.style.setProperty("opacity", "1", "important");
+      for (let i = 2; i <= pdf.numPages; i++) {
+        const canvas = document.createElement("canvas");
+        canvas.className = "cloudattach-pdf-page";
+        canvas.dataset.pageNum = String(i);
+        scrollArea.appendChild(canvas);
+        await this._renderPdfPage(canvas, pdf, i, FIXED_SCALE);
+        console.log("[CloudAttach] page", i, "/", pdf.numPages, "cw:", canvas.width, "ch:", canvas.height);
+      }
+      console.log("[CloudAttach] ALL DONE, pages:", pdf.numPages);
+      this._initPdfToolbar(container, pdf);
+      this._bindPdfScroll(container, pdf);
+      console.log("[CloudAttach] PDF container built, pages:", pdf.numPages);
     } catch (e) {
       console.error("[CloudAttach] PDF render failed:", e);
     }
   }
-  // 渲染指定页码的 PDF 页面（无感翻页：复用 canvas，只更新内容）
-  async _renderPdfPage(container, pdf, pageNum) {
-    let canvas = container.querySelector("canvas");
-    if (!canvas) {
-      canvas = document.createElement("canvas");
-      canvas.style.width = "100%";
-      canvas.style.height = "auto";
-      container.insertBefore(canvas, container.querySelector(".cloudattach-pdf-toolbar"));
-    }
+  // 渲染指定页码的 PDF 页面到指定 canvas
+  async _renderPdfPage(canvas, pdf, pageNum, scale) {
     const page = await pdf.getPage(pageNum);
-    const viewport = page.getViewport({ scale: 1.5 });
+    const viewport = page.getViewport({ scale });
     canvas.width = viewport.width;
     canvas.height = viewport.height;
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     await page.render({ canvasContext: ctx, viewport }).promise;
-    container.dataset.currentPage = pageNum.toString();
-    this._updatePdfToolbar(container, pdf);
   }
-  // 初始化 PDF 翻页工具栏（只创建一次）
+  // 监听滚动更新当前页码(连续滚动模式,监听容器本身)
+  _bindPdfScroll(container, pdf) {
+    const scrollArea = container.querySelector(".cloudattach-pdf-scrollarea");
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          const pageNum = entry.target.dataset.pageNum;
+          container.dataset.currentPage = pageNum;
+          this._updatePdfToolbar(container, pdf);
+        }
+      });
+    }, { root: scrollArea, threshold: 0.5 });
+    const canvases = scrollArea.querySelectorAll(".cloudattach-pdf-page");
+    canvases.forEach((canvas) => observer.observe(canvas));
+  }
+  // 初始化 PDF 翻页工具栏(连续滚动模式,flex 布局下固定在顶部)
   _initPdfToolbar(container, pdf) {
     const totalPages = parseInt(container.dataset.totalPages);
     const toolbar = document.createElement("div");
     toolbar.className = "cloudattach-pdf-toolbar";
-    toolbar.style.position = "absolute";
-    toolbar.style.bottom = "8px";
-    toolbar.style.right = "8px";
     toolbar.style.background = "rgba(0, 0, 0, 0.6)";
     toolbar.style.color = "white";
     toolbar.style.padding = "4px 8px";
     toolbar.style.borderRadius = "4px";
-    toolbar.style.display = "none";
+    toolbar.style.display = "flex";
     toolbar.style.gap = "6px";
     toolbar.style.alignItems = "center";
     toolbar.style.fontSize = "12px";
+    toolbar.style.height = "28px";
+    toolbar.style.lineHeight = "20px";
     toolbar.style.zIndex = "10";
     toolbar.style.userSelect = "none";
+    toolbar.style.position = "absolute";
+    toolbar.style.bottom = "8px";
+    toolbar.style.right = "8px";
+    toolbar.style.opacity = "0";
+    toolbar.style.transition = "opacity 0.2s";
+    container.style.position = "relative";
+    container.addEventListener("mouseenter", () => {
+      toolbar.style.opacity = "1";
+    });
+    container.addEventListener("mouseleave", () => {
+      toolbar.style.opacity = "0";
+    });
     const prevBtn = document.createElement("span");
     prevBtn.textContent = "\u25C0";
     prevBtn.style.cursor = "pointer";
@@ -3346,29 +3402,23 @@ module.exports = class CloudAttachPlugin extends Plugin {
     sep.style.opacity = "0.5";
     sep.style.margin = "0 2px";
     toolbar.appendChild(sep);
-    const fullscreenBtn = document.createElement("span");
-    fullscreenBtn.textContent = "\u26F6";
-    fullscreenBtn.style.cursor = "pointer";
-    fullscreenBtn.title = "\u5168\u5C4F\u9884\u89C8\uFF08\u656C\u8BF7\u671F\u5F85\uFF09";
-    fullscreenBtn.dataset.role = "fullscreen";
-    toolbar.appendChild(fullscreenBtn);
-    container.addEventListener("mouseenter", () => {
-      toolbar.style.display = "flex";
-    });
-    container.addEventListener("mouseleave", () => {
-      toolbar.style.display = "none";
-    });
+    const scrollToPage = (pageNum) => {
+      const targetCanvas = container.querySelector(`.cloudattach-pdf-page[data-page-num="${pageNum}"]`);
+      if (targetCanvas) {
+        targetCanvas.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    };
     prevBtn.onclick = (e) => {
       e.stopPropagation();
       const current = parseInt(container.dataset.currentPage);
       if (current > 1)
-        this._renderPdfPage(container, pdf, current - 1);
+        scrollToPage(current - 1);
     };
     nextBtn.onclick = (e) => {
       e.stopPropagation();
       const current = parseInt(container.dataset.currentPage);
       if (current < totalPages)
-        this._renderPdfPage(container, pdf, current + 1);
+        scrollToPage(current + 1);
     };
     pageIndicator.onclick = (e) => {
       e.stopPropagation();
@@ -3408,18 +3458,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
         }
       }
       new PageJumpModal(this.app, current, totalPages, (p) => {
-        this._renderPdfPage(container, pdf, p);
+        scrollToPage(p);
       }).open();
-    };
-    fullscreenBtn.onclick = (e) => {
-      e.stopPropagation();
-      const { Notice: Notice2 } = require("obsidian");
-      new Notice2("\u{1F50D} \u5168\u5C4F\u9884\u89C8\u529F\u80FD\uFF0C\u656C\u8BF7\u671F\u5F85");
     };
     container.appendChild(toolbar);
     this._updatePdfToolbar(container, pdf);
   }
-  // 更新工具栏状态（不重建 DOM，只改文字和可见性）
+  // 更新工具栏状态(不重建 DOM,只改文字和可见性)
   _updatePdfToolbar(container, pdf) {
     const toolbar = container.querySelector(".cloudattach-pdf-toolbar");
     if (!toolbar)
@@ -3479,7 +3524,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
   // Sign 检查与刷新
   // ============================================================
   /**
-   * 从文本内容中提取所有 URL（Markdown 图片、链接、iframe src）
+   * 从文本内容中提取所有 URL(Markdown 图片、链接、iframe src)
    * @param {string} text - 笔记文本
    * @returns {string[]} URL 列表
    */
@@ -3590,7 +3635,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
                   results.valid++;
                 }
               } else {
-                console.log("[CloudAttach] \u65B0 URL \u9A8C\u8BC1\u5931\u8D25\uFF0C\u4FDD\u7559\u539F URL:", newVerify2.reason);
+                console.log("[CloudAttach] \u65B0 URL \u9A8C\u8BC1\u5931\u8D25,\u4FDD\u7559\u539F URL:", newVerify2.reason);
                 results.failed++;
                 results.failedUrls.push({ url, reason: t("error.sign_rebuild_failed", { error: newVerify2.reason }) });
               }
@@ -3628,7 +3673,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
                   }
                 }
               } else {
-                console.log("[CloudAttach] \u65B0 URL \u9A8C\u8BC1\u5931\u8D25\uFF0C\u4FDD\u7559\u539F URL:", newVerify.reason);
+                console.log("[CloudAttach] \u65B0 URL \u9A8C\u8BC1\u5931\u8D25,\u4FDD\u7559\u539F URL:", newVerify.reason);
                 results.failed++;
                 results.failedUrls.push({ url, reason: t("error.sign_rebuild_failed", { error: newVerify.reason }) });
               }
@@ -3834,7 +3879,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     return new OpenListClient(account, this.app);
   }
   /**
-   * 检查是否可以上传（需要至少一个账户且当前打开了视图并选中了目录）
+   * 检查是否可以上传(需要至少一个账户且当前打开了视图并选中了目录)
    * @returns {{ok: boolean, client: object, remotePath: string, account: object}|null}
    */
   getUploadContext() {
