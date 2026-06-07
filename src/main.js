@@ -3467,7 +3467,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
 
       // 创建外层容器（参考 v0.3.060 成功方案：inline style 强制设高宽，overflow:hidden 裁剪）
-      const container = document.createElement('span');
+      const container = document.createElement('div');
       container.className = 'cloudattach-pdf-container';
       container.dataset.currentPage = '1';
       container.dataset.totalPages = pdf.numPages.toString();
@@ -3504,7 +3504,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       imgEl.replaceWith(container);
       
       // 计算实际缩放比（现在 container 已在 DOM 中）
-      const actualScale = (container.offsetWidth / firstVpRaw.width) * 1.5;
+      const actualScale = (container.offsetWidth || 800) / firstVpRaw.width;
       const firstVp = firstPage.getViewport({ scale: actualScale });
       console.log('[CloudAttach] scale: targetW=' + targetWidth + ' actualScale=' + actualScale + ' vp=' + Math.round(firstVp.width) + 'x' + Math.round(firstVp.height));
 
@@ -3516,6 +3516,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
       // inline style 强制设高度，宽度交给 CSS width:100% 控制
       // flex 布局：container = flex column, scrollArea = 文档流 overflow-y:auto
       // 注意：container 不用 overflow:hidden，否则会作用在 scrollArea 上导致无法滚动
+      container.style.setProperty('display', 'flex', 'important');
+      container.style.setProperty('flex-direction', 'column', 'important');
+      container.style.setProperty('height', finalContainerHeight, 'important');
       container.style.setProperty('max-width', '100%', 'important');
       // 不设置 overflow（让 scrollArea 独立控制滚动）
       // 不设置 width，让 CSS .cloudattach-pdf-container { width: 100% !important; } 生效

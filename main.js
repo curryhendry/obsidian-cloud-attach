@@ -3267,7 +3267,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (widthClassMatch && !imgWidth) {
         imgWidth = widthClassMatch[1] + "px";
       }
-      const container = document.createElement("span");
+      const container = document.createElement("div");
       container.className = "cloudattach-pdf-container";
       container.dataset.currentPage = "1";
       container.dataset.totalPages = pdf.numPages.toString();
@@ -3291,12 +3291,15 @@ module.exports = class CloudAttachPlugin extends Plugin {
         targetWidth = firstVpRaw.width;
       }
       imgEl.replaceWith(container);
-      const actualScale = container.offsetWidth / firstVpRaw.width * 1.5;
+      const actualScale = (container.offsetWidth || 800) / firstVpRaw.width;
       const firstVp = firstPage.getViewport({ scale: actualScale });
       console.log("[CloudAttach] scale: targetW=" + targetWidth + " actualScale=" + actualScale + " vp=" + Math.round(firstVp.width) + "x" + Math.round(firstVp.height));
       const finalScrollHeight = userHeightStr || Math.round(firstVp.height) + "px";
       const TOOLBAR_HEIGHT = 28;
       const finalContainerHeight = parseInt(finalScrollHeight) + TOOLBAR_HEIGHT + "px";
+      container.style.setProperty("display", "flex", "important");
+      container.style.setProperty("flex-direction", "column", "important");
+      container.style.setProperty("height", finalContainerHeight, "important");
       container.style.setProperty("max-width", "100%", "important");
       const scrollArea = document.createElement("div");
       scrollArea.className = "cloudattach-pdf-scrollarea";
