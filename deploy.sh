@@ -34,19 +34,25 @@ echo "==> 模式: $MODE"
 # ----------------------------------------------------------
 # 1. 版本号处理
 # ----------------------------------------------------------
-# 从 CHANGELOG.md 首行读取版本号
+# 从 CHANGELOG.md 首行读取版本号（使用 Node.js 解析，更可靠）
 # 格式：## v0.3.101.dev - 2026-06-08
-CHANGELOG_FIRST_LINE=$(head -n 1 CHANGELOG.md)
-# 提取版本号（去掉 '## v' 前缀，去掉后缀）
-CURRENT_VERSION=$(echo "$CHANGELOG_FIRST_LINE" | sed 's/## v//' | awk '{print $1}' | sed 's/\.dev//')
+CURRENT_VERSION=$(node -e "
+  const fs = require('fs');
+  const firstLine = fs.readFileSync('CHANGELOG.md', 'utf8').split('\n')[0];
+  const match = firstLine.match(/v([\d.]+)/);
+  if (match) console.log(match[1]);
+")
+
+echo "==> 当前版本: $CURRENT_VERSION"
 
 # 递增 PATCH 版本号
-VERSION_PARTS=($(echo "$CURRENT_VERSION" | tr '.' ' '))
-PATCH=${VERSION_PARTS[2]}
-NEW_PATCH=$((10#$PATCH + 1))
-# 格式化为 3 位（保留前导零）
-NEW_PATCH_FMT=$(printf "%03d" $NEW_PATCH)
-VERSION="${VERSION_PARTS[0]}.${VERSION_PARTS[1]}.$NEW_PATCH_FMT"
+VERSION=$(node -e "
+  const v = '$CURRENT_VERSION'.split('.');
+  const patch = parseInt(v[2], 10) + 1;
+  console.log(v[0] + '.' + v[1] + '.' + String(patch).padStart(3, '0'));
+")
+
+echo "==> 新版本: $VERSION"
 
 if [ "$MODE" = "release" ]; then
   echo "==> 版本: $CURRENT_VERSION → $VERSION"
