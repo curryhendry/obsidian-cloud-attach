@@ -4,8 +4,8 @@ set -e
 # ============================================================
 # cloud-attach 部署脚本
 # 用法：
-#   ./deploy.sh            # 默认：开发模式（dev），更新版本号 + commit + push + .dev tag + 同步插件
-#   ./deploy.sh --release  # 发布模式：更新版本号 + commit + push + 正式 tag + 不同步插件
+#   ./deploy.sh            # 默认：开发模式（dev），不更新 manifest.json，打 .dev tag，同步插件
+#   ./deploy.sh --release  # 发布模式：更新 manifest.json，打正式 tag，不同步插件
 # ============================================================
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -37,39 +37,53 @@ done
 echo "==> 模式: $MODE"
 
 # ----------------------------------------------------------
-# 1. 版本号处理（dev 和 release 都更新版本号）
+# 1. 版本号处理
 # ----------------------------------------------------------
 CURRENT_VERSION=$(node -e "console.log(require('./${MANIFEST_JSON}').version)")
 echo "==> 当前版本: $CURRENT_VERSION"
 
 # 递增版本号（PATCH +1，强制十进制避免八进制错误）
 VERSION_PARTS=("${(@s:.:)CURRENT_VERSION}")
-VERSION_PARTS[3]=$((${VERSION_PARTS[3]} + 1)))
+VERSION_PARTS[3]=$((${VERSION_PARTS[3]} + 1))
 NEW_VERSION="${VERSION_PARTS[1]}.${VERSION_PARTS[2]}.${VERSION_PARTS[3]}"
 
 echo "==> 新版本: $NEW_VERSION"
 
-# 更新 manifest.json
-node -e "
-const fs = require('fs');
-const m = JSON.parse(fs.readFileSync('${MANIFEST_JSON}','utf8'));
-m.version = '$NEW_VERSION';
-fs.writeFileSync('${MANIFEST_JSON}', JSON.stringify(m, null, 2) + '\n');
-"
-echo "✅ 已更新 ${MANIFEST_JSON}: $NEW_VERSION"
+# ----------------------------------------------------------
+# 2. 更新 manifest.json（仅 release 模式）
+# ----------------------------------------------------------
+if [ "$MODE" = "release" ]; then
+  echo "==> 更新 ${MANIFEST_JSON}: $NEW_VERSION"
+  node -e "
+  const fs = require('fs');
+  const m = JSON.parse(fs.readFileSync('${MANIFEST_JSON}','utf8'));
+  m.version = '$NEW_VERSION';
+  fs.writeFileSync('${MANIFEST_JSON}', JSON.stringify(m, null, 2) + '\n');
+  "
+else
+  echo "==> [跳过] 开发模式不更新 ${MANIFEST_JSON}"
+fi
 
-# 更新 CHANGELOG.md（顶部插入新条目）
+# ----------------------------------------------------------
+# 3. 更新 CHANGELOG.md（顶部插入新条目）
+# ----------------------------------------------------------
 TODAY=$(date +"%Y-%m-%d")
+if [ "$MODE" = "release" ]; then
+  ENTRY="## v${NEW_VERSION} - ${TODAY}\n\n### 修复\n- （待补充）\n\n"
+else
+  ENTRY="## v${NEW_VERSION}.dev - ${TODAY}\n\n### 修复\n- （待补充）\n\n"
+fi
+
+echo "==> 更新 ${CHANGELOG_MD}"
 node -e "
 const fs = require('fs');
 const content = fs.readFileSync('${CHANGELOG_MD}','utf8');
-const entry = '## v${NEW_VERSION} - ${TODAY}\\n\\n### 修复\\n- （待补充）\\n\\n';
+const entry = '$ENTRY'.replace(/\\\\n/g, '\n');
 fs.writeFileSync('${CHANGELOG_MD}', entry + content);
 "
-echo "✅ 已更新 ${CHANGELOG_MD}: v${NEW_VERSION}"
 
 # ----------------------------------------------------------
-# 2. 构建
+# 4. 构建
 # ----------------------------------------------------------
 echo "==> 构建"
 if [ -f "package.json" ]; then
@@ -77,7 +91,7 @@ if [ -f "package.json" ]; then
 fi
 
 # ----------------------------------------------------------
-# 3. Git 提交 & 推送
+# 5. Git 提交 & 推送
 # ----------------------------------------------------------
 echo "==> Git 提交"
 
@@ -85,7 +99,7 @@ if [ "$MODE" = "release" ]; then
   git add ${MANIFEST_JSON} ${CHANGELOG_MD} main.js src/main.js
   git commit -m "release: $NEW_VERSION"
 else
-  git add ${MANIFEST_JSON} ${CHANGELOG_MD} main.js src/main.js
+  git add ${CHANGELOG_MD} main.js src/main.js
   git commit -m "dev: $NEW_VERSION"
 fi
 
@@ -93,7 +107,7 @@ echo "==> Git 推送"
 git push || echo "⚠️  Git 推送失败，继续执行..."
 
 # ----------------------------------------------------------
-# 4. 创建 tag（tag 不带 v 前缀）
+# 6. 创建 tag（tag 不带 v 前缀）
 # ----------------------------------------------------------
 if [ "$MODE" = "release" ]; then
   echo "==> 创建并推送正式 tag: $NEW_VERSION"
@@ -108,7 +122,7 @@ else
 fi
 
 # ----------------------------------------------------------
-# 5. 同步到 Obsidian 插件目录（仅 dev 模式）
+# 7. 同步到 Obsidian 插件目录（仅 dev 模式）
 # ----------------------------------------------------------
 if [ "$MODE" = "dev" ]; then
   if [[ -d "$PLUGIN_DIR" ]]; then
