@@ -3501,21 +3501,26 @@ module.exports = class CloudAttachPlugin extends Plugin {
 
       imgEl.replaceWith(container);
 
-      // 先渲染第1页，等渲染完成后读实际显示高度
+      // 先渲染第1页，获取页面尺寸用于计算显示高度
+      const firstPage = await pdf.getPage(1);
+      const firstViewport = firstPage.getViewport({ scale: FIXED_SCALE });
+      const canvasW = firstViewport.width;
+      const canvasH = firstViewport.height;
+      
+      // 创建第1页 canvas
       const firstCanvas = document.createElement('canvas');
       firstCanvas.className = 'cloudattach-pdf-page';
       firstCanvas.dataset.pageNum = '1';
       scrollArea.appendChild(firstCanvas);
       await this._renderPdfPage(firstCanvas, pdf, 1, FIXED_SCALE);
-
-      // 等两帧确保 layout + paint 完成，才能读到正确的实际高度
-      await new Promise(r => requestAnimationFrame(r));
-      await new Promise(r => requestAnimationFrame(r));
-      const actualH = firstCanvas.getBoundingClientRect().height;
-      console.log('[CloudAttach] first page actual display height:', actualH);
-
-      // 容器高度 = 实际渲染高度 或 用户指定
-      const finalScrollHeight = userHeightStr || (Math.round(actualH) + 'px');
+      
+      // 数学计算显示高度：canvas像素高 × (容器宽度 / canvas像素宽)
+      const containerW = container.clientWidth || 800;
+      const displayH = canvasH * (containerW / canvasW);
+      console.log('[CloudAttach] canvas WxH:', canvasW, 'x', canvasH, 'containerW:', containerW, 'displayH:', displayH);
+      
+      // 容器高度 = 显示高度 或 用户指定
+      const finalScrollHeight = userHeightStr || (Math.round(displayH) + 'px');
       const finalContainerHeight = parseInt(finalScrollHeight) + TOOLBAR_HEIGHT + 'px';
       container.style.setProperty('height', finalContainerHeight, 'important');
       scrollArea.style.setProperty('height', '100%', 'important');
