@@ -37,8 +37,8 @@ echo "==> 模式: $MODE"
 # 从 CHANGELOG.md 首行读取版本号
 # 格式：## v0.3.101.dev - 2026-06-08
 CHANGELOG_FIRST_LINE=$(head -n 1 CHANGELOG.md)
-# 提取版本号（去掉 '## v' 前缀和 '.dev' 后缀）
-CURRENT_VERSION=$(echo "$CHANGELOG_FIRST_LINE" | sed 's/## v//' | sed 's/\.dev.*//')
+# 提取版本号（去掉 '## v' 前缀，去掉后缀）
+CURRENT_VERSION=$(echo "$CHANGELOG_FIRST_LINE" | sed 's/## v//' | awk '{print $1}' | sed 's/\.dev//')
 
 # 递增 PATCH 版本号
 VERSION_PARTS=($(echo "$CURRENT_VERSION" | tr '.' ' '))
