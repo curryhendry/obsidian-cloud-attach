@@ -3763,56 +3763,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
     };
     this.registerEvent(this.app.workspace.on('active-leaf-change', rescanPdfImgs));
     this.registerEvent(this.app.workspace.on('layout-change', rescanPdfImgs));
-    this._observePopoutWindows();
   }
 
-  _observePopoutWindows() {
-    const checkPopouts = () => {
-      try {
-        const workspace = this.app.workspace;
-        const root = workspace.getRoot();
-        const allLeaves = [];
-        const collect = (node) => {
-          if (node.leaf) allLeaves.push(node.leaf);
-          if (node.children) node.children.forEach(collect);
-        };
-        root.children.forEach(collect);
-        allLeaves.forEach((leaf) => {
-          const doc = leaf.containerEl?.ownerDocument;
-          if (doc && doc !== document) {
-            if (!this._popoutDocs) this._popoutDocs = new Set();
-            if (!this._popoutDocs.has(doc)) {
-              this._popoutDocs.add(doc);
-              console.log('[CloudAttach] popout window detected, registering PDF observer');
-              const popoutObserver = new MutationObserver((mutations) => {
-                if (this.settings.pdfPreview !== 'pdfjs') return;
-                mutations.forEach(m => {
-                  m.addedNodes.forEach(n => {
-                    if (n.nodeType !== 1) return;
-                    const imgs = n.tagName === 'IMG' ? [n] : Array.from(n.querySelectorAll('img'));
-                    imgs.forEach(img => {
-                      if (img.closest('.cloudattach-pdf-container')) return;
-                      const src = img.getAttribute('src') || '';
-                      if (this._isPdfUrl(src)) {
-                        this._renderPdfAsCanvas(img, src);
-                      }
-                    });
-                  });
-                });
-              });
-              popoutObserver.observe(doc.body, { childList: true, subtree: true });
-              setTimeout(() => this._scanAllPdfImgs(doc), 300);
-              setTimeout(() => this._scanAllPdfImgs(doc), 1000);
-            }
-          }
-        });
-      } catch(e) {
-        console.warn('[CloudAttach] _observePopoutWindows error:', e);
-      }
-    };
-    this.registerEvent(this.app.workspace.on('layout-change', checkPopouts));
-    this._popoutInterval = setInterval(checkPopouts, 2000);
-  }
 
   _scanAllPdfImgs(doc) {
     if (this.settings.pdfPreview !== 'pdfjs') return;
