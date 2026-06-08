@@ -3490,13 +3490,15 @@ module.exports = class CloudAttachPlugin extends Plugin {
 
       // 用 ResizeObserver 等浏览器完成 layout 后读取真实宽度
       const finalW = await new Promise((resolve) => {
-        // 先试一次同步读，如果已经有值就直接用
+        // 先试一次同步读
         const syncW = container.offsetWidth;
+        console.log('[CloudAttach] ro syncW=' + syncW);
         if (syncW > 10) { resolve(syncW); return; }
 
         let done = false;
         const ro = new ResizeObserver((entries) => {
           const w = container.offsetWidth;
+          console.log('[CloudAttach] ro callback: offsetWidth=' + w + ' entries=' + entries.length);
           if (w > 10 && !done) {
             done = true;
             ro.disconnect();
@@ -3505,17 +3507,26 @@ module.exports = class CloudAttachPlugin extends Plugin {
         });
         ro.observe(container);
 
-        // 兜底：1000ms 后不管有没有触发 ResizeObserver 都继续
+        // 兜底：1500ms 后继续
         setTimeout(() => {
           if (done) return;
           done = true;
           ro.disconnect();
           const w = container.offsetWidth;
           const pw = container.parentElement ? container.parentElement.offsetWidth : 0;
-          resolve(w > 10 ? w : (pw > 10 ? pw : 800));
-        }, 1000);
+          const fallback = w > 10 ? w : (pw > 10 ? pw : 800);
+          console.log('[CloudAttach] ro TIMEOUT: offsetWidth=' + w + ' parentW=' + pw + ' fallback=' + fallback);
+          resolve(fallback);
+        }, 1500);
       });
-      console.log('[CloudAttach] finalW=' + finalW);
+      // 调试：打印父元素链
+      const parent = container.parentElement;
+      let parentInfo = 'null';
+      if (parent) {
+        const grandParent = parent.parentElement;
+        parentInfo = 'tag=' + parent.tagName + ' cls=' + (parent.className || '') + ' offsetW=' + parent.offsetWidth + ' | gp.tag=' + (grandParent ? grandParent.tagName : 'null') + ' gp.offsetW=' + (grandParent ? grandParent.offsetWidth : 'null');
+      }
+      console.log('[CloudAttach] finalW=' + finalW + ' | ' + parentInfo);
 
       // PDF 宽高比
       const aspectRatio = firstVpRaw.height / firstVpRaw.width;
