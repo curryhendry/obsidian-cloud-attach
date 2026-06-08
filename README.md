@@ -80,6 +80,10 @@
 
 **上传附件到服务器：**
 <img alt="上传附件" src="https://github.com/user-attachments/assets/15261330-aeca-42bf-aa2d-67dbac244abf" />
+<br>
+
+**在线PDF预览：**
+<img alt="PDF预览" src="https://github.com/user-attachments/assets/e7e42197-34dd-4089-8ed4-3c9e86a1c01e" />
 
 ---
 
