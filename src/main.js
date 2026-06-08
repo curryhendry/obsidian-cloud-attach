@@ -3507,13 +3507,15 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const canvasW = firstVp.width;   // PDF canvas 原始像素宽
       const canvasH = firstVp.height;  // PDF canvas 原始像素高
       
-      // 获取笔记编辑区域的宽度（不是 img 的宽度——img 是 PDF 占位符，只有 2px）
-      // container 替换 img 后在 DOM 中，但此时还没 layout，直接读 offsetWidth 不可靠
-      // 所以先 replaceWith，再用 requestAnimationFrame 或直接读父元素的宽度
-      // 将 container 插入 DOM（display: inline-block 让它立即有 offsetWidth）
+      // 将 container 插入 DOM
       imgEl.replaceWith(container);
       
-      // 读取 container 在 DOM 中的实际渲染宽度
+      // 等浏览器 layout 完成后再读取宽度
+      // 用 requestAnimationFrame 确保 layout 已完成
+      const layoutReady = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      await layoutReady();
+      
+      // 现在可以读到正确的宽度了
       const containerW = container.offsetWidth || container.getBoundingClientRect().width || 800;
       console.log('[CloudAttach] container offsetW:', container.offsetWidth, 'rectW:', container.getBoundingClientRect().width, '→ containerW:', containerW);
       
