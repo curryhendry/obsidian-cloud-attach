@@ -3510,15 +3510,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
       // 获取笔记编辑区域的宽度（不是 img 的宽度——img 是 PDF 占位符，只有 2px）
       // container 替换 img 后在 DOM 中，但此时还没 layout，直接读 offsetWidth 不可靠
       // 所以先 replaceWith，再用 requestAnimationFrame 或直接读父元素的宽度
+      // 将 container 插入 DOM（display: inline-block 让它立即有 offsetWidth）
       imgEl.replaceWith(container);
       
-      // 读父元素宽度（Obsidian 编辑区域）作为参考
-      const parentEl = container.parentElement;
-      const containerW = parentEl ? (parentEl.offsetWidth || parentEl.getBoundingClientRect().width || 800) : 800;
-      console.log('[CloudAttach] 编辑区域宽度: parent offsetW:', parentEl ? parentEl.offsetWidth : 'null', 'rectW:', parentEl ? parentEl.getBoundingClientRect().width : 'null', '→ containerW:', containerW);
-      
-      // 插入容器到 DOM
-      imgEl.replaceWith(container);
+      // 读取 container 在 DOM 中的实际渲染宽度
+      const containerW = container.offsetWidth || container.getBoundingClientRect().width || 800;
+      console.log('[CloudAttach] container offsetW:', container.offsetWidth, 'rectW:', container.getBoundingClientRect().width, '→ containerW:', containerW);
       
       // 数学计算显示高度：canvasH × (containerW / canvasW)
       // 原理：PDF 是矢量，canvasH/canvasW 是宽高比，容器宽 × 宽高比 = 等比例高度
