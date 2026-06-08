@@ -1,3 +1,10 @@
+## v0.3.130.dev - 2026-06-08
+
+### 调试
+- **Notice 弹窗调试**：`_observePdfEmbeds` 启动时弹窗、`_scanAllPdfImgs` 扫描结果弹窗（找到/未找到 PDF img）
+- **MutationObserver 日志**：拦截到 pdf img 时打印 src/class/alt
+- 目的：排查 `![xxx.pdf|480](url)` 语法宽度不生效且无日志的根因
+
 ## v0.3.128.dev - 2026-06-08
 
 ### 修复

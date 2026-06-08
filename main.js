@@ -3518,6 +3518,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
   _observePdfEmbeds() {
     if (this._pdfObserver)
       return;
+    console.log("[CloudAttach] _observePdfEmbeds called, setting up observer");
+    new Notice("[CloudAttach] PDF observer \u5DF2\u542F\u52A8", 3e3);
     this._renderedPdfUrls = this._renderedPdfUrls || /* @__PURE__ */ new Set();
     this._pdfObserver = new MutationObserver((mutations) => {
       if (this.settings.pdfPreview !== "pdfjs")
@@ -3532,6 +3534,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
               return;
             const src = img.getAttribute("src") || "";
             if (this._isPdfUrl(src)) {
+              console.log("[CloudAttach] MutationObserver caught pdf img:", src.substring(0, 80), "| class:", img.className, "| alt:", img.alt);
               this._renderPdfAsCanvas(img, src);
             }
           });
@@ -3555,9 +3558,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const pdfImgs = Array.from(allImgs).filter((img) => this._isPdfUrl(img.getAttribute("src") || ""));
     console.log("[CloudAttach] _scanAllPdfImgs:", allImgs.length, "imgs total,", pdfImgs.length, "pdf imgs");
     if (pdfImgs.length > 0) {
+      new Notice(`[CloudAttach] \u627E\u5230 ${pdfImgs.length} \u4E2A PDF`, 4e3);
       pdfImgs.forEach((img) => {
         console.log("[CloudAttach]  pdf img src:", img.getAttribute("src")?.substring(0, 100), "| class:", img.className, "| alt:", img.alt);
       });
+    } else {
+      new Notice(`[CloudAttach] \u672A\u627E\u5230 PDF img (\u5171 ${allImgs.length} \u4E2A img)`, 4e3);
     }
     allImgs.forEach((img) => {
       if (img.closest(".cloudattach-pdf-container"))

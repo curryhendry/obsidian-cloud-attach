@@ -3724,6 +3724,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
 
   _observePdfEmbeds() {
     if (this._pdfObserver) return;
+    console.log('[CloudAttach] _observePdfEmbeds called, setting up observer');
+    new Notice('[CloudAttach] PDF observer 已启动', 3000);
     // 去重：记录已渲染的 PDF URL，避免重复处理
     this._renderedPdfUrls = this._renderedPdfUrls || new Set();
     this._pdfObserver = new MutationObserver((mutations) => {
@@ -3738,6 +3740,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
             if (img.closest('.cloudattach-pdf-container')) return;
             const src = img.getAttribute('src') || '';
             if (this._isPdfUrl(src)) {
+              console.log('[CloudAttach] MutationObserver caught pdf img:', src.substring(0, 80), '| class:', img.className, '| alt:', img.alt);
               this._renderPdfAsCanvas(img, src);
             }
           });
@@ -3769,9 +3772,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const pdfImgs = Array.from(allImgs).filter(img => this._isPdfUrl(img.getAttribute('src') || ''));
     console.log('[CloudAttach] _scanAllPdfImgs:', allImgs.length, 'imgs total,', pdfImgs.length, 'pdf imgs');
     if (pdfImgs.length > 0) {
+      new Notice(`[CloudAttach] 找到 ${pdfImgs.length} 个 PDF`, 4000);
       pdfImgs.forEach(img => {
         console.log('[CloudAttach]  pdf img src:', img.getAttribute('src')?.substring(0, 100), '| class:', img.className, '| alt:', img.alt);
       });
+    } else {
+      new Notice(`[CloudAttach] 未找到 PDF img (共 ${allImgs.length} 个 img)`, 4000);
     }
     allImgs.forEach(img => {
       if (img.closest('.cloudattach-pdf-container')) return;
