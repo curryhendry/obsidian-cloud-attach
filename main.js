@@ -3214,10 +3214,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
         container.style.width = imgWidth.includes("%") || imgWidth.includes("px") || imgWidth.includes("vw") ? imgWidth : imgWidth + "px";
       }
       if (imgStyleMaxWidth) container.style.maxWidth = imgStyleMaxWidth;
-      let userWidthStr = "";
+      let userHeightStr = "";
       if (imgHeight && imgHeight !== "auto") {
-        userWidthStr = imgHeight.includes("%") || imgHeight.includes("px") || imgHeight.includes("vh") ? imgHeight : imgHeight + "px";
-        container.dataset.userWidth = userWidthStr;
+        userHeightStr = imgHeight.includes("%") || imgHeight.includes("px") || imgHeight.includes("vh") ? imgHeight : imgHeight + "px";
+        container.dataset.userHeight = userHeightStr;
       }
       const firstPage = await pdf.getPage(1);
       const firstVpRaw = firstPage.getViewport({ scale: 1 });
@@ -3227,35 +3227,36 @@ module.exports = class CloudAttachPlugin extends Plugin {
       } else {
         targetWidth = firstVpRaw.width;
       }
-      const refWidth = imgEl.offsetWidth || imgEl.parentElement?.offsetWidth || 800;
+      const FIXED_SCALE = 1.5;
+      const firstVp = firstPage.getViewport({ scale: FIXED_SCALE });
+      const canvasW = firstVp.width;
+      const canvasH = firstVp.height;
       imgEl.replaceWith(container);
-      const actualScale = refWidth / firstVpRaw.width;
-      const firstVp = firstPage.getViewport({ scale: actualScale });
-      console.log("[CloudAttach] scale: targetW=" + targetWidth + " actualScale=" + actualScale + " vp=" + Math.round(firstVp.width) + "x" + Math.round(firstVp.height));
+      const containerW = container.offsetWidth || 800;
+      const displayH = canvasH * (containerW / canvasW);
+      const actualScale = containerW / firstVpRaw.width;
+      console.log("[CloudAttach] \u5BBD\u9AD8\u8BA1\u7B97: canvasW=" + Math.round(canvasW) + " canvasH=" + Math.round(canvasH) + " containerW=" + containerW + " displayH=" + Math.round(displayH) + " scale=" + actualScale.toFixed(3));
       const TOOLBAR_HEIGHT = 28;
-      const finalContainerHeight = Math.round(firstVp.height) + TOOLBAR_HEIGHT + "px";
-      container.style.setProperty("display", "flex", "important");
-      container.style.setProperty("flex-direction", "column", "important");
-      container.style.setProperty("height", finalContainerHeight, "important");
-      container.style.setProperty("max-width", "100%", "important");
-      if (userWidthStr) {
-        container.style.setProperty("width", userWidthStr, "important");
+      let finalContainerHeight;
+      if (userHeightStr) {
+        finalContainerHeight = userHeightStr;
       } else {
-        container.style.setProperty("width", "100%", "important");
+        finalContainerHeight = Math.round(displayH) + "px";
       }
+      container.style.setProperty("height", finalContainerHeight, "important");
       const scrollArea = document.createElement("div");
       scrollArea.className = "cloudattach-pdf-scrollarea";
+      scrollArea.style.setProperty("height", "100%", "important");
       scrollArea.style.setProperty("overflow-y", "auto", "important");
+      scrollArea.style.setProperty("padding-bottom", TOOLBAR_HEIGHT + "px", "important");
       container.appendChild(scrollArea);
       for (let i = 1; i <= pdf.numPages; i++) {
         const canvas = document.createElement("canvas");
         canvas.className = "cloudattach-pdf-page";
         canvas.dataset.pageNum = String(i);
         canvas.style.setProperty("display", "block", "important");
-        canvas.style.setProperty("max-width", "100%", "important");
         canvas.style.setProperty("width", "100%", "important");
-        const vp = await pdf.getPage(i).then((p) => p.getViewport({ scale: actualScale }));
-        canvas.style.setProperty("height", Math.round(vp.height) + "px", "important");
+        canvas.style.setProperty("max-width", "100%", "important");
         scrollArea.appendChild(canvas);
         await this._renderPdfPage(canvas, pdf, i, actualScale);
         console.log("[CloudAttach] page", i, "/", pdf.numPages, "cw:", canvas.width, "ch:", canvas.height);
