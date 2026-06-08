@@ -1,4 +1,4 @@
-## v0.3.151.dev - 2026-06-09
+## v0.3.152 - 2026-06-09
 
 ### 修复（Obsidian 社区插件审核）
 - 修复 Error：去掉 `_loadPdfJs()` 中的动态 `<script>` 创建，改用 `adapter.read() + Function()` 加载本地 PDF.js（功能不变）
