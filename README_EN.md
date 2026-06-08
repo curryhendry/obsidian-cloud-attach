@@ -28,8 +28,8 @@
 - ⬆️ **Upload Attachments** — Upload local attachments to the server and update references, saving local space
 - 🔗 **Signed URLs** — Auto-generate URLs with sign tokens
 - 🖼️ **Media Preview** — Image preview, video/audio playback, document iframe preview
-- 📄 **PDF.js Preview** — Choose PDF.js as preview tool in Advanced Settings; auto-downloads and applies; PDFs inserted via `![]()` syntax render inline like images
-- ⚙️ **Advanced Settings** — Configure preview methods for PDF and other formats; more formats (e.g., Office preview) planned
+- 📄 **PDF.js Preview** — Choose PDF.js as the preview tool in Advanced Settings; the plugin auto-downloads and applies it. PDFs inserted via `![]()` syntax render inline like images.
+- ⚙️ **Advanced Settings** — Configure preview methods for PDF and other formats (Office preview etc. planned for future releases).
 - 👤 **Multi-Account** — Manage multiple WebDAV/S3 accounts simultaneously
 
 *Note: Object storage may not support iframe preview due to provider restrictions. A workaround is to mount object storage via OpenList and use its iframe preview.*
@@ -77,6 +77,22 @@ Add accounts in plugin settings:
 
 **Upload attachments to server:**
 <img alt="Upload" src="https://github.com/user-attachments/assets/15261330-aeca-42bf-aa2d-67dbac244abf" />
+
+---
+
+### PDF.js Preview
+
+CloudAttach supports inline PDF preview using PDF.js. To enable:
+
+1. Open CloudAttach settings → **Advanced Settings**
+2. Select **PDF.js** as the PDF preview method
+3. Click **Save** — the plugin will automatically download and apply PDF.js
+4. Insert a PDF file via the CloudAttach sidebar
+5. The PDF will be inserted using `![]()` syntax and render inline in your note
+
+To revert to iframe preview, simply change the setting back in Advanced Settings.
+
+*Note: Manual size specification (e.g., `![|500](file.pdf)`) is not yet supported — coming in a future update.*
 
 ---
 
