@@ -1,3 +1,16 @@
+## v0.3.137.dev - 2026-06-09
+
+### 更新
+- 修复 Obsidian 社区插件审核错误：移除 `_loadPdfJs()` 中的动态 `<script>` 标签创建，改用 `fetch()` + `eval()` 加载本地 PDF.js
+- 替换 `require('fs')` 为 Obsidian Vault API（`this.app.vault.adapter.exists/mkdir/write`），消除 `Direct Filesystem Access` 警告
+- 更新 PDF.js 下载文件名为 `.mjs` 格式（ESM 模块），与 pdfjs-dist@3.11.174 保持一致
+
+### 已知问题
+- i18n 存在重复 key 警告（`view.no_account_selected`、`view.empty_dir`，中英文各重复一次）
+- 部分场景下 PDF 预览可能失效，待验证
+
+---
+
 ## v0.3.126 - 2026-06-08
 
 ### 更新
