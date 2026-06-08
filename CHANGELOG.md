@@ -1,4 +1,4 @@
-## v0.3.114.dev - 2026-06-08
+## v0.3.115.dev - 2026-06-08
 
 ### 变更
 - 修复 PDF 预览只有 1 像素的问题：actualScale 计算改用 imgEl.offsetWidth 替代 container.offsetWidth（空容器 offsetWidth 返回 1 导致 scale 极小）

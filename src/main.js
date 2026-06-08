@@ -3467,66 +3467,55 @@ module.exports = class CloudAttachPlugin extends Plugin {
         imgWidth = widthClassMatch[1] + 'px';
       }
 
-      // 创建外层容器（参考 v0.3.060 成功方案：inline style 强制设高宽，overflow:hidden 裁剪）
+      // 预渲染第1页，获取实际尺寸来决定容器高度
+      const firstPage = await pdf.getPage(1);
+      const firstVpRaw = firstPage.getViewport({ scale: 1 });
+
+      // === 第1步：创建容器，先插入 DOM 读取实际宽度 ===
       const container = document.createElement('div');
       container.className = 'cloudattach-pdf-container';
       container.dataset.currentPage = '1';
       container.dataset.totalPages = pdf.numPages.toString();
       container.dataset.pdfUrl = url;
+      container.style.setProperty('width', '100%', 'important');
 
-      // 应用尺寸属性到容器
+      // 应用用户指定的宽度（覆盖默认 100%）
       if (imgWidth) {
-        container.style.width = imgWidth.includes('%') || imgWidth.includes('px') || imgWidth.includes('vw') ? imgWidth : imgWidth + 'px';
+        container.style.setProperty('width', imgWidth.includes('%') || imgWidth.includes('px') || imgWidth.includes('vw') ? imgWidth : imgWidth + 'px', 'important');
       }
       if (imgStyleMaxWidth) container.style.maxWidth = imgStyleMaxWidth;
 
-      // 记录用户指定的高度（但忽略明显错误的极小值）
-      let userHeightStr = '';
-      if (imgHeight && imgHeight !== 'auto' && parseInt(imgHeight) > 10) {
-        userHeightStr = imgHeight.includes('%') || imgHeight.includes('px') || imgHeight.includes('vh') ? imgHeight : imgHeight + 'px';
-        container.dataset.userHeight = userHeightStr;
-      }
+      // 先插入 DOM，让浏览器计算布局
+      imgEl.replaceWith(container);
+      
+      // 读取容器实际渲染宽度
+      const containerW = container.offsetWidth;
+      console.log('[CloudAttach] container inserted, offsetWidth=' + containerW);
+      
+      // 如果 offsetWidth 为 0（布局未完成），用 imgEl 父元素宽度兜底
+      const parentEl = container.parentElement;
+      const fallbackW = parentEl ? parentEl.offsetWidth : 0;
+      const finalW = containerW > 50 ? containerW : (fallbackW > 50 ? fallbackW : 800);
+      console.log('[CloudAttach] containerW=' + containerW + ' fallbackW=' + fallbackW + ' → finalW=' + finalW);
 
-      // 预渲染第1页，获取实际尺寸来决定容器高度
-      const firstPage = await pdf.getPage(1);
-      const firstVpRaw = firstPage.getViewport({ scale: 1 });
+      // === 第2步：根据实际宽度计算高度 ===
+      // PDF 宽高比
+      const aspectRatio = firstVpRaw.height / firstVpRaw.width;
+      // 一页的高度 = 实际宽度 × 宽高比
+      const pageH = finalW * aspectRatio;
+      console.log('[CloudAttach] aspectRatio=' + aspectRatio.toFixed(4) + ' pageH=' + Math.round(pageH));
 
-      // 计算目标宽度：用户指定 > 默认值
-      let targetWidth;
-      if (imgWidth) {
-        targetWidth = parseInt(imgWidth) || firstVpRaw.width;
-      } else {
-        targetWidth = firstVpRaw.width;
-      }
-
-      // === 核心数学：宽高自适应计算 ===
-      // 固定缩放倍率，用于 PDF.js 渲染（保证清晰度）
+      // 渲染缩放比：让 canvas 宽度 = 容器宽度（保证清晰度用 1.5 倍）
       const FIXED_SCALE = 1.5;
-      
-      // 先用固定 scale 渲染第1页获取 canvas 像素尺寸
-      const firstVp = firstPage.getViewport({ scale: FIXED_SCALE });
-      const canvasW = firstVp.width;   // PDF canvas 原始像素宽
-      const canvasH = firstVp.height;  // PDF canvas 原始像素高
-      
-      // container 有 CSS width: 100%，会填满父元素（Obsidian 编辑区域）
-      // 估算一个典型宽度，PDF.js 会按比例缩放，视觉上正确
-      // 注意：此处不依赖 DOM 读取，用 PDF 原始宽高比估算
-      const containerW = firstVpRaw.width; // 2880（PDF 原始宽），比例正确即可
-      
-      // 数学计算显示高度：canvasH × (containerW / canvasW)
-      // 原理：PDF 是矢量，canvasH/canvasW 是宽高比，容器宽 × 宽高比 = 等比例高度
-      const displayH = canvasH * (containerW / canvasW);
-      
-      // 计算实际缩放比：让 canvas 宽度正好填满容器
-      const actualScale = containerW / firstVpRaw.width;
-      
-      console.log('[CloudAttach] 宽高计算: canvasW=' + Math.round(canvasW) + ' canvasH=' + Math.round(canvasH) + ' containerW=' + containerW + ' displayH=' + Math.round(displayH) + ' scale=' + actualScale.toFixed(3));
+      const actualScale = (finalW / firstVpRaw.width) * FIXED_SCALE;
 
       // 工具栏高度
       const TOOLBAR_HEIGHT = 28;
       
-      // 不手动设高度，让内容（canvas）自己撑开容器
-      // container.style.setProperty('height', finalContainerHeight, 'important');
+      // 设置容器高度：一页高度 + 工具栏空间
+      const containerHeight = Math.round(pageH) + TOOLBAR_HEIGHT;
+      container.style.setProperty('height', containerHeight + 'px', 'important');
+      console.log('[CloudAttach] set container height=' + containerHeight + 'px');
 
       // scrollArea：高度100%填满容器，overflow-y:auto 实现滚动
       const scrollArea = document.createElement('div');
