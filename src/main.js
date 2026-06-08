@@ -3440,6 +3440,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
 
   async _renderPdfAsCanvas(imgEl, url) {
+    // 去重
+    if (this._renderedPdfUrls && this._renderedPdfUrls.has(url + ':' + (imgEl.id || imgEl.dataset.src || ''))) {
+      return;
+    }
     try {
       const pdfjsLib = await this._loadPdfJs();
       const loadingTask = pdfjsLib.getDocument(url);
@@ -3498,18 +3502,17 @@ module.exports = class CloudAttachPlugin extends Plugin {
       firstCanvas.dataset.pageNum = "1";
       scrollArea.appendChild(firstCanvas);
       await this._renderPdfPage(firstCanvas, pdf, 1, FIXED_SCALE);
-      const containerW = container.clientWidth || 800;
-      const displayH = canvasH * (containerW / canvasW);
-      console.log("[CloudAttach] canvas WxH:", canvasW, "x", canvasH, "containerW:", containerW, "displayH:", displayH);
-      let finalContainerHeight;
+      // 不再硬编码固定高度——canvas 已设 width:100% + height:auto (CSS)，
+      // 容器由 scrollArea 内所有 canvas 自然撑开，resize 时自动适配。
+      // 若用户通过 img 属性指定了高度则仍强制应用。
       if (userHeightStr) {
-        finalContainerHeight = userHeightStr;
+        container.style.setProperty("height", userHeightStr, "important");
+        scrollArea.style.setProperty("height", "100%", "important");
+        scrollArea.style.setProperty("padding-bottom", TOOLBAR_HEIGHT + "px", "important");
       } else {
-        finalContainerHeight = Math.round(displayH) + "px";
+        // 不设 height：让 scrollArea + canvases 自然撑开容器
+        scrollArea.style.setProperty("padding-bottom", TOOLBAR_HEIGHT + "px", "important");
       }
-      container.style.setProperty("height", finalContainerHeight, "important");
-      scrollArea.style.setProperty("height", "100%", "important");
-      scrollArea.style.setProperty("padding-bottom", TOOLBAR_HEIGHT + "px", "important");
       container.style.setProperty("opacity", "1", "important");
       this._initPdfToolbar(container, pdf);
       for (let i = 2; i <= pdf.numPages; i++) {
@@ -3519,6 +3522,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
         scrollArea.appendChild(canvas);
         await this._renderPdfPage(canvas, pdf, i, FIXED_SCALE);
         console.log("[CloudAttach] page", i, "/", pdf.numPages, "cw:", canvas.width, "ch:", canvas.height);
+      }
+      // 记录去重
+      if (this._renderedPdfUrls) {
+        this._renderedPdfUrls.add(url + ':' + (imgEl.id || imgEl.dataset.src || ''));
       }
       console.log("[CloudAttach] ALL DONE, pages:", pdf.numPages);
       this._bindPdfScroll(container, pdf);
@@ -3701,6 +3708,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
 
   _observePdfEmbeds() {
     if (this._pdfObserver) return;
+    // 去重：记录已渲染的 PDF URL，避免重复处理
+    this._renderedPdfUrls = this._renderedPdfUrls || new Set();
     this._pdfObserver = new MutationObserver((mutations) => {
       if (this.settings.pdfPreview !== 'pdfjs') return;
       mutations.forEach(m => {
@@ -3725,13 +3734,22 @@ module.exports = class CloudAttachPlugin extends Plugin {
     // 初始扫描：延迟执行确保编辑模式 DOM 已渲染
     setTimeout(() => this._scanAllPdfImgs(), 500);
     // 切换笔记时也重新扫描
-    this.registerEvent(this.app.workspace.on('active-leaf-change', () => {
-      setTimeout(() => this._scanAllPdfImgs(), 300);
-    }));
+    // 切换笔记 / 分屏 / 布局变化时也重新扫描
+    const rescanPdfImgs = () => {
+      // 立即扫一次
+      this._scanAllPdfImgs();
+      // 延迟再扫（等 DOM 渲染完成）
+      setTimeout(() => this._scanAllPdfImgs(), 500);
+      // 再延迟扫（应对慢渲染）
+      setTimeout(() => this._scanAllPdfImgs(), 1500);
+    };
+    this.registerEvent(this.app.workspace.on('active-leaf-change', rescanPdfImgs));
+    this.registerEvent(this.app.workspace.on('layout-change', rescanPdfImgs));
   }
 
   _scanAllPdfImgs() {
     if (this.settings.pdfPreview !== 'pdfjs') return;
+    // 扫描所有 img（包括分屏后的多个面板）
     document.querySelectorAll('img').forEach(img => {
       if (img.closest('.cloudattach-pdf-container')) return;
       const src = img.getAttribute('src') || '';
