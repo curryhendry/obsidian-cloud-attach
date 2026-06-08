@@ -3231,9 +3231,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const firstVp = firstPage.getViewport({ scale: FIXED_SCALE });
       const canvasW = firstVp.width;
       const canvasH = firstVp.height;
-      const imgRect = imgEl.getBoundingClientRect();
-      let containerW = imgRect.width > 10 ? imgRect.width : imgEl.offsetWidth > 10 ? imgEl.offsetWidth : imgEl.naturalWidth > 10 ? imgEl.naturalWidth : firstVpRaw.width;
-      console.log("[CloudAttach] img rectW:", imgRect.width, "offsetW:", imgEl.offsetWidth, "naturalW:", imgEl.naturalWidth, "pdfW:", firstVpRaw.width, "\u2192 containerW:", containerW);
+      imgEl.replaceWith(container);
+      const parentEl = container.parentElement;
+      const containerW = parentEl ? parentEl.offsetWidth || parentEl.getBoundingClientRect().width || 800 : 800;
+      console.log("[CloudAttach] \u7F16\u8F91\u533A\u57DF\u5BBD\u5EA6: parent offsetW:", parentEl ? parentEl.offsetWidth : "null", "rectW:", parentEl ? parentEl.getBoundingClientRect().width : "null", "\u2192 containerW:", containerW);
       imgEl.replaceWith(container);
       const displayH = canvasH * (containerW / canvasW);
       const actualScale = containerW / firstVpRaw.width;
