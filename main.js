@@ -2858,7 +2858,7 @@ var AdvancedSettingModal = class extends Modal {
     super(app);
     this.plugin = plugin;
   }
-  onOpen() {
+  async onOpen() {
     const { contentEl } = this;
     contentEl.innerHTML = "";
     contentEl.style.padding = "24px";
@@ -2934,20 +2934,19 @@ var AdvancedSettingModal = class extends Modal {
     };
     const pdfjsPath = (() => {
       let cd = this.app.vault.configDir || ".obsidian";
-      if (!require("path").isAbsolute(cd)) {
-        cd = require("path").resolve(this.app.vault.adapter?.basePath || process.cwd(), cd);
+      if (cd && cd[0] !== "/" && !cd.match(/^[a-zA-Z]:[\\/]/)) {
+        cd = (this.app.vault.adapter?.basePath || process.cwd()) + "/" + cd;
       }
       return cd + "/plugins/cloud-attach/libs/pdfjs/";
     })();
-    const fs = require("fs");
-    const hasPdfjs = fs.existsSync(pdfjsPath + "pdf.js");
+    const hasPdfjs = await this.app.vault.adapter.exists(pdfjsPath + "pdf.min.js");
     pdfjsOpt.createEl("label", { text: hasPdfjs ? "PDF.js" + (t("settings.pdfjs_installed") || "") : "PDF.js" + (t("settings.pdfjs_auto_install") || "") });
     if (hasPdfjs) {
       const delBtn = pdfjsOpt.createEl("button", { text: t("settings.pdfjs_uninstall") || "\u5378\u8F7D" });
       delBtn.style.marginLeft = "4px";
       delBtn.onclick = async () => {
         try {
-          fs.rmSync(pdfjsPath, { recursive: true });
+          await this.app.vault.adapter.rmdir(pdfjsPath, true);
         } catch (e) {
         }
         this.onOpen();
@@ -3010,13 +3009,13 @@ var AdvancedSettingModal = class extends Modal {
     saveBtn.onclick = async () => {
       const pdfjsPath2 = (() => {
         let cd = this.app.vault.configDir || ".obsidian";
-        if (!require("path").isAbsolute(cd)) {
-          cd = require("path").resolve(this.app.vault.adapter?.basePath || process.cwd(), cd);
+        if (cd && cd[0] !== "/" && !cd.match(/^[a-zA-Z]:[\\/]/)) {
+          cd = (this.app.vault.adapter?.basePath || process.cwd()) + "/" + cd;
         }
         return cd + "/plugins/cloud-attach/libs/pdfjs/";
       })();
-      const fs2 = require("fs");
-      if (this.plugin.settings.pdfPreview === "pdfjs" && !fs2.existsSync(pdfjsPath2 + "pdf.js")) {
+      const hasPdfjs2 = await this.app.vault.adapter.exists(pdfjsPath2 + "pdf.min.js");
+      if (this.plugin.settings.pdfPreview === "pdfjs" && !hasPdfjs2) {
         new Notice(t("settings.pdfjs_installing"));
         try {
           await this.downloadPdfjs(pdfjsPath2);
@@ -3034,19 +3033,14 @@ var AdvancedSettingModal = class extends Modal {
     cancelBtn.onclick = () => this.close();
   }
   async downloadPdfjs(destDir) {
-    const fs = require("fs");
-    const path = require("path");
     const destDirNorm = destDir.replace(/\/$/, "");
-    if (!fs.existsSync(destDirNorm)) {
-      try {
-        fs.mkdirSync(destDirNorm, { recursive: true });
-      } catch (e) {
-        throw new Error("mkdir failed: " + e.message + " (path: " + destDirNorm + ")");
-      }
+    try {
+      await this.app.vault.adapter.mkdir(destDirNorm);
+    } catch (e) {
     }
     const files = [
-      { name: "pdf.js", url: "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.js" },
-      { name: "pdf.worker.js", url: "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.js" }
+      { name: "pdf.min.js", url: "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js" },
+      { name: "pdf.worker.min.js", url: "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js" }
     ];
     for (const f of files) {
       const res = await fetch(f.url);
@@ -3054,8 +3048,8 @@ var AdvancedSettingModal = class extends Modal {
         throw new Error("download failed: " + f.name + " HTTP " + res.status);
       const buf = await res.arrayBuffer();
       if (buf.byteLength < 1e3)
-        throw new Error("file too small: " + f.name + " (" + buf.byteLength + " bytes, possibly HTML error page)");
-      fs.writeFileSync(path.join(destDirNorm, f.name), Buffer.from(buf));
+        throw new Error("file too small: " + f.name + " (" + buf.byteLength + " bytes)");
+      await this.app.vault.adapter.write(destDirNorm + "/" + f.name, Buffer.from(buf).toString("base64"));
     }
     try {
       delete globalThis.pdfjsLib;
