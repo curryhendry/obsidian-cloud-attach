@@ -108,7 +108,18 @@ else
 fi
 
 # ----------------------------------------------------------
-# 4. GitHub Release（仅发布模式，由 GitHub Actions 自动处理）
+# 4. 同步到 Obsidian 插件目录
+# ----------------------------------------------------------
+OBSIDIAN_PLUGIN_DIR="$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/curryhendry/.obsidian/plugins/cloud-attach"
+if [ -d "$OBSIDIAN_PLUGIN_DIR" ]; then
+  echo "==> 同步 main.js 到 Obsidian 插件目录"
+  cp "$SCRIPT_DIR/main.js" "$OBSIDIAN_PLUGIN_DIR/main.js"
+else
+  echo "⚠️  Obsidian 插件目录不存在: $OBSIDIAN_PLUGIN_DIR"
+fi
+
+# ----------------------------------------------------------
+# 5. GitHub Release（仅发布模式，由 GitHub Actions 自动处理）
 # ----------------------------------------------------------
 if [ "$MODE" = "release" ]; then
   echo "==> GitHub Actions 将自动创建 Release"
