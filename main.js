@@ -3218,20 +3218,39 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
       if (imgStyleMaxWidth) container.style.maxWidth = imgStyleMaxWidth;
       imgEl.replaceWith(container);
-      const containerW = container.offsetWidth;
-      const parentEl = container.parentElement;
-      const fallbackW = parentEl ? parentEl.offsetWidth : 0;
-      const finalW = containerW > 50 ? containerW : fallbackW > 50 ? fallbackW : 800;
-      console.log("[CloudAttach] containerW=" + containerW + " fallbackW=" + fallbackW + " \u2192 finalW=" + finalW);
+      const finalW = await new Promise((resolve) => {
+        const syncW = container.offsetWidth;
+        if (syncW > 10) {
+          resolve(syncW);
+          return;
+        }
+        let done = false;
+        const ro = new ResizeObserver((entries) => {
+          const w = container.offsetWidth;
+          if (w > 10 && !done) {
+            done = true;
+            ro.disconnect();
+            resolve(w);
+          }
+        });
+        ro.observe(container);
+        setTimeout(() => {
+          if (done) return;
+          done = true;
+          ro.disconnect();
+          const w = container.offsetWidth;
+          const pw = container.parentElement ? container.parentElement.offsetWidth : 0;
+          resolve(w > 10 ? w : pw > 10 ? pw : 800);
+        }, 1e3);
+      });
+      console.log("[CloudAttach] finalW=" + finalW);
       const aspectRatio = firstVpRaw.height / firstVpRaw.width;
       const pageH = finalW * aspectRatio;
       console.log("[CloudAttach] aspectRatio=" + aspectRatio.toFixed(4) + " pageH=" + Math.round(pageH));
       const RENDER_SCALE = window.devicePixelRatio || 1;
       const actualScale = finalW / firstVpRaw.width * RENDER_SCALE;
-      const TOOLBAR_HEIGHT = 28;
-      const containerHeight = Math.round(pageH) + TOOLBAR_HEIGHT;
-      container.style.setProperty("height", containerHeight + "px", "important");
-      console.log("[CloudAttach] set container height=" + containerHeight + "px");
+      container.style.setProperty("height", "80vh", "important");
+      console.log("[CloudAttach] set container height=80vh");
       const scrollArea = document.createElement("div");
       scrollArea.className = "cloudattach-pdf-scrollarea";
       scrollArea.style.setProperty("height", "100%", "important");
@@ -3252,7 +3271,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       console.log("[CloudAttach] ALL DONE, children:", container.children.length);
       this._initPdfToolbar(container, pdf);
       this._bindPdfScroll(container, pdf);
-      console.log("[CloudAttach] PDF container built, height:" + containerHeight + "px width:" + finalW + "px");
+      console.log("[CloudAttach] PDF container built, height:80vh width:" + finalW + "px");
     } catch (e) {
       console.error("[CloudAttach] PDF render failed:", e);
     }

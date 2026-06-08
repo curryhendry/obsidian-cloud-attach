@@ -3485,15 +3485,37 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
       if (imgStyleMaxWidth) container.style.maxWidth = imgStyleMaxWidth;
 
-      // 插入 DOM — display:block + width:100% 立即有正确宽度
+      // 插入 DOM
       imgEl.replaceWith(container);
 
-      // 读取实际容器宽度（block 元素插入后立即可读）
-      const containerW = container.offsetWidth;
-      const parentEl = container.parentElement;
-      const fallbackW = parentEl ? parentEl.offsetWidth : 0;
-      const finalW = containerW > 50 ? containerW : (fallbackW > 50 ? fallbackW : 800);
-      console.log('[CloudAttach] containerW=' + containerW + ' fallbackW=' + fallbackW + ' → finalW=' + finalW);
+      // 用 ResizeObserver 等浏览器完成 layout 后读取真实宽度
+      const finalW = await new Promise((resolve) => {
+        // 先试一次同步读，如果已经有值就直接用
+        const syncW = container.offsetWidth;
+        if (syncW > 10) { resolve(syncW); return; }
+
+        let done = false;
+        const ro = new ResizeObserver((entries) => {
+          const w = container.offsetWidth;
+          if (w > 10 && !done) {
+            done = true;
+            ro.disconnect();
+            resolve(w);
+          }
+        });
+        ro.observe(container);
+
+        // 兜底：1000ms 后不管有没有触发 ResizeObserver 都继续
+        setTimeout(() => {
+          if (done) return;
+          done = true;
+          ro.disconnect();
+          const w = container.offsetWidth;
+          const pw = container.parentElement ? container.parentElement.offsetWidth : 0;
+          resolve(w > 10 ? w : (pw > 10 ? pw : 800));
+        }, 1000);
+      });
+      console.log('[CloudAttach] finalW=' + finalW);
 
       // PDF 宽高比
       const aspectRatio = firstVpRaw.height / firstVpRaw.width;
@@ -3504,10 +3526,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const RENDER_SCALE = window.devicePixelRatio || 1;
       const actualScale = (finalW / firstVpRaw.width) * RENDER_SCALE;
 
-      const TOOLBAR_HEIGHT = 28;
-      const containerHeight = Math.round(pageH) + TOOLBAR_HEIGHT;
-      container.style.setProperty('height', containerHeight + 'px', 'important');
-      console.log('[CloudAttach] set container height=' + containerHeight + 'px');
+      // 容器高度：占满 Obsidian 窗格高度的 80%，scrollArea 内部滚动
+      container.style.setProperty('height', '80vh', 'important');
+      console.log('[CloudAttach] set container height=80vh');
 
       const scrollArea = document.createElement('div');
       scrollArea.className = 'cloudattach-pdf-scrollarea';
@@ -3532,7 +3553,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       this._initPdfToolbar(container, pdf);
       this._bindPdfScroll(container, pdf);
 
-      console.log('[CloudAttach] PDF container built, height:' + containerHeight + 'px width:' + finalW + 'px');
+      console.log('[CloudAttach] PDF container built, height:80vh width:' + finalW + 'px');
     } catch (e) {
       console.error('[CloudAttach] PDF render failed:', e);
     }
