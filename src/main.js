@@ -3108,13 +3108,7 @@ class AdvancedSettingModal extends Modal {
         this.onOpen();
       }
     };
-    const pdfjsPath = (() => {
-      let cd = this.app.vault.configDir || '.obsidian';
-      if (cd && cd[0] !== '/' && !cd.match(/^[a-zA-Z]:[\\/]/)) {
-        cd = (this.app.vault.adapter?.basePath || process.cwd()) + '/' + cd;
-      }
-      return cd + '/plugins/cloud-attach/libs/pdfjs/';
-    })();
+    const pdfjsPath = (this.app.vault.configDir || '.obsidian') + '/plugins/cloud-attach/libs/pdfjs/';
     const hasPdfjs = await this.app.vault.adapter.exists(pdfjsPath + 'pdf.min.js');
     pdfjsOpt.createEl('label', { text: hasPdfjs ? ('PDF.js' + (t('settings.pdfjs_installed') || '')) : ('PDF.js' + (t('settings.pdfjs_auto_install') || '')) });
     if (hasPdfjs) {
@@ -3189,13 +3183,7 @@ class AdvancedSettingModal extends Modal {
     const saveBtn = btnRow.createEl('button', { text: t('settings.save') || '保存' });
     saveBtn.className = 'mod-cta';
     saveBtn.onclick = async () => {
-      const pdfjsPath2 = (() => {
-        let cd = this.app.vault.configDir || '.obsidian';
-        if (cd && cd[0] !== '/' && !cd.match(/^[a-zA-Z]:[\\/]/)) {
-          cd = (this.app.vault.adapter?.basePath || process.cwd()) + '/' + cd;
-        }
-        return cd + '/plugins/cloud-attach/libs/pdfjs/';
-      })();
+      const pdfjsPath2 = (this.app.vault.configDir || '.obsidian') + '/plugins/cloud-attach/libs/pdfjs/';
       const hasPdfjs2 = await this.app.vault.adapter.exists(pdfjsPath2 + 'pdf.min.js');
       if (this.plugin.settings.pdfPreview === 'pdfjs' && !hasPdfjs2) {
         new Notice(t('settings.pdfjs_installing'));
