@@ -3232,10 +3232,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const canvasW = firstVp.width;
       const canvasH = firstVp.height;
       imgEl.replaceWith(container);
-      const parentEl = container.parentElement;
-      const containerW = parentEl ? parentEl.offsetWidth || parentEl.getBoundingClientRect().width || 800 : 800;
-      console.log("[CloudAttach] \u7F16\u8F91\u533A\u57DF\u5BBD\u5EA6: parent offsetW:", parentEl ? parentEl.offsetWidth : "null", "rectW:", parentEl ? parentEl.getBoundingClientRect().width : "null", "\u2192 containerW:", containerW);
-      imgEl.replaceWith(container);
+      const containerW = container.offsetWidth || container.getBoundingClientRect().width || 800;
+      console.log("[CloudAttach] container offsetW:", container.offsetWidth, "rectW:", container.getBoundingClientRect().width, "\u2192 containerW:", containerW);
       const displayH = canvasH * (containerW / canvasW);
       const actualScale = containerW / firstVpRaw.width;
       console.log("[CloudAttach] \u5BBD\u9AD8\u8BA1\u7B97: canvasW=" + Math.round(canvasW) + " canvasH=" + Math.round(canvasH) + " containerW=" + containerW + " displayH=" + Math.round(displayH) + " scale=" + actualScale.toFixed(3));
