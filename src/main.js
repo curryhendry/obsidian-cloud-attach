@@ -3530,6 +3530,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       container.style.setProperty('height', '80vh', 'important');
       console.log('[CloudAttach] set container height=80vh');
 
+      const TOOLBAR_HEIGHT = 28;
       const scrollArea = document.createElement('div');
       scrollArea.className = 'cloudattach-pdf-scrollarea';
       scrollArea.style.setProperty('height', '100%', 'important');
