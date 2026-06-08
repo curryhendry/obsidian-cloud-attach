@@ -5,7 +5,7 @@
 
 'use strict';
 
-const { Plugin, Notice, Menu, Modal, PluginSettingTab, MarkdownView, ItemView } = require('obsidian');
+const { Plugin, Notice, Menu, Modal, PluginSettingTab, MarkdownView, ItemView, requestUrl } = require('obsidian');
 
 const VIEW_TYPE_CLOUDATTACH = 'cloud-attach-view';
 
@@ -3118,6 +3118,19 @@ class AdvancedSettingModal extends Modal {
         try { await this.plugin.app.vault.adapter.rmdir(pdfjsPath, true); } catch(e) {}
         this.onOpen();
       };
+    } else {
+      const dlBtn = pdfjsOpt.createEl('button', { text: '下载 PDF.js' });
+      dlBtn.style.marginLeft = '4px';
+      dlBtn.onclick = async () => {
+        try {
+          new Notice('正在下载 PDF.js...');
+          await this.plugin.downloadPdfjs(pdfjsPath);
+          new Notice('✅ PDF.js 安装成功');
+        } catch(e) {
+          new Notice('❌ 下载失败: ' + e.message);
+        }
+        this.onOpen();
+      };
     }
     
     // PDF 说明文字
@@ -3183,17 +3196,6 @@ class AdvancedSettingModal extends Modal {
     const saveBtn = btnRow.createEl('button', { text: t('settings.save') || '保存' });
     saveBtn.className = 'mod-cta';
     saveBtn.onclick = async () => {
-      const pdfjsPath2 = this.app.vault.configDir.replace(/\/$/, '') + '/plugins/cloud-attach/libs/pdfjs/';
-      if (this.plugin.settings.pdfPreview === 'pdfjs' && !(await this.app.vault.adapter.exists(pdfjsPath2 + 'pdf.min.js'))) {
-        new Notice(t('settings.pdfjs_installing'));
-        try {
-          await this.downloadPdfjs(pdfjsPath2);
-          new Notice('✅ PDF.js ' + (t('settings.pdfjs_installed') || '安装成功'));
-        } catch(e) {
-          new Notice('❌ PDF.js 安装失败: ' + e.message);
-          return;
-        }
-      }
       await this.plugin.saveSettings();
       new Notice(t('settings.saved') || '设置已保存');
       this.close();
@@ -3216,11 +3218,11 @@ class AdvancedSettingModal extends Modal {
     ];
     for (const f of files) {
       new Notice('Downloading ' + f.name + '...');
-      const res = await fetch(f.url);
-      if (!res.ok) throw new Error('download failed: ' + f.name + ' HTTP ' + res.status);
-      const buf = await res.arrayBuffer();
-      if (buf.byteLength < 1000) throw new Error('file too small: ' + f.name + ' (' + buf.byteLength + ' bytes, possibly HTML error page)');
-      await this.app.vault.adapter.writeBinary(destDirNorm + '/' + f.name, buf);
+      const res = await requestUrl(f.url);
+      if (res.status !== 200) throw new Error('download failed: ' + f.name + ' HTTP ' + res.status);
+      const text = res.text;
+      if (!text || text.length < 1000) throw new Error('file too small: ' + f.name);
+      await this.app.vault.adapter.write(destDirNorm + '/' + f.name, text);
     }
     try { delete globalThis.pdfjsLib; } catch(e) {}
   }

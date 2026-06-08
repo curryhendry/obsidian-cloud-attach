@@ -2,7 +2,7 @@
 "use strict";
 
 // src/main.js
-var { Plugin, Notice, Menu, Modal, PluginSettingTab, MarkdownView, ItemView } = require("obsidian");
+var { Plugin, Notice, Menu, Modal, PluginSettingTab, MarkdownView, ItemView, requestUrl } = require("obsidian");
 var VIEW_TYPE_CLOUDATTACH = "cloud-attach-view";
 var I18n = {
   currentLang: "zh",
@@ -551,16 +551,16 @@ var OpenListClient = class {
    * @returns {Promise<{status: number, text: string, ok: boolean}>}
    */
   async requestViaObsidian(url, options = {}) {
-    let requestUrl = null;
+    let requestUrl2 = null;
     try {
-      requestUrl = require("obsidian").requestUrl;
+      requestUrl2 = require("obsidian").requestUrl;
     } catch (e) {
-      requestUrl = globalThis.requestUrl || this.app?.requestUrl;
+      requestUrl2 = globalThis.requestUrl || this.app?.requestUrl;
     }
-    console.log("[CloudAttach] requestViaObsidian url:", url.substring(0, 80), "hasRequestUrl:", !!requestUrl);
-    if (requestUrl) {
+    console.log("[CloudAttach] requestViaObsidian url:", url.substring(0, 80), "hasRequestUrl:", !!requestUrl2);
+    if (requestUrl2) {
       try {
-        const result = await requestUrl({
+        const result = await requestUrl2({
           url,
           method: options.method || "GET",
           headers: options.headers || {},
@@ -618,15 +618,15 @@ var OpenListClient = class {
    * @returns {Promise<Uint8Array|null>}
    */
   async requestBinary(url) {
-    let requestUrl = null;
+    let requestUrl2 = null;
     try {
-      requestUrl = require("obsidian").requestUrl;
+      requestUrl2 = require("obsidian").requestUrl;
     } catch (e) {
-      requestUrl = globalThis.requestUrl || this.app?.requestUrl;
+      requestUrl2 = globalThis.requestUrl || this.app?.requestUrl;
     }
-    if (requestUrl) {
+    if (requestUrl2) {
       try {
-        const result = await requestUrl({ url, method: "GET", throw: false });
+        const result = await requestUrl2({ url, method: "GET", throw: false });
         if (result.status >= 200 && result.status < 300) {
           if (result.arrayBuffer) {
             return new Uint8Array(result.arrayBuffer);
@@ -1211,15 +1211,15 @@ var S3Client = class {
    * 通过 Obsidian requestUrl 发请求，绕过 CORS
    */
   async requestViaObsidian(url, options = {}) {
-    let requestUrl = null;
+    let requestUrl2 = null;
     try {
-      requestUrl = require("obsidian").requestUrl;
+      requestUrl2 = require("obsidian").requestUrl;
     } catch {
-      requestUrl = globalThis.requestUrl || this.app?.requestUrl;
+      requestUrl2 = globalThis.requestUrl || this.app?.requestUrl;
     }
-    if (requestUrl) {
+    if (requestUrl2) {
       try {
-        const result = await requestUrl({
+        const result = await requestUrl2({
           url,
           method: options.method || "GET",
           headers: options.headers || {},
@@ -2945,6 +2945,19 @@ var AdvancedSettingModal = class extends Modal {
         }
         this.onOpen();
       };
+    } else {
+      const dlBtn = pdfjsOpt.createEl("button", { text: "\u4E0B\u8F7D PDF.js" });
+      dlBtn.style.marginLeft = "4px";
+      dlBtn.onclick = async () => {
+        try {
+          new Notice("\u6B63\u5728\u4E0B\u8F7D PDF.js...");
+          await this.plugin.downloadPdfjs(pdfjsPath);
+          new Notice("\u2705 PDF.js \u5B89\u88C5\u6210\u529F");
+        } catch (e) {
+          new Notice("\u274C \u4E0B\u8F7D\u5931\u8D25: " + e.message);
+        }
+        this.onOpen();
+      };
     }
     const pdfNote = pdfGroup.createDiv();
     pdfNote.style.marginLeft = "18px";
@@ -3001,17 +3014,6 @@ var AdvancedSettingModal = class extends Modal {
     const saveBtn = btnRow.createEl("button", { text: t("settings.save") || "\u4FDD\u5B58" });
     saveBtn.className = "mod-cta";
     saveBtn.onclick = async () => {
-      const pdfjsPath2 = this.app.vault.configDir.replace(/\/$/, "") + "/plugins/cloud-attach/libs/pdfjs/";
-      if (this.plugin.settings.pdfPreview === "pdfjs" && !await this.app.vault.adapter.exists(pdfjsPath2 + "pdf.min.js")) {
-        new Notice(t("settings.pdfjs_installing"));
-        try {
-          await this.downloadPdfjs(pdfjsPath2);
-          new Notice("\u2705 PDF.js " + (t("settings.pdfjs_installed") || "\u5B89\u88C5\u6210\u529F"));
-        } catch (e) {
-          new Notice("\u274C PDF.js \u5B89\u88C5\u5931\u8D25: " + e.message);
-          return;
-        }
-      }
       await this.plugin.saveSettings();
       new Notice(t("settings.saved") || "\u8BBE\u7F6E\u5DF2\u4FDD\u5B58");
       this.close();
@@ -3034,13 +3036,13 @@ var AdvancedSettingModal = class extends Modal {
     ];
     for (const f of files) {
       new Notice("Downloading " + f.name + "...");
-      const res2 = await fetch(f.url);
-      if (!res2.ok)
+      const res2 = await requestUrl(f.url);
+      if (res2.status !== 200)
         throw new Error("download failed: " + f.name + " HTTP " + res2.status);
-      const buf = await res2.arrayBuffer();
-      if (buf.byteLength < 1e3)
-        throw new Error("file too small: " + f.name + " (" + buf.byteLength + " bytes, possibly HTML error page)");
-      await this.app.vault.adapter.writeBinary(destDirNorm + "/" + f.name, buf);
+      const text = res2.text;
+      if (!text || text.length < 1e3)
+        throw new Error("file too small: " + f.name);
+      await this.app.vault.adapter.write(destDirNorm + "/" + f.name, text);
     }
     try {
       delete globalThis.pdfjsLib;
