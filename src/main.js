@@ -3525,14 +3525,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
       // 工具栏高度
       const TOOLBAR_HEIGHT = 28;
       
-      // 设置容器高度：用户指定 > 自动计算
-      let finalContainerHeight;
-      if (userHeightStr) {
-        finalContainerHeight = userHeightStr;
-      } else {
-        finalContainerHeight = Math.round(displayH) + 'px';
-      }
-      container.style.setProperty('height', finalContainerHeight, 'important');
+      // 不手动设高度，让内容（canvas）自己撑开容器
+      // container.style.setProperty('height', finalContainerHeight, 'important');
 
       // scrollArea：高度100%填满容器，overflow-y:auto 实现滚动
       const scrollArea = document.createElement('div');
