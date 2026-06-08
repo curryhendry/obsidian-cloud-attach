@@ -3228,7 +3228,7 @@ class AdvancedSettingModal extends Modal {
       if (!res.ok) throw new Error('download failed: ' + f.name + ' HTTP ' + res.status);
       const buf = await res.arrayBuffer();
       if (buf.byteLength < 1000) throw new Error('file too small: ' + f.name + ' (' + buf.byteLength + ' bytes)');
-      await this.app.vault.adapter.write(destDirNorm + '/' + f.name, Buffer.from(buf).toString('base64'));
+      await this.app.vault.adapter.write(destDirNorm + '/' + f.name, Buffer.from(buf).toString());
     }
     try { delete globalThis.pdfjsLib; } catch(e) {}
   }
@@ -3415,12 +3415,17 @@ module.exports = class CloudAttachPlugin extends Plugin {
   // ============================================================
   async _loadPdfJs() {
     if (window.pdfjsLib) return window.pdfjsLib;
-    const res = await fetch('./libs/pdfjs/pdf.min.js');
-    if (!res.ok) throw new Error('Failed to load PDF.js (' + res.status + ')');
-    const text = await res.text();
+    // 构造插件目录的 vault 相对路径
+    const configDir = this.app.vault.configDir || '.obsidian';
+    const pluginRelPath = configDir + '/plugins/cloud-attach';
+    const pdfJsRel = pluginRelPath + '/libs/pdfjs/pdf.min.js';
+    const workerRel = pluginRelPath + '/libs/pdfjs/pdf.worker.min.js';
+    // 用 adapter.read() 读取插件目录下的 JS 文件（vault 相对路径）
+    const text = await this.app.vault.adapter.read(pdfJsRel);
     const fn = new Function(text + '\nreturn pdfjsLib;');
     window.pdfjsLib = fn();
-    window.pdfjsLib.GlobalWorkerOptions.workerSrc = './libs/pdfjs/pdf.worker.min.js';
+    // workerSrc 用 vault 相对路径（PDF.js 会用 fetch 读这个路径）
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = workerRel;
     return window.pdfjsLib;
   }
 

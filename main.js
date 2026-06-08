@@ -3049,7 +3049,7 @@ var AdvancedSettingModal = class extends Modal {
       const buf = await res.arrayBuffer();
       if (buf.byteLength < 1e3)
         throw new Error("file too small: " + f.name + " (" + buf.byteLength + " bytes)");
-      await this.app.vault.adapter.write(destDirNorm + "/" + f.name, Buffer.from(buf).toString("base64"));
+      await this.app.vault.adapter.write(destDirNorm + "/" + f.name, Buffer.from(buf).toString());
     }
     try {
       delete globalThis.pdfjsLib;
@@ -3224,13 +3224,14 @@ module.exports = class CloudAttachPlugin extends Plugin {
   async _loadPdfJs() {
     if (window.pdfjsLib)
       return window.pdfjsLib;
-    const res = await fetch("./libs/pdfjs/pdf.min.js");
-    if (!res.ok)
-      throw new Error("Failed to load PDF.js (" + res.status + ")");
-    const text = await res.text();
+    const configDir = this.app.vault.configDir || ".obsidian";
+    const pluginRelPath = configDir + "/plugins/cloud-attach";
+    const pdfJsRel = pluginRelPath + "/libs/pdfjs/pdf.min.js";
+    const workerRel = pluginRelPath + "/libs/pdfjs/pdf.worker.min.js";
+    const text = await this.app.vault.adapter.read(pdfJsRel);
     const fn = new Function(text + "\nreturn pdfjsLib;");
     window.pdfjsLib = fn();
-    window.pdfjsLib.GlobalWorkerOptions.workerSrc = "./libs/pdfjs/pdf.worker.min.js";
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = workerRel;
     return window.pdfjsLib;
   }
   _isPdfUrl(url) {
