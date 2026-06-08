@@ -3507,11 +3507,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const canvasW = firstVp.width;   // PDF canvas 原始像素宽
       const canvasH = firstVp.height;  // PDF canvas 原始像素高
       
-      // 插入容器到 DOM（必须在计算 offsetWidth 之前）
-      imgEl.replaceWith(container);
+      // 在替换前读取 img 的宽度（img 已在 DOM 中，offsetWidth 可靠）
+      const containerW = imgEl.offsetWidth || 800;
       
-      // 获取容器实际渲染宽度（DOM offsetWidth）
-      const containerW = container.offsetWidth || 800;
+      // 插入容器到 DOM
+      imgEl.replaceWith(container);
       
       // 数学计算显示高度：canvasH × (containerW / canvasW)
       // 原理：PDF 是矢量，canvasH/canvasW 是宽高比，容器宽 × 宽高比 = 等比例高度
