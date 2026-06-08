@@ -3485,68 +3485,62 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
       if (imgStyleMaxWidth) container.style.maxWidth = imgStyleMaxWidth;
 
-      // 先插入 DOM，让浏览器计算布局
+      // 先插入 DOM
       imgEl.replaceWith(container);
       
-      // 读取容器实际渲染宽度
-      const containerW = container.offsetWidth;
-      console.log('[CloudAttach] container inserted, offsetWidth=' + containerW);
-      
-      // 如果 offsetWidth 为 0（布局未完成），用 imgEl 父元素宽度兜底
-      const parentEl = container.parentElement;
-      const fallbackW = parentEl ? parentEl.offsetWidth : 0;
-      const finalW = containerW > 50 ? containerW : (fallbackW > 50 ? fallbackW : 800);
-      console.log('[CloudAttach] containerW=' + containerW + ' fallbackW=' + fallbackW + ' → finalW=' + finalW);
+      // 等待浏览器完成 layout 后读取宽度（否则 offsetWidth 返回 0）
+      requestAnimationFrame(async () => {
+        try {
+          const containerW = container.offsetWidth;
+          console.log('[CloudAttach] rAF: offsetWidth=' + containerW);
+          
+          // 兜底：如果还是 0，用父元素宽度
+          const parentEl = container.parentElement;
+          const fallbackW = parentEl ? parentEl.offsetWidth : 0;
+          const finalW = containerW > 50 ? containerW : (fallbackW > 50 ? fallbackW : 800);
+          console.log('[CloudAttach] containerW=' + containerW + ' fallbackW=' + fallbackW + ' → finalW=' + finalW);
 
-      // === 第2步：根据实际宽度计算高度 ===
-      // PDF 宽高比
-      const aspectRatio = firstVpRaw.height / firstVpRaw.width;
-      // 一页的高度 = 实际宽度 × 宽高比
-      const pageH = finalW * aspectRatio;
-      console.log('[CloudAttach] aspectRatio=' + aspectRatio.toFixed(4) + ' pageH=' + Math.round(pageH));
+          // PDF 宽高比
+          const aspectRatio = firstVpRaw.height / firstVpRaw.width;
+          const pageH = finalW * aspectRatio;
+          console.log('[CloudAttach] aspectRatio=' + aspectRatio.toFixed(4) + ' pageH=' + Math.round(pageH));
 
-      // 渲染缩放比：让 canvas 宽度 = 容器宽度（保证清晰度用 1.5 倍）
-      const FIXED_SCALE = 1.5;
-      const actualScale = (finalW / firstVpRaw.width) * FIXED_SCALE;
+          const FIXED_SCALE = 1.5;
+          const actualScale = (finalW / firstVpRaw.width) * FIXED_SCALE;
 
-      // 工具栏高度
-      const TOOLBAR_HEIGHT = 28;
-      
-      // 设置容器高度：一页高度 + 工具栏空间
-      const containerHeight = Math.round(pageH) + TOOLBAR_HEIGHT;
-      container.style.setProperty('height', containerHeight + 'px', 'important');
-      console.log('[CloudAttach] set container height=' + containerHeight + 'px');
+          const TOOLBAR_HEIGHT = 28;
+          const containerHeight = Math.round(pageH) + TOOLBAR_HEIGHT;
+          container.style.setProperty('height', containerHeight + 'px', 'important');
+          console.log('[CloudAttach] set container height=' + containerHeight + 'px');
 
-      // scrollArea：高度100%填满容器，overflow-y:auto 实现滚动
-      const scrollArea = document.createElement('div');
-      scrollArea.className = 'cloudattach-pdf-scrollarea';
-      scrollArea.style.setProperty('height', '100%', 'important');
-      scrollArea.style.setProperty('overflow-y', 'auto', 'important');
-      scrollArea.style.setProperty('padding-bottom', TOOLBAR_HEIGHT + 'px', 'important'); // 底部留白给工具栏
-      container.appendChild(scrollArea);
+          const scrollArea = document.createElement('div');
+          scrollArea.className = 'cloudattach-pdf-scrollarea';
+          scrollArea.style.setProperty('height', '100%', 'important');
+          scrollArea.style.setProperty('overflow-y', 'auto', 'important');
+          scrollArea.style.setProperty('padding-bottom', TOOLBAR_HEIGHT + 'px', 'important');
+          container.appendChild(scrollArea);
 
-      // 渲染所有页面（挂到 scrollArea）
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const canvas = document.createElement('canvas');
-        canvas.className = 'cloudattach-pdf-page';
-        canvas.dataset.pageNum = String(i);
-        canvas.style.setProperty('display', 'block', 'important');
-        canvas.style.setProperty('width', '100%', 'important');
-        canvas.style.setProperty('max-width', '100%', 'important');
-        scrollArea.appendChild(canvas);
-        await this._renderPdfPage(canvas, pdf, i, actualScale);
-        console.log('[CloudAttach] page', i, '/', pdf.numPages, 'cw:', canvas.width, 'ch:', canvas.height);
-      }
-      console.log('[CloudAttach] ALL DONE, children:', container.children.length);
+          for (let i = 1; i <= pdf.numPages; i++) {
+            const canvas = document.createElement('canvas');
+            canvas.className = 'cloudattach-pdf-page';
+            canvas.dataset.pageNum = String(i);
+            canvas.style.setProperty('display', 'block', 'important');
+            canvas.style.setProperty('width', '100%', 'important');
+            canvas.style.setProperty('max-width', '100%', 'important');
+            scrollArea.appendChild(canvas);
+            await this._renderPdfPage(canvas, pdf, i, actualScale);
+            console.log('[CloudAttach] page', i, '/', pdf.numPages, 'cw:', canvas.width, 'ch:', canvas.height);
+          }
+          console.log('[CloudAttach] ALL DONE, children:', container.children.length);
 
-      // 初始化工具栏（absolute 浮在容器顶部，不随内容滚动）
-      this._initPdfToolbar(container, pdf);
+          this._initPdfToolbar(container, pdf);
+          this._bindPdfScroll(container, pdf);
 
-      // 监听滚动更新页码
-      this._bindPdfScroll(container, pdf);
-
-
-      console.log('[CloudAttach] PDF container built, height:', finalContainerHeight, 'width:', "dynamic");
+          console.log('[CloudAttach] PDF container built, height:' + containerHeight + 'px width:dynamic');
+        } catch (e) {
+          console.error('[CloudAttach] PDF render failed (in rAF):', e);
+        }
+      });
     } catch (e) {
       console.error('[CloudAttach] PDF render failed:', e);
     }

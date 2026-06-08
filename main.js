@@ -3219,42 +3219,48 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
       if (imgStyleMaxWidth) container.style.maxWidth = imgStyleMaxWidth;
       imgEl.replaceWith(container);
-      const containerW = container.offsetWidth;
-      console.log("[CloudAttach] container inserted, offsetWidth=" + containerW);
-      const parentEl = container.parentElement;
-      const fallbackW = parentEl ? parentEl.offsetWidth : 0;
-      const finalW = containerW > 50 ? containerW : fallbackW > 50 ? fallbackW : 800;
-      console.log("[CloudAttach] containerW=" + containerW + " fallbackW=" + fallbackW + " \u2192 finalW=" + finalW);
-      const aspectRatio = firstVpRaw.height / firstVpRaw.width;
-      const pageH = finalW * aspectRatio;
-      console.log("[CloudAttach] aspectRatio=" + aspectRatio.toFixed(4) + " pageH=" + Math.round(pageH));
-      const FIXED_SCALE = 1.5;
-      const actualScale = finalW / firstVpRaw.width * FIXED_SCALE;
-      const TOOLBAR_HEIGHT = 28;
-      const containerHeight = Math.round(pageH) + TOOLBAR_HEIGHT;
-      container.style.setProperty("height", containerHeight + "px", "important");
-      console.log("[CloudAttach] set container height=" + containerHeight + "px");
-      const scrollArea = document.createElement("div");
-      scrollArea.className = "cloudattach-pdf-scrollarea";
-      scrollArea.style.setProperty("height", "100%", "important");
-      scrollArea.style.setProperty("overflow-y", "auto", "important");
-      scrollArea.style.setProperty("padding-bottom", TOOLBAR_HEIGHT + "px", "important");
-      container.appendChild(scrollArea);
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const canvas = document.createElement("canvas");
-        canvas.className = "cloudattach-pdf-page";
-        canvas.dataset.pageNum = String(i);
-        canvas.style.setProperty("display", "block", "important");
-        canvas.style.setProperty("width", "100%", "important");
-        canvas.style.setProperty("max-width", "100%", "important");
-        scrollArea.appendChild(canvas);
-        await this._renderPdfPage(canvas, pdf, i, actualScale);
-        console.log("[CloudAttach] page", i, "/", pdf.numPages, "cw:", canvas.width, "ch:", canvas.height);
-      }
-      console.log("[CloudAttach] ALL DONE, children:", container.children.length);
-      this._initPdfToolbar(container, pdf);
-      this._bindPdfScroll(container, pdf);
-      console.log("[CloudAttach] PDF container built, height:", finalContainerHeight, "width:", "dynamic");
+      requestAnimationFrame(async () => {
+        try {
+          const containerW = container.offsetWidth;
+          console.log("[CloudAttach] rAF: offsetWidth=" + containerW);
+          const parentEl = container.parentElement;
+          const fallbackW = parentEl ? parentEl.offsetWidth : 0;
+          const finalW = containerW > 50 ? containerW : fallbackW > 50 ? fallbackW : 800;
+          console.log("[CloudAttach] containerW=" + containerW + " fallbackW=" + fallbackW + " \u2192 finalW=" + finalW);
+          const aspectRatio = firstVpRaw.height / firstVpRaw.width;
+          const pageH = finalW * aspectRatio;
+          console.log("[CloudAttach] aspectRatio=" + aspectRatio.toFixed(4) + " pageH=" + Math.round(pageH));
+          const FIXED_SCALE = 1.5;
+          const actualScale = finalW / firstVpRaw.width * FIXED_SCALE;
+          const TOOLBAR_HEIGHT = 28;
+          const containerHeight = Math.round(pageH) + TOOLBAR_HEIGHT;
+          container.style.setProperty("height", containerHeight + "px", "important");
+          console.log("[CloudAttach] set container height=" + containerHeight + "px");
+          const scrollArea = document.createElement("div");
+          scrollArea.className = "cloudattach-pdf-scrollarea";
+          scrollArea.style.setProperty("height", "100%", "important");
+          scrollArea.style.setProperty("overflow-y", "auto", "important");
+          scrollArea.style.setProperty("padding-bottom", TOOLBAR_HEIGHT + "px", "important");
+          container.appendChild(scrollArea);
+          for (let i = 1; i <= pdf.numPages; i++) {
+            const canvas = document.createElement("canvas");
+            canvas.className = "cloudattach-pdf-page";
+            canvas.dataset.pageNum = String(i);
+            canvas.style.setProperty("display", "block", "important");
+            canvas.style.setProperty("width", "100%", "important");
+            canvas.style.setProperty("max-width", "100%", "important");
+            scrollArea.appendChild(canvas);
+            await this._renderPdfPage(canvas, pdf, i, actualScale);
+            console.log("[CloudAttach] page", i, "/", pdf.numPages, "cw:", canvas.width, "ch:", canvas.height);
+          }
+          console.log("[CloudAttach] ALL DONE, children:", container.children.length);
+          this._initPdfToolbar(container, pdf);
+          this._bindPdfScroll(container, pdf);
+          console.log("[CloudAttach] PDF container built, height:" + containerHeight + "px width:dynamic");
+        } catch (e) {
+          console.error("[CloudAttach] PDF render failed (in rAF):", e);
+        }
+      });
     } catch (e) {
       console.error("[CloudAttach] PDF render failed:", e);
     }
