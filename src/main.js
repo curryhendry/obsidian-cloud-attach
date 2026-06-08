@@ -3108,20 +3108,14 @@ class AdvancedSettingModal extends Modal {
         this.onOpen();
       }
     };
-    const pdfjsPath = (() => {
-      let cd = this.app.vault.configDir || '.obsidian';
-      if (!require('path').isAbsolute(cd)) {
-        cd = require('path').resolve(this.app.vault.adapter?.basePath || process.cwd(), cd);
-      }
-      return cd + '/plugins/cloud-attach/libs/pdfjs/';
-    })();
+    const pdfjsPath = this.app.vault.configDir.replace(/\/$/, '') + '/plugins/cloud-attach/libs/pdfjs/';
     const hasPdfjs = await this.app.vault.adapter.exists(pdfjsPath + 'pdf.min.mjs');
     pdfjsOpt.createEl('label', { text: hasPdfjs ? ('PDF.js' + (t('settings.pdfjs_installed') || '')) : ('PDF.js' + (t('settings.pdfjs_auto_install') || '')) });
     if (hasPdfjs) {
       const delBtn = pdfjsOpt.createEl('button', { text: t('settings.pdfjs_uninstall') || '卸载' });
       delBtn.style.marginLeft = '4px';
       delBtn.onclick = async () => {
-        try { fs.rmSync(pdfjsPath, { recursive: true }); } catch(e) {}
+        try { await this.plugin.app.vault.adapter.rmdir(pdfjsPath, true); } catch(e) {}
         this.onOpen();
       };
     }
@@ -3189,13 +3183,7 @@ class AdvancedSettingModal extends Modal {
     const saveBtn = btnRow.createEl('button', { text: t('settings.save') || '保存' });
     saveBtn.className = 'mod-cta';
     saveBtn.onclick = async () => {
-      const pdfjsPath2 = (() => {
-        let cd = this.app.vault.configDir || '.obsidian';
-        if (!require('path').isAbsolute(cd)) {
-          cd = require('path').resolve(this.app.vault.adapter?.basePath || process.cwd(), cd);
-        }
-        return cd + '/plugins/cloud-attach/libs/pdfjs/';
-      })();
+      const pdfjsPath2 = this.app.vault.configDir.replace(/\/$/, '') + '/plugins/cloud-attach/libs/pdfjs/';
       if (this.plugin.settings.pdfPreview === 'pdfjs' && !(await this.app.vault.adapter.exists(pdfjsPath2 + 'pdf.min.mjs'))) {
         new Notice(t('settings.pdfjs_installing'));
         try {
