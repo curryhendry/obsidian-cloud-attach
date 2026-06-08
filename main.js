@@ -3212,14 +3212,20 @@ module.exports = class CloudAttachPlugin extends Plugin {
   async _loadPdfJs() {
     if (window.pdfjsLib)
       return window.pdfjsLib;
-    const configDir = this.app.vault.configDir || ".obsidian";
-    const pluginRelPath = configDir + "/plugins/cloud-attach";
-    const pdfJsRel = pluginRelPath + "/libs/pdfjs/pdf.min.js";
-    const workerRel = pluginRelPath + "/libs/pdfjs/pdf.worker.min.js";
-    const text = await this.app.vault.adapter.read(pdfJsRel);
+    let pluginDir = (this.app.vault.configDir || ".obsidian") + "/plugins/cloud-attach";
+    if (pluginDir[0] !== "/" && !pluginDir.match(/^[a-zA-Z]:[\\/]/)) {
+      pluginDir = (this.app.vault.adapter?.basePath || process.cwd()) + "/" + pluginDir;
+    }
+    const pdfJsAbs = pluginDir + "/libs/pdfjs/pdf.min.js";
+    const workerAbs = pluginDir + "/libs/pdfjs/pdf.worker.min.js";
+    const { requestUrl } = require("obsidian");
+    const r = await requestUrl("file://" + pdfJsAbs.replace(/\\/g, "/"));
+    const text = r.text || "";
     const fn = new Function(text + "\nreturn pdfjsLib;");
     window.pdfjsLib = fn();
-    window.pdfjsLib.GlobalWorkerOptions.workerSrc = workerRel;
+    const r2 = await requestUrl("file://" + workerAbs.replace(/\\/g, "/"));
+    const workerBlob = new Blob([r2.text || ""], { type: "application/javascript" });
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(workerBlob);
     return window.pdfjsLib;
   }
   _isPdfUrl(url) {
