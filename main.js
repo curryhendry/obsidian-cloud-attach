@@ -3212,18 +3212,21 @@ module.exports = class CloudAttachPlugin extends Plugin {
   async _loadPdfJs() {
     if (window.pdfjsLib)
       return window.pdfjsLib;
-    const configDir = this.app.vault.configDir || ".obsidian";
-    const pluginRel = configDir + "/plugins/cloud-attach";
-    const pdfJsApp = "app://local/" + pluginRel + "/libs/pdfjs/pdf.min.js";
-    const workerApp = "app://local/" + pluginRel + "/libs/pdfjs/pdf.worker.min.js";
-    const res = await fetch(pdfJsApp);
-    if (!res.ok)
-      throw new Error("Failed to load PDF.js (" + res.status + ") from " + pdfJsApp);
-    const text = await res.text();
-    const fn = new Function(text + "\nreturn pdfjsLib;");
-    window.pdfjsLib = fn();
-    window.pdfjsLib.GlobalWorkerOptions.workerSrc = workerApp;
-    return window.pdfjsLib;
+    const vaultRel = (this.app.vault.configDir || ".obsidian") + "/plugins/cloud-attach";
+    const pdfJsPath = vaultRel + "/libs/pdfjs/pdf.min.js";
+    const workerPath = vaultRel + "/libs/pdfjs/pdf.worker.min.js";
+    try {
+      const pdfJsText = await this.app.vault.adapter.read(pdfJsPath);
+      const fn = new Function(pdfJsText + "\nreturn pdfjsLib;");
+      window.pdfjsLib = fn();
+      const workerText = await this.app.vault.adapter.read(workerPath);
+      const workerBlob = new Blob([workerText], { type: "application/javascript" });
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(workerBlob);
+      return window.pdfjsLib;
+    } catch (e) {
+      console.error("[CloudAttach] _loadPdfJs failed:", e);
+      throw e;
+    }
   }
   _isPdfUrl(url) {
     return /\.pdf(\?|#|$)/i.test(url);
