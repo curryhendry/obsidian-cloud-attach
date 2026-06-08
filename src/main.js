@@ -3403,23 +3403,19 @@ module.exports = class CloudAttachPlugin extends Plugin {
   // ============================================================
   async _loadPdfJs() {
     if (window.pdfjsLib) return window.pdfjsLib;
-    // 构造插件目录的绝对路径
-    let pluginDir = (this.app.vault.configDir || '.obsidian') + '/plugins/cloud-attach';
-    if (pluginDir[0] !== '/' && !pluginDir.match(/^[a-zA-Z]:[\\/]/)) {
-      pluginDir = (this.app.vault.adapter?.basePath || process.cwd()) + '/' + pluginDir;
-    }
-    const pdfJsAbs = pluginDir + '/libs/pdfjs/pdf.min.js';
-    const workerAbs = pluginDir + '/libs/pdfjs/pdf.worker.min.js';
-    // 用 requestUrl 读本地文件（Obsidian 内置 API）
-    const { requestUrl } = require('obsidian');
-    const r = await requestUrl('file://' + pdfJsAbs.replace(/\\/g, '/'));
-    const text = r.text || '';
+    // 构造插件目录的 app:// 路径
+    const configDir = this.app.vault.configDir || '.obsidian';
+    const pluginRel = configDir + '/plugins/cloud-attach';
+    const pdfJsApp = 'app://local/' + pluginRel + '/libs/pdfjs/pdf.min.js';
+    const workerApp = 'app://local/' + pluginRel + '/libs/pdfjs/pdf.worker.min.js';
+    // 用 fetch 读本地文件（Obsidian 支持 app:// 协议）
+    const res = await fetch(pdfJsApp);
+    if (!res.ok) throw new Error('Failed to load PDF.js (' + res.status + ') from ' + pdfJsApp);
+    const text = await res.text();
     const fn = new Function(text + '\nreturn pdfjsLib;');
     window.pdfjsLib = fn();
-    // worker 用 blob URL（避免路径问题）
-    const r2 = await requestUrl('file://' + workerAbs.replace(/\\/g, '/'));
-    const workerBlob = new Blob([r2.text || ''], { type: 'application/javascript' });
-    window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(workerBlob);
+    // workerSrc 用 app:// 协议
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = workerApp;
     return window.pdfjsLib;
   }
 
