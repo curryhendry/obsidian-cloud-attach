@@ -3382,8 +3382,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
       .cloud-attach-add-btn:hover { background: var(--background-modifier-hover); }
     
     /* PDF 预览容器 - 双层结构，仿 Obsidian 原生 .pdf-embed */
-    .cloudattach-pdf-container { box-sizing: border-box !important; display: inline-block !important; width: 100% !important; max-width: 100% !important; border: 1px solid var(--background-modifier-border) !important; border-radius: 8px !important; background: var(--background-secondary) !important; vertical-align: top !important; position: relative !important; overflow: hidden !important; }
-    .cloudattach-pdf-page { display: block !important; box-sizing: border-box !important; width: 100% !important; height: auto !important; max-width: 100% !important; min-width: 0 !important; }
+    .cloudattach-pdf-container { box-sizing: border-box !important; display: block !important; width: 100% !important; max-width: 100% !important; min-width: 0 !important; border: 1px solid var(--background-modifier-border) !important; border-radius: 8px !important; background: var(--background-secondary) !important; overflow: hidden !important; position: relative !important; }
+    .cloudattach-pdf-container canvas { display: block !important; width: 100% !important; height: auto !important; }
     `;
     const styleEl = document.createElement('style');
     styleEl.textContent = css;
@@ -3443,88 +3443,118 @@ module.exports = class CloudAttachPlugin extends Plugin {
     try {
       const pdfjsLib = await this._loadPdfJs();
       const loadingTask = pdfjsLib.getDocument(url);
-      console.log("[CloudAttach] PDF doc loaded, pages:", (await loadingTask.promise).numPages);
+      console.log('[CloudAttach] PDF doc loaded, pages:', (await loadingTask.promise).numPages);
       const pdf = await loadingTask.promise;
-      let imgWidth = imgEl.getAttribute("width") || imgEl.style.width || "";
-      let imgHeight = imgEl.getAttribute("height") || imgEl.style.height || "";
+
+      // 读取原始 img 的尺寸属性（支持 Obsidian 多种尺寸语法）
+      let imgWidth = imgEl.getAttribute('width') || imgEl.style.width || '';
+      let imgHeight = imgEl.getAttribute('height') || imgEl.style.height || '';
+      console.log('[CloudAttach] imgEl attributes - width:' + imgEl.getAttribute('width') + ' height:' + imgEl.getAttribute('height') + ' style.width:' + imgEl.style.width + ' style.height:' + imgEl.style.height + ' → imgWidth:' + imgWidth + ' imgHeight:' + imgHeight);
       let imgStyleMaxWidth = imgEl.style.maxWidth;
+
+      // 检查 parent span（Obsidian 偶尔把尺寸放在 parent 上）
       const parentSpan = imgEl.parentElement;
-      if (parentSpan && parentSpan.tagName === "SPAN") {
-        if (!imgWidth && parentSpan.style.width)
-          imgWidth = parentSpan.style.width;
-        if (!imgHeight && parentSpan.style.height)
-          imgHeight = parentSpan.style.height;
-        if (!imgStyleMaxWidth && parentSpan.style.maxWidth)
-          imgStyleMaxWidth = parentSpan.style.maxWidth;
+      if (parentSpan && parentSpan.tagName === 'SPAN') {
+        if (!imgWidth && parentSpan.style.width) imgWidth = parentSpan.style.width;
+        if (!imgHeight && parentSpan.style.height) imgHeight = parentSpan.style.height;
+        if (!imgStyleMaxWidth && parentSpan.style.maxWidth) imgStyleMaxWidth = parentSpan.style.maxWidth;
       }
-      const imgClasses = imgEl.className || "";
+
+      // 检查 Obsidian 的 image-width class（![|300] 语法可能生成 cm-image-width-* class）
+      const imgClasses = imgEl.className || '';
       const widthClassMatch = imgClasses.match(/cm-image-width-(\d+)/);
       if (widthClassMatch && !imgWidth) {
-        imgWidth = widthClassMatch[1] + "px";
+        imgWidth = widthClassMatch[1] + 'px';
       }
-      const container = document.createElement("span");
-      container.className = "cloudattach-pdf-container";
-      container.dataset.currentPage = "1";
+
+      // 预渲染第1页，获取实际尺寸来决定容器高度
+      const firstPage = await pdf.getPage(1);
+      const firstVpRaw = firstPage.getViewport({ scale: 1 });
+
+      // === 第1步：创建容器，先插入 DOM 读取实际宽度 ===
+      const container = document.createElement('div');
+      container.className = 'cloudattach-pdf-container';
+      container.dataset.currentPage = '1';
       container.dataset.totalPages = pdf.numPages.toString();
       container.dataset.pdfUrl = url;
+      container.style.setProperty('width', '100%', 'important');
+
+      // 应用用户指定的宽度（覆盖默认 100%）
       if (imgWidth) {
-        container.style.width = imgWidth.includes("%") || imgWidth.includes("px") || imgWidth.includes("vw") ? imgWidth : imgWidth + "px";
+        container.style.setProperty('width', imgWidth.includes('%') || imgWidth.includes('px') || imgWidth.includes('vw') ? imgWidth : imgWidth + 'px', 'important');
       }
-      if (imgStyleMaxWidth)
-        container.style.maxWidth = imgStyleMaxWidth;
-      let userHeightStr = "";
-      if (imgHeight && imgHeight !== "auto") {
-        userHeightStr = imgHeight.includes("%") || imgHeight.includes("px") || imgHeight.includes("vh") ? imgHeight : imgHeight + "px";
-        container.dataset.userHeight = userHeightStr;
-      }
-      const FIXED_SCALE = 1.5;
-      const TOOLBAR_HEIGHT = 28;
-      container.style.setProperty("display", "block", "important");
-      container.style.setProperty("overflow", "hidden", "important");
-      container.style.setProperty("opacity", "0", "important");
-      const scrollArea = document.createElement("div");
-      scrollArea.className = "cloudattach-pdf-scrollarea";
-      scrollArea.style.overflowY = "auto";
-      scrollArea.style.overflowX = "hidden";
-      scrollArea.style.position = "relative";
-      container.appendChild(scrollArea);
+      if (imgStyleMaxWidth) container.style.maxWidth = imgStyleMaxWidth;
+
+      // 插入 DOM
       imgEl.replaceWith(container);
-      const firstPage = await pdf.getPage(1);
-      const firstViewport = firstPage.getViewport({ scale: FIXED_SCALE });
-      const canvasW = firstViewport.width;
-      const canvasH = firstViewport.height;
-      const firstCanvas = document.createElement("canvas");
-      firstCanvas.className = "cloudattach-pdf-page";
-      firstCanvas.dataset.pageNum = "1";
-      scrollArea.appendChild(firstCanvas);
-      await this._renderPdfPage(firstCanvas, pdf, 1, FIXED_SCALE);
-      const containerW = container.clientWidth || 800;
-      const displayH = canvasH * (containerW / canvasW);
-      console.log("[CloudAttach] canvas WxH:", canvasW, "x", canvasH, "containerW:", containerW, "displayH:", displayH);
-      let finalContainerHeight;
-      if (userHeightStr) {
-        finalContainerHeight = userHeightStr;
-      } else {
-        finalContainerHeight = Math.round(displayH) + "px";
+
+      // 获取 Obsidian 阅读视图的实际宽度（彻底放弃 offsetWidth 读取）
+      let finalW = 800;
+      try {
+        // 方法1：DOM 查询 .markdown-reading-view（阅读视图模式）
+        const readingView = document.querySelector('.markdown-reading-view');
+        if (readingView && readingView.offsetWidth > 10) {
+          finalW = readingView.offsetWidth;
+          console.log('[CloudAttach] width from .markdown-reading-view:' + finalW);
+        }
+        // 方法2：DOM 查询 .markdown-source-view .cm-scroller（实时预览模式）
+        if (finalW === 800) {
+          const sourceView = document.querySelector('.markdown-source-view .cm-scroller');
+          if (sourceView && sourceView.offsetWidth > 10) {
+            finalW = sourceView.offsetWidth;
+            console.log('[CloudAttach] width from .cm-scroller:' + finalW);
+          }
+        }
+        // 方法3：用 window.innerWidth 估算
+        if (finalW === 800) {
+          finalW = Math.round(window.innerWidth * 0.75);
+          console.log('[CloudAttach] width from window.innerWidth*0.75:' + finalW);
+        }
+      } catch(e) {
+        console.error('[CloudAttach] get view width failed:', e);
       }
-      container.style.setProperty("height", finalContainerHeight, "important");
-      scrollArea.style.setProperty("height", "100%", "important");
-      scrollArea.style.setProperty("padding-bottom", TOOLBAR_HEIGHT + "px", "important");
-      container.style.setProperty("opacity", "1", "important");
-      this._initPdfToolbar(container, pdf);
-      for (let i = 2; i <= pdf.numPages; i++) {
-        const canvas = document.createElement("canvas");
-        canvas.className = "cloudattach-pdf-page";
+      console.log('[CloudAttach] finalW=' + finalW);
+
+      // PDF 宽高比
+      const aspectRatio = firstVpRaw.height / firstVpRaw.width;
+      const pageH = finalW * aspectRatio;
+      console.log('[CloudAttach] aspectRatio=' + aspectRatio.toFixed(4) + ' pageH=' + Math.round(pageH));
+
+      // 渲染 scale：让 canvas 内部分辨率匹配显示尺寸（2x for retina）
+      const RENDER_SCALE = window.devicePixelRatio || 1;
+      const actualScale = (finalW / firstVpRaw.width) * RENDER_SCALE;
+
+      // 容器高度：占满 Obsidian 窗格高度的 80%，scrollArea 内部滚动
+      container.style.setProperty('height', '80vh', 'important');
+      console.log('[CloudAttach] set container height=80vh');
+
+      const TOOLBAR_HEIGHT = 28;
+      const scrollArea = document.createElement('div');
+      scrollArea.className = 'cloudattach-pdf-scrollarea';
+      scrollArea.style.setProperty('height', '100%', 'important');
+      scrollArea.style.setProperty('overflow-y', 'auto', 'important');
+      scrollArea.style.setProperty('padding-bottom', TOOLBAR_HEIGHT + 'px', 'important');
+      container.appendChild(scrollArea);
+
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const canvas = document.createElement('canvas');
+        canvas.className = 'cloudattach-pdf-page';
         canvas.dataset.pageNum = String(i);
+        canvas.style.setProperty('display', 'block', 'important');
+        canvas.style.setProperty('width', '100%', 'important');
+        canvas.style.setProperty('max-width', '100%', 'important');
         scrollArea.appendChild(canvas);
-        await this._renderPdfPage(canvas, pdf, i, FIXED_SCALE);
-        console.log("[CloudAttach] page", i, "/", pdf.numPages, "cw:", canvas.width, "ch:", canvas.height);
+        await this._renderPdfPage(canvas, pdf, i, actualScale);
+        console.log('[CloudAttach] page', i, '/', pdf.numPages, 'cw:', canvas.width, 'ch:', canvas.height);
       }
-      console.log("[CloudAttach] ALL DONE, pages:", pdf.numPages);
+      console.log('[CloudAttach] ALL DONE, children:', container.children.length);
+
+      this._initPdfToolbar(container, pdf);
       this._bindPdfScroll(container, pdf);
-      console.log("[CloudAttach] PDF container built, pages:", pdf.numPages);
+
+      console.log('[CloudAttach] PDF container built, height:80vh width:' + finalW + 'px');
     } catch (e) {
-      console.error("[CloudAttach] PDF render failed:", e);
+      console.error('[CloudAttach] PDF render failed:', e);
     }
   }
 
@@ -3540,105 +3570,87 @@ module.exports = class CloudAttachPlugin extends Plugin {
 
   // 监听滚动更新当前页码（连续滚动模式，监听 scrollArea）
   _bindPdfScroll(container, pdf) {
-    const scrollArea = container.querySelector(".cloudattach-pdf-scrollarea");
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          const pageNum = entry.target.dataset.pageNum;
-          container.dataset.currentPage = pageNum;
-          this._updatePdfToolbar(container, pdf);
+    const scrollArea = container.querySelector('.cloudattach-pdf-scrollarea');
+    if (!scrollArea) return;
+
+    const updatePage = () => {
+      const canvases = container.querySelectorAll('.cloudattach-pdf-page');
+      const scrollTop = scrollArea.scrollTop;
+      
+      let currentPage = 1;
+      canvases.forEach((canvas, index) => {
+        const canvasTop = canvas.offsetTop;
+        const canvasHeight = canvas.offsetHeight;
+        if (scrollTop >= canvasTop - canvasHeight / 2) {
+          currentPage = index + 1;
         }
       });
-    }, { root: scrollArea, threshold: 0.5 });
-    const canvases = scrollArea.querySelectorAll(".cloudattach-pdf-page");
-    canvases.forEach((canvas) => observer.observe(canvas));
+
+      container.dataset.currentPage = currentPage.toString();
+      const pageIndicator = container.querySelector('[data-role="pageIndicator"]');
+      if (pageIndicator) {
+        pageIndicator.textContent = `${currentPage} / ${container.dataset.totalPages}`;
+      }
+    };
+
+    scrollArea.addEventListener('scroll', updatePage);
+    // 初始调用一次
+    setTimeout(updatePage, 100);
   }
 
   // 初始化 PDF 翻页工具栏（参考 v0.3.042 样式：底部右侧，hover 显示）
   _initPdfToolbar(container, pdf) {
     const totalPages = parseInt(container.dataset.totalPages);
-    const toolbar = document.createElement("div");
-    toolbar.className = "cloudattach-pdf-toolbar";
-    toolbar.style.background = "rgba(0, 0, 0, 0.6)";
-    toolbar.style.color = "white";
-    toolbar.style.padding = "4px 8px";
-    toolbar.style.borderRadius = "4px";
-    toolbar.style.display = "flex";
-    toolbar.style.gap = "6px";
-    toolbar.style.alignItems = "center";
-    toolbar.style.fontSize = "12px";
-    toolbar.style.height = "28px";
-    toolbar.style.lineHeight = "20px";
-    toolbar.style.zIndex = "10";
-    toolbar.style.userSelect = "none";
-    toolbar.style.position = "absolute";
-    toolbar.style.bottom = "8px";
-    toolbar.style.right = "8px";
-    toolbar.style.opacity = "0";
-    toolbar.style.transition = "opacity 0.2s";
-    container.style.position = "relative";
-    container.addEventListener("mouseenter", () => {
-      toolbar.style.opacity = "1";
-    });
-    container.addEventListener("mouseleave", () => {
-      toolbar.style.opacity = "0";
-    });
-    const prevBtn = document.createElement("span");
-    prevBtn.textContent = "\u25C0";
-    prevBtn.style.cursor = "pointer";
-    prevBtn.dataset.role = "prev";
-    toolbar.appendChild(prevBtn);
-    const pageIndicator = document.createElement("span");
-    pageIndicator.dataset.role = "pageIndicator";
-    pageIndicator.style.cursor = "pointer";
-    pageIndicator.title = "\u70B9\u51FB\u8DF3\u8F6C\u5230\u6307\u5B9A\u9875\u7801";
-    toolbar.appendChild(pageIndicator);
-    const nextBtn = document.createElement("span");
-    nextBtn.textContent = "\u25B6";
-    nextBtn.style.cursor = "pointer";
-    nextBtn.dataset.role = "next";
-    toolbar.appendChild(nextBtn);
-    const sep = document.createElement("span");
-    sep.textContent = "|";
-    sep.style.opacity = "0.5";
-    sep.style.margin = "0 2px";
-    toolbar.appendChild(sep);
-    const fullscreenBtn = document.createElement("span");
-    fullscreenBtn.textContent = "\u26F6";
-    fullscreenBtn.style.cursor = "pointer";
-    fullscreenBtn.title = "\u5168\u5C4F\u9884\u89C8\uFF08\u656C\u8BF7\u671F\u5F85\uFF09";
-    fullscreenBtn.dataset.role = "fullscreen";
-    toolbar.appendChild(fullscreenBtn);
-    fullscreenBtn.onclick = (e) => {
-      e.stopPropagation();
-      const { Notice: Notice2 } = require("obsidian");
-      new Notice2("\u{1F50D} \u5168\u5C4F\u9884\u89C8\u529F\u80FD\uFF0C\u656C\u8BF7\u671F\u5F85");
-    };
-    const scrollArea = container.querySelector(".cloudattach-pdf-scrollarea");
-    const scrollToPage = (pageNum) => {
-      const targetCanvas = scrollArea.querySelector(`.cloudattach-pdf-page[data-page-num="${pageNum}"]`);
-      if (targetCanvas) {
-        scrollArea.scrollTop = targetCanvas.offsetTop;
-      }
-    };
+
+    const toolbar = document.createElement('div');
+    toolbar.className = 'cloudattach-pdf-toolbar';
+    toolbar.style.position = 'absolute';
+    toolbar.style.bottom = '8px';
+    toolbar.style.right = '8px';
+    toolbar.style.background = 'rgba(0, 0, 0, 0.6)';
+    toolbar.style.color = 'white';
+    toolbar.style.padding = '4px 8px';
+    toolbar.style.borderRadius = '4px';
+    toolbar.style.display = 'none';
+    toolbar.style.gap = '6px';
+    toolbar.style.alignItems = 'center';
+    toolbar.style.fontSize = '12px';
+    toolbar.style.zIndex = '10';
+    toolbar.style.userSelect = 'none';
+
+    // hover 显示/隐藏
+    container.addEventListener('mouseenter', () => { toolbar.style.display = 'flex'; });
+    container.addEventListener('mouseleave', () => { toolbar.style.display = 'none'; });
+
+    // 上一页
+    const prevBtn = document.createElement('span');
+    prevBtn.textContent = '◀';
+    prevBtn.style.cursor = 'pointer';
+    prevBtn.dataset.role = 'prev';
     prevBtn.onclick = (e) => {
       e.stopPropagation();
       const current = parseInt(container.dataset.currentPage);
-      if (current > 1)
-        scrollToPage(current - 1);
+      if (current > 1) {
+        const scrollArea = container.querySelector('.cloudattach-pdf-scrollarea');
+        const targetCanvas = scrollArea.querySelectorAll('.cloudattach-pdf-page')[current - 2];
+        if (targetCanvas) {
+          targetCanvas.scrollIntoView({ behavior: 'smooth' });
+        }
+      }
     };
-    nextBtn.onclick = (e) => {
-      e.stopPropagation();
-      const current = parseInt(container.dataset.currentPage);
-      if (current < totalPages)
-        scrollToPage(current + 1);
-    };
+    toolbar.appendChild(prevBtn);
+
+    // 页码
+    const pageIndicator = document.createElement('span');
+    pageIndicator.dataset.role = 'pageIndicator';
+    pageIndicator.style.cursor = 'pointer';
+    pageIndicator.title = '点击跳转到指定页码';
     pageIndicator.onclick = (e) => {
       e.stopPropagation();
       e.preventDefault();
       const current = parseInt(container.dataset.currentPage);
-      const { Modal: Modal2, Setting } = require("obsidian");
-      class PageJumpModal extends Modal2 {
+      const { Modal, Setting } = require('obsidian');
+      class PageJumpModal extends Modal {
         constructor(app, cur, total, onSubmit) {
           super(app);
           this.cur = cur;
@@ -3647,56 +3659,98 @@ module.exports = class CloudAttachPlugin extends Plugin {
         }
         onOpen() {
           const { contentEl } = this;
-          contentEl.createEl("h4", { text: "\u8DF3\u8F6C\u5230\u9875\u7801" });
+          contentEl.createEl('h4', { text: '跳转到页码' });
           let val = this.cur.toString();
-          new Setting(contentEl).setName(`\u9875\u7801 (1-${this.total})`).addText((text) => {
-            text.setValue(val);
-            text.inputEl.type = "number";
-            text.inputEl.min = "1";
-            text.inputEl.max = this.total.toString();
-            text.onChange((v) => {
-              val = v;
+          new Setting(contentEl)
+            .setName(`页码 (1-${this.total})`)
+            .addText(text => {
+              text.setValue(val);
+              text.inputEl.type = 'number';
+              text.inputEl.min = '1';
+              text.inputEl.max = this.total.toString();
+              text.onChange(v => { val = v; });
             });
-          });
-          new Setting(contentEl).addButton((btn) => btn.setButtonText("\u8DF3\u8F6C").setCta().onClick(() => {
-            const p = parseInt(val);
-            if (!isNaN(p) && p >= 1 && p <= this.total) {
-              this.onSubmit(p);
-              this.close();
-            }
-          }));
+          new Setting(contentEl)
+            .addButton(btn => btn
+              .setButtonText('跳转')
+              .setCta()
+              .onClick(() => {
+                const p = parseInt(val);
+                if (!isNaN(p) && p >= 1 && p <= this.total) {
+                  this.onSubmit(p);
+                  this.close();
+                }
+              }));
         }
-        onClose() {
-          this.contentEl.empty();
-        }
+        onClose() { this.contentEl.empty(); }
       }
       new PageJumpModal(this.app, current, totalPages, (p) => {
-        scrollToPage(p);
+        this._renderPdfPage(container, container.querySelector('canvas'), pdf, p, this._getPdfScale(container));
       }).open();
     };
+    toolbar.appendChild(pageIndicator);
+
+    // 下一页
+    const nextBtn = document.createElement('span');
+    nextBtn.textContent = '▶';
+    nextBtn.style.cursor = 'pointer';
+    nextBtn.dataset.role = 'next';
+    nextBtn.onclick = (e) => {
+      e.stopPropagation();
+      const current = parseInt(container.dataset.currentPage);
+      if (current < totalPages) {
+        const scrollArea = container.querySelector('.cloudattach-pdf-scrollarea');
+        const targetCanvas = scrollArea.querySelectorAll('.cloudattach-pdf-page')[current];
+        if (targetCanvas) {
+          targetCanvas.scrollIntoView({ behavior: 'smooth' });
+        }
+      }
+    };
+    toolbar.appendChild(nextBtn);
+
+    // 分隔符
+    const sep = document.createElement('span');
+    sep.textContent = '|';
+    sep.style.opacity = '0.5';
+    sep.style.margin = '0 2px';
+    toolbar.appendChild(sep);
+
+    // 全屏按钮
+    const fullscreenBtn = document.createElement('span');
+    fullscreenBtn.textContent = '⛶';
+    fullscreenBtn.style.cursor = 'pointer';
+    fullscreenBtn.title = '全屏预览';
+    fullscreenBtn.dataset.role = 'fullscreen';
+    fullscreenBtn.onclick = (e) => {
+      e.stopPropagation();
+      const { Notice } = require('obsidian');
+      new Notice('🔍 全屏预览功能，敬请期待');
+    };
+    toolbar.appendChild(fullscreenBtn);
+
     container.appendChild(toolbar);
-    this._updatePdfToolbar(container, pdf);
   }
 
   // 获取 PDF 缩放比例（从 canvas width 推导）
-
+  _getPdfScale(container) {
+    const canvas = container.querySelector('canvas');
+    if (!canvas) return 1.5;
+    const containerWidth = container.offsetWidth || 600;
+    return containerWidth / (canvas.width / 1.5);
+  }
 
   // 更新工具栏状态
   _updatePdfToolbar(container, pdf) {
-    const toolbar = container.querySelector(".cloudattach-pdf-toolbar");
-    if (!toolbar)
-      return;
+    const toolbar = container.querySelector('.cloudattach-pdf-toolbar');
+    if (!toolbar) return;
     const currentPage = parseInt(container.dataset.currentPage);
     const totalPages = parseInt(container.dataset.totalPages);
     const pageIndicator = toolbar.querySelector('[data-role="pageIndicator"]');
-    if (pageIndicator)
-      pageIndicator.textContent = `${currentPage} / ${totalPages}`;
+    if (pageIndicator) pageIndicator.textContent = `${currentPage} / ${totalPages}`;
     const prevBtn = toolbar.querySelector('[data-role="prev"]');
     const nextBtn = toolbar.querySelector('[data-role="next"]');
-    if (prevBtn)
-      prevBtn.style.visibility = currentPage > 1 ? "visible" : "hidden";
-    if (nextBtn)
-      nextBtn.style.visibility = currentPage < totalPages ? "visible" : "hidden";
+    if (prevBtn) prevBtn.style.opacity = currentPage <= 1 ? '0.3' : '1';
+    if (nextBtn) nextBtn.style.opacity = currentPage >= totalPages ? '0.3' : '1';
   }
 
   _observePdfEmbeds() {

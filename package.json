@@ -8,7 +8,7 @@
     "dev": "esbuild src/main.js --bundle --outfile=main.js --format=cjs --platform=node --external:obsidian --watch"
   },
   "devDependencies": {
-    "esbuild": "^0.20.0"
+    "esbuild": "^0.20.2"
   },
   "dependencies": {
     "pdfjs-dist": "^6.0.227"
