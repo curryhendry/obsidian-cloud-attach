@@ -3507,8 +3507,16 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const canvasW = firstVp.width;   // PDF canvas 原始像素宽
       const canvasH = firstVp.height;  // PDF canvas 原始像素高
       
-      // 在替换前读取 img 的宽度（img 已在 DOM 中，offsetWidth 可靠）
-      const containerW = imgEl.offsetWidth || 800;
+      // 在替换前读取 img 的宽度（多策略获取实际渲染宽度）
+      // 优先用 getBoundingClientRect（最可靠），fallback 到 offsetWidth，再 fallback 到 naturalWidth
+      const imgRect = imgEl.getBoundingClientRect();
+      let containerW = imgRect.width > 10 ? imgRect.width : (imgEl.offsetWidth > 10 ? imgEl.offsetWidth : (imgEl.naturalWidth || 800));
+      // 兜底：如果算出来宽度太小，说明 DOM 读取失败，用默认值 800
+      if (containerW < 100) {
+        containerW = 800;
+        console.log('[CloudAttach] 宽度兜底 → 800px');
+      }
+      console.log('[CloudAttach] img offsetW:', imgEl.offsetWidth, 'rectW:', imgRect.width, 'naturalW:', imgEl.naturalWidth, '→ containerW:', containerW);
       
       // 插入容器到 DOM
       imgEl.replaceWith(container);
