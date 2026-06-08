@@ -1,4 +1,4 @@
-## v0.3.133.dev - 2026-06-08
+## v0.3.134.dev - 2026-06-08
 
 ### 修复
 - **PDF URL query string 支持**：`_isPdfUrl` 用 `\.pdf(\?|#|$)` 检测已支持 query string（之前正确）
