@@ -3206,37 +3206,34 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (widthClassMatch && !imgWidth) {
         imgWidth = widthClassMatch[1] + "px";
       }
+      const firstPage = await pdf.getPage(1);
+      const firstVpRaw = firstPage.getViewport({ scale: 1 });
       const container = document.createElement("div");
       container.className = "cloudattach-pdf-container";
       container.dataset.currentPage = "1";
       container.dataset.totalPages = pdf.numPages.toString();
       container.dataset.pdfUrl = url;
+      container.style.setProperty("width", "100%", "important");
       if (imgWidth) {
-        container.style.width = imgWidth.includes("%") || imgWidth.includes("px") || imgWidth.includes("vw") ? imgWidth : imgWidth + "px";
+        container.style.setProperty("width", imgWidth.includes("%") || imgWidth.includes("px") || imgWidth.includes("vw") ? imgWidth : imgWidth + "px", "important");
       }
       if (imgStyleMaxWidth) container.style.maxWidth = imgStyleMaxWidth;
-      let userHeightStr = "";
-      if (imgHeight && imgHeight !== "auto" && parseInt(imgHeight) > 10) {
-        userHeightStr = imgHeight.includes("%") || imgHeight.includes("px") || imgHeight.includes("vh") ? imgHeight : imgHeight + "px";
-        container.dataset.userHeight = userHeightStr;
-      }
-      const firstPage = await pdf.getPage(1);
-      const firstVpRaw = firstPage.getViewport({ scale: 1 });
-      let targetWidth;
-      if (imgWidth) {
-        targetWidth = parseInt(imgWidth) || firstVpRaw.width;
-      } else {
-        targetWidth = firstVpRaw.width;
-      }
+      imgEl.replaceWith(container);
+      const containerW = container.offsetWidth;
+      console.log("[CloudAttach] container inserted, offsetWidth=" + containerW);
+      const parentEl = container.parentElement;
+      const fallbackW = parentEl ? parentEl.offsetWidth : 0;
+      const finalW = containerW > 50 ? containerW : fallbackW > 50 ? fallbackW : 800;
+      console.log("[CloudAttach] containerW=" + containerW + " fallbackW=" + fallbackW + " \u2192 finalW=" + finalW);
+      const aspectRatio = firstVpRaw.height / firstVpRaw.width;
+      const pageH = finalW * aspectRatio;
+      console.log("[CloudAttach] aspectRatio=" + aspectRatio.toFixed(4) + " pageH=" + Math.round(pageH));
       const FIXED_SCALE = 1.5;
-      const firstVp = firstPage.getViewport({ scale: FIXED_SCALE });
-      const canvasW = firstVp.width;
-      const canvasH = firstVp.height;
-      const containerW = firstVpRaw.width;
-      const displayH = canvasH * (containerW / canvasW);
-      const actualScale = containerW / firstVpRaw.width;
-      console.log("[CloudAttach] \u5BBD\u9AD8\u8BA1\u7B97: canvasW=" + Math.round(canvasW) + " canvasH=" + Math.round(canvasH) + " containerW=" + containerW + " displayH=" + Math.round(displayH) + " scale=" + actualScale.toFixed(3));
+      const actualScale = finalW / firstVpRaw.width * FIXED_SCALE;
       const TOOLBAR_HEIGHT = 28;
+      const containerHeight = Math.round(pageH) + TOOLBAR_HEIGHT;
+      container.style.setProperty("height", containerHeight + "px", "important");
+      console.log("[CloudAttach] set container height=" + containerHeight + "px");
       const scrollArea = document.createElement("div");
       scrollArea.className = "cloudattach-pdf-scrollarea";
       scrollArea.style.setProperty("height", "100%", "important");
