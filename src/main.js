@@ -3466,6 +3466,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (widthClassMatch && !imgWidth) {
         imgWidth = widthClassMatch[1] + "px";
       }
+      // 兼容 ![640](url) 语法：alt 为纯数字时当作宽度
+      const altWidthMatch = imgEl.alt?.match(/^(\d+)$/);
+      if (altWidthMatch && !imgWidth) {
+        imgWidth = altWidthMatch[1] + "px";
+      }
       const container = document.createElement("span");
       container.className = "cloudattach-pdf-container";
       container.dataset.currentPage = "1";
@@ -3760,8 +3765,15 @@ module.exports = class CloudAttachPlugin extends Plugin {
 
   _scanAllPdfImgs() {
     if (this.settings.pdfPreview !== 'pdfjs') return;
-    // 扫描所有 img（包括分屏后的多个面板）
-    document.querySelectorAll('img').forEach(img => {
+    const allImgs = document.querySelectorAll('img');
+    const pdfImgs = Array.from(allImgs).filter(img => this._isPdfUrl(img.getAttribute('src') || ''));
+    console.log('[CloudAttach] _scanAllPdfImgs:', allImgs.length, 'imgs total,', pdfImgs.length, 'pdf imgs');
+    if (pdfImgs.length > 0) {
+      pdfImgs.forEach(img => {
+        console.log('[CloudAttach]  pdf img src:', img.getAttribute('src')?.substring(0, 100), '| class:', img.className, '| alt:', img.alt);
+      });
+    }
+    allImgs.forEach(img => {
       if (img.closest('.cloudattach-pdf-container')) return;
       const src = img.getAttribute('src') || '';
       if (this._isPdfUrl(src)) {

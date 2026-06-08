@@ -1,3 +1,10 @@
+## v0.3.128.dev - 2026-06-08
+
+### 修复
+- **PDF URL query string 支持**：`_isPdfUrl` 用 `\.pdf(\?|#|$)` 检测已支持 query string（之前正确）
+- **增强日志**：`_scanAllPdfImgs` 加日志输出找到的总 img 数、pdf img 数及每个 pdf img 的 src/class/alt，方便排查宽度解析问题
+- **MutationObserver 日志**：加上 src 打印，排查是否有 img 元素被正确拦截
+
 ## v0.3.126.dev - 2026-06-08
 
 ### 修复
