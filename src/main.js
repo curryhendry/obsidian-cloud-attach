@@ -3382,7 +3382,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       .cloud-attach-add-btn:hover { background: var(--background-modifier-hover); }
     
     /* PDF 预览容器 - 双层结构，仿 Obsidian 原生 .pdf-embed */
-    .cloudattach-pdf-container { box-sizing: border-box !important; display: inline-block !important; width: 100% !important; max-width: 100% !important; min-width: 0 !important; border: 1px solid var(--background-modifier-border) !important; border-radius: 8px !important; background: var(--background-secondary) !important; vertical-align: top !important; overflow: hidden !important; position: relative !important; }
+    .cloudattach-pdf-container { box-sizing: border-box !important; display: block !important; width: 100% !important; max-width: 100% !important; min-width: 0 !important; border: 1px solid var(--background-modifier-border) !important; border-radius: 8px !important; background: var(--background-secondary) !important; overflow: hidden !important; position: relative !important; }
     .cloudattach-pdf-container canvas { display: block !important; width: 100% !important; height: auto !important; }
     `;
     const styleEl = document.createElement('style');
@@ -3485,62 +3485,54 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
       if (imgStyleMaxWidth) container.style.maxWidth = imgStyleMaxWidth;
 
-      // 先插入 DOM
+      // 插入 DOM — display:block + width:100% 立即有正确宽度
       imgEl.replaceWith(container);
-      
-      // 等待浏览器完成 layout 后读取宽度（否则 offsetWidth 返回 0）
-      requestAnimationFrame(async () => {
-        try {
-          const containerW = container.offsetWidth;
-          console.log('[CloudAttach] rAF: offsetWidth=' + containerW);
-          
-          // 兜底：如果还是 0，用父元素宽度
-          const parentEl = container.parentElement;
-          const fallbackW = parentEl ? parentEl.offsetWidth : 0;
-          const finalW = containerW > 50 ? containerW : (fallbackW > 50 ? fallbackW : 800);
-          console.log('[CloudAttach] containerW=' + containerW + ' fallbackW=' + fallbackW + ' → finalW=' + finalW);
 
-          // PDF 宽高比
-          const aspectRatio = firstVpRaw.height / firstVpRaw.width;
-          const pageH = finalW * aspectRatio;
-          console.log('[CloudAttach] aspectRatio=' + aspectRatio.toFixed(4) + ' pageH=' + Math.round(pageH));
+      // 读取实际容器宽度（block 元素插入后立即可读）
+      const containerW = container.offsetWidth;
+      const parentEl = container.parentElement;
+      const fallbackW = parentEl ? parentEl.offsetWidth : 0;
+      const finalW = containerW > 50 ? containerW : (fallbackW > 50 ? fallbackW : 800);
+      console.log('[CloudAttach] containerW=' + containerW + ' fallbackW=' + fallbackW + ' → finalW=' + finalW);
 
-          const FIXED_SCALE = 1.5;
-          const actualScale = (finalW / firstVpRaw.width) * FIXED_SCALE;
+      // PDF 宽高比
+      const aspectRatio = firstVpRaw.height / firstVpRaw.width;
+      const pageH = finalW * aspectRatio;
+      console.log('[CloudAttach] aspectRatio=' + aspectRatio.toFixed(4) + ' pageH=' + Math.round(pageH));
 
-          const TOOLBAR_HEIGHT = 28;
-          const containerHeight = Math.round(pageH) + TOOLBAR_HEIGHT;
-          container.style.setProperty('height', containerHeight + 'px', 'important');
-          console.log('[CloudAttach] set container height=' + containerHeight + 'px');
+      // 渲染 scale：让 canvas 内部分辨率匹配显示尺寸（2x for retina）
+      const RENDER_SCALE = window.devicePixelRatio || 1;
+      const actualScale = (finalW / firstVpRaw.width) * RENDER_SCALE;
 
-          const scrollArea = document.createElement('div');
-          scrollArea.className = 'cloudattach-pdf-scrollarea';
-          scrollArea.style.setProperty('height', '100%', 'important');
-          scrollArea.style.setProperty('overflow-y', 'auto', 'important');
-          scrollArea.style.setProperty('padding-bottom', TOOLBAR_HEIGHT + 'px', 'important');
-          container.appendChild(scrollArea);
+      const TOOLBAR_HEIGHT = 28;
+      const containerHeight = Math.round(pageH) + TOOLBAR_HEIGHT;
+      container.style.setProperty('height', containerHeight + 'px', 'important');
+      console.log('[CloudAttach] set container height=' + containerHeight + 'px');
 
-          for (let i = 1; i <= pdf.numPages; i++) {
-            const canvas = document.createElement('canvas');
-            canvas.className = 'cloudattach-pdf-page';
-            canvas.dataset.pageNum = String(i);
-            canvas.style.setProperty('display', 'block', 'important');
-            canvas.style.setProperty('width', '100%', 'important');
-            canvas.style.setProperty('max-width', '100%', 'important');
-            scrollArea.appendChild(canvas);
-            await this._renderPdfPage(canvas, pdf, i, actualScale);
-            console.log('[CloudAttach] page', i, '/', pdf.numPages, 'cw:', canvas.width, 'ch:', canvas.height);
-          }
-          console.log('[CloudAttach] ALL DONE, children:', container.children.length);
+      const scrollArea = document.createElement('div');
+      scrollArea.className = 'cloudattach-pdf-scrollarea';
+      scrollArea.style.setProperty('height', '100%', 'important');
+      scrollArea.style.setProperty('overflow-y', 'auto', 'important');
+      scrollArea.style.setProperty('padding-bottom', TOOLBAR_HEIGHT + 'px', 'important');
+      container.appendChild(scrollArea);
 
-          this._initPdfToolbar(container, pdf);
-          this._bindPdfScroll(container, pdf);
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const canvas = document.createElement('canvas');
+        canvas.className = 'cloudattach-pdf-page';
+        canvas.dataset.pageNum = String(i);
+        canvas.style.setProperty('display', 'block', 'important');
+        canvas.style.setProperty('width', '100%', 'important');
+        canvas.style.setProperty('max-width', '100%', 'important');
+        scrollArea.appendChild(canvas);
+        await this._renderPdfPage(canvas, pdf, i, actualScale);
+        console.log('[CloudAttach] page', i, '/', pdf.numPages, 'cw:', canvas.width, 'ch:', canvas.height);
+      }
+      console.log('[CloudAttach] ALL DONE, children:', container.children.length);
 
-          console.log('[CloudAttach] PDF container built, height:' + containerHeight + 'px width:dynamic');
-        } catch (e) {
-          console.error('[CloudAttach] PDF render failed (in rAF):', e);
-        }
-      });
+      this._initPdfToolbar(container, pdf);
+      this._bindPdfScroll(container, pdf);
+
+      console.log('[CloudAttach] PDF container built, height:' + containerHeight + 'px width:' + finalW + 'px');
     } catch (e) {
       console.error('[CloudAttach] PDF render failed:', e);
     }
