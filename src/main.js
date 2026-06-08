@@ -3488,45 +3488,32 @@ module.exports = class CloudAttachPlugin extends Plugin {
       // 插入 DOM
       imgEl.replaceWith(container);
 
-      // 用 ResizeObserver 等浏览器完成 layout 后读取真实宽度
-      const finalW = await new Promise((resolve) => {
-        // 先试一次同步读
-        const syncW = container.offsetWidth;
-        console.log('[CloudAttach] ro syncW=' + syncW);
-        if (syncW > 10) { resolve(syncW); return; }
-
-        let done = false;
-        const ro = new ResizeObserver((entries) => {
-          const w = container.offsetWidth;
-          console.log('[CloudAttach] ro callback: offsetWidth=' + w + ' entries=' + entries.length);
-          if (w > 10 && !done) {
-            done = true;
-            ro.disconnect();
-            resolve(w);
+      // 获取 Obsidian 阅读视图的实际宽度（彻底放弃 offsetWidth 读取）
+      let finalW = 800;
+      try {
+        // 方法1：DOM 查询 .markdown-reading-view（阅读视图模式）
+        const readingView = document.querySelector('.markdown-reading-view');
+        if (readingView && readingView.offsetWidth > 10) {
+          finalW = readingView.offsetWidth;
+          console.log('[CloudAttach] width from .markdown-reading-view:' + finalW);
+        }
+        // 方法2：DOM 查询 .markdown-source-view .cm-scroller（实时预览模式）
+        if (finalW === 800) {
+          const sourceView = document.querySelector('.markdown-source-view .cm-scroller');
+          if (sourceView && sourceView.offsetWidth > 10) {
+            finalW = sourceView.offsetWidth;
+            console.log('[CloudAttach] width from .cm-scroller:' + finalW);
           }
-        });
-        ro.observe(container);
-
-        // 兜底：1500ms 后继续
-        setTimeout(() => {
-          if (done) return;
-          done = true;
-          ro.disconnect();
-          const w = container.offsetWidth;
-          const pw = container.parentElement ? container.parentElement.offsetWidth : 0;
-          const fallback = w > 10 ? w : (pw > 10 ? pw : 800);
-          console.log('[CloudAttach] ro TIMEOUT: offsetWidth=' + w + ' parentW=' + pw + ' fallback=' + fallback);
-          resolve(fallback);
-        }, 1500);
-      });
-      // 调试：打印父元素链
-      const parent = container.parentElement;
-      let parentInfo = 'null';
-      if (parent) {
-        const grandParent = parent.parentElement;
-        parentInfo = 'tag=' + parent.tagName + ' cls=' + (parent.className || '') + ' offsetW=' + parent.offsetWidth + ' | gp.tag=' + (grandParent ? grandParent.tagName : 'null') + ' gp.offsetW=' + (grandParent ? grandParent.offsetWidth : 'null');
+        }
+        // 方法3：用 window.innerWidth 估算
+        if (finalW === 800) {
+          finalW = Math.round(window.innerWidth * 0.75);
+          console.log('[CloudAttach] width from window.innerWidth*0.75:' + finalW);
+        }
+      } catch(e) {
+        console.error('[CloudAttach] get view width failed:', e);
       }
-      console.log('[CloudAttach] finalW=' + finalW + ' | ' + parentInfo);
+      console.log('[CloudAttach] finalW=' + finalW);
 
       // PDF 宽高比
       const aspectRatio = firstVpRaw.height / firstVpRaw.width;

@@ -3218,42 +3218,28 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
       if (imgStyleMaxWidth) container.style.maxWidth = imgStyleMaxWidth;
       imgEl.replaceWith(container);
-      const finalW = await new Promise((resolve) => {
-        const syncW = container.offsetWidth;
-        console.log("[CloudAttach] ro syncW=" + syncW);
-        if (syncW > 10) {
-          resolve(syncW);
-          return;
+      let finalW = 800;
+      try {
+        const readingView = document.querySelector(".markdown-reading-view");
+        if (readingView && readingView.offsetWidth > 10) {
+          finalW = readingView.offsetWidth;
+          console.log("[CloudAttach] width from .markdown-reading-view:" + finalW);
         }
-        let done = false;
-        const ro = new ResizeObserver((entries) => {
-          const w = container.offsetWidth;
-          console.log("[CloudAttach] ro callback: offsetWidth=" + w + " entries=" + entries.length);
-          if (w > 10 && !done) {
-            done = true;
-            ro.disconnect();
-            resolve(w);
+        if (finalW === 800) {
+          const sourceView = document.querySelector(".markdown-source-view .cm-scroller");
+          if (sourceView && sourceView.offsetWidth > 10) {
+            finalW = sourceView.offsetWidth;
+            console.log("[CloudAttach] width from .cm-scroller:" + finalW);
           }
-        });
-        ro.observe(container);
-        setTimeout(() => {
-          if (done) return;
-          done = true;
-          ro.disconnect();
-          const w = container.offsetWidth;
-          const pw = container.parentElement ? container.parentElement.offsetWidth : 0;
-          const fallback = w > 10 ? w : pw > 10 ? pw : 800;
-          console.log("[CloudAttach] ro TIMEOUT: offsetWidth=" + w + " parentW=" + pw + " fallback=" + fallback);
-          resolve(fallback);
-        }, 1500);
-      });
-      const parent = container.parentElement;
-      let parentInfo = "null";
-      if (parent) {
-        const grandParent = parent.parentElement;
-        parentInfo = "tag=" + parent.tagName + " cls=" + (parent.className || "") + " offsetW=" + parent.offsetWidth + " | gp.tag=" + (grandParent ? grandParent.tagName : "null") + " gp.offsetW=" + (grandParent ? grandParent.offsetWidth : "null");
+        }
+        if (finalW === 800) {
+          finalW = Math.round(window.innerWidth * 0.75);
+          console.log("[CloudAttach] width from window.innerWidth*0.75:" + finalW);
+        }
+      } catch (e) {
+        console.error("[CloudAttach] get view width failed:", e);
       }
-      console.log("[CloudAttach] finalW=" + finalW + " | " + parentInfo);
+      console.log("[CloudAttach] finalW=" + finalW);
       const aspectRatio = firstVpRaw.height / firstVpRaw.width;
       const pageH = finalW * aspectRatio;
       console.log("[CloudAttach] aspectRatio=" + aspectRatio.toFixed(4) + " pageH=" + Math.round(pageH));
