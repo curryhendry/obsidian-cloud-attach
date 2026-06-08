@@ -3769,8 +3769,15 @@ module.exports = class CloudAttachPlugin extends Plugin {
   _observePopoutWindows() {
     const checkPopouts = () => {
       try {
-        if (typeof this.app.workspace.iterateAllLeaves !== 'function') return;
-        this.app.workspace.iterateAllLeaves((leaf) => {
+        const workspace = this.app.workspace;
+        const root = workspace.getRoot();
+        const allLeaves = [];
+        const collect = (node) => {
+          if (node.leaf) allLeaves.push(node.leaf);
+          if (node.children) node.children.forEach(collect);
+        };
+        root.children.forEach(collect);
+        allLeaves.forEach((leaf) => {
           const doc = leaf.containerEl?.ownerDocument;
           if (doc && doc !== document) {
             if (!this._popoutDocs) this._popoutDocs = new Set();
