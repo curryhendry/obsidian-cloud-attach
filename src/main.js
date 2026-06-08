@@ -3769,8 +3769,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
   _observePopoutWindows() {
     const checkPopouts = () => {
       try {
-        const allLeaves = this.app.workspace.iterateAllLeaves();
-        allLeaves.forEach(leaf => {
+        if (typeof this.app.workspace.iterateAllLeaves !== 'function') return;
+        this.app.workspace.iterateAllLeaves((leaf) => {
           const doc = leaf.containerEl?.ownerDocument;
           if (doc && doc !== document) {
             if (!this._popoutDocs) this._popoutDocs = new Set();
@@ -3794,8 +3794,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
                 });
               });
               popoutObserver.observe(doc.body, { childList: true, subtree: true });
-              setTimeout(() => this._scanAllPdfImgs(), 300);
-              setTimeout(() => this._scanAllPdfImgs(), 1000);
+              setTimeout(() => this._scanAllPdfImgs(doc), 300);
+              setTimeout(() => this._scanAllPdfImgs(doc), 1000);
             }
           }
         });
@@ -3807,9 +3807,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
     this._popoutInterval = setInterval(checkPopouts, 2000);
   }
 
-  _scanAllPdfImgs() {
+  _scanAllPdfImgs(doc) {
     if (this.settings.pdfPreview !== 'pdfjs') return;
-    const allImgs = document.querySelectorAll('img');
+    const d = doc || document;
+    const allImgs = d.querySelectorAll('img');
     const pdfImgs = Array.from(allImgs).filter(img => this._isPdfUrl(img.getAttribute('src') || ''));
     console.log('[CloudAttach] _scanAllPdfImgs:', allImgs.length, 'imgs total,', pdfImgs.length, 'pdf imgs');
     if (pdfImgs.length > 0) {
