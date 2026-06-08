@@ -3403,17 +3403,23 @@ module.exports = class CloudAttachPlugin extends Plugin {
   // ============================================================
   async _loadPdfJs() {
     if (window.pdfjsLib) return window.pdfjsLib;
-    // 构造插件目录的 vault 相对路径
-    const configDir = this.app.vault.configDir || '.obsidian';
-    const pluginRelPath = configDir + '/plugins/cloud-attach';
-    const pdfJsRel = pluginRelPath + '/libs/pdfjs/pdf.min.js';
-    const workerRel = pluginRelPath + '/libs/pdfjs/pdf.worker.min.js';
-    // 用 adapter.read() 读取插件目录下的 JS 文件（vault 相对路径）
-    const text = await this.app.vault.adapter.read(pdfJsRel);
+    // 构造插件目录的绝对路径
+    let pluginDir = (this.app.vault.configDir || '.obsidian') + '/plugins/cloud-attach';
+    if (pluginDir[0] !== '/' && !pluginDir.match(/^[a-zA-Z]:[\\/]/)) {
+      pluginDir = (this.app.vault.adapter?.basePath || process.cwd()) + '/' + pluginDir;
+    }
+    const pdfJsAbs = pluginDir + '/libs/pdfjs/pdf.min.js';
+    const workerAbs = pluginDir + '/libs/pdfjs/pdf.worker.min.js';
+    // 用 requestUrl 读本地文件（Obsidian 内置 API）
+    const { requestUrl } = require('obsidian');
+    const r = await requestUrl('file://' + pdfJsAbs.replace(/\\/g, '/'));
+    const text = r.text || '';
     const fn = new Function(text + '\nreturn pdfjsLib;');
     window.pdfjsLib = fn();
-    // workerSrc 用 vault 相对路径（PDF.js 会用 fetch 读这个路径）
-    window.pdfjsLib.GlobalWorkerOptions.workerSrc = workerRel;
+    // worker 用 blob URL（避免路径问题）
+    const r2 = await requestUrl('file://' + workerAbs.replace(/\\/g, '/'));
+    const workerBlob = new Blob([r2.text || ''], { type: 'application/javascript' });
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(workerBlob);
     return window.pdfjsLib;
   }
 
