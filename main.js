@@ -3237,13 +3237,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const actualScale = containerW / firstVpRaw.width;
       console.log("[CloudAttach] \u5BBD\u9AD8\u8BA1\u7B97: canvasW=" + Math.round(canvasW) + " canvasH=" + Math.round(canvasH) + " containerW=" + containerW + " displayH=" + Math.round(displayH) + " scale=" + actualScale.toFixed(3));
       const TOOLBAR_HEIGHT = 28;
-      let finalContainerHeight;
-      if (userHeightStr) {
-        finalContainerHeight = userHeightStr;
-      } else {
-        finalContainerHeight = Math.round(displayH) + "px";
-      }
-      container.style.setProperty("height", finalContainerHeight, "important");
       const scrollArea = document.createElement("div");
       scrollArea.className = "cloudattach-pdf-scrollarea";
       scrollArea.style.setProperty("height", "100%", "important");
