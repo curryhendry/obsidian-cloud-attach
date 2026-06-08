@@ -3294,6 +3294,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       container.style.setProperty("display", "block", "important");
       container.style.setProperty("overflow", "hidden", "important");
       container.style.setProperty("opacity", "0", "important");
+      container.addEventListener("contextmenu", (e) => e.preventDefault());
       const scrollArea = document.createElement("div");
       scrollArea.className = "cloudattach-pdf-scrollarea";
       scrollArea.style.overflowY = "auto";
@@ -3550,6 +3551,52 @@ module.exports = class CloudAttachPlugin extends Plugin {
     };
     this.registerEvent(this.app.workspace.on("active-leaf-change", rescanPdfImgs));
     this.registerEvent(this.app.workspace.on("layout-change", rescanPdfImgs));
+    this._observePopoutWindows();
+  }
+  _observePopoutWindows() {
+    const checkPopouts = () => {
+      try {
+        const allLeaves = this.app.workspace.iterateAllLeaves();
+        allLeaves.forEach((leaf) => {
+          const doc = leaf.containerEl?.ownerDocument;
+          if (doc && doc !== document) {
+            if (!this._popoutDocs)
+              this._popoutDocs = /* @__PURE__ */ new Set();
+            if (!this._popoutDocs.has(doc)) {
+              this._popoutDocs.add(doc);
+              console.log("[CloudAttach] \u53D1\u73B0 popout window\uFF0C\u6CE8\u518C PDF observer");
+              const popoutObserver = new MutationObserver((mutations) => {
+                if (this.settings.pdfPreview !== "pdfjs")
+                  return;
+                mutations.forEach((m) => {
+                  m.addedNodes.forEach((n) => {
+                    if (n.nodeType !== 1)
+                      return;
+                    const imgs = n.tagName === "IMG" ? [n] : Array.from(n.querySelectorAll("img"));
+                    imgs.forEach((img) => {
+                      if (img.closest(".cloudattach-pdf-container"))
+                        return;
+                      const src = img.getAttribute("src") || "";
+                      if (this._isPdfUrl(src)) {
+                        console.log("[CloudAttach] Popout MO caught pdf:", src.substring(0, 80));
+                        this._renderPdfAsCanvas(img, src);
+                      }
+                    });
+                  });
+                });
+              });
+              popoutObserver.observe(doc.body, { childList: true, subtree: true });
+              setTimeout(() => this._scanAllPdfImgs(), 300);
+              setTimeout(() => this._scanAllPdfImgs(), 1e3);
+            }
+          }
+        });
+      } catch (e) {
+        console.warn("[CloudAttach] _observePopoutWindows error:", e);
+      }
+    };
+    this.registerEvent(this.app.workspace.on("layout-change", checkPopouts));
+    this._popoutInterval = setInterval(checkPopouts, 2e3);
   }
   _scanAllPdfImgs() {
     if (this.settings.pdfPreview !== "pdfjs")

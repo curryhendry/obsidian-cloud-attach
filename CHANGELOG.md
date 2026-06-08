@@ -1,4 +1,4 @@
-## v0.3.130.dev - 2026-06-08
+## v0.3.132.dev - 2026-06-08
 
 ### 调试
 - **Notice 弹窗调试**：`_observePdfEmbeds` 启动时弹窗、`_scanAllPdfImgs` 扫描结果弹窗（找到/未找到 PDF img）

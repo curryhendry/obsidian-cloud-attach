@@ -3491,6 +3491,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
       container.style.setProperty("display", "block", "important");
       container.style.setProperty("overflow", "hidden", "important");
       container.style.setProperty("opacity", "0", "important");
+
+      // 阻止 PDF canvas 的默认右键菜单（复制图片等），不影响普通图片
+      container.addEventListener('contextmenu', (e) => e.preventDefault());
+
       const scrollArea = document.createElement("div");
       scrollArea.className = "cloudattach-pdf-scrollarea";
       scrollArea.style.overflowY = "auto";
@@ -3764,6 +3768,58 @@ module.exports = class CloudAttachPlugin extends Plugin {
     };
     this.registerEvent(this.app.workspace.on('active-leaf-change', rescanPdfImgs));
     this.registerEvent(this.app.workspace.on('layout-change', rescanPdfImgs));
+
+    // 新窗口（popout window）支持：遍历所有 workspace leaves，
+    // 对不在主 document.body 下的 leaf 容器也注册 MutationObserver
+    this._observePopoutWindows();
+  }
+
+  _observePopoutWindows() {
+    // 定期检查是否有新的 popout window 出现
+    const checkPopouts = () => {
+      try {
+        const allLeaves = this.app.workspace.iterateAllLeaves();
+        allLeaves.forEach(leaf => {
+          const doc = leaf.containerEl?.ownerDocument;
+          if (doc && doc !== document) {
+            // 这是一个 popout window 的 document
+            if (!this._popoutDocs) this._popoutDocs = new Set();
+            if (!this._popoutDocs.has(doc)) {
+              this._popoutDocs.add(doc);
+              console.log('[CloudAttach] 发现 popout window，注册 PDF observer');
+              // 对 popout document 也注册相同的 MutationObserver
+              const popoutObserver = new MutationObserver((mutations) => {
+                if (this.settings.pdfPreview !== 'pdfjs') return;
+                mutations.forEach(m => {
+                  m.addedNodes.forEach(n => {
+                    if (n.nodeType !== 1) return;
+                    const imgs = n.tagName === 'IMG' ? [n] : Array.from(n.querySelectorAll('img'));
+                    imgs.forEach(img => {
+                      if (img.closest('.cloudattach-pdf-container')) return;
+                      const src = img.getAttribute('src') || '';
+                      if (this._isPdfUrl(src)) {
+                        console.log('[CloudAttach] Popout MO caught pdf:', src.substring(0, 80));
+                        this._renderPdfAsCanvas(img, src);
+                      }
+                    });
+                  });
+                });
+              });
+              popoutObserver.observe(doc.body, { childList: true, subtree: true });
+              // 立即扫描一次
+              setTimeout(() => this._scanAllPdfImgs(), 300);
+              setTimeout(() => this._scanAllPdfImgs(), 1000);
+            }
+          }
+        });
+      } catch(e) {
+        console.warn('[CloudAttach] _observePopoutWindows error:', e);
+      }
+    };
+
+    // layout-change 时检查 + 定期轮询（兜底）
+    this.registerEvent(this.app.workspace.on('layout-change', checkPopouts));
+    this._popoutInterval = setInterval(checkPopouts, 2000);
   }
 
   _scanAllPdfImgs() {
