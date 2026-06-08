@@ -3507,13 +3507,15 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const canvasW = firstVp.width;   // PDF canvas 原始像素宽
       const canvasH = firstVp.height;  // PDF canvas 原始像素高
       
-      // 获取容器宽度：多策略fallback，imgEl是PDF占位符，naturalWidth可能为0
-      // 优先 getBoundingClientRect > offsetWidth > naturalWidth > PDF原始宽度
-      const imgRect = imgEl.getBoundingClientRect();
-      let containerW = imgRect.width > 10 ? imgRect.width
-        : (imgEl.offsetWidth > 10 ? imgEl.offsetWidth
-        : (imgEl.naturalWidth > 10 ? imgEl.naturalWidth : firstVpRaw.width));
-      console.log('[CloudAttach] img rectW:', imgRect.width, 'offsetW:', imgEl.offsetWidth, 'naturalW:', imgEl.naturalWidth, 'pdfW:', firstVpRaw.width, '→ containerW:', containerW);
+      // 获取笔记编辑区域的宽度（不是 img 的宽度——img 是 PDF 占位符，只有 2px）
+      // container 替换 img 后在 DOM 中，但此时还没 layout，直接读 offsetWidth 不可靠
+      // 所以先 replaceWith，再用 requestAnimationFrame 或直接读父元素的宽度
+      imgEl.replaceWith(container);
+      
+      // 读父元素宽度（Obsidian 编辑区域）作为参考
+      const parentEl = container.parentElement;
+      const containerW = parentEl ? (parentEl.offsetWidth || parentEl.getBoundingClientRect().width || 800) : 800;
+      console.log('[CloudAttach] 编辑区域宽度: parent offsetW:', parentEl ? parentEl.offsetWidth : 'null', 'rectW:', parentEl ? parentEl.getBoundingClientRect().width : 'null', '→ containerW:', containerW);
       
       // 插入容器到 DOM
       imgEl.replaceWith(container);
