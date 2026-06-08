@@ -28,6 +28,8 @@
 - ⬆️ **Upload Attachments** — Upload local attachments to the server and update references, saving local space
 - 🔗 **Signed URLs** — Auto-generate URLs with sign tokens
 - 🖼️ **Media Preview** — Image preview, video/audio playback, document iframe preview
+- 📄 **PDF.js Preview** — Choose PDF.js as preview tool in Advanced Settings; auto-downloads and applies; PDFs inserted via `![]()` syntax render inline like images
+- ⚙️ **Advanced Settings** — Configure preview methods for PDF and other formats; more formats (e.g., Office preview) planned
 - 👤 **Multi-Account** — Manage multiple WebDAV/S3 accounts simultaneously
 
 *Note: Object storage may not support iframe preview due to provider restrictions. A workaround is to mount object storage via OpenList and use its iframe preview.*
@@ -87,6 +89,8 @@ Add accounts in plugin settings:
 - [x] Command palette support (Cmd/Ctrl+P)
 - [x] Publish to Obsidian Community Plugins
 - [x] File rename and delete support
+- [ ] PDF fullscreen view and more interactions
+- [ ] Other file format support (e.g., Office preview, TBD)
 
 ---
 
