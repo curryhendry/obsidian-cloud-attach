@@ -3507,17 +3507,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const canvasW = firstVp.width;   // PDF canvas 原始像素宽
       const canvasH = firstVp.height;  // PDF canvas 原始像素高
       
-      // 将 container 插入 DOM
-      imgEl.replaceWith(container);
-      
-      // 等浏览器 layout 完成后再读取宽度
-      // 用 requestAnimationFrame 确保 layout 已完成
-      const layoutReady = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-      await layoutReady();
-      
-      // 现在可以读到正确的宽度了
-      const containerW = container.offsetWidth || container.getBoundingClientRect().width || 800;
-      console.log('[CloudAttach] container offsetW:', container.offsetWidth, 'rectW:', container.getBoundingClientRect().width, '→ containerW:', containerW);
+      // container 有 CSS width: 100%，会填满父元素（Obsidian 编辑区域）
+      // 估算一个典型宽度，PDF.js 会按比例缩放，视觉上正确
+      // 注意：此处不依赖 DOM 读取，用 PDF 原始宽高比估算
+      const containerW = firstVpRaw.width; // 2880（PDF 原始宽），比例正确即可
       
       // 数学计算显示高度：canvasH × (containerW / canvasW)
       // 原理：PDF 是矢量，canvasH/canvasW 是宽高比，容器宽 × 宽高比 = 等比例高度
