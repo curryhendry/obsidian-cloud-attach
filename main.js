@@ -3232,6 +3232,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const canvasW = firstVp.width;
       const canvasH = firstVp.height;
       imgEl.replaceWith(container);
+      const layoutReady = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      await layoutReady();
       const containerW = container.offsetWidth || container.getBoundingClientRect().width || 800;
       console.log("[CloudAttach] container offsetW:", container.offsetWidth, "rectW:", container.getBoundingClientRect().width, "\u2192 containerW:", containerW);
       const displayH = canvasH * (containerW / canvasW);
