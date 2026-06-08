@@ -3220,6 +3220,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       imgEl.replaceWith(container);
       const finalW = await new Promise((resolve) => {
         const syncW = container.offsetWidth;
+        console.log("[CloudAttach] ro syncW=" + syncW);
         if (syncW > 10) {
           resolve(syncW);
           return;
@@ -3227,6 +3228,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         let done = false;
         const ro = new ResizeObserver((entries) => {
           const w = container.offsetWidth;
+          console.log("[CloudAttach] ro callback: offsetWidth=" + w + " entries=" + entries.length);
           if (w > 10 && !done) {
             done = true;
             ro.disconnect();
@@ -3240,10 +3242,18 @@ module.exports = class CloudAttachPlugin extends Plugin {
           ro.disconnect();
           const w = container.offsetWidth;
           const pw = container.parentElement ? container.parentElement.offsetWidth : 0;
-          resolve(w > 10 ? w : pw > 10 ? pw : 800);
-        }, 1e3);
+          const fallback = w > 10 ? w : pw > 10 ? pw : 800;
+          console.log("[CloudAttach] ro TIMEOUT: offsetWidth=" + w + " parentW=" + pw + " fallback=" + fallback);
+          resolve(fallback);
+        }, 1500);
       });
-      console.log("[CloudAttach] finalW=" + finalW);
+      const parent = container.parentElement;
+      let parentInfo = "null";
+      if (parent) {
+        const grandParent = parent.parentElement;
+        parentInfo = "tag=" + parent.tagName + " cls=" + (parent.className || "") + " offsetW=" + parent.offsetWidth + " | gp.tag=" + (grandParent ? grandParent.tagName : "null") + " gp.offsetW=" + (grandParent ? grandParent.offsetWidth : "null");
+      }
+      console.log("[CloudAttach] finalW=" + finalW + " | " + parentInfo);
       const aspectRatio = firstVpRaw.height / firstVpRaw.width;
       const pageH = finalW * aspectRatio;
       console.log("[CloudAttach] aspectRatio=" + aspectRatio.toFixed(4) + " pageH=" + Math.round(pageH));
