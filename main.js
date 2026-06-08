@@ -3193,6 +3193,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const pdf = await loadingTask.promise;
       let imgWidth = imgEl.getAttribute("width") || imgEl.style.width || "";
       let imgHeight = imgEl.getAttribute("height") || imgEl.style.height || "";
+      console.log("[CloudAttach] imgEl attributes - width:" + imgEl.getAttribute("width") + " height:" + imgEl.getAttribute("height") + " style.width:" + imgEl.style.width + " style.height:" + imgEl.style.height + " \u2192 imgWidth:" + imgWidth + " imgHeight:" + imgHeight);
       let imgStyleMaxWidth = imgEl.style.maxWidth;
       const parentSpan = imgEl.parentElement;
       if (parentSpan && parentSpan.tagName === "SPAN") {
@@ -3215,7 +3216,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
       if (imgStyleMaxWidth) container.style.maxWidth = imgStyleMaxWidth;
       let userHeightStr = "";
-      if (imgHeight && imgHeight !== "auto") {
+      if (imgHeight && imgHeight !== "auto" && parseInt(imgHeight) > 10) {
         userHeightStr = imgHeight.includes("%") || imgHeight.includes("px") || imgHeight.includes("vh") ? imgHeight : imgHeight + "px";
         container.dataset.userHeight = userHeightStr;
       }

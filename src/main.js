@@ -3449,6 +3449,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       // 读取原始 img 的尺寸属性（支持 Obsidian 多种尺寸语法）
       let imgWidth = imgEl.getAttribute('width') || imgEl.style.width || '';
       let imgHeight = imgEl.getAttribute('height') || imgEl.style.height || '';
+      console.log('[CloudAttach] imgEl attributes - width:' + imgEl.getAttribute('width') + ' height:' + imgEl.getAttribute('height') + ' style.width:' + imgEl.style.width + ' style.height:' + imgEl.style.height + ' → imgWidth:' + imgWidth + ' imgHeight:' + imgHeight);
       let imgStyleMaxWidth = imgEl.style.maxWidth;
 
       // 检查 parent span（Obsidian 偶尔把尺寸放在 parent 上）
@@ -3479,9 +3480,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
       if (imgStyleMaxWidth) container.style.maxWidth = imgStyleMaxWidth;
 
-      // 记录用户指定的高度
+      // 记录用户指定的高度（但忽略明显错误的极小值）
       let userHeightStr = '';
-      if (imgHeight && imgHeight !== 'auto') {
+      if (imgHeight && imgHeight !== 'auto' && parseInt(imgHeight) > 10) {
         userHeightStr = imgHeight.includes('%') || imgHeight.includes('px') || imgHeight.includes('vh') ? imgHeight : imgHeight + 'px';
         container.dataset.userHeight = userHeightStr;
       }
