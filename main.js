@@ -3306,14 +3306,27 @@ module.exports = class CloudAttachPlugin extends Plugin {
       firstCanvas.dataset.pageNum = "1";
       scrollArea.appendChild(firstCanvas);
       await this._renderPdfPage(firstCanvas, pdf, 1, FIXED_SCALE);
+      const containerW = container.clientWidth || 800;
+      const displayH = canvasH * (containerW / canvasW);
+      console.log("[CloudAttach] canvas WxH:", canvasW, "x", canvasH, "containerW:", containerW, "displayH:", displayH);
+      let finalContainerHeight;
       if (userHeightStr) {
-        container.style.setProperty("height", userHeightStr, "important");
-        scrollArea.style.setProperty("height", "100%", "important");
-        scrollArea.style.setProperty("padding-bottom", TOOLBAR_HEIGHT + "px", "important");
+        finalContainerHeight = userHeightStr;
       } else {
-        scrollArea.style.setProperty("padding-bottom", TOOLBAR_HEIGHT + "px", "important");
+        finalContainerHeight = Math.round(displayH) + "px";
       }
+      container.style.setProperty("height", finalContainerHeight, "important");
+      scrollArea.style.setProperty("height", "100%", "important");
+      scrollArea.style.setProperty("padding-bottom", TOOLBAR_HEIGHT + "px", "important");
       container.style.setProperty("opacity", "1", "important");
+      const resizeObserver = new ResizeObserver(() => {
+        const newW = container.clientWidth || 800;
+        const newH = Math.round(canvasH * (newW / canvasW));
+        if (!userHeightStr) {
+          container.style.setProperty("height", newH + "px", "important");
+        }
+      });
+      resizeObserver.observe(container);
       this._initPdfToolbar(container, pdf);
       for (let i = 2; i <= pdf.numPages; i++) {
         const canvas = document.createElement("canvas");
