@@ -2858,7 +2858,7 @@ var AdvancedSettingModal = class extends Modal {
     super(app);
     this.plugin = plugin;
   }
-  onOpen() {
+  async onOpen() {
     const { contentEl } = this;
     contentEl.innerHTML = "";
     contentEl.style.padding = "24px";
@@ -2939,8 +2939,7 @@ var AdvancedSettingModal = class extends Modal {
       }
       return cd + "/plugins/cloud-attach/libs/pdfjs/";
     })();
-    const fs = require("fs");
-    const hasPdfjs = fs.existsSync(pdfjsPath + "pdf.js");
+    const hasPdfjs = await this.app.vault.adapter.exists(pdfjsPath + "pdf.min.mjs");
     pdfjsOpt.createEl("label", { text: hasPdfjs ? "PDF.js" + (t("settings.pdfjs_installed") || "") : "PDF.js" + (t("settings.pdfjs_auto_install") || "") });
     if (hasPdfjs) {
       const delBtn = pdfjsOpt.createEl("button", { text: t("settings.pdfjs_uninstall") || "\u5378\u8F7D" });
@@ -3015,8 +3014,7 @@ var AdvancedSettingModal = class extends Modal {
         }
         return cd + "/plugins/cloud-attach/libs/pdfjs/";
       })();
-      const fs2 = require("fs");
-      if (this.plugin.settings.pdfPreview === "pdfjs" && !fs2.existsSync(pdfjsPath2 + "pdf.js")) {
+      if (this.plugin.settings.pdfPreview === "pdfjs" && !await this.app.vault.adapter.exists(pdfjsPath2 + "pdf.min.mjs")) {
         new Notice(t("settings.pdfjs_installing"));
         try {
           await this.downloadPdfjs(pdfjsPath2);
@@ -3034,28 +3032,27 @@ var AdvancedSettingModal = class extends Modal {
     cancelBtn.onclick = () => this.close();
   }
   async downloadPdfjs(destDir) {
-    const fs = require("fs");
-    const path = require("path");
     const destDirNorm = destDir.replace(/\/$/, "");
-    if (!fs.existsSync(destDirNorm)) {
+    if (!await this.app.vault.adapter.exists(destDirNorm)) {
       try {
-        fs.mkdirSync(destDirNorm, { recursive: true });
+        await this.app.vault.adapter.mkdir(destDirNorm);
       } catch (e) {
         throw new Error("mkdir failed: " + e.message + " (path: " + destDirNorm + ")");
       }
     }
     const files = [
-      { name: "pdf.js", url: "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.js" },
-      { name: "pdf.worker.js", url: "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.js" }
+      { name: "pdf.min.mjs", url: "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.mjs" },
+      { name: "pdf.worker.min.mjs", url: "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.mjs" }
     ];
     for (const f of files) {
-      const res = await fetch(f.url);
-      if (!res.ok)
-        throw new Error("download failed: " + f.name + " HTTP " + res.status);
-      const buf = await res.arrayBuffer();
+      new Notice("Downloading " + f.name + "...");
+      const res2 = await fetch(f.url);
+      if (!res2.ok)
+        throw new Error("download failed: " + f.name + " HTTP " + res2.status);
+      const buf = await res2.arrayBuffer();
       if (buf.byteLength < 1e3)
         throw new Error("file too small: " + f.name + " (" + buf.byteLength + " bytes, possibly HTML error page)");
-      fs.writeFileSync(path.join(destDirNorm, f.name), Buffer.from(buf));
+      await this.app.vault.adapter.write(destDirNorm + "/" + f.name, Buffer.from(buf).toString("base64"));
     }
     try {
       delete globalThis.pdfjsLib;
@@ -3230,16 +3227,20 @@ module.exports = class CloudAttachPlugin extends Plugin {
   async _loadPdfJs() {
     if (window.pdfjsLib)
       return window.pdfjsLib;
-    const src = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js";
-    await new Promise((resolve, reject) => {
-      const s = document.createElement("script");
-      s.src = src;
-      s.onload = resolve;
-      s.onerror = reject;
-      document.head.appendChild(s);
-    });
-    window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
-    return window.pdfjsLib;
+    try {
+      const res = await fetch("./libs/pdfjs/pdf.min.mjs");
+      if (!res.ok) {
+        new Notice("PDF.js not found. Please download it in settings.");
+        throw new Error("PDF.js not found locally");
+      }
+      const code = await res.text();
+      eval(code);
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = "./libs/pdfjs/pdf.worker.min.mjs";
+      return window.pdfjsLib;
+    } catch (e) {
+      console.error("[CloudAttach] Failed to load PDF.js", e);
+      throw e;
+    }
   }
   _isPdfUrl(url) {
     return /\.pdf(\?|#|$)/i.test(url);
