@@ -1,8 +1,10 @@
-## v0.3.166.dev - 2026-06-09
+## v0.3.167.dev - 2026-06-09
 
-### 修复
-- PDF 渲染与插入解耦：删除所有 `pdfPreview` 门控（含 `onload()`），PDF.js 渲染独立于插入模式
-- 切换笔记时清空 `_renderedPdfUrls`，确保每次打开都重新渲染
+### 修复（完整版）
+- `onload()` 外层门控：删除 `if (this.settings.pdfPreview === 'pdfjs')`，让 `_observePdfEmbeds()` 无条件执行
+  - v0.3.165.dev 漏了这层，选 iframe 时 MutationObserver 从未注册，PDF 始终不渲染
+- `_observePdfEmbeds()` 内 3 处 `pdfPreview` 门控全部删除，PDF.js 渲染独立于插入模式
+- `active-leaf-change` 时清空 `_renderedPdfUrls`，切换笔记后重新渲染
 
 ## v0.3.163 - 2026-06-09
 
