@@ -1,4 +1,4 @@
-## v0.3.162.dev - 2026-06-09
+## v0.3.163 - 2026-06-09
 
 ### 修复
 - 修复 PDF.js 下载后文件不存在的 bug：`writeBinary` 路径拼接缺少 `/`，导致写成 `pdfjspdf.min.js` 而非 `pdfjs/pdf.min.js`
