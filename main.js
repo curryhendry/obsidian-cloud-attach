@@ -3135,9 +3135,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (activeLeaf?.view instanceof MarkdownView && activeLeaf.view.editor) {
       this.activeMarkdownView = activeLeaf.view;
     }
-    if (this.settings.pdfPreview === "pdfjs") {
-      this._observePdfEmbeds();
-    }
+    this._observePdfEmbeds();
     this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf, this));
     console.log("CloudAttach loaded");
   }
@@ -3512,8 +3510,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       return;
     this._renderedPdfUrls = this._renderedPdfUrls || /* @__PURE__ */ new Set();
     this._pdfObserver = new MutationObserver((mutations) => {
-      if (this.settings.pdfPreview !== "pdfjs")
-        return;
       mutations.forEach((m) => {
         m.addedNodes.forEach((n) => {
           if (n.nodeType !== 1)
@@ -3533,6 +3529,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     this._pdfObserver.observe(document.body, { childList: true, subtree: true });
     setTimeout(() => this._scanAllPdfImgs(), 500);
     const rescanPdfImgs = () => {
+      this._renderedPdfUrls = /* @__PURE__ */ new Set();
       this._scanAllPdfImgs();
       setTimeout(() => this._scanAllPdfImgs(), 500);
       setTimeout(() => this._scanAllPdfImgs(), 1500);
@@ -3541,8 +3538,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     this.registerEvent(this.app.workspace.on("layout-change", rescanPdfImgs));
   }
   _scanAllPdfImgs(doc) {
-    if (this.settings.pdfPreview !== "pdfjs")
-      return;
     const d = doc || document;
     const allImgs = d.querySelectorAll("img");
     const pdfImgs = Array.from(allImgs).filter((img) => this._isPdfUrl(img.getAttribute("src") || ""));
