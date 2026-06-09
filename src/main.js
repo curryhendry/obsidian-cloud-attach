@@ -3725,7 +3725,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     // 去重：记录已渲染的 PDF URL，避免重复处理
     this._renderedPdfUrls = this._renderedPdfUrls || new Set();
     this._pdfObserver = new MutationObserver((mutations) => {
-      if (this.settings.pdfPreview !== 'pdfjs') return;
       mutations.forEach(m => {
         m.addedNodes.forEach(n => {
           if (n.nodeType !== 1) return;
@@ -3747,9 +3746,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
 
     // 初始扫描：延迟执行确保编辑模式 DOM 已渲染
     setTimeout(() => this._scanAllPdfImgs(), 500);
-    // 切换笔记时也重新扫描
-    // 切换笔记 / 分屏 / 布局变化时也重新扫描
+    // 切换笔记时清空去重记录并重新扫描
     const rescanPdfImgs = () => {
+      // 清空已渲染记录，确保切换笔记后重新渲染
+      this._renderedPdfUrls = new Set();
       // 立即扫一次
       this._scanAllPdfImgs();
       // 延迟再扫（等 DOM 渲染完成）
@@ -3763,7 +3763,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
 
 
   _scanAllPdfImgs(doc) {
-    if (this.settings.pdfPreview !== 'pdfjs') return;
     const d = doc || document;
     const allImgs = d.querySelectorAll('img');
     const pdfImgs = Array.from(allImgs).filter(img => this._isPdfUrl(img.getAttribute('src') || ''));
