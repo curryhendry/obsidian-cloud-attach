@@ -695,6 +695,12 @@ var OpenListClient = class {
     return response;
   }
   async getSignedUrl(remotePath, preferredPrefix = "p") {
+    let apiPath = remotePath;
+    if (this.webdavPath) {
+      const base = this.webdavPath.replace(/\/+$/, "");
+      const path = remotePath.startsWith("/") ? remotePath : "/" + remotePath;
+      apiPath = base + path;
+    }
     const apiUrl = `${this.serverUrl}/api/fs/get`;
     const headers = {
       "Content-Type": "application/json"
@@ -708,7 +714,7 @@ var OpenListClient = class {
         method: "POST",
         headers,
         body: JSON.stringify({
-          path: remotePath
+          path: apiPath
         })
       });
       const data = await response.json();

@@ -745,6 +745,13 @@ class OpenListClient {
   }
 
   async getSignedUrl(remotePath, preferredPrefix = 'p') {
+    // 拼接 webdavPath（WebDAV 账号需要补全路径前缀）
+    let apiPath = remotePath;
+    if (this.webdavPath) {
+      const base = this.webdavPath.replace(/\/+$/, '');
+      const path = remotePath.startsWith('/') ? remotePath : '/' + remotePath;
+      apiPath = base + path;
+    }
     // 优先使用 OpenList API 获取带签名的 URL
     const apiUrl = `${this.serverUrl}/api/fs/get`;
     
@@ -766,7 +773,7 @@ class OpenListClient {
         method: 'POST',
         headers: headers,
         body: JSON.stringify({
-          path: remotePath
+          path: apiPath
         })
       });
 
