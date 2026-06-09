@@ -1,3 +1,10 @@
+## v0.3.154.dev - 2026-06-09
+
+### 修复
+- 从 Git 移除 `libs/pdfjs/`（PDF.js 由用户本地下载，不提交到仓库）
+- 添加 `.gitignore` 规则排除 `libs/pdfjs/`
+- 新增 GitHub Actions Release workflow，包含 Artifact Attestations（构建产物来源证明）
+
 ## v0.3.152 - 2026-06-09
 
 ### 修复（Obsidian 社区插件审核）
