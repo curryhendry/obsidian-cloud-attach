@@ -3042,7 +3042,7 @@ var AdvancedSettingModal = class extends Modal {
       const buf = await res.arrayBuffer();
       if (buf.byteLength < 1e3)
         throw new Error("file too small: " + f.name + " (" + buf.byteLength + " bytes, possibly HTML error page)");
-      await this.app.vault.adapter.writeBinary(destDirNorm + f.name, new Uint8Array(buf));
+      await this.app.vault.adapter.writeBinary(destDirNorm + "/" + f.name, new Uint8Array(buf));
     }
     try {
       delete globalThis.pdfjsLib;
