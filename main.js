@@ -3236,6 +3236,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     return /\.pdf(\?|#|$)/i.test(url);
   }
   async _renderPdfAsCanvas(imgEl, url) {
+    const _doc = imgEl.ownerDocument || document;
     if (this._renderedPdfUrls && this._renderedPdfUrls.has(url + ":" + (imgEl.id || imgEl.dataset.src || ""))) {
       return;
     }
@@ -3261,11 +3262,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (widthClassMatch && !imgWidth) {
         imgWidth = widthClassMatch[1] + "px";
       }
-      const altWidthMatch = imgEl.alt?.match(/^(\d+)$/);
+      const altWidthMatch = imgEl.alt?.match(/(?:^|\|)(\d+)$/);
       if (altWidthMatch && !imgWidth) {
         imgWidth = altWidthMatch[1] + "px";
       }
-      const container = document.createElement("span");
+      const container = _doc.createElement("span");
       container.className = "cloudattach-pdf-container";
       container.dataset.currentPage = "1";
       container.dataset.totalPages = pdf.numPages.toString();
@@ -3286,7 +3287,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       container.style.setProperty("overflow", "hidden", "important");
       container.style.setProperty("opacity", "0", "important");
       container.addEventListener("contextmenu", (e) => e.preventDefault());
-      const scrollArea = document.createElement("div");
+      const scrollArea = _doc.createElement("div");
       scrollArea.className = "cloudattach-pdf-scrollarea";
       scrollArea.style.overflowY = "auto";
       scrollArea.style.overflowX = "hidden";
@@ -3297,7 +3298,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const firstViewport = firstPage.getViewport({ scale: FIXED_SCALE });
       const canvasW = firstViewport.width;
       const canvasH = firstViewport.height;
-      const firstCanvas = document.createElement("canvas");
+      const firstCanvas = _doc.createElement("canvas");
       firstCanvas.className = "cloudattach-pdf-page";
       firstCanvas.dataset.pageNum = "1";
       scrollArea.appendChild(firstCanvas);
@@ -3325,7 +3326,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       resizeObserver.observe(container);
       this._initPdfToolbar(container, pdf);
       for (let i = 2; i <= pdf.numPages; i++) {
-        const canvas = document.createElement("canvas");
+        const canvas = _doc.createElement("canvas");
         canvas.className = "cloudattach-pdf-page";
         canvas.dataset.pageNum = String(i);
         scrollArea.appendChild(canvas);
@@ -3368,8 +3369,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
   // 初始化 PDF 翻页工具栏（参考 v0.3.042 样式：底部右侧，hover 显示）
   _initPdfToolbar(container, pdf) {
+    const _doc = container.ownerDocument || document;
     const totalPages = parseInt(container.dataset.totalPages);
-    const toolbar = document.createElement("div");
+    const toolbar = _doc.createElement("div");
     toolbar.className = "cloudattach-pdf-toolbar";
     toolbar.style.background = "rgba(0, 0, 0, 0.6)";
     toolbar.style.color = "white";
@@ -3395,27 +3397,27 @@ module.exports = class CloudAttachPlugin extends Plugin {
     container.addEventListener("mouseleave", () => {
       toolbar.style.opacity = "0";
     });
-    const prevBtn = document.createElement("span");
+    const prevBtn = _doc.createElement("span");
     prevBtn.textContent = "\u25C0";
     prevBtn.style.cursor = "pointer";
     prevBtn.dataset.role = "prev";
     toolbar.appendChild(prevBtn);
-    const pageIndicator = document.createElement("span");
+    const pageIndicator = _doc.createElement("span");
     pageIndicator.dataset.role = "pageIndicator";
     pageIndicator.style.cursor = "pointer";
     pageIndicator.title = "\u70B9\u51FB\u8DF3\u8F6C\u5230\u6307\u5B9A\u9875\u7801";
     toolbar.appendChild(pageIndicator);
-    const nextBtn = document.createElement("span");
+    const nextBtn = _doc.createElement("span");
     nextBtn.textContent = "\u25B6";
     nextBtn.style.cursor = "pointer";
     nextBtn.dataset.role = "next";
     toolbar.appendChild(nextBtn);
-    const sep = document.createElement("span");
+    const sep = _doc.createElement("span");
     sep.textContent = "|";
     sep.style.opacity = "0.5";
     sep.style.margin = "0 2px";
     toolbar.appendChild(sep);
-    const fullscreenBtn = document.createElement("span");
+    const fullscreenBtn = _doc.createElement("span");
     fullscreenBtn.textContent = "\u26F6";
     fullscreenBtn.style.cursor = "pointer";
     fullscreenBtn.title = "\u5168\u5C4F\u9884\u89C8\uFF08\u656C\u8BF7\u671F\u5F85\uFF09";
@@ -3532,13 +3534,50 @@ module.exports = class CloudAttachPlugin extends Plugin {
     });
     this._pdfObserver.observe(document.body, { childList: true, subtree: true });
     setTimeout(() => this._scanAllPdfImgs(), 500);
-    const rescanPdfImgs = () => {
+    const rescanPdfImgs = (leaf) => {
       this._scanAllPdfImgs();
       setTimeout(() => this._scanAllPdfImgs(), 500);
       setTimeout(() => this._scanAllPdfImgs(), 1500);
+      if (leaf && leaf.containerEl) {
+        const popDoc = leaf.containerEl.ownerDocument;
+        if (popDoc && popDoc !== document) {
+          this._scanAllPdfImgs(popDoc);
+          setTimeout(() => this._scanAllPdfImgs(popDoc), 500);
+          setTimeout(() => this._scanAllPdfImgs(popDoc), 1500);
+          this._observePdfInDoc(popDoc);
+        }
+      }
     };
     this.registerEvent(this.app.workspace.on("active-leaf-change", rescanPdfImgs));
     this.registerEvent(this.app.workspace.on("layout-change", rescanPdfImgs));
+  }
+  /**
+   * 给指定 document（如 popout 窗口）注册 MutationObserver
+   */
+  _observePdfInDoc(doc) {
+    if (doc._cloudattachPdfObserver)
+      return;
+    const observer = new MutationObserver((mutations) => {
+      if (this.settings.pdfPreview !== "pdfjs")
+        return;
+      mutations.forEach((m) => {
+        m.addedNodes.forEach((n) => {
+          if (n.nodeType !== 1)
+            return;
+          const imgs = n.tagName === "IMG" ? [n] : Array.from(n.querySelectorAll("img"));
+          imgs.forEach((img) => {
+            if (img.closest(".cloudattach-pdf-container"))
+              return;
+            const src = img.getAttribute("src") || "";
+            if (this._isPdfUrl(src)) {
+              this._renderPdfAsCanvas(img, src);
+            }
+          });
+        });
+      });
+    });
+    observer.observe(doc.body, { childList: true, subtree: true });
+    doc._cloudattachPdfObserver = observer;
   }
   _scanAllPdfImgs(doc) {
     if (this.settings.pdfPreview !== "pdfjs")
