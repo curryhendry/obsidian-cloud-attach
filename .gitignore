@@ -4,3 +4,6 @@ data.json
 deploy.sh
 node_modules/
 .DS_Store
+
+# PDF.js - 用户本地下载，不提交
+libs/pdfjs/
