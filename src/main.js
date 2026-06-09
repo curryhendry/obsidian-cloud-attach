@@ -3226,7 +3226,7 @@ class AdvancedSettingModal extends Modal {
       if (!res.ok) throw new Error('download failed: ' + f.name + ' HTTP ' + res.status);
       const buf = await res.arrayBuffer();
       if (buf.byteLength < 1000) throw new Error('file too small: ' + f.name + ' (' + buf.byteLength + ' bytes, possibly HTML error page)');
-      await this.app.vault.adapter.writeBinary(destDirNorm + f.name, new Uint8Array(buf));
+      await this.app.vault.adapter.writeBinary(destDirNorm + '/' + f.name, new Uint8Array(buf));
     }
     try { delete globalThis.pdfjsLib; } catch(e) {}
   }
