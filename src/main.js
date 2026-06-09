@@ -3329,9 +3329,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       this.activeMarkdownView = activeLeaf.view;
     }
     // PDF.js 内联预览（v0.3.026）
-    if (this.settings.pdfPreview === 'pdfjs') {
-      this._observePdfEmbeds();
-    }
+    this._observePdfEmbeds();
     // 注册视图类型（必须，否则 setViewState 静默失败）
     this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf, this));
     console.log('CloudAttach loaded');
