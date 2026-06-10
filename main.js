@@ -3534,15 +3534,56 @@ module.exports = class CloudAttachPlugin extends Plugin {
       });
     });
     this._pdfObserver.observe(document.body, { childList: true, subtree: true });
+    this._popoutObservers = /* @__PURE__ */ new Map();
+    this._registerPopoutObservers();
     setTimeout(() => this._scanAllPdfImgs(), 500);
     const rescanPdfImgs = () => {
       this._renderedPdfUrls = /* @__PURE__ */ new Set();
       this._scanAllPdfImgs();
       setTimeout(() => this._scanAllPdfImgs(), 500);
       setTimeout(() => this._scanAllPdfImgs(), 1500);
+      this._popoutObservers.forEach((obs, doc) => {
+        this._scanAllPdfImgs(doc);
+        setTimeout(() => this._scanAllPdfImgs(doc), 500);
+        setTimeout(() => this._scanAllPdfImgs(doc), 1500);
+      });
     };
     this.registerEvent(this.app.workspace.on("active-leaf-change", rescanPdfImgs));
-    this.registerEvent(this.app.workspace.on("layout-change", rescanPdfImgs));
+    this.registerEvent(this.app.workspace.on("layout-change", () => {
+      this._renderedPdfUrls = /* @__PURE__ */ new Set();
+      this._scanAllPdfImgs();
+      setTimeout(() => this._scanAllPdfImgs(), 500);
+      this._registerPopoutObservers();
+    }));
+  }
+  _registerPopoutObservers() {
+    this.app.workspace.iterateAllLeaves((leaf) => {
+      const doc = leaf.containerEl.ownerDocument;
+      if (doc === document)
+        return;
+      if (this._popoutObservers.has(doc))
+        return;
+      const popoutObserver = new MutationObserver((mutations) => {
+        mutations.forEach((m) => {
+          m.addedNodes.forEach((n) => {
+            if (n.nodeType !== 1)
+              return;
+            const imgs = n.tagName === "IMG" ? [n] : Array.from(n.querySelectorAll("img"));
+            imgs.forEach((img) => {
+              if (img.closest(".cloudattach-pdf-container"))
+                return;
+              const src = img.getAttribute("src") || "";
+              if (this._isPdfUrl(src)) {
+                this._renderPdfAsCanvas(img, src);
+              }
+            });
+          });
+        });
+      });
+      popoutObserver.observe(doc.body, { childList: true, subtree: true });
+      this._popoutObservers.set(doc, popoutObserver);
+      this._scanAllPdfImgs(doc);
+    });
   }
   _scanAllPdfImgs(doc) {
     const d = doc || document;
