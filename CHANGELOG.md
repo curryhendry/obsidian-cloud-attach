@@ -1,3 +1,8 @@
+## v0.3.174.dev - 2026-06-10
+
+### 修复
+- Popout 窗口 PDF 中文方框：将 PDF.js worker 从 blob URL 改为 data URI，避免 popout 窗口独立 window 对象导致 worker 加载异常
+
 ## v0.3.172.dev - 2026-06-10
 
 ### 修复
