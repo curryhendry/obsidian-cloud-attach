@@ -3342,7 +3342,16 @@ module.exports = class CloudAttachPlugin extends Plugin {
     // PDF.js 内联预览（v0.3.026）
     this._observePdfEmbeds();
     // 注册视图类型（必须，否则 setViewState 静默失败）
-    this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf, this));
+    // 防重复注册：禁用→重启用时 Obsidian 可能未注销旧 view type
+    try {
+      this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf, this));
+    } catch (e) {
+      if (e.message?.includes('existing view type')) {
+        console.log('[CloudAttach] view type already registered, skipping');
+      } else {
+        throw e;
+      }
+    }
     console.log('CloudAttach loaded');
   }
   addStyles() {
