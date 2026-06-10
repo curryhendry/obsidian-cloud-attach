@@ -3750,8 +3750,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
         });
       });
     });
-    // 监听 document.body + Obsidian 的编辑区容器
+    // 监听主窗口 document.body
     this._pdfObserver.observe(document.body, { childList: true, subtree: true });
+    // 注册已有 popout 窗口的 observer
+    this._popoutObservers = new Map();
+    this._registerPopoutObservers();
 
     // 初始扫描：延迟执行确保编辑模式 DOM 已渲染
     setTimeout(() => this._scanAllPdfImgs(), 500);
@@ -3759,17 +3762,55 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const rescanPdfImgs = () => {
       // 清空已渲染记录，确保切换笔记后重新渲染
       this._renderedPdfUrls = new Set();
-      // 立即扫一次
+      // 主窗口：立即扫一次
       this._scanAllPdfImgs();
       // 延迟再扫（等 DOM 渲染完成）
       setTimeout(() => this._scanAllPdfImgs(), 500);
       // 再延迟扫（应对慢渲染）
       setTimeout(() => this._scanAllPdfImgs(), 1500);
+      // 所有 popout 窗口
+      this._popoutObservers.forEach((obs, doc) => {
+        this._scanAllPdfImgs(doc);
+        setTimeout(() => this._scanAllPdfImgs(doc), 500);
+        setTimeout(() => this._scanAllPdfImgs(doc), 1500);
+      });
     };
     this.registerEvent(this.app.workspace.on('active-leaf-change', rescanPdfImgs));
-    this.registerEvent(this.app.workspace.on('layout-change', rescanPdfImgs));
+    this.registerEvent(this.app.workspace.on('layout-change', () => {
+      // 重新扫描主窗口
+      this._renderedPdfUrls = new Set();
+      this._scanAllPdfImgs();
+      setTimeout(() => this._scanAllPdfImgs(), 500);
+      // 检查是否有新的 popout 窗口需要注册
+      this._registerPopoutObservers();
+    }));
   }
 
+  _registerPopoutObservers() {
+    this.app.workspace.iterateAllLeaves((leaf) => {
+      const doc = leaf.containerEl.ownerDocument;
+      if (doc === document) return;
+      if (this._popoutObservers.has(doc)) return;
+      const popoutObserver = new MutationObserver((mutations) => {
+        mutations.forEach(m => {
+          m.addedNodes.forEach(n => {
+            if (n.nodeType !== 1) return;
+            const imgs = n.tagName === 'IMG' ? [n] : Array.from(n.querySelectorAll('img'));
+            imgs.forEach(img => {
+              if (img.closest('.cloudattach-pdf-container')) return;
+              const src = img.getAttribute('src') || '';
+              if (this._isPdfUrl(src)) {
+                this._renderPdfAsCanvas(img, src);
+              }
+            });
+          });
+        });
+      });
+      popoutObserver.observe(doc.body, { childList: true, subtree: true });
+      this._popoutObservers.set(doc, popoutObserver);
+      this._scanAllPdfImgs(doc);
+    });
+  }
 
   _scanAllPdfImgs(doc) {
     const d = doc || document;
