@@ -695,11 +695,13 @@ var OpenListClient = class {
     return response;
   }
   async getSignedUrl(remotePath, preferredPrefix = "p") {
-    let apiPath = remotePath;
-    if (this.webdavPath) {
-      const base = this.webdavPath.replace(/\/+$/, "");
-      const path = remotePath.startsWith("/") ? remotePath : "/" + remotePath;
-      apiPath = base + path;
+    let virtualPath = remotePath;
+    if (this.webdavPath && this.webdavPath !== "/dav") {
+      const davPrefix = "/dav";
+      if (this.webdavPath.startsWith(davPrefix)) {
+        const pathSuffix = this.webdavPath.slice(davPrefix.length);
+        virtualPath = pathSuffix + (remotePath.startsWith("/") ? remotePath : "/" + remotePath);
+      }
     }
     const apiUrl = `${this.serverUrl}/api/fs/get`;
     const headers = {
@@ -714,7 +716,7 @@ var OpenListClient = class {
         method: "POST",
         headers,
         body: JSON.stringify({
-          path: apiPath
+          path: virtualPath
         })
       });
       const data = await response.json();
@@ -730,7 +732,7 @@ var OpenListClient = class {
     }
     const proto = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, "$1");
     const host = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, "$3");
-    return `${proto}${host}/${preferredPrefix}${remotePath.startsWith("/") ? remotePath : "/" + remotePath}`;
+    return `${proto}${host}/${preferredPrefix}${virtualPath.startsWith("/") ? virtualPath : "/" + virtualPath}`;
   }
   // 获取文件的 WebDAV URL（用于插入到笔记）
   getFileUrl(remotePath) {
@@ -743,9 +745,14 @@ var OpenListClient = class {
   }
   // 获取原始 URL（无签名、无 /dav /d 前缀，用于 iframe 预览）
   getRawUrl(remotePath) {
+    let virtualPath = remotePath;
+    if (this.webdavPath && this.webdavPath !== "/dav" && this.webdavPath.startsWith("/dav")) {
+      const pathSuffix = this.webdavPath.slice("/dav".length);
+      virtualPath = pathSuffix + (remotePath.startsWith("/") ? remotePath : "/" + remotePath);
+    }
     const proto = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, "$1");
     const host = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, "$3");
-    return `${proto}${host}${remotePath}`;
+    return `${proto}${host}${virtualPath}`;
   }
   /**
    * 从 OpenList URL 中提取真实文件路径

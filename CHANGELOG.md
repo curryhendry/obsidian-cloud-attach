@@ -1,3 +1,11 @@
+## v0.3.169.dev - 2026-06-10
+
+### 修复
+- `getSignedUrl()`: 回退 webdavPath 拼接错误，改为从 webdavPath 提取虚拟路径前缀（`/dav/Local/test` → 前缀 `/Local/test`），拼回 remotePath 传给 OpenList API
+  - 修复 test 账户（webdavPath 含虚拟路径）签名 URL 请求路径不完整的问题
+  - NAS51E78F/69482F（webdavPath=`/dav`）行为不变
+- `getRawUrl()`: 同步添加虚拟路径还原逻辑，修复 test 账户 iframe 预览 URL 缺少虚拟路径前缀
+
 ## v0.3.167.dev - 2026-06-09
 
 ### 修复（完整版）
