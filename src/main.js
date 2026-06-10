@@ -3438,8 +3438,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const pdfJsText = await this.app.vault.adapter.read(pdfJsPath);
       const fn = new Function(pdfJsText + '\nreturn pdfjsLib;');
       window.pdfjsLib = fn();
-      // 不设 worker → PDF.js 在主线程运行，完全避免 popout 窗口 worker 兼容性问题
-      window.pdfjsLib.GlobalWorkerOptions.workerSrc = false;
+      // worker 用 base64 data URI，避免 blob URL 在 popout 窗口的 origin 不兼容问题
+      const workerText = await this.app.vault.adapter.read(workerPath);
+      // 用 TextEncoder 处理 UTF-8 字符，避免 btoa 中文报错
+      const workerBase64 = btoa(String.fromCharCode(...new TextEncoder().encode(workerText)));
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'data:application/javascript;base64,' + workerBase64;
       return window.pdfjsLib;
     } catch(e) {
       console.error('[CloudAttach] _loadPdfJs failed:', e);
