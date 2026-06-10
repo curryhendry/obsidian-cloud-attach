@@ -1,3 +1,8 @@
+## v0.3.178.dev - 2026-06-10
+
+### 修复
+- Popout 窗口 PDF 中文方框：改用 base64 data URI 加载 worker（避免 blob URL origin 不兼容 + workerSrc=false 时 CDN 不可达）
+
 ## v0.3.176.dev - 2026-06-10
 
 ### 修复
