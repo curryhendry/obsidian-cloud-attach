@@ -3237,8 +3237,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const fn = new Function(pdfJsText + "\nreturn pdfjsLib;");
       window.pdfjsLib = fn();
       const workerText = await this.app.vault.adapter.read(workerPath);
-      const workerBlob = new Blob([workerText], { type: "application/javascript" });
-      window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(workerBlob);
+      const workerBase64 = btoa(unescape(encodeURIComponent(workerText)));
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = "data:application/javascript;base64," + workerBase64;
       return window.pdfjsLib;
     } catch (e) {
       console.error("[CloudAttach] _loadPdfJs failed:", e);

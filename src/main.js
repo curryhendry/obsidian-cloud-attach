@@ -3438,10 +3438,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const pdfJsText = await this.app.vault.adapter.read(pdfJsPath);
       const fn = new Function(pdfJsText + '\nreturn pdfjsLib;');
       window.pdfjsLib = fn();
-      // worker 用 blob URL（避免路径问题）
+      // worker 用 data URI（避免 blob URL 在 popout 窗口的兼容性问题）
       const workerText = await this.app.vault.adapter.read(workerPath);
-      const workerBlob = new Blob([workerText], { type: 'application/javascript' });
-      window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(workerBlob);
+      const workerBase64 = btoa(unescape(encodeURIComponent(workerText)));
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'data:application/javascript;base64,' + workerBase64;
       return window.pdfjsLib;
     } catch(e) {
       console.error('[CloudAttach] _loadPdfJs failed:', e);
