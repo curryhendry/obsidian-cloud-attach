@@ -1,4 +1,4 @@
-## v0.3.171.dev - 2026-06-10
+## v0.3.172.dev - 2026-06-10
 
 ### 修复
 - `getSignedUrl()`: 回退 webdavPath 拼接错误，改为从 webdavPath 提取虚拟路径前缀（`/dav/Local/test` → 前缀 `/Local/test`），拼回 remotePath 传给 OpenList API

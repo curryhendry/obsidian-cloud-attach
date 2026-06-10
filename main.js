@@ -3143,7 +3143,15 @@ module.exports = class CloudAttachPlugin extends Plugin {
       this.activeMarkdownView = activeLeaf.view;
     }
     this._observePdfEmbeds();
-    this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf, this));
+    try {
+      this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf, this));
+    } catch (e) {
+      if (e.message?.includes("existing view type")) {
+        console.log("[CloudAttach] view type already registered, skipping");
+      } else {
+        throw e;
+      }
+    }
     console.log("CloudAttach loaded");
   }
   addStyles() {
