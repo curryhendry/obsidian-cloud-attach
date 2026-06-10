@@ -745,14 +745,19 @@ class OpenListClient {
   }
 
   async getSignedUrl(remotePath, preferredPrefix = 'p') {
-    // 拼接 webdavPath（WebDAV 账号需要补全路径前缀）
-    let apiPath = remotePath;
-    if (this.webdavPath) {
-      const base = this.webdavPath.replace(/\/+$/, '');
-      const path = remotePath.startsWith('/') ? remotePath : '/' + remotePath;
-      apiPath = base + path;
-    }
     // 优先使用 OpenList API 获取带签名的 URL
+    // remotePath 是列表解析后的相对路径（已去除 webdavPath）
+    // 需要还原为 OpenList API 所需的虚拟路径：
+    //   webdavPath=/dav → 虚拟路径前缀为空，remotePath 本身就是虚拟路径
+    //   webdavPath=/dav/Local/test → 虚拟路径前缀=/Local/test，需拼回 remotePath
+    let virtualPath = remotePath;
+    if (this.webdavPath && this.webdavPath !== '/dav') {
+      const davPrefix = '/dav';
+      if (this.webdavPath.startsWith(davPrefix)) {
+        const pathSuffix = this.webdavPath.slice(davPrefix.length); // e.g. /Local/test
+        virtualPath = pathSuffix + (remotePath.startsWith('/') ? remotePath : '/' + remotePath);
+      }
+    }
     const apiUrl = `${this.serverUrl}/api/fs/get`;
     
     // 构造请求头 - 注意：没有 Bearer 前缀
@@ -773,7 +778,7 @@ class OpenListClient {
         method: 'POST',
         headers: headers,
         body: JSON.stringify({
-          path: apiPath
+          path: virtualPath
         })
       });
 
@@ -799,7 +804,7 @@ class OpenListClient {
     // 保留原协议、保留中文原文
     const proto = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, '$1');
     const host = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, '$3');
-    return `${proto}${host}/${preferredPrefix}${remotePath.startsWith('/') ? remotePath : '/' + remotePath}`;
+    return `${proto}${host}/${preferredPrefix}${virtualPath.startsWith('/') ? virtualPath : '/' + virtualPath}`;
   }
 
   // 获取文件的 WebDAV URL（用于插入到笔记）
@@ -816,10 +821,16 @@ class OpenListClient {
 
   // 获取原始 URL（无签名、无 /dav /d 前缀，用于 iframe 预览）
   getRawUrl(remotePath) {
+    // 还原虚拟路径（与 getSignedUrl 相同逻辑）
+    let virtualPath = remotePath;
+    if (this.webdavPath && this.webdavPath !== '/dav' && this.webdavPath.startsWith('/dav')) {
+      const pathSuffix = this.webdavPath.slice('/dav'.length);
+      virtualPath = pathSuffix + (remotePath.startsWith('/') ? remotePath : '/' + remotePath);
+    }
     // 保留原协议、保留中文原文
     const proto = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, '$1');
     const host = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, '$3');
-    return `${proto}${host}${remotePath}`;
+    return `${proto}${host}${virtualPath}`;
   }
 
   /**
