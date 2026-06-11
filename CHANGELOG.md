@@ -1,3 +1,8 @@
+## v0.3.180.dev - 2026-06-11
+
+### 修复
+- 修复 _loadPdfJs() 中 base64 编码栈溢出：worker 文件约 1MB，`String.fromCharCode(...new TextEncoder().encode(...))` 的展开运算符导致 Maximum call stack size exceeded，workerSrc 未设置 → PDF 完全不渲染
+
 ## v0.3.178.dev - 2026-06-10
 
 ### 修复
