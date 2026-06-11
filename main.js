@@ -3260,6 +3260,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
     try {
       const pdfjsLib = await this._loadPdfJs();
+      if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+        console.warn("[CloudAttach] workerSrc not set in _renderPdfAsCanvas, attempting to set");
+        await this._loadPdfJs();
+      }
       const loadingTask = pdfjsLib.getDocument(url);
       console.log("[CloudAttach] PDF doc loaded, pages:", (await loadingTask.promise).numPages);
       const pdf = await loadingTask.promise;
