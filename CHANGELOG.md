@@ -1,7 +1,12 @@
+## v0.3.182.dev - 2026-06-11
+
+### 修复
+- 在 `_renderPdfAsCanvas()` 调用 `getDocument()` 前显式检查 `workerSrc`，确保 popout 窗口中也正确设置 worker
+
 ## v0.3.180.dev - 2026-06-11
 
 ### 修复
-- 修复 _loadPdfJs() 中 base64 编码栈溢出：worker 文件约 1MB，`String.fromCharCode(...new TextEncoder().encode(...))` 的展开运算符导致 Maximum call stack size exceeded，workerSrc 未设置 → PDF 完全不渲染
+- 修复 `_loadPdfJs()` 中 base64 编码栈溢出：worker 文件约 1MB，`String.fromCharCode(...new TextEncoder().encode(...))` 的展开运算符导致 Maximum call stack size exceeded，workerSrc 未设置 → PDF 完全不渲染
 
 ## v0.3.178.dev - 2026-06-10
 
