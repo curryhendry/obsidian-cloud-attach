@@ -1,38 +1,27 @@
-## v0.3.186.dev - 2026-06-12
+## v0.3.186 - 2026-06-12
+
+### 新功能
+- 无新增功能
 
 ### 修复
-- 回退 `workerSrc = ''` 方案（PDF.js v3 将空字符串当 falsy 抛错 "No GlobalWorkerOptions.workerSrc specified"），恢复 base64 data URI worker 加载（循环编码避免栈溢出）
-- `getDocument()` 传入 `ownerDocument: imgEl.ownerDocument`，确保 PDF.js 的 `@font-face` CSS 注入到正确 document（popout 窗口 canvas 与其 document 匹配，避免 ctx.fillText() 找不到字体导致中文方框）
+- **Popout 窗口 PDF 中文方框**（核心修复）：`getDocument()` 传入 `ownerDocument: imgEl.ownerDocument`，确保 PDF.js 的 `@font-face` CSS 注入到正确 document（popout 窗口 canvas 与其 document 匹配，避免 `ctx.fillText()` 找不到字体导致中文显示为方框）
+- **签名 URL 路径修复**：`getSignedUrl()` 从 `webdavPath` 提取虚拟路径前缀（如 `/dav/Local/test` → `/Local/test`），拼回 `remotePath`，解决多 WebDAV 账户签名 URL 请求路径不完整的问题
+- **PDF 渲染独立于插入设置**：删除 `onload()` 外层 `pdfPreview` 门控，PDF.js 渲染不再受插入模式控制；`active-leaf-change` 时清空 `_renderedPdfUrls`，切换笔记后重新渲染
+- **PDF.js 下载路径修复**：`writeBinary` 路径拼接缺少 `/`，导致写成 `pdfjspdf.min.js` 而非 `pdfjs/pdf.min.js`
+- **Base64 编码栈溢出修复**：worker 文件约 1MB，`String.fromCharCode(...new TextEncoder().encode(...))` 的展开运算符导致 Maximum call stack size exceeded，改为循环分批转换
 
-## v0.3.184.dev - 2026-06-12
+### 技术改进
+- **Obsidian 社区插件审核合规**：去掉 `_loadPdfJs()` 中的动态 `<script>` 创建，改用 `adapter.read() + Function()` 加载本地 PDF.js；去掉所有 `require('fs')` / `require('path')`，改用 Obsidian Vault API；`onOpen()` 改为 `async`
+- **仓库合规**：`libs/pdfjs/` 从 Git 移除（PDF.js 由用户本地下载，不进仓库）；新增 GitHub Actions Release workflow（Artifact Attestations）
 
-### 修复
-- Popout 窗口 PDF 中文方框：确认 PDF.js 版本为 v3.11.174，改为不使用 worker（`workerSrc = ''`），所有 PDF 解析在主线程执行，彻底规避 popout 窗口 worker 的 origin/CSP/字体 fallback 兼容性问题
+### 已知问题
+- 手动指定尺寸还不支持，后续考虑
+- 部分场景下可能预览会丢失，需要重新加载笔记
+- 部分在线 PDF 预览不成功，怀疑是 CORS 问题，待修复
 
-## v0.3.182.dev - 2026-06-11
-
-### 修复
-- 在 `_renderPdfAsCanvas()` 调用 `getDocument()` 前显式检查 `workerSrc`，确保 popout 窗口中也正确设置 worker
-
-## v0.3.180.dev - 2026-06-11
-
-### 修复
-- 修复 `_loadPdfJs()` 中 base64 编码栈溢出：worker 文件约 1MB，`String.fromCharCode(...new TextEncoder().encode(...))` 的展开运算符导致 Maximum call stack size exceeded，workerSrc 未设置 → PDF 完全不渲染
-
-## v0.3.178.dev - 2026-06-10
-
-### 修复
-- Popout 窗口 PDF 中文方框：改用 base64 data URI 加载 worker（避免 blob URL origin 不兼容 + workerSrc=false 时 CDN 不可达）
-
-## v0.3.176.dev - 2026-06-10
-
-### 修复
-- Popout 窗口 PDF 中文方框：将 PDF.js worker 完全禁用，改为在主线程运行，彻底规避 popout 窗口 worker 兼容性问题
-
-## v0.3.174.dev - 2026-06-10
-
-### 修复
-- Popout 窗口 PDF 中文方框：将 PDF.js worker 从 blob URL 改为 data URI，避免 popout 窗口独立 window 对象导致 worker 加载异常
+### 后续计划
+- PDF 文件的全屏浏览，以及更多的交互
+- 其他文件格式的支持（待定）
 
 ## v0.3.172.dev - 2026-06-10
 
