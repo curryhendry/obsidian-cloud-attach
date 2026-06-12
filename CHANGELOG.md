@@ -1,3 +1,8 @@
+## v0.3.184.dev - 2026-06-12
+
+### 修复
+- Popout 窗口 PDF 中文方框：确认 PDF.js 版本为 v3.11.174，改为不使用 worker（`workerSrc = ''`），所有 PDF 解析在主线程执行，彻底规避 popout 窗口 worker 的 origin/CSP/字体 fallback 兼容性问题
+
 ## v0.3.182.dev - 2026-06-11
 
 ### 修复

@@ -3231,20 +3231,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (window.pdfjsLib)
       return window.pdfjsLib;
     const pdfJsPath = (this.app.vault.configDir || ".obsidian") + "/plugins/cloud-attach/libs/pdfjs/pdf.min.js";
-    const workerPath = (this.app.vault.configDir || ".obsidian") + "/plugins/cloud-attach/libs/pdfjs/pdf.worker.min.js";
     try {
       const pdfJsText = await this.app.vault.adapter.read(pdfJsPath);
       const fn = new Function(pdfJsText + "\nreturn pdfjsLib;");
       window.pdfjsLib = fn();
-      const workerText = await this.app.vault.adapter.read(workerPath);
-      const uint8 = new TextEncoder().encode(workerText);
-      let binary = "";
-      for (let i = 0; i < uint8.length; i++) {
-        binary += String.fromCharCode(uint8[i]);
-      }
-      const workerBase64 = btoa(binary);
-      const lib = window.pdfjsLib;
-      lib.GlobalWorkerOptions.workerSrc = "data:application/javascript;base64," + workerBase64;
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = "";
       return window.pdfjsLib;
     } catch (e) {
       console.error("[CloudAttach] _loadPdfJs failed:", e);
@@ -3260,10 +3251,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
     try {
       const pdfjsLib = await this._loadPdfJs();
-      if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-        console.warn("[CloudAttach] workerSrc not set in _renderPdfAsCanvas, attempting to set");
-        await this._loadPdfJs();
-      }
       const loadingTask = pdfjsLib.getDocument(url);
       console.log("[CloudAttach] PDF doc loaded, pages:", (await loadingTask.promise).numPages);
       const pdf = await loadingTask.promise;
