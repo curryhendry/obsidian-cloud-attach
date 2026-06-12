@@ -1,3 +1,9 @@
+## v0.3.186.dev - 2026-06-12
+
+### 修复
+- 回退 `workerSrc = ''` 方案（PDF.js v3 将空字符串当 falsy 抛错 "No GlobalWorkerOptions.workerSrc specified"），恢复 base64 data URI worker 加载（循环编码避免栈溢出）
+- `getDocument()` 传入 `ownerDocument: imgEl.ownerDocument`，确保 PDF.js 的 `@font-face` CSS 注入到正确 document（popout 窗口 canvas 与其 document 匹配，避免 ctx.fillText() 找不到字体导致中文方框）
+
 ## v0.3.184.dev - 2026-06-12
 
 ### 修复

@@ -3433,13 +3433,22 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (window.pdfjsLib) return window.pdfjsLib;
     // 读本地 PDF.js（vault 相对路径）
     const pdfJsPath = (this.app.vault.configDir || '.obsidian') + '/plugins/cloud-attach/libs/pdfjs/pdf.min.js';
+    const workerPath = (this.app.vault.configDir || '.obsidian') + '/plugins/cloud-attach/libs/pdfjs/pdf.worker.min.js';
     try {
       const pdfJsText = await this.app.vault.adapter.read(pdfJsPath);
-      const fn = new Function(pdfJsText + '\nreturn pdfjsLib;');
-      window.pdfjsLib = fn();
-      // 不设置 workerSrc：PDF.js v3 支持主线程运行（fake worker），
-      // 避免 worker 在 popout 窗口中的 origin/CSP 兼容性问题
-      window.pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+      const fn = new Function('window', pdfJsText + '\nreturn window.pdfjsLib;');
+      window.pdfjsLib = fn(window);
+      // 加载 worker 为 base64 data URI（避免 blob URL 在 popout 中 origin 不兼容）
+      const workerText = await this.app.vault.adapter.read(workerPath);
+      const uint8 = new TextEncoder().encode(workerText);
+      let binary = '';
+      for (let i = 0; i < uint8.length; i++) {
+        binary += String.fromCharCode(uint8[i]);
+      }
+      const workerBase64 = btoa(binary);
+      // 设置 workerSrc 在 pdfjsLib 对象自身上（局部变量）
+      const lib = window.pdfjsLib;
+      lib.GlobalWorkerOptions.workerSrc = 'data:application/javascript;base64,' + workerBase64;
       return window.pdfjsLib;
     } catch(e) {
       console.error('[CloudAttach] _loadPdfJs failed:', e);
@@ -3458,7 +3467,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
     try {
       const pdfjsLib = await this._loadPdfJs();
-      const loadingTask = pdfjsLib.getDocument(url);
+      // ownerDocument 确保 PDF.js 生成的 @font-face CSS 注入到正确的 document
+      // （popout 窗口的 canvas 在其独立的 document 中，需要 font-face 也在同一 document）
+      const loadingTask = pdfjsLib.getDocument({ url, ownerDocument: imgEl.ownerDocument });
       console.log("[CloudAttach] PDF doc loaded, pages:", (await loadingTask.promise).numPages);
       const pdf = await loadingTask.promise;
       let imgWidth = imgEl.getAttribute("width") || imgEl.style.width || "";
