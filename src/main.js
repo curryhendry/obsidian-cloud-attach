@@ -3433,23 +3433,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (window.pdfjsLib) return window.pdfjsLib;
     // 读本地 PDF.js（vault 相对路径）
     const pdfJsPath = (this.app.vault.configDir || '.obsidian') + '/plugins/cloud-attach/libs/pdfjs/pdf.min.js';
-    const workerPath = (this.app.vault.configDir || '.obsidian') + '/plugins/cloud-attach/libs/pdfjs/pdf.worker.min.js';
     try {
       const pdfJsText = await this.app.vault.adapter.read(pdfJsPath);
       const fn = new Function(pdfJsText + '\nreturn pdfjsLib;');
       window.pdfjsLib = fn();
-      // worker 用 base64 data URI，避免 blob URL 在 popout 窗口的 origin 不兼容问题
-      const workerText = await this.app.vault.adapter.read(workerPath);
-      // 用循环代替展开运算符，避免栈溢出（worker 文件约 1MB）
-      const uint8 = new TextEncoder().encode(workerText);
-      let binary = '';
-      for (let i = 0; i < uint8.length; i++) {
-        binary += String.fromCharCode(uint8[i]);
-      }
-      const workerBase64 = btoa(binary);
-      // 确保设置在 pdfjsLib 对象自身上（fn() 返回的局部变量），而非 window.pdfjsLib 引用
-      const lib = window.pdfjsLib;
-      lib.GlobalWorkerOptions.workerSrc = 'data:application/javascript;base64,' + workerBase64;
+      // 不设置 workerSrc：PDF.js v3 支持主线程运行（fake worker），
+      // 避免 worker 在 popout 窗口中的 origin/CSP 兼容性问题
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = '';
       return window.pdfjsLib;
     } catch(e) {
       console.error('[CloudAttach] _loadPdfJs failed:', e);
@@ -3468,11 +3458,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
     try {
       const pdfjsLib = await this._loadPdfJs();
-      // 确保 workerSrc 已设置（特别是在 popout 窗口中）
-      if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-        console.warn('[CloudAttach] workerSrc not set in _renderPdfAsCanvas, attempting to set');
-        await this._loadPdfJs(); // 重新加载
-      }
       const loadingTask = pdfjsLib.getDocument(url);
       console.log("[CloudAttach] PDF doc loaded, pages:", (await loadingTask.promise).numPages);
       const pdf = await loadingTask.promise;
