@@ -1,3 +1,8 @@
+## v0.3.200.dev - 2026-06-14
+
+### 修复
+- 修复 PDF 预览不能设定宽度的问题：CSS 的 `width: 100% !important` 覆盖 inline width，改为无 `!important`；JS 设置宽度改用 `setProperty("width", ..., "important")` 确保优先级
+
 ## v0.3.198.dev - 2026-06-14
 
 ### 修复
