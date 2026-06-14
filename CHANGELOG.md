@@ -1,3 +1,11 @@
+## v0.3.206.dev - 2026-06-14
+
+### 修复
+- PDF 实时宽度更新：修复 `_findPdfContainerByUrl` 中 forEach 回调 return 不中断外层函数的 bug
+- 防止无限渲染循环：`_renderPdfAsCanvas` 加幂等标志，同一 URL 渲染中则跳过
+- 去掉 `active-leaf-change` 和 `layout-change` 中的多余 setTimeout 扫描（多次扫描堆积导致无限日志）
+- 精简 `_scanAllPdfImgs` 日志输出
+
 ## v0.3.204.dev - 2026-06-14
 
 ### 修复
