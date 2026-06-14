@@ -3511,15 +3511,14 @@ module.exports = class CloudAttachPlugin extends Plugin {
       container.style.setProperty("display", "block", "important");
       container.style.setProperty("overflow", "hidden", "important");
       container.style.setProperty("opacity", "0", "important");
-      // 阻止 PDF canvas 右键菜单（复制图片等），不影响普通图片
-      container.addEventListener("contextmenu", (e) => e.preventDefault());
+      // capture phase 确保渲染区域内所有右键被拦截（包括 Obsidian 外层包裹元素）
+      container.addEventListener("contextmenu", (e) => e.preventDefault(), true);
       const scrollArea = document.createElement("div");
       scrollArea.className = "cloudattach-pdf-scrollarea";
       scrollArea.style.overflowY = "auto";
       scrollArea.style.overflowX = "hidden";
       scrollArea.style.position = "relative";
       container.appendChild(scrollArea);
-      scrollArea.addEventListener("contextmenu", (e) => e.preventDefault());
       imgEl.replaceWith(container);
       const firstPage = await pdf.getPage(1);
       const firstViewport = firstPage.getViewport({ scale: FIXED_SCALE });
@@ -3528,10 +3527,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const firstCanvas = document.createElement("canvas");
       firstCanvas.className = "cloudattach-pdf-page";
       firstCanvas.dataset.pageNum = "1";
-      // 阻止选中/拖拽/右键菜单复制
+      // 阻止选中/拖拽
       firstCanvas.style.userSelect = 'none';
       firstCanvas.draggable = false;
-      firstCanvas.addEventListener("contextmenu", (e) => e.preventDefault());
       scrollArea.appendChild(firstCanvas);
       await this._renderPdfPage(firstCanvas, pdf, 1, FIXED_SCALE);
       const containerW = container.clientWidth || 800;
@@ -3564,7 +3562,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
         canvas.dataset.pageNum = String(i);
         canvas.style.userSelect = 'none';
         canvas.draggable = false;
-        canvas.addEventListener("contextmenu", (e) => e.preventDefault());
         scrollArea.appendChild(canvas);
         await this._renderPdfPage(canvas, pdf, i, FIXED_SCALE);
         console.log("[CloudAttach] page", i, "/", pdf.numPages, "cw:", canvas.width, "ch:", canvas.height);

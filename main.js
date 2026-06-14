@@ -3304,14 +3304,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
       container.style.setProperty("display", "block", "important");
       container.style.setProperty("overflow", "hidden", "important");
       container.style.setProperty("opacity", "0", "important");
-      container.addEventListener("contextmenu", (e) => e.preventDefault());
+      container.addEventListener("contextmenu", (e) => e.preventDefault(), true);
       const scrollArea = document.createElement("div");
       scrollArea.className = "cloudattach-pdf-scrollarea";
       scrollArea.style.overflowY = "auto";
       scrollArea.style.overflowX = "hidden";
       scrollArea.style.position = "relative";
       container.appendChild(scrollArea);
-      scrollArea.addEventListener("contextmenu", (e) => e.preventDefault());
       imgEl.replaceWith(container);
       const firstPage = await pdf.getPage(1);
       const firstViewport = firstPage.getViewport({ scale: FIXED_SCALE });
@@ -3322,7 +3321,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       firstCanvas.dataset.pageNum = "1";
       firstCanvas.style.userSelect = "none";
       firstCanvas.draggable = false;
-      firstCanvas.addEventListener("contextmenu", (e) => e.preventDefault());
       scrollArea.appendChild(firstCanvas);
       await this._renderPdfPage(firstCanvas, pdf, 1, FIXED_SCALE);
       const containerW = container.clientWidth || 800;
@@ -3353,7 +3351,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
         canvas.dataset.pageNum = String(i);
         canvas.style.userSelect = "none";
         canvas.draggable = false;
-        canvas.addEventListener("contextmenu", (e) => e.preventDefault());
         scrollArea.appendChild(canvas);
         await this._renderPdfPage(canvas, pdf, i, FIXED_SCALE);
         console.log("[CloudAttach] page", i, "/", pdf.numPages, "cw:", canvas.width, "ch:", canvas.height);
