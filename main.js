@@ -3063,10 +3063,17 @@ module.exports = class CloudAttachPlugin extends Plugin {
     this.accounts = [];
   }
   async onload() {
-    document.addEventListener("contextmenu", (e) => {
-      const el = e.target.closest(".cloudattach-pdf-container");
-      if (el)
+    document.addEventListener("mousedown", (e) => {
+      if (e.button === 2 && e.target.closest(".cloudattach-pdf-container")) {
+        e.stopPropagation();
         e.preventDefault();
+      }
+    }, true);
+    document.addEventListener("contextmenu", (e) => {
+      if (e.target.closest(".cloudattach-pdf-container")) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
     }, true);
     const momentLocale = (window.moment || moment).locale();
     const lang = this.app.vault.config?.language || momentLocale || "zh";

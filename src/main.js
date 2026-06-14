@@ -3250,9 +3250,18 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
   async onload() {
     // 全局拦截 PDF 容器内右键（不影响普通图片）
+    // Obsidian/Electron 右键菜单不走 DOM contextmenu 事件，必须拦截 mousedown button=2
+    document.addEventListener("mousedown", (e) => {
+      if (e.button === 2 && e.target.closest(".cloudattach-pdf-container")) {
+        e.stopPropagation();
+        e.preventDefault();
+      }
+    }, true);
     document.addEventListener("contextmenu", (e) => {
-      const el = e.target.closest(".cloudattach-pdf-container");
-      if (el) e.preventDefault();
+      if (e.target.closest(".cloudattach-pdf-container")) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
     }, true);
 
     // 初始化语言（Obsidian 界面语言是应用级设置，不在 vault config 里）
