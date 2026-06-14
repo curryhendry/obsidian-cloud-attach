@@ -2023,11 +2023,17 @@ class CloudAttachView extends ItemView {
   renderBreadcrumb() {
     if (!this.breadcrumbEl) return;
     this.breadcrumbEl.innerHTML = '';
-    // 如果账户有 webdavPath，显示配置的目录名而不是“根目录”
+    // 统一：显示配置的前缀/路径的最后一段，没有则"根目录"
     const webdavPath = this.client?.webdavPath;
-    const rootLabel = webdavPath
-      ? '📁 ' + webdavPath.replace(/^\/+/, '').split('/').pop() || webdavPath
-      : t('view.root');
+    const s3Prefix = this.client?.prefix;
+    let rootLabel;
+    if (webdavPath) {
+      rootLabel = '📁 ' + webdavPath.replace(/^\/+/, '').split('/').pop() || webdavPath;
+    } else if (s3Prefix) {
+      rootLabel = '📁 ' + s3Prefix.replace(/^\/+|\/+$/g, '').split('/').pop() || s3Prefix;
+    } else {
+      rootLabel = t('view.root');
+    }
     const root = document.createElement('button');
     root.className = 'cloud-attach-breadcrumb-btn';
     root.textContent = rootLabel;
