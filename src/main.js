@@ -241,11 +241,6 @@ Object.assign(I18n.translations.zh, {
   'error.network_error': '网络错误',
   'error.no_view_or_folder': '请先打开 CloudAttach 标签页并选择上传目录',
   'error.no_account': '请先选择一个账户',
-  'view.loading': '⏳ 加载中...',
-  'view.no_account_hint': '请先在设置中添加账户',
-  'view.select_account_hint': '选择账户后开始浏览',
-  'view.no_account_selected': '❌ 未选择账户',
-  'view.empty_dir': '📂 空目录',
   'view.plugin_title': '云附件',
   'view.breadcrumb_sep': ' › ',
   'settings.webdav_path_label': 'WebDAV 路径',
@@ -478,11 +473,6 @@ Object.assign(I18n.translations.en, {
   'error.network_error': 'Network error',
   'error.no_view_or_folder': 'Please open CloudAttach tab and select an upload folder',
   'error.no_account': 'Please select an account first',
-  'view.loading': '⏳ Loading...',
-  'view.no_account_hint': 'Please add an account in Settings first',
-  'view.select_account_hint': 'Select an account to start browsing',
-  'view.no_account_selected': '❌ No account selected',
-  'view.empty_dir': '📂 Empty directory',
   'view.plugin_title': 'CloudAttach',
   'view.breadcrumb_sep': ' › ',
   'settings.webdav_path_label': 'WebDAV Path',
@@ -793,18 +783,14 @@ class OpenListClient {
         return newUrl;
       }
       
-      // API 返回错误
-      console.log('[CloudAttach] API returned error:', data.message);
+      // API 返回错误（token 无效/过期），抛错而非静默回退
+      const errMsg = data.message || `API error ${data.code}`;
+      throw new Error(`[CloudAttach] Sign 请求失败: ${errMsg}`);
       
     } catch (e) {
       console.log('[CloudAttach] API call failed:', e.message);
+      throw e; // 网络错误也向上抛
     }
-    
-    // 回退：使用传入的 preferredPrefix（默认 p）
-    // 保留原协议、保留中文原文
-    const proto = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, '$1');
-    const host = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, '$3');
-    return `${proto}${host}/${preferredPrefix}${virtualPath.startsWith('/') ? virtualPath : '/' + virtualPath}`;
   }
 
   // 获取文件的 WebDAV URL（用于插入到笔记）
@@ -2417,11 +2403,16 @@ class CloudAttachView extends ItemView {
     } else {
       // 有 token 的走签名 URL（OpenList/S3），无 token 的走 Basic Auth URL（纯 WebDAV）
       const client = this.client;
-      url = client.token
-        ? await (client.getSignedUrl
-            ? client.getSignedUrl(file.path)
-            : client.getFileUrl(file.path))
-        : client.getFileUrl(file.path);
+      try {
+        url = client.token
+          ? await (client.getSignedUrl
+              ? client.getSignedUrl(file.path)
+              : client.getFileUrl(file.path))
+          : client.getFileUrl(file.path);
+      } catch (signErr) {
+        new Notice(t('notice.sign_rebuild_failed', {error: signErr.message}));
+        throw signErr;
+      }
     }
     if (imageExts.includes(ext)) {
       const w = width ? `|${width}` : '';
@@ -3530,6 +3521,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const firstCanvas = document.createElement("canvas");
       firstCanvas.className = "cloudattach-pdf-page";
       firstCanvas.dataset.pageNum = "1";
+      // 阻止选中/拖拽/右键菜单复制
+      firstCanvas.style.userSelect = 'none';
+      firstCanvas.style.pointerEvents = 'none';
+      firstCanvas.draggable = false;
       scrollArea.appendChild(firstCanvas);
       await this._renderPdfPage(firstCanvas, pdf, 1, FIXED_SCALE);
       const containerW = container.clientWidth || 800;
@@ -3560,6 +3555,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
         const canvas = document.createElement("canvas");
         canvas.className = "cloudattach-pdf-page";
         canvas.dataset.pageNum = String(i);
+        canvas.style.userSelect = 'none';
+        canvas.style.pointerEvents = 'none';
+        canvas.draggable = false;
         scrollArea.appendChild(canvas);
         await this._renderPdfPage(canvas, pdf, i, FIXED_SCALE);
         console.log("[CloudAttach] page", i, "/", pdf.numPages, "cw:", canvas.width, "ch:", canvas.height);
@@ -4238,14 +4236,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (!view.accountId) {
       return { ok: false, error: t('error.no_account') };
     }
-    // WebDAV 账户：currentPath 为 / 时，实际对应 webdavPath 下的内容，允许上传
-    const isWebDAV = view.client.webdavPath;
-    if (!view.currentPath || view.currentPath === '/') {
-      if (!isWebDAV) {
-        return { ok: false, error: t('settings.folder_required') };
-      }
-    }
     // WebDAV 上传时 remotePath 需要拼接 webdavPath
+    const isWebDAV = view.client.webdavPath;
     const remotePath = isWebDAV
       ? (view.client.webdavPath + view.currentPath)
       : view.currentPath;
