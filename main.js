@@ -3305,13 +3305,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
       container.style.setProperty("overflow", "hidden", "important");
       container.style.setProperty("opacity", "0", "important");
       container.addEventListener("contextmenu", (e) => e.preventDefault());
-      scrollArea.addEventListener("contextmenu", (e) => e.preventDefault());
       const scrollArea = document.createElement("div");
       scrollArea.className = "cloudattach-pdf-scrollarea";
       scrollArea.style.overflowY = "auto";
       scrollArea.style.overflowX = "hidden";
       scrollArea.style.position = "relative";
       container.appendChild(scrollArea);
+      scrollArea.addEventListener("contextmenu", (e) => e.preventDefault());
       imgEl.replaceWith(container);
       const firstPage = await pdf.getPage(1);
       const firstViewport = firstPage.getViewport({ scale: FIXED_SCALE });
