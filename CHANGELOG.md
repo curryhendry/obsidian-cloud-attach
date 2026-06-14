@@ -1,3 +1,11 @@
+## v0.3.189.dev - 2026-06-14
+
+### 修复
+- 修复 PDF 右键菜单仍能复制图片的问题（补加 user-select/pointer-events/draggable 防护）
+- 修复 token 错误时静默插入无签名 URL 的问题（getSignedUrl 失败时弹 Notice 报错）
+- 修复 S3 账户在根目录时提示「不能根目录」的问题（移除错误的根目录拦截）
+- 清除 i18n 重复 key 警告（zh/en 各 5 个重复 key）
+
 ## v0.3.187 - 2026-06-12
 
 ### 新功能

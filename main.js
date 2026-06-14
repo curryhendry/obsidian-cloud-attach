@@ -226,11 +226,6 @@ Object.assign(I18n.translations.zh, {
   "error.network_error": "\u7F51\u7EDC\u9519\u8BEF",
   "error.no_view_or_folder": "\u8BF7\u5148\u6253\u5F00 CloudAttach \u6807\u7B7E\u9875\u5E76\u9009\u62E9\u4E0A\u4F20\u76EE\u5F55",
   "error.no_account": "\u8BF7\u5148\u9009\u62E9\u4E00\u4E2A\u8D26\u6237",
-  "view.loading": "\u23F3 \u52A0\u8F7D\u4E2D...",
-  "view.no_account_hint": "\u8BF7\u5148\u5728\u8BBE\u7F6E\u4E2D\u6DFB\u52A0\u8D26\u6237",
-  "view.select_account_hint": "\u9009\u62E9\u8D26\u6237\u540E\u5F00\u59CB\u6D4F\u89C8",
-  "view.no_account_selected": "\u274C \u672A\u9009\u62E9\u8D26\u6237",
-  "view.empty_dir": "\u{1F4C2} \u7A7A\u76EE\u5F55",
   "view.plugin_title": "\u4E91\u9644\u4EF6",
   "view.breadcrumb_sep": " \u203A ",
   "settings.webdav_path_label": "WebDAV \u8DEF\u5F84",
@@ -454,11 +449,6 @@ Object.assign(I18n.translations.en, {
   "error.network_error": "Network error",
   "error.no_view_or_folder": "Please open CloudAttach tab and select an upload folder",
   "error.no_account": "Please select an account first",
-  "view.loading": "\u23F3 Loading...",
-  "view.no_account_hint": "Please add an account in Settings first",
-  "view.select_account_hint": "Select an account to start browsing",
-  "view.no_account_selected": "\u274C No account selected",
-  "view.empty_dir": "\u{1F4C2} Empty directory",
   "view.plugin_title": "CloudAttach",
   "view.breadcrumb_sep": " \u203A ",
   "settings.webdav_path_label": "WebDAV Path",
@@ -726,13 +716,12 @@ var OpenListClient = class {
         newUrl = newUrl.replace(/\/(d|p)\//, `/${preferredPrefix}/`);
         return newUrl;
       }
-      console.log("[CloudAttach] API returned error:", data.message);
+      const errMsg = data.message || `API error ${data.code}`;
+      throw new Error(`[CloudAttach] Sign \u8BF7\u6C42\u5931\u8D25: ${errMsg}`);
     } catch (e) {
       console.log("[CloudAttach] API call failed:", e.message);
+      throw e;
     }
-    const proto = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, "$1");
-    const host = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, "$3");
-    return `${proto}${host}/${preferredPrefix}${virtualPath.startsWith("/") ? virtualPath : "/" + virtualPath}`;
   }
   // 获取文件的 WebDAV URL（用于插入到笔记）
   getFileUrl(remotePath) {
@@ -2251,7 +2240,12 @@ var CloudAttachView = class extends ItemView {
       url = this.client.getRawUrl ? this.client.getRawUrl(file.path) : this.client.getFileUrl(file.path);
     } else {
       const client = this.client;
-      url = client.token ? await (client.getSignedUrl ? client.getSignedUrl(file.path) : client.getFileUrl(file.path)) : client.getFileUrl(file.path);
+      try {
+        url = client.token ? await (client.getSignedUrl ? client.getSignedUrl(file.path) : client.getFileUrl(file.path)) : client.getFileUrl(file.path);
+      } catch (signErr) {
+        new Notice(t("notice.sign_rebuild_failed", { error: signErr.message }));
+        throw signErr;
+      }
     }
     if (imageExts.includes(ext)) {
       const w = width ? `|${width}` : "";
@@ -3319,6 +3313,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const firstCanvas = document.createElement("canvas");
       firstCanvas.className = "cloudattach-pdf-page";
       firstCanvas.dataset.pageNum = "1";
+      firstCanvas.style.userSelect = "none";
+      firstCanvas.style.pointerEvents = "none";
+      firstCanvas.draggable = false;
       scrollArea.appendChild(firstCanvas);
       await this._renderPdfPage(firstCanvas, pdf, 1, FIXED_SCALE);
       const containerW = container.clientWidth || 800;
@@ -3347,6 +3344,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
         const canvas = document.createElement("canvas");
         canvas.className = "cloudattach-pdf-page";
         canvas.dataset.pageNum = String(i);
+        canvas.style.userSelect = "none";
+        canvas.style.pointerEvents = "none";
+        canvas.draggable = false;
         scrollArea.appendChild(canvas);
         await this._renderPdfPage(canvas, pdf, i, FIXED_SCALE);
         console.log("[CloudAttach] page", i, "/", pdf.numPages, "cw:", canvas.width, "ch:", canvas.height);
@@ -3992,11 +3992,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       return { ok: false, error: t("error.no_account") };
     }
     const isWebDAV = view.client.webdavPath;
-    if (!view.currentPath || view.currentPath === "/") {
-      if (!isWebDAV) {
-        return { ok: false, error: t("settings.folder_required") };
-      }
-    }
     const remotePath = isWebDAV ? view.client.webdavPath + view.currentPath : view.currentPath;
     return {
       ok: true,
