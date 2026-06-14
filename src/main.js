@@ -3513,13 +3513,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
       container.style.setProperty("opacity", "0", "important");
       // 阻止 PDF canvas 右键菜单（复制图片等），不影响普通图片
       container.addEventListener("contextmenu", (e) => e.preventDefault());
-      scrollArea.addEventListener("contextmenu", (e) => e.preventDefault());
       const scrollArea = document.createElement("div");
       scrollArea.className = "cloudattach-pdf-scrollarea";
       scrollArea.style.overflowY = "auto";
       scrollArea.style.overflowX = "hidden";
       scrollArea.style.position = "relative";
       container.appendChild(scrollArea);
+      scrollArea.addEventListener("contextmenu", (e) => e.preventDefault());
       imgEl.replaceWith(container);
       const firstPage = await pdf.getPage(1);
       const firstViewport = firstPage.getViewport({ scale: FIXED_SCALE });
