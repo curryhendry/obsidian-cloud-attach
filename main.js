@@ -491,13 +491,6 @@ var OpenListClient = class {
    * @returns {string} 解码后的 URL
    */
   safeDecodeUrl(url) {
-    const renderKey2 = url + ":" + (imgEl.id || imgEl.dataset.src || "");
-    if (this._renderingPdfUrls?.has(renderKey2)) {
-      console.log("[CloudAttach] \u8DF3\u8FC7\u91CD\u590D\u6E32\u67D3:", url.substring(0, 80));
-      return;
-    }
-    this._renderingPdfUrls = this._renderingPdfUrls || /* @__PURE__ */ new Set();
-    this._renderingPdfUrls.add(renderKey2);
     try {
       const qIdx = url.indexOf("?");
       const path = qIdx >= 0 ? url.substring(0, qIdx) : url;
@@ -3281,26 +3274,26 @@ module.exports = class CloudAttachPlugin extends Plugin {
   _isPdfUrl(url) {
     return /\.pdf(\?|#|$)/i.test(url);
   }
-  async _renderPdfAsCanvas(imgEl2, url) {
+  async _renderPdfAsCanvas(imgEl, url) {
     const existingContainer = this._findPdfContainerByUrl(url);
     if (existingContainer) {
       console.log("[CloudAttach] \u5B9E\u65F6\u66F4\u65B0: \u590D\u7528\u5DF2\u6709\u5BB9\u5668");
-      this._updatePdfContainerWidth(existingContainer, imgEl2);
-      imgEl2.remove();
+      this._updatePdfContainerWidth(existingContainer, imgEl);
+      imgEl.remove();
       return;
     }
-    if (this._renderedPdfUrls && this._renderedPdfUrls.has(url + ":" + (imgEl2.id || imgEl2.dataset.src || ""))) {
+    if (this._renderedPdfUrls && this._renderedPdfUrls.has(url + ":" + (imgEl.id || imgEl.dataset.src || ""))) {
       return;
     }
     try {
       const pdfjsLib = await this._loadPdfJs();
-      const loadingTask = pdfjsLib.getDocument({ url, ownerDocument: imgEl2.ownerDocument });
+      const loadingTask = pdfjsLib.getDocument({ url, ownerDocument: imgEl.ownerDocument });
       console.log("[CloudAttach] PDF doc loaded, pages:", (await loadingTask.promise).numPages);
       const pdf = await loadingTask.promise;
-      let imgWidth = imgEl2.getAttribute("width") || imgEl2.style.width || "";
-      let imgHeight = imgEl2.getAttribute("height") || imgEl2.style.height || "";
-      let imgStyleMaxWidth = imgEl2.style.maxWidth;
-      const parentSpan = imgEl2.parentElement;
+      let imgWidth = imgEl.getAttribute("width") || imgEl.style.width || "";
+      let imgHeight = imgEl.getAttribute("height") || imgEl.style.height || "";
+      let imgStyleMaxWidth = imgEl.style.maxWidth;
+      const parentSpan = imgEl.parentElement;
       if (parentSpan && parentSpan.tagName === "SPAN") {
         if (!imgWidth && parentSpan.style.width)
           imgWidth = parentSpan.style.width;
@@ -3309,12 +3302,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
         if (!imgStyleMaxWidth && parentSpan.style.maxWidth)
           imgStyleMaxWidth = parentSpan.style.maxWidth;
       }
-      const imgClasses = imgEl2.className || "";
+      const imgClasses = imgEl.className || "";
       const widthClassMatch = imgClasses.match(/cm-image-width-(\d+)/);
       if (widthClassMatch && !imgWidth) {
         imgWidth = widthClassMatch[1] + "px";
       }
-      const altWidthMatch = imgEl2.alt?.match(/^(\d+)$/);
+      const altWidthMatch = imgEl.alt?.match(/^(\d+)$/);
       if (altWidthMatch && !imgWidth) {
         imgWidth = altWidthMatch[1] + "px";
       }
@@ -3345,7 +3338,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       scrollArea.style.overflowX = "hidden";
       scrollArea.style.position = "relative";
       container.appendChild(scrollArea);
-      imgEl2.replaceWith(container);
+      imgEl.replaceWith(container);
       const firstPage = await pdf.getPage(1);
       const firstViewport = firstPage.getViewport({ scale: FIXED_SCALE });
       const canvasW = firstViewport.width;
@@ -3390,7 +3383,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         console.log("[CloudAttach] page", i, "/", pdf.numPages, "cw:", canvas.width, "ch:", canvas.height);
       }
       if (this._renderedPdfUrls) {
-        this._renderedPdfUrls.add(url + ":" + (imgEl2.id || imgEl2.dataset.src || ""));
+        this._renderedPdfUrls.add(url + ":" + (imgEl.id || imgEl.dataset.src || ""));
       }
       this._renderingPdfUrls?.delete(renderKey);
       console.log("[CloudAttach] ALL DONE, pages:", pdf.numPages);
@@ -3398,8 +3391,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       console.log("[CloudAttach] PDF container built, pages:", pdf.numPages);
     } catch (e) {
       console.error("[CloudAttach] PDF render failed:", e);
-    } finally {
-      this._renderingPdfUrls?.delete(renderKey);
     }
   }
   // 根据查找同 URL 的已有 PDF 容器（用于实时更新）
@@ -3409,13 +3400,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (containers[i].dataset.pdfUrl === url)
         return containers[i];
     }
-    this._popoutObservers?.forEach((obs, doc) => {
-      const cs = doc.querySelectorAll(".cloudattach-pdf-container");
-      for (let i = 0; i < cs.length; i++) {
-        if (cs[i].dataset.pdfUrl === url)
-          return cs[i];
-      }
-    });
     if (this._popoutObservers) {
       for (const [doc] of this._popoutObservers) {
         const cs = doc.querySelectorAll(".cloudattach-pdf-container");
@@ -3428,23 +3412,23 @@ module.exports = class CloudAttachPlugin extends Plugin {
     return null;
   }
   // 更新已有 PDF 容器的宽度（实时响应用户修改）
-  _updatePdfContainerWidth(container, imgEl2) {
+  _updatePdfContainerWidth(container, imgEl) {
     try {
-      let imgWidth = imgEl2.getAttribute("width") || imgEl2.style.width || "";
-      let imgHeight = imgEl2.getAttribute("height") || imgEl2.style.height || "";
-      const parentSpan = imgEl2.parentElement;
+      let imgWidth = imgEl.getAttribute("width") || imgEl.style.width || "";
+      let imgHeight = imgEl.getAttribute("height") || imgEl.style.height || "";
+      const parentSpan = imgEl.parentElement;
       if (parentSpan && parentSpan.tagName === "SPAN") {
         if (!imgWidth && parentSpan.style.width)
           imgWidth = parentSpan.style.width;
         if (!imgHeight && parentSpan.style.height)
           imgHeight = parentSpan.style.height;
       }
-      const imgClasses = imgEl2.className || "";
+      const imgClasses = imgEl.className || "";
       const widthClassMatch = imgClasses.match(/cm-image-width-(\d+)/);
       if (widthClassMatch && !imgWidth) {
         imgWidth = widthClassMatch[1] + "px";
       }
-      const altWidthMatch = imgEl2.alt?.match(/^(\d+)$/);
+      const altWidthMatch = imgEl.alt?.match(/^(\d+)$/);
       if (altWidthMatch && !imgWidth) {
         imgWidth = altWidthMatch[1] + "px";
       }
@@ -3457,12 +3441,14 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
       const firstCanvas = container.querySelector(".cloudattach-pdf-page");
       if (firstCanvas && !container.dataset.userHeight) {
-        const canvasW = firstCanvas.width;
-        const canvasH = firstCanvas.height;
-        const newW = container.clientWidth || parseInt(imgWidth) || 800;
-        const newH = Math.round(canvasH * (newW / canvasW));
-        container.style.setProperty("height", newH + "px", "important");
-        console.log("[CloudAttach] PDF height recalculated:", newH, "px (canvas ratio:", canvasW, "x", canvasH, ")");
+        setTimeout(() => {
+          const canvasW = firstCanvas.width;
+          const canvasH = firstCanvas.height;
+          const newW = container.clientWidth || 800;
+          const newH = Math.round(canvasH * (newW / canvasW));
+          container.style.setProperty("height", newH + "px", "important");
+          console.log("[CloudAttach] PDF height recalculated:", newH, "px");
+        }, 0);
       } else if (imgHeight && imgHeight !== "auto") {
         const h = imgHeight.includes("%") || imgHeight.includes("px") || imgHeight.includes("vh") ? imgHeight : imgHeight + "px";
         container.dataset.userHeight = h;

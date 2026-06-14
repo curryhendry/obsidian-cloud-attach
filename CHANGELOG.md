@@ -1,3 +1,11 @@
+## v0.3.208.dev - 2026-06-14
+
+### 修复
+- 修复 `_findPdfContainerByUrl` 中 Map 迭代解构错误（`[doc]` 应为 `[doc, obs]`），导致 popout 窗口容器查询失败、翻页无效
+- 去掉 `_renderingPdfUrls` 幂等标志，避免实时更新时被跳过
+- `_updatePdfContainerWidth` 高度重算改为 `setTimeout(0)` 等 layout flush 后执行
+- 精简 MutationObserver callback 中的扫描逻辑（只保留一个 setTimeout）
+
 ## v0.3.206.dev - 2026-06-14
 
 ### 修复
