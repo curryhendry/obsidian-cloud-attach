@@ -519,6 +519,15 @@ class OpenListClient {
    * @returns {string} 解码后的 URL
    */
   safeDecodeUrl(url) {
+    // 幂等：同一 URL 正在渲染中则跳过，防止无限循环
+    const renderKey = url + ':' + (imgEl.id || imgEl.dataset.src || '');
+    if (this._renderingPdfUrls?.has(renderKey)) {
+      console.log("[CloudAttach] 跳过重复渲染:", url.substring(0, 80));
+      return;
+    }
+    this._renderingPdfUrls = this._renderingPdfUrls || new Set();
+    this._renderingPdfUrls.add(renderKey);
+
     try {
       const qIdx = url.indexOf('?');
       const path = qIdx >= 0 ? url.substring(0, qIdx) : url;
@@ -3602,11 +3611,14 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (this._renderedPdfUrls) {
         this._renderedPdfUrls.add(url + ':' + (imgEl.id || imgEl.dataset.src || ''));
       }
+      this._renderingPdfUrls?.delete(renderKey);
       console.log("[CloudAttach] ALL DONE, pages:", pdf.numPages);
       this._bindPdfScroll(container, pdf);
       console.log("[CloudAttach] PDF container built, pages:", pdf.numPages);
     } catch (e) {
       console.error("[CloudAttach] PDF render failed:", e);
+    } finally {
+      this._renderingPdfUrls?.delete(renderKey);
     }
   }
 
@@ -3622,9 +3634,18 @@ module.exports = class CloudAttachPlugin extends Plugin {
     this._popoutObservers?.forEach((obs, doc) => {
       const cs = doc.querySelectorAll('.cloudattach-pdf-container');
       for (let i = 0; i < cs.length; i++) {
-        if (cs[i].dataset.pdfUrl === url) return cs[i];
+        if (cs[i].dataset.pdfUrl === url) return cs[i]; // forEach 里的 return 不中断外层 for
       }
     });
+    // 用普通 for 循环检查 popout 窗口
+    if (this._popoutObservers) {
+      for (const [doc] of this._popoutObservers) {
+        const cs = doc.querySelectorAll('.cloudattach-pdf-container');
+        for (let i = 0; i < cs.length; i++) {
+          if (cs[i].dataset.pdfUrl === url) return cs[i];
+        }
+      }
+    }
     return null;
   }
 
@@ -3900,24 +3921,19 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const rescanPdfImgs = () => {
       // 清空已渲染记录，确保切换笔记后重新渲染
       this._renderedPdfUrls = new Set();
-      // 主窗口：立即扫一次
-      this._scanAllPdfImgs();
-      // 延迟再扫（等 DOM 渲染完成）
+      this._renderingPdfUrls = new Set();
+      // 主窗口：延迟扫一次（等 DOM 渲染完成）
       setTimeout(() => this._scanAllPdfImgs(), 500);
-      // 再延迟扫（应对慢渲染）
-      setTimeout(() => this._scanAllPdfImgs(), 1500);
       // 所有 popout 窗口
       this._popoutObservers.forEach((obs, doc) => {
-        this._scanAllPdfImgs(doc);
         setTimeout(() => this._scanAllPdfImgs(doc), 500);
-        setTimeout(() => this._scanAllPdfImgs(doc), 1500);
       });
     };
     this.registerEvent(this.app.workspace.on('active-leaf-change', rescanPdfImgs));
     this.registerEvent(this.app.workspace.on('layout-change', () => {
       // 重新扫描主窗口
       this._renderedPdfUrls = new Set();
-      this._scanAllPdfImgs();
+      this._renderingPdfUrls = new Set();
       setTimeout(() => this._scanAllPdfImgs(), 500);
       // 检查是否有新的 popout 窗口需要注册
       this._registerPopoutObservers();
@@ -3954,11 +3970,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const d = doc || document;
     const allImgs = d.querySelectorAll('img');
     const pdfImgs = Array.from(allImgs).filter(img => this._isPdfUrl(img.getAttribute('src') || ''));
-    console.log('[CloudAttach] _scanAllPdfImgs:', allImgs.length, 'imgs total,', pdfImgs.length, 'pdf imgs');
     if (pdfImgs.length > 0) {
-      pdfImgs.forEach(img => {
-        console.log('[CloudAttach]  pdf img src:', img.getAttribute('src')?.substring(0, 100), '| class:', img.className, '| alt:', img.alt);
-      });
+      console.log('[CloudAttach] _scanAllPdfImgs:', allImgs.length, 'imgs,', pdfImgs.length, 'pdf imgs');
     }
     allImgs.forEach(img => {
       if (img.closest('.cloudattach-pdf-container')) return;
