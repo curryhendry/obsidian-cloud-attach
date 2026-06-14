@@ -3479,7 +3479,19 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
 
   async _renderPdfAsCanvas(imgEl, url) {
-    // 去重
+    // ★ 实时更新：检查同一位置附近是否已有同 URL 的 PDF 容器
+    // Obsidian Live Preview 修改 markdown 时会销毁旧 img 并创建新 img，
+    // 旧 PDF 容器仍在 DOM 中。此时应更新旧容器宽度而非重新渲染。
+    const existingContainer = this._findPdfContainerByUrl(url);
+    if (existingContainer) {
+      console.log("[CloudAttach] 实时更新: 复用已有容器");
+      this._updatePdfContainerWidth(existingContainer, imgEl);
+      // 新 img 不需要了，移除它（PDF 容器已替代它的位置）
+      imgEl.remove();
+      return;
+    }
+
+    // 去重：防止重复渲染
     if (this._renderedPdfUrls && this._renderedPdfUrls.has(url + ':' + (imgEl.id || imgEl.dataset.src || ''))) {
       return;
     }
@@ -3599,12 +3611,36 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
 
 
-  // 更新已有 PDF 容器的宽度（实时响应用户修改）
+  
+  // 根据查找同 URL 的已有 PDF 容器（用于实时更新）
+  _findPdfContainerByUrl(url) {
+    const containers = document.querySelectorAll('.cloudattach-pdf-container');
+    for (let i = 0; i < containers.length; i++) {
+      if (containers[i].dataset.pdfUrl === url) return containers[i];
+    }
+    // 也检查 popout 窗口
+    this._popoutObservers?.forEach((obs, doc) => {
+      const cs = doc.querySelectorAll('.cloudattach-pdf-container');
+      for (let i = 0; i < cs.length; i++) {
+        if (cs[i].dataset.pdfUrl === url) return cs[i];
+      }
+    });
+    return null;
+  }
+
+// 更新已有 PDF 容器的宽度（实时响应用户修改）
   _updatePdfContainerWidth(container, imgEl) {
     try {
       // 解析新的宽度
       let imgWidth = imgEl.getAttribute("width") || imgEl.style.width || "";
       let imgHeight = imgEl.getAttribute("height") || imgEl.style.height || "";
+      const parentSpan = imgEl.parentElement;
+      if (parentSpan && parentSpan.tagName === "SPAN") {
+        if (!imgWidth && parentSpan.style.width)
+          imgWidth = parentSpan.style.width;
+        if (!imgHeight && parentSpan.style.height)
+          imgHeight = parentSpan.style.height;
+      }
       const imgClasses = imgEl.className || "";
       const widthClassMatch = imgClasses.match(/cm-image-width-(\d+)/);
       if (widthClassMatch && !imgWidth) {
@@ -3621,19 +3657,23 @@ module.exports = class CloudAttachPlugin extends Plugin {
         container.style.setProperty("width", w, "important");
         console.log("[CloudAttach] PDF width updated:", w);
       } else {
-        // 无宽度设定，恢复默认 100%
         container.style.setProperty("width", "100%", "important");
       }
       
-      // 更新高度（如果有设定）
-      if (imgHeight && imgHeight !== "auto") {
+      // ★ 重新计算高度（按宽高比）
+      const firstCanvas = container.querySelector(".cloudattach-pdf-page");
+      if (firstCanvas && !container.dataset.userHeight) {
+        const canvasW = firstCanvas.width;
+        const canvasH = firstCanvas.height;
+        const newW = container.clientWidth || parseInt(imgWidth) || 800;
+        const newH = Math.round(canvasH * (newW / canvasW));
+        container.style.setProperty("height", newH + "px", "important");
+        console.log("[CloudAttach] PDF height recalculated:", newH, "px (canvas ratio:", canvasW, "x", canvasH, ")");
+      } else if (imgHeight && imgHeight !== "auto") {
         const h = imgHeight.includes("%") || imgHeight.includes("px") || imgHeight.includes("vh") ? imgHeight : imgHeight + "px";
         container.dataset.userHeight = h;
         container.style.setProperty("height", h, "important");
       }
-      
-      // 触发 ResizeObserver 重新计算（如果有的话）
-      // 实际不需要，因为 ResizeObserver 监听的是 container，width 变化会自动触发
     } catch (e) {
       console.error("[CloudAttach] _updatePdfContainerWidth failed:", e);
     }
