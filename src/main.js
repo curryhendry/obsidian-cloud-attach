@@ -3598,6 +3598,48 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
   }
 
+
+  // 更新已有 PDF 容器的宽度（实时响应用户修改）
+  _updatePdfContainerWidth(container, imgEl) {
+    try {
+      // 解析新的宽度
+      let imgWidth = imgEl.getAttribute("width") || imgEl.style.width || "";
+      let imgHeight = imgEl.getAttribute("height") || imgEl.style.height || "";
+      const imgClasses = imgEl.className || "";
+      const widthClassMatch = imgClasses.match(/cm-image-width-(\d+)/);
+      if (widthClassMatch && !imgWidth) {
+        imgWidth = widthClassMatch[1] + "px";
+      }
+      const altWidthMatch = imgEl.alt?.match(/^(\d+)$/);
+      if (altWidthMatch && !imgWidth) {
+        imgWidth = altWidthMatch[1] + "px";
+      }
+      
+      // 应用新宽度
+      if (imgWidth) {
+        const w = imgWidth.includes("%") || imgWidth.includes("px") || imgWidth.includes("vw") ? imgWidth : imgWidth + "px";
+        container.style.setProperty("width", w, "important");
+        console.log("[CloudAttach] PDF width updated:", w);
+      } else {
+        // 无宽度设定，恢复默认 100%
+        container.style.setProperty("width", "100%", "important");
+      }
+      
+      // 更新高度（如果有设定）
+      if (imgHeight && imgHeight !== "auto") {
+        const h = imgHeight.includes("%") || imgHeight.includes("px") || imgHeight.includes("vh") ? imgHeight : imgHeight + "px";
+        container.dataset.userHeight = h;
+        container.style.setProperty("height", h, "important");
+      }
+      
+      // 触发 ResizeObserver 重新计算（如果有的话）
+      // 实际不需要，因为 ResizeObserver 监听的是 container，width 变化会自动触发
+    } catch (e) {
+      console.error("[CloudAttach] _updatePdfContainerWidth failed:", e);
+    }
+  }
+
+
   // 渲染指定页码的 PDF 页面到指定 canvas
   async _renderPdfPage(canvas, pdf, pageNum, scale) {
     const page = await pdf.getPage(pageNum);
@@ -3775,6 +3817,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     this._renderedPdfUrls = this._renderedPdfUrls || new Set();
     this._pdfObserver = new MutationObserver((mutations) => {
       mutations.forEach(m => {
+        // 处理新增节点
         m.addedNodes.forEach(n => {
           if (n.nodeType !== 1) return;
           // 匹配直接 img 节点或子树中的 img
@@ -3788,10 +3831,25 @@ module.exports = class CloudAttachPlugin extends Plugin {
             }
           });
         });
+        // 处理属性变化（实时修改宽度）
+        if (m.type === 'attributes' && m.target.tagName === 'IMG') {
+          const img = m.target;
+          const src = img.getAttribute('src') || '';
+          if (this._isPdfUrl(src)) {
+            // 检查是否已有 PDF 容器，有则更新宽度
+            const existingContainer = img.closest('.cloudattach-pdf-container');
+            if (existingContainer) {
+              this._updatePdfContainerWidth(existingContainer, img);
+            } else {
+              // 没有容器，正常渲染
+              this._renderPdfAsCanvas(img, src);
+            }
+          }
+        }
       });
     });
     // 监听主窗口 document.body
-    this._pdfObserver.observe(document.body, { childList: true, subtree: true });
+    this._pdfObserver.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['alt', 'width', 'style', 'class'] });
     // 注册已有 popout 窗口的 observer
     this._popoutObservers = new Map();
     this._registerPopoutObservers();
@@ -3846,7 +3904,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
           });
         });
       });
-      popoutObserver.observe(doc.body, { childList: true, subtree: true });
+      popoutObserver.observe(doc.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['alt', 'width', 'style', 'class'] });
       this._popoutObservers.set(doc, popoutObserver);
       this._scanAllPdfImgs(doc);
     });

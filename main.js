@@ -3385,6 +3385,36 @@ module.exports = class CloudAttachPlugin extends Plugin {
       console.error("[CloudAttach] PDF render failed:", e);
     }
   }
+  // 更新已有 PDF 容器的宽度（实时响应用户修改）
+  _updatePdfContainerWidth(container, imgEl) {
+    try {
+      let imgWidth = imgEl.getAttribute("width") || imgEl.style.width || "";
+      let imgHeight = imgEl.getAttribute("height") || imgEl.style.height || "";
+      const imgClasses = imgEl.className || "";
+      const widthClassMatch = imgClasses.match(/cm-image-width-(\d+)/);
+      if (widthClassMatch && !imgWidth) {
+        imgWidth = widthClassMatch[1] + "px";
+      }
+      const altWidthMatch = imgEl.alt?.match(/^(\d+)$/);
+      if (altWidthMatch && !imgWidth) {
+        imgWidth = altWidthMatch[1] + "px";
+      }
+      if (imgWidth) {
+        const w = imgWidth.includes("%") || imgWidth.includes("px") || imgWidth.includes("vw") ? imgWidth : imgWidth + "px";
+        container.style.setProperty("width", w, "important");
+        console.log("[CloudAttach] PDF width updated:", w);
+      } else {
+        container.style.setProperty("width", "100%", "important");
+      }
+      if (imgHeight && imgHeight !== "auto") {
+        const h = imgHeight.includes("%") || imgHeight.includes("px") || imgHeight.includes("vh") ? imgHeight : imgHeight + "px";
+        container.dataset.userHeight = h;
+        container.style.setProperty("height", h, "important");
+      }
+    } catch (e) {
+      console.error("[CloudAttach] _updatePdfContainerWidth failed:", e);
+    }
+  }
   // 渲染指定页码的 PDF 页面到指定 canvas
   async _renderPdfPage(canvas, pdf, pageNum, scale) {
     const page = await pdf.getPage(pageNum);
@@ -3569,9 +3599,21 @@ module.exports = class CloudAttachPlugin extends Plugin {
             }
           });
         });
+        if (m.type === "attributes" && m.target.tagName === "IMG") {
+          const img = m.target;
+          const src = img.getAttribute("src") || "";
+          if (this._isPdfUrl(src)) {
+            const existingContainer = img.closest(".cloudattach-pdf-container");
+            if (existingContainer) {
+              this._updatePdfContainerWidth(existingContainer, img);
+            } else {
+              this._renderPdfAsCanvas(img, src);
+            }
+          }
+        }
       });
     });
-    this._pdfObserver.observe(document.body, { childList: true, subtree: true });
+    this._pdfObserver.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["alt", "width", "style", "class"] });
     this._popoutObservers = /* @__PURE__ */ new Map();
     this._registerPopoutObservers();
     setTimeout(() => this._scanAllPdfImgs(), 500);
@@ -3618,7 +3660,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
           });
         });
       });
-      popoutObserver.observe(doc.body, { childList: true, subtree: true });
+      popoutObserver.observe(doc.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["alt", "width", "style", "class"] });
       this._popoutObservers.set(doc, popoutObserver);
       this._scanAllPdfImgs(doc);
     });
