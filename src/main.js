@@ -519,15 +519,6 @@ class OpenListClient {
    * @returns {string} 解码后的 URL
    */
   safeDecodeUrl(url) {
-    // 幂等：同一 URL 正在渲染中则跳过，防止无限循环
-    const renderKey = url + ':' + (imgEl.id || imgEl.dataset.src || '');
-    if (this._renderingPdfUrls?.has(renderKey)) {
-      console.log("[CloudAttach] 跳过重复渲染:", url.substring(0, 80));
-      return;
-    }
-    this._renderingPdfUrls = this._renderingPdfUrls || new Set();
-    this._renderingPdfUrls.add(renderKey);
-
     try {
       const qIdx = url.indexOf('?');
       const path = qIdx >= 0 ? url.substring(0, qIdx) : url;
@@ -3617,8 +3608,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       console.log("[CloudAttach] PDF container built, pages:", pdf.numPages);
     } catch (e) {
       console.error("[CloudAttach] PDF render failed:", e);
-    } finally {
-      this._renderingPdfUrls?.delete(renderKey);
     }
   }
 
@@ -3626,18 +3615,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
   
   // 根据查找同 URL 的已有 PDF 容器（用于实时更新）
   _findPdfContainerByUrl(url) {
+    // 主窗口
     const containers = document.querySelectorAll('.cloudattach-pdf-container');
     for (let i = 0; i < containers.length; i++) {
       if (containers[i].dataset.pdfUrl === url) return containers[i];
     }
-    // 也检查 popout 窗口
-    this._popoutObservers?.forEach((obs, doc) => {
-      const cs = doc.querySelectorAll('.cloudattach-pdf-container');
-      for (let i = 0; i < cs.length; i++) {
-        if (cs[i].dataset.pdfUrl === url) return cs[i]; // forEach 里的 return 不中断外层 for
-      }
-    });
-    // 用普通 for 循环检查 popout 窗口
+    // popout 窗口：Map<Document, MutationObserver>
     if (this._popoutObservers) {
       for (const [doc] of this._popoutObservers) {
         const cs = doc.querySelectorAll('.cloudattach-pdf-container');
@@ -3681,15 +3664,18 @@ module.exports = class CloudAttachPlugin extends Plugin {
         container.style.setProperty("width", "100%", "important");
       }
       
-      // ★ 重新计算高度（按宽高比）
+      // ★ 重新计算高度（按宽高比，等 layout flush）
       const firstCanvas = container.querySelector(".cloudattach-pdf-page");
       if (firstCanvas && !container.dataset.userHeight) {
-        const canvasW = firstCanvas.width;
-        const canvasH = firstCanvas.height;
-        const newW = container.clientWidth || parseInt(imgWidth) || 800;
-        const newH = Math.round(canvasH * (newW / canvasW));
-        container.style.setProperty("height", newH + "px", "important");
-        console.log("[CloudAttach] PDF height recalculated:", newH, "px (canvas ratio:", canvasW, "x", canvasH, ")");
+        // 先让浏览器完成 layout，再读 clientWidth
+        setTimeout(() => {
+          const canvasW = firstCanvas.width;
+          const canvasH = firstCanvas.height;
+          const newW = container.clientWidth || 800;
+          const newH = Math.round(canvasH * (newW / canvasW));
+          container.style.setProperty("height", newH + "px", "important");
+          console.log("[CloudAttach] PDF height recalculated:", newH, "px");
+        }, 0);
       } else if (imgHeight && imgHeight !== "auto") {
         const h = imgHeight.includes("%") || imgHeight.includes("px") || imgHeight.includes("vh") ? imgHeight : imgHeight + "px";
         container.dataset.userHeight = h;
