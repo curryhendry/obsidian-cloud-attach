@@ -3063,6 +3063,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
     this.accounts = [];
   }
   async onload() {
+    document.addEventListener("contextmenu", (e) => {
+      const el = e.target.closest(".cloudattach-pdf-container");
+      if (el)
+        e.preventDefault();
+    }, true);
     const momentLocale = (window.moment || moment).locale();
     const lang = this.app.vault.config?.language || momentLocale || "zh";
     I18n.setLang(lang);
@@ -3304,7 +3309,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       container.style.setProperty("display", "block", "important");
       container.style.setProperty("overflow", "hidden", "important");
       container.style.setProperty("opacity", "0", "important");
-      container.addEventListener("contextmenu", (e) => e.preventDefault(), true);
       const scrollArea = document.createElement("div");
       scrollArea.className = "cloudattach-pdf-scrollarea";
       scrollArea.style.overflowY = "auto";

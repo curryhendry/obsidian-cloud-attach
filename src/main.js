@@ -3249,6 +3249,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
     this.accounts = [];
   }
   async onload() {
+    // 全局拦截 PDF 容器内右键（不影响普通图片）
+    document.addEventListener("contextmenu", (e) => {
+      const el = e.target.closest(".cloudattach-pdf-container");
+      if (el) e.preventDefault();
+    }, true);
+
     // 初始化语言（Obsidian 界面语言是应用级设置，不在 vault config 里）
     // 优先使用 moment.locale()，这是 Obsidian 内置的国际化方案
     const momentLocale = (window.moment || moment).locale();
@@ -3511,8 +3517,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       container.style.setProperty("display", "block", "important");
       container.style.setProperty("overflow", "hidden", "important");
       container.style.setProperty("opacity", "0", "important");
-      // capture phase 确保渲染区域内所有右键被拦截（包括 Obsidian 外层包裹元素）
-      container.addEventListener("contextmenu", (e) => e.preventDefault(), true);
       const scrollArea = document.createElement("div");
       scrollArea.className = "cloudattach-pdf-scrollarea";
       scrollArea.style.overflowY = "auto";
