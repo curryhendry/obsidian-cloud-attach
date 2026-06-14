@@ -1823,7 +1823,15 @@ var CloudAttachView = class extends ItemView {
       return;
     this.breadcrumbEl.innerHTML = "";
     const webdavPath = this.client?.webdavPath;
-    const rootLabel = webdavPath ? "\u{1F4C1} " + webdavPath.replace(/^\/+/, "").split("/").pop() || webdavPath : t("view.root");
+    const s3Prefix = this.client?.prefix;
+    let rootLabel;
+    if (webdavPath) {
+      rootLabel = "\u{1F4C1} " + webdavPath.replace(/^\/+/, "").split("/").pop() || webdavPath;
+    } else if (s3Prefix) {
+      rootLabel = "\u{1F4C1} " + s3Prefix.replace(/^\/+|\/+$/g, "").split("/").pop() || s3Prefix;
+    } else {
+      rootLabel = t("view.root");
+    }
     const root = document.createElement("button");
     root.className = "cloud-attach-breadcrumb-btn";
     root.textContent = rootLabel;
