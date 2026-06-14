@@ -1,4 +1,4 @@
-## v0.3.190.dev - 2026-06-14
+## v0.3.191.dev - 2026-06-14
 
 ### 修复
 - 修复 PDF 右键菜单仍能复制图片的问题（补加 user-select/pointer-events/draggable 防护）

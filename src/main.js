@@ -34,6 +34,7 @@ Object.assign(I18n.translations.zh, {
   // Notice 消息
   'notice.sign_expired_403': '⚠️ Sign 已过期，请刷新',
   'notice.sign_invalid': '❌ Sign 无效',
+  'notice.sign_rebuild_failed': '⚠️ 签名失败：{error}',
   'notice.sign_ok': '✅ Sign 有效，无需刷新',
   'notice.check_start': '🔍 开始检查 {count} 个 URL...',
   'notice.check_complete': '✅ 检查完成：{parts}',
@@ -263,6 +264,7 @@ Object.assign(I18n.translations.zh, {
 Object.assign(I18n.translations.en, {
   'notice.sign_expired_403': '⚠️ Sign expired, please refresh',
   'notice.sign_invalid': '❌ Sign invalid',
+  'notice.sign_rebuild_failed': '⚠️ Sign rebuild failed: {error}',
   'notice.sign_ok': '✅ Sign valid, no refresh needed',
   'notice.check_start': '🔍 Checking {count} URLs...',
   'notice.check_complete': '✅ Check complete: {parts}',

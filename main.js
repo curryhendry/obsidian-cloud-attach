@@ -24,6 +24,7 @@ Object.assign(I18n.translations.zh, {
   // Notice 消息
   "notice.sign_expired_403": "\u26A0\uFE0F Sign \u5DF2\u8FC7\u671F\uFF0C\u8BF7\u5237\u65B0",
   "notice.sign_invalid": "\u274C Sign \u65E0\u6548",
+  "notice.sign_rebuild_failed": "\u26A0\uFE0F \u7B7E\u540D\u5931\u8D25\uFF1A{error}",
   "notice.sign_ok": "\u2705 Sign \u6709\u6548\uFF0C\u65E0\u9700\u5237\u65B0",
   "notice.check_start": "\u{1F50D} \u5F00\u59CB\u68C0\u67E5 {count} \u4E2A URL...",
   "notice.check_complete": "\u2705 \u68C0\u67E5\u5B8C\u6210\uFF1A{parts}",
@@ -247,6 +248,7 @@ Object.assign(I18n.translations.zh, {
 Object.assign(I18n.translations.en, {
   "notice.sign_expired_403": "\u26A0\uFE0F Sign expired, please refresh",
   "notice.sign_invalid": "\u274C Sign invalid",
+  "notice.sign_rebuild_failed": "\u26A0\uFE0F Sign rebuild failed: {error}",
   "notice.sign_ok": "\u2705 Sign valid, no refresh needed",
   "notice.check_start": "\u{1F50D} Checking {count} URLs...",
   "notice.check_complete": "\u2705 Check complete: {parts}",
