@@ -1823,7 +1823,15 @@ var CloudAttachView = class extends ItemView {
       return;
     this.breadcrumbEl.innerHTML = "";
     const webdavPath = this.client?.webdavPath;
-    const rootLabel = webdavPath ? "\u{1F4C1} " + webdavPath.replace(/^\/+/, "").split("/").pop() || webdavPath : t("view.root");
+    const s3Prefix = this.client?.prefix;
+    let rootLabel;
+    if (webdavPath) {
+      rootLabel = "\u{1F4C1} " + webdavPath.replace(/^\/+/, "").split("/").pop() || webdavPath;
+    } else if (s3Prefix) {
+      rootLabel = "\u{1F4C1} " + s3Prefix.replace(/^\/+|\/+$/g, "").split("/").pop() || s3Prefix;
+    } else {
+      rootLabel = t("view.root");
+    }
     const root = document.createElement("button");
     root.className = "cloud-attach-breadcrumb-btn";
     root.textContent = rootLabel;
@@ -3203,7 +3211,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       .cloud-attach-add-btn:hover { background: var(--background-modifier-hover); }
     
     /* PDF \u9884\u89C8\u5BB9\u5668 - \u53CC\u5C42\u7ED3\u6784\uFF0C\u4EFF Obsidian \u539F\u751F .pdf-embed */
-    .cloudattach-pdf-container { box-sizing: border-box !important; display: inline-block !important; width: 100% !important; max-width: 100% !important; border: 1px solid var(--background-modifier-border) !important; border-radius: 8px !important; background: var(--background-secondary) !important; vertical-align: top !important; position: relative !important; overflow: hidden !important; }
+    .cloudattach-pdf-container { box-sizing: border-box !important; display: inline-block !important; width: 100%; max-width: 100% !important; border: 1px solid var(--background-modifier-border) !important; border-radius: 8px !important; background: var(--background-secondary) !important; vertical-align: top !important; position: relative !important; overflow: hidden !important; }
     .cloudattach-pdf-page { display: block !important; box-sizing: border-box !important; width: 100% !important; height: auto !important; max-width: 100% !important; min-width: 0 !important; }
     `;
     const styleEl = document.createElement("style");
@@ -3302,7 +3310,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
       container.dataset.totalPages = pdf.numPages.toString();
       container.dataset.pdfUrl = url;
       if (imgWidth) {
-        container.style.width = imgWidth.includes("%") || imgWidth.includes("px") || imgWidth.includes("vw") ? imgWidth : imgWidth + "px";
+        const w = imgWidth.includes("%") || imgWidth.includes("px") || imgWidth.includes("vw") ? imgWidth : imgWidth + "px";
+        container.style.setProperty("width", w, "important");
       }
       if (imgStyleMaxWidth)
         container.style.maxWidth = imgStyleMaxWidth;
