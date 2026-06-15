@@ -3531,6 +3531,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
 
     // 同步替换：容器立即插入 DOM，后续并发调用通过 DOM 查询即可拦截
     imgEl.replaceWith(container);
+    // 等浏览器完成 layout 再读宽度，否则 getBoundingClientRect 返回 0 或错误值
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
     try {
       const pdfjsLib = await this._loadPdfJs();
