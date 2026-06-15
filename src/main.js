@@ -3481,13 +3481,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
   async _renderPdfAsCanvas(imgEl, url) {
     // 去重
     if (this._renderedPdfUrls && this._renderedPdfUrls.has(url + ':' + (imgEl.id || imgEl.dataset.src || ''))) {
-      // URL 已渲染 — 可能是宽度更新（用户修改了 ![500] 为 ![800]）
-      // 找到对应容器并更新宽高，不用重新绘制 PDF
-      const existing = this._findPdfContainerByUrl(url, imgEl);
-      if (existing) {
-        this._updatePdfContainerWidth(existing, imgEl);
-        imgEl.remove();
-      }
       return;
     }
     try {
@@ -3602,57 +3595,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       console.log("[CloudAttach] PDF container built, pages:", pdf.numPages);
     } catch (e) {
       console.error("[CloudAttach] PDF render failed:", e);
-    }
-  }
-
-  // 根据 URL 查找已渲染的 PDF 容器（优先同 document，再扫全窗口）
-  _findPdfContainerByUrl(url, imgEl) {
-    const doc = imgEl?.ownerDocument || document;
-    const containers = doc.querySelectorAll('.cloudattach-pdf-container');
-    for (let i = 0; i < containers.length; i++) {
-      if (containers[i].dataset.pdfUrl === url) return containers[i];
-    }
-    // 主 document 没找到则搜所有 popout 窗口
-    if (doc !== document) {
-      const mainContainers = document.querySelectorAll('.cloudattach-pdf-container');
-      for (let i = 0; i < mainContainers.length; i++) {
-        if (mainContainers[i].dataset.pdfUrl === url) return mainContainers[i];
-      }
-    }
-    return null;
-  }
-
-  // 更新已有 PDF 容器的宽度（响应用户修改宽度属性）
-  _updatePdfContainerWidth(container, imgEl) {
-    try {
-      let imgWidth = imgEl.getAttribute("width") || imgEl.style.width || "";
-      let imgHeight = imgEl.getAttribute("height") || imgEl.style.height || "";
-      const parentSpan = imgEl.parentElement;
-      if (parentSpan && parentSpan.tagName === "SPAN") {
-        if (!imgWidth && parentSpan.style.width)
-          imgWidth = parentSpan.style.width;
-        if (!imgHeight && parentSpan.style.height)
-          imgHeight = parentSpan.style.height;
-      }
-      const imgClasses = imgEl.className || "";
-      const widthClassMatch = imgClasses.match(/cm-image-width-(\d+)/);
-      if (widthClassMatch && !imgWidth) {
-        imgWidth = widthClassMatch[1] + "px";
-      }
-      const altWidthMatch = imgEl.alt?.match(/^(\d+)$/);
-      if (altWidthMatch && !imgWidth) {
-        imgWidth = altWidthMatch[1] + "px";
-      }
-      if (imgWidth) {
-        const w = imgWidth.includes("%") || imgWidth.includes("px") || imgWidth.includes("vw") ? imgWidth : imgWidth + "px";
-        container.style.setProperty("width", w, "important");
-        console.log("[CloudAttach] PDF width updated:", w);
-      }
-      // 重新触发 ResizeObserver 来重算高度
-      const evt = new Event('resize');
-      window.dispatchEvent(evt);
-    } catch (e) {
-      console.error("[CloudAttach] _updatePdfContainerWidth failed:", e);
     }
   }
 
@@ -3833,35 +3775,23 @@ module.exports = class CloudAttachPlugin extends Plugin {
     this._renderedPdfUrls = this._renderedPdfUrls || new Set();
     this._pdfObserver = new MutationObserver((mutations) => {
       mutations.forEach(m => {
-        // 处理新增节点
-        if (m.type === 'childList') {
-          m.addedNodes.forEach(n => {
-            if (n.nodeType !== 1) return;
-            const imgs = n.tagName === 'IMG' ? [n] : Array.from(n.querySelectorAll('img'));
-            imgs.forEach(img => {
-              if (img.closest('.cloudattach-pdf-container')) return;
-              const src = img.getAttribute('src') || '';
-              if (this._isPdfUrl(src)) {
-                this._renderPdfAsCanvas(img, src);
-              }
-            });
-          });
-        }
-        // 处理属性变化（用户修改宽度：![500] → ![800]）
-        if (m.type === 'attributes') {
-          const img = m.target;
-          if (img.tagName === 'IMG' && this._isPdfUrl(img.getAttribute('src') || '')) {
+        m.addedNodes.forEach(n => {
+          if (n.nodeType !== 1) return;
+          // 匹配直接 img 节点或子树中的 img
+          const imgs = n.tagName === 'IMG' ? [n] : Array.from(n.querySelectorAll('img'));
+          imgs.forEach(img => {
+            // 避免重复处理已替换的容器
             if (img.closest('.cloudattach-pdf-container')) return;
-            const existing = this._findPdfContainerByUrl(img.getAttribute('src'), img);
-            if (existing) {
-              this._updatePdfContainerWidth(existing, img);
+            const src = img.getAttribute('src') || '';
+            if (this._isPdfUrl(src)) {
+              this._renderPdfAsCanvas(img, src);
             }
-          }
-        }
+          });
+        });
       });
     });
-    // 监听主窗口 document.body：同时监听子节点变化和属性变化
-    this._pdfObserver.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['width', 'class', 'style'] });
+    // 监听主窗口 document.body
+    this._pdfObserver.observe(document.body, { childList: true, subtree: true });
     // 注册已有 popout 窗口的 observer
     this._popoutObservers = new Map();
     this._registerPopoutObservers();
@@ -3903,32 +3833,20 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (this._popoutObservers.has(doc)) return;
       const popoutObserver = new MutationObserver((mutations) => {
         mutations.forEach(m => {
-          if (m.type === 'childList') {
-            m.addedNodes.forEach(n => {
-              if (n.nodeType !== 1) return;
-              const imgs = n.tagName === 'IMG' ? [n] : Array.from(n.querySelectorAll('img'));
-              imgs.forEach(img => {
-                if (img.closest('.cloudattach-pdf-container')) return;
-                const src = img.getAttribute('src') || '';
-                if (this._isPdfUrl(src)) {
-                  this._renderPdfAsCanvas(img, src);
-                }
-              });
-            });
-          }
-          if (m.type === 'attributes') {
-            const img = m.target;
-            if (img.tagName === 'IMG' && this._isPdfUrl(img.getAttribute('src') || '')) {
+          m.addedNodes.forEach(n => {
+            if (n.nodeType !== 1) return;
+            const imgs = n.tagName === 'IMG' ? [n] : Array.from(n.querySelectorAll('img'));
+            imgs.forEach(img => {
               if (img.closest('.cloudattach-pdf-container')) return;
-              const existing = this._findPdfContainerByUrl(img.getAttribute('src'), img);
-              if (existing) {
-                this._updatePdfContainerWidth(existing, img);
+              const src = img.getAttribute('src') || '';
+              if (this._isPdfUrl(src)) {
+                this._renderPdfAsCanvas(img, src);
               }
-            }
-          }
+            });
+          });
         });
       });
-      popoutObserver.observe(doc.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['width', 'class', 'style'] });
+      popoutObserver.observe(doc.body, { childList: true, subtree: true });
       this._popoutObservers.set(doc, popoutObserver);
       this._scanAllPdfImgs(doc);
     });
