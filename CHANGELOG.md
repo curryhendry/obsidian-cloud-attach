@@ -1,3 +1,10 @@
+## v0.3.212.dev - 2026-06-15
+
+### 修复
+- 去掉 `_findPdfContainerByUrl` 复用逻辑（首次渲染时误匹配残留容器导致 PDF 不渲染）
+- 去掉 `_updatePdfContainerWidth` 函数
+- 保留 v0.3.197 的翻页和滚动交互代码
+
 ## v0.3.210.dev - 2026-06-15
 
 ### 修复
