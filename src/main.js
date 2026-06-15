@@ -3479,12 +3479,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
 
   async _renderPdfAsCanvas(imgEl, url) {
-    // 去重：用 url 作为唯一 key，必须在任何 async 之前执行
-    if (this._renderedPdfUrls && this._renderedPdfUrls.has(url)) {
+    // 去重：直接查 DOM 中是否已有该 URL 的容器，不依赖内存 Set（因为事件监听器会清空 Set）
+    const doc = imgEl.ownerDocument;
+    if (doc.querySelector('.cloudattach-pdf-container[data-pdf-url="' + CSS.escape(url) + '"]')) {
       return;
     }
-    this._renderedPdfUrls = this._renderedPdfUrls || new Set();
-    this._renderedPdfUrls.add(url);
     try {
       const pdfjsLib = await this._loadPdfJs();
       // ownerDocument 确保 PDF.js 生成的 @font-face CSS 注入到正确的 document
