@@ -1,3 +1,10 @@
+## v0.3.210.dev - 2026-06-15
+
+### 修复
+- 恢复 v0.3.197 的翻页和滚动交互代码（`_initPdfToolbar`、`_bindPdfScroll`、`_updatePdfToolbar`）
+- 保留实时宽度更新功能（`_findPdfContainerByUrl` + `_updatePdfContainerWidth`）
+- 修复翻页按钮和滚动失效的问题
+
 ## v0.3.208.dev - 2026-06-14
 
 ### 修复

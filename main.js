@@ -1823,15 +1823,7 @@ var CloudAttachView = class extends ItemView {
       return;
     this.breadcrumbEl.innerHTML = "";
     const webdavPath = this.client?.webdavPath;
-    const s3Prefix = this.client?.prefix;
-    let rootLabel;
-    if (webdavPath) {
-      rootLabel = "\u{1F4C1} " + webdavPath.replace(/^\/+/, "").split("/").pop() || webdavPath;
-    } else if (s3Prefix) {
-      rootLabel = "\u{1F4C1} " + s3Prefix.replace(/^\/+|\/+$/g, "").split("/").pop() || s3Prefix;
-    } else {
-      rootLabel = t("view.root");
-    }
+    const rootLabel = webdavPath ? "\u{1F4C1} " + webdavPath.replace(/^\/+/, "").split("/").pop() || webdavPath : t("view.root");
     const root = document.createElement("button");
     root.className = "cloud-attach-breadcrumb-btn";
     root.textContent = rootLabel;
@@ -3211,7 +3203,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       .cloud-attach-add-btn:hover { background: var(--background-modifier-hover); }
     
     /* PDF \u9884\u89C8\u5BB9\u5668 - \u53CC\u5C42\u7ED3\u6784\uFF0C\u4EFF Obsidian \u539F\u751F .pdf-embed */
-    .cloudattach-pdf-container { box-sizing: border-box !important; display: inline-block !important; width: 100%; max-width: 100% !important; border: 1px solid var(--background-modifier-border) !important; border-radius: 8px !important; background: var(--background-secondary) !important; vertical-align: top !important; position: relative !important; overflow: hidden !important; }
+    .cloudattach-pdf-container { box-sizing: border-box !important; display: inline-block !important; width: 100% !important; max-width: 100% !important; border: 1px solid var(--background-modifier-border) !important; border-radius: 8px !important; background: var(--background-secondary) !important; vertical-align: top !important; position: relative !important; overflow: hidden !important; }
     .cloudattach-pdf-page { display: block !important; box-sizing: border-box !important; width: 100% !important; height: auto !important; max-width: 100% !important; min-width: 0 !important; }
     `;
     const styleEl = document.createElement("style");
@@ -3317,8 +3309,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       container.dataset.totalPages = pdf.numPages.toString();
       container.dataset.pdfUrl = url;
       if (imgWidth) {
-        const w = imgWidth.includes("%") || imgWidth.includes("px") || imgWidth.includes("vw") ? imgWidth : imgWidth + "px";
-        container.style.setProperty("width", w, "important");
+        container.style.width = imgWidth.includes("%") || imgWidth.includes("px") || imgWidth.includes("vw") ? imgWidth : imgWidth + "px";
       }
       if (imgStyleMaxWidth)
         container.style.maxWidth = imgStyleMaxWidth;
@@ -3385,7 +3376,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (this._renderedPdfUrls) {
         this._renderedPdfUrls.add(url + ":" + (imgEl.id || imgEl.dataset.src || ""));
       }
-      this._renderingPdfUrls?.delete(renderKey);
       console.log("[CloudAttach] ALL DONE, pages:", pdf.numPages);
       this._bindPdfScroll(container, pdf);
       console.log("[CloudAttach] PDF container built, pages:", pdf.numPages);
@@ -3393,21 +3383,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
       console.error("[CloudAttach] PDF render failed:", e);
     }
   }
-  // 根据查找同 URL 的已有 PDF 容器（用于实时更新）
+  // 根据 URL 查找已有 PDF 容器（用于实时更新）
   _findPdfContainerByUrl(url) {
     const containers = document.querySelectorAll(".cloudattach-pdf-container");
     for (let i = 0; i < containers.length; i++) {
       if (containers[i].dataset.pdfUrl === url)
         return containers[i];
-    }
-    if (this._popoutObservers) {
-      for (const [doc] of this._popoutObservers) {
-        const cs = doc.querySelectorAll(".cloudattach-pdf-container");
-        for (let i = 0; i < cs.length; i++) {
-          if (cs[i].dataset.pdfUrl === url)
-            return cs[i];
-        }
-      }
     }
     return null;
   }
@@ -3642,36 +3623,27 @@ module.exports = class CloudAttachPlugin extends Plugin {
             }
           });
         });
-        if (m.type === "attributes" && m.target.tagName === "IMG") {
-          const img = m.target;
-          const src = img.getAttribute("src") || "";
-          if (this._isPdfUrl(src)) {
-            const existingContainer = img.closest(".cloudattach-pdf-container");
-            if (existingContainer) {
-              this._updatePdfContainerWidth(existingContainer, img);
-            } else {
-              this._renderPdfAsCanvas(img, src);
-            }
-          }
-        }
       });
     });
-    this._pdfObserver.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["alt", "width", "style", "class"] });
+    this._pdfObserver.observe(document.body, { childList: true, subtree: true });
     this._popoutObservers = /* @__PURE__ */ new Map();
     this._registerPopoutObservers();
     setTimeout(() => this._scanAllPdfImgs(), 500);
     const rescanPdfImgs = () => {
       this._renderedPdfUrls = /* @__PURE__ */ new Set();
-      this._renderingPdfUrls = /* @__PURE__ */ new Set();
+      this._scanAllPdfImgs();
       setTimeout(() => this._scanAllPdfImgs(), 500);
+      setTimeout(() => this._scanAllPdfImgs(), 1500);
       this._popoutObservers.forEach((obs, doc) => {
+        this._scanAllPdfImgs(doc);
         setTimeout(() => this._scanAllPdfImgs(doc), 500);
+        setTimeout(() => this._scanAllPdfImgs(doc), 1500);
       });
     };
     this.registerEvent(this.app.workspace.on("active-leaf-change", rescanPdfImgs));
     this.registerEvent(this.app.workspace.on("layout-change", () => {
       this._renderedPdfUrls = /* @__PURE__ */ new Set();
-      this._renderingPdfUrls = /* @__PURE__ */ new Set();
+      this._scanAllPdfImgs();
       setTimeout(() => this._scanAllPdfImgs(), 500);
       this._registerPopoutObservers();
     }));
@@ -3700,7 +3672,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
           });
         });
       });
-      popoutObserver.observe(doc.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["alt", "width", "style", "class"] });
+      popoutObserver.observe(doc.body, { childList: true, subtree: true });
       this._popoutObservers.set(doc, popoutObserver);
       this._scanAllPdfImgs(doc);
     });
@@ -3709,8 +3681,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const d = doc || document;
     const allImgs = d.querySelectorAll("img");
     const pdfImgs = Array.from(allImgs).filter((img) => this._isPdfUrl(img.getAttribute("src") || ""));
+    console.log("[CloudAttach] _scanAllPdfImgs:", allImgs.length, "imgs total,", pdfImgs.length, "pdf imgs");
     if (pdfImgs.length > 0) {
-      console.log("[CloudAttach] _scanAllPdfImgs:", allImgs.length, "imgs,", pdfImgs.length, "pdf imgs");
+      pdfImgs.forEach((img) => {
+        console.log("[CloudAttach]  pdf img src:", img.getAttribute("src")?.substring(0, 100), "| class:", img.className, "| alt:", img.alt);
+      });
     }
     allImgs.forEach((img) => {
       if (img.closest(".cloudattach-pdf-container"))
