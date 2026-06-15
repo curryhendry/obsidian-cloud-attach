@@ -3267,13 +3267,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     return /\.pdf(\?|#|$)/i.test(url);
   }
   async _renderPdfAsCanvas(imgEl, url) {
-    const existingContainer = this._findPdfContainerByUrl(url);
-    if (existingContainer) {
-      console.log("[CloudAttach] \u5B9E\u65F6\u66F4\u65B0: \u590D\u7528\u5DF2\u6709\u5BB9\u5668");
-      this._updatePdfContainerWidth(existingContainer, imgEl);
-      imgEl.remove();
-      return;
-    }
     if (this._renderedPdfUrls && this._renderedPdfUrls.has(url + ":" + (imgEl.id || imgEl.dataset.src || ""))) {
       return;
     }
@@ -3381,62 +3374,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       console.log("[CloudAttach] PDF container built, pages:", pdf.numPages);
     } catch (e) {
       console.error("[CloudAttach] PDF render failed:", e);
-    }
-  }
-  // 根据 URL 查找已有 PDF 容器（用于实时更新）
-  _findPdfContainerByUrl(url) {
-    const containers = document.querySelectorAll(".cloudattach-pdf-container");
-    for (let i = 0; i < containers.length; i++) {
-      if (containers[i].dataset.pdfUrl === url)
-        return containers[i];
-    }
-    return null;
-  }
-  // 更新已有 PDF 容器的宽度（实时响应用户修改）
-  _updatePdfContainerWidth(container, imgEl) {
-    try {
-      let imgWidth = imgEl.getAttribute("width") || imgEl.style.width || "";
-      let imgHeight = imgEl.getAttribute("height") || imgEl.style.height || "";
-      const parentSpan = imgEl.parentElement;
-      if (parentSpan && parentSpan.tagName === "SPAN") {
-        if (!imgWidth && parentSpan.style.width)
-          imgWidth = parentSpan.style.width;
-        if (!imgHeight && parentSpan.style.height)
-          imgHeight = parentSpan.style.height;
-      }
-      const imgClasses = imgEl.className || "";
-      const widthClassMatch = imgClasses.match(/cm-image-width-(\d+)/);
-      if (widthClassMatch && !imgWidth) {
-        imgWidth = widthClassMatch[1] + "px";
-      }
-      const altWidthMatch = imgEl.alt?.match(/^(\d+)$/);
-      if (altWidthMatch && !imgWidth) {
-        imgWidth = altWidthMatch[1] + "px";
-      }
-      if (imgWidth) {
-        const w = imgWidth.includes("%") || imgWidth.includes("px") || imgWidth.includes("vw") ? imgWidth : imgWidth + "px";
-        container.style.setProperty("width", w, "important");
-        console.log("[CloudAttach] PDF width updated:", w);
-      } else {
-        container.style.setProperty("width", "100%", "important");
-      }
-      const firstCanvas = container.querySelector(".cloudattach-pdf-page");
-      if (firstCanvas && !container.dataset.userHeight) {
-        setTimeout(() => {
-          const canvasW = firstCanvas.width;
-          const canvasH = firstCanvas.height;
-          const newW = container.clientWidth || 800;
-          const newH = Math.round(canvasH * (newW / canvasW));
-          container.style.setProperty("height", newH + "px", "important");
-          console.log("[CloudAttach] PDF height recalculated:", newH, "px");
-        }, 0);
-      } else if (imgHeight && imgHeight !== "auto") {
-        const h = imgHeight.includes("%") || imgHeight.includes("px") || imgHeight.includes("vh") ? imgHeight : imgHeight + "px";
-        container.dataset.userHeight = h;
-        container.style.setProperty("height", h, "important");
-      }
-    } catch (e) {
-      console.error("[CloudAttach] _updatePdfContainerWidth failed:", e);
     }
   }
   // 渲染指定页码的 PDF 页面到指定 canvas
