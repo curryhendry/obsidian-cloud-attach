@@ -3275,12 +3275,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
     return /\.pdf(\?|#|$)/i.test(url);
   }
   async _renderPdfAsCanvas(imgEl, url) {
-    const urlKey = url + ":" + (imgEl.id || imgEl.dataset.src || "");
-    if (this._renderedPdfUrls && this._renderedPdfUrls.has(urlKey)) {
+    if (this._renderedPdfUrls && this._renderedPdfUrls.has(url)) {
       return;
     }
     this._renderedPdfUrls = this._renderedPdfUrls || /* @__PURE__ */ new Set();
-    this._renderedPdfUrls.add(urlKey);
+    this._renderedPdfUrls.add(url);
     try {
       const pdfjsLib = await this._loadPdfJs();
       const loadingTask = pdfjsLib.getDocument({ url, ownerDocument: imgEl.ownerDocument });
@@ -3336,6 +3335,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       scrollArea.style.position = "relative";
       container.appendChild(scrollArea);
       imgEl.replaceWith(container);
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       const firstPage = await pdf.getPage(1);
       const firstViewport = firstPage.getViewport({ scale: FIXED_SCALE });
       const canvasW = firstViewport.width;
@@ -3347,8 +3347,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       firstCanvas.draggable = false;
       scrollArea.appendChild(firstCanvas);
       await this._renderPdfPage(firstCanvas, pdf, 1, FIXED_SCALE);
-      const containerRect = container.getBoundingClientRect();
-      const containerW = containerRect.width > 10 ? containerRect.width : 800;
+      const containerW = container.clientWidth || parentSpan?.getBoundingClientRect().width || 800;
       const displayH = canvasH * (containerW / canvasW);
       console.log("[CloudAttach] canvas WxH:", canvasW, "x", canvasH, "containerW:", containerW, "displayH:", displayH);
       let finalContainerHeight;

@@ -3479,13 +3479,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
 
   async _renderPdfAsCanvas(imgEl, url) {
-    // 去重：add 必须在最开头，任何 async 之前，防止并发启动
-    const urlKey = url + ':' + (imgEl.id || imgEl.dataset.src || '');
-    if (this._renderedPdfUrls && this._renderedPdfUrls.has(urlKey)) {
+    // 去重：用 url 作为唯一 key，必须在任何 async 之前执行
+    if (this._renderedPdfUrls && this._renderedPdfUrls.has(url)) {
       return;
     }
     this._renderedPdfUrls = this._renderedPdfUrls || new Set();
-    this._renderedPdfUrls.add(urlKey);
+    this._renderedPdfUrls.add(url);
     try {
       const pdfjsLib = await this._loadPdfJs();
       // ownerDocument 确保 PDF.js 生成的 @font-face CSS 注入到正确的 document
@@ -3544,6 +3543,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
       scrollArea.style.position = "relative";
       container.appendChild(scrollArea);
       imgEl.replaceWith(container);
+      // 等 layout 完成再读宽度，否则 getBoundingClientRect 返回 0 或错误值
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       const firstPage = await pdf.getPage(1);
       const firstViewport = firstPage.getViewport({ scale: FIXED_SCALE });
       const canvasW = firstViewport.width;
@@ -3556,9 +3557,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       firstCanvas.draggable = false;
       scrollArea.appendChild(firstCanvas);
       await this._renderPdfPage(firstCanvas, pdf, 1, FIXED_SCALE);
-      // getBoundingClientRect() 在 replaceWith 后读取，比 clientWidth 更可靠
-      const containerRect = container.getBoundingClientRect();
-      const containerW = containerRect.width > 10 ? containerRect.width : 800;
+      const containerW = container.clientWidth || parentSpan?.getBoundingClientRect().width || 800;
       const displayH = canvasH * (containerW / canvasW);
       console.log("[CloudAttach] canvas WxH:", canvasW, "x", canvasH, "containerW:", containerW, "displayH:", displayH);
       let finalContainerHeight;
