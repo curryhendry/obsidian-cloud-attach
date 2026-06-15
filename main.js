@@ -3275,11 +3275,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
     return /\.pdf(\?|#|$)/i.test(url);
   }
   async _renderPdfAsCanvas(imgEl, url) {
-    if (this._renderedPdfUrls && this._renderedPdfUrls.has(url)) {
+    const doc = imgEl.ownerDocument;
+    if (doc.querySelector('.cloudattach-pdf-container[data-pdf-url="' + CSS.escape(url) + '"]')) {
       return;
     }
-    this._renderedPdfUrls = this._renderedPdfUrls || /* @__PURE__ */ new Set();
-    this._renderedPdfUrls.add(url);
     try {
       const pdfjsLib = await this._loadPdfJs();
       const loadingTask = pdfjsLib.getDocument({ url, ownerDocument: imgEl.ownerDocument });
