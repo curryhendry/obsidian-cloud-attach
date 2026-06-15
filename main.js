@@ -3326,6 +3326,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     scrollArea.style.position = "relative";
     container.appendChild(scrollArea);
     imgEl.replaceWith(container);
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     try {
       const pdfjsLib = await this._loadPdfJs();
       const loadingTask = pdfjsLib.getDocument({ url, ownerDocument: doc });
