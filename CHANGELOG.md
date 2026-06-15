@@ -1,3 +1,11 @@
+## v0.3.216.dev - 2026-06-15
+
+### 新增
+- PDF 实时宽度调整：修改 `![500](url.pdf)` → `![800](url.pdf)` 时即时响应，像图片一样
+  - MutationObserver 新增 `attributes: true` 监听 `width`/`class`/`style` 变化
+  - `_renderPdfAsCanvas` 去重块中增加容器宽度更新逻辑
+  - 新增 `_findPdfContainerByUrl` / `_updatePdfContainerWidth` 工具函数
+
 ## v0.3.214.dev - 2026-06-15
 
 ### 修复
