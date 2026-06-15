@@ -1,16 +1,8 @@
-## v0.3.218.dev - 2026-06-15
+## v0.3.220.dev - 2026-06-15
 
-### 回退
-- 回退到 v0.3.200.dev（commit 50b5189）作为基线
-- 保留 CSS !important 宽度自适应修复
+### 修复
 
-## v0.3.216.dev - 2026-06-15
-
-### 新增
-- PDF 实时宽度调整：修改 `![500](url.pdf)` → `![800](url.pdf)` 时即时响应，像图片一样
-  - MutationObserver 新增 `attributes: true` 监听 `width`/`class`/`style` 变化
-  - `_renderPdfAsCanvas` 去重块中增加容器宽度更新逻辑
-  - 新增 `_findPdfContainerByUrl` / `_updatePdfContainerWidth` 工具函数
+- 手机端 PDF 预览滚动修复：触摸设备使用 `overflow-y: scroll` 替代 `auto`，解决 iOS Safari 不响应触摸滑动的问题
 
 ## v0.3.214.dev - 2026-06-15
 

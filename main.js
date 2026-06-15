@@ -3327,7 +3327,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
       container.style.setProperty("opacity", "0", "important");
       const scrollArea = document.createElement("div");
       scrollArea.className = "cloudattach-pdf-scrollarea";
-      scrollArea.style.overflowY = "auto";
+      const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+      scrollArea.style.overflowY = isTouchDevice ? "scroll" : "auto";
       scrollArea.style.overflowX = "hidden";
       scrollArea.style.position = "relative";
       container.appendChild(scrollArea);
