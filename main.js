@@ -3276,12 +3276,17 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
   async _renderPdfAsCanvas(imgEl, url) {
     const doc = imgEl.ownerDocument;
+    this._renderingPdfUrls = this._renderingPdfUrls || /* @__PURE__ */ new Set();
+    if (this._renderingPdfUrls.has(url))
+      return;
+    this._renderingPdfUrls.add(url);
     const existingContainer = doc.querySelector('.cloudattach-pdf-container[data-pdf-url="' + CSS.escape(url) + '"]');
     if (existingContainer) {
       const computedOpacity = existingContainer.style.getPropertyValue("opacity");
       if (computedOpacity !== "1") {
         existingContainer.style.setProperty("opacity", "1", "important");
       }
+      this._renderingPdfUrls.delete(url);
       return;
     }
     while (this._pdfRendering) {
@@ -3354,21 +3359,22 @@ module.exports = class CloudAttachPlugin extends Plugin {
       firstCanvas.draggable = false;
       scrollArea.appendChild(firstCanvas);
       await this._renderPdfPage(firstCanvas, pdf, 1, FIXED_SCALE);
+      const containerRect = container.getBoundingClientRect();
+      const parentRect = parentSpan?.getBoundingClientRect();
+      const containerW = containerRect.width > 10 ? containerRect.width : parentRect && parentRect.width > 10 ? parentRect.width : rect.width > 10 ? rect.width : 800;
+      const displayH = canvasH * (containerW / canvasW);
       for (let i = 2; i <= pdf.numPages; i++) {
         const placeholder = document.createElement("div");
         placeholder.className = "cloudattach-pdf-page";
         placeholder.dataset.pageNum = String(i);
         placeholder.dataset.loaded = "false";
-        placeholder.style.width = Math.round(canvasW * 0.67) + "px";
-        placeholder.style.height = Math.round(canvasH * 0.67) + "px";
+        placeholder.style.width = Math.round(containerW) + "px";
+        placeholder.style.height = Math.round(displayH) + "px";
         placeholder.style.background = "#f0f0f0";
         placeholder.style.margin = "4px 0";
         placeholder.style.userSelect = "none";
         scrollArea.appendChild(placeholder);
       }
-      const containerRect = container.getBoundingClientRect();
-      const containerW = containerRect.width > 10 ? containerRect.width : rect.width > 10 ? rect.width : 800;
-      const displayH = canvasH * (containerW / canvasW);
       console.log("[CloudAttach] canvas WxH:", canvasW, "x", canvasH, "containerW:", containerW, "displayH:", displayH);
       let finalContainerHeight;
       if (userHeightStr) {
@@ -3393,6 +3399,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       console.log("[CloudAttach] PDF container built (lazy), pages:", pdf.numPages);
     } catch (e) {
       console.error("[CloudAttach] PDF render failed:", e);
+      this._renderingPdfUrls.delete(url);
     } finally {
       this._pdfRendering = false;
     }
@@ -3641,6 +3648,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     setTimeout(() => this._scanAllPdfImgs(), 500);
     const rescanPdfImgs = () => {
       this._renderedPdfUrls = /* @__PURE__ */ new Set();
+      this._renderingPdfUrls = /* @__PURE__ */ new Set();
       this._cleanupPdfResources();
       this._scanAllPdfImgs();
       setTimeout(() => this._scanAllPdfImgs(), 500);

@@ -3479,8 +3479,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
 
   async _renderPdfAsCanvas(imgEl, url) {
-    // 去重：查 DOM 中是否已有该 URL 的容器
+    // 去重（同步检查，必须在任何 await 之前）：查 DOM + 内存 Set 双重拦截
     const doc = imgEl.ownerDocument;
+    this._renderingPdfUrls = this._renderingPdfUrls || new Set();
+    if (this._renderingPdfUrls.has(url)) return;
+    this._renderingPdfUrls.add(url);
     const existingContainer = doc.querySelector('.cloudattach-pdf-container[data-pdf-url="' + CSS.escape(url) + '"]');
     if (existingContainer) {
       // 容器已存在：若还 invisible（opacity:0），说明首次渲染尚未完成就触发了第二次扫描，补设为可见
@@ -3488,6 +3491,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (computedOpacity !== '1') {
         existingContainer.style.setProperty('opacity', '1', 'important');
       }
+      this._renderingPdfUrls.delete(url);
       return;
     }
     // 并发控制：排队渲染，避免多个 PDF 同时加载撑爆内存
@@ -3568,24 +3572,26 @@ module.exports = class CloudAttachPlugin extends Plugin {
       scrollArea.appendChild(firstCanvas);
       await this._renderPdfPage(firstCanvas, pdf, 1, FIXED_SCALE);
 
+      // 读容器宽度：getBoundingClientRect 更可靠，多源兜底
+      const containerRect = container.getBoundingClientRect();
+      const parentRect = parentSpan?.getBoundingClientRect();
+      const containerW = containerRect.width > 10 ? containerRect.width : (parentRect && parentRect.width > 10 ? parentRect.width : (rect.width > 10 ? rect.width : 800));
+      const displayH = canvasH * (containerW / canvasW);
+
       // 为后续页创建占位符（不渲染，节省内存）
+      // 占位符高度使用 displayH，使 IntersectionObserver 能正确检测滚动位置
       for (let i = 2; i <= pdf.numPages; i++) {
         const placeholder = document.createElement("div");
         placeholder.className = "cloudattach-pdf-page";
         placeholder.dataset.pageNum = String(i);
         placeholder.dataset.loaded = "false";
-        placeholder.style.width = Math.round(canvasW * 0.67) + "px"; // 缩放后的大致宽度
-        placeholder.style.height = Math.round(canvasH * 0.67) + "px";
+        placeholder.style.width = Math.round(containerW) + "px";
+        placeholder.style.height = Math.round(displayH) + "px";
         placeholder.style.background = "#f0f0f0";
         placeholder.style.margin = "4px 0";
         placeholder.style.userSelect = 'none';
         scrollArea.appendChild(placeholder);
       }
-
-      // 读容器宽度：getBoundingClientRect 更可靠
-      const containerRect = container.getBoundingClientRect();
-      const containerW = containerRect.width > 10 ? containerRect.width : (rect.width > 10 ? rect.width : 800);
-      const displayH = canvasH * (containerW / canvasW);
       console.log("[CloudAttach] canvas WxH:", canvasW, "x", canvasH, "containerW:", containerW, "displayH:", displayH);
 
       let finalContainerHeight;
@@ -3615,6 +3621,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       console.log("[CloudAttach] PDF container built (lazy), pages:", pdf.numPages);
     } catch (e) {
       console.error("[CloudAttach] PDF render failed:", e);
+      this._renderingPdfUrls.delete(url);
     } finally {
       this._pdfRendering = false;
     }
@@ -3884,6 +3891,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const rescanPdfImgs = () => {
       // 清空已渲染记录，确保切换笔记后重新渲染
       this._renderedPdfUrls = new Set();
+      this._renderingPdfUrls = new Set();
       // 释放旧 PDF 资源
       this._cleanupPdfResources();
       // 主窗口：立即扫一次
