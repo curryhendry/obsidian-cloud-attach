@@ -3275,6 +3275,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
     return /\.pdf(\?|#|$)/i.test(url);
   }
   async _renderPdfAsCanvas(imgEl, url) {
+    if (!imgEl.isConnected)
+      return;
     const doc = imgEl.ownerDocument;
     this._renderingPdfUrls = this._renderingPdfUrls || /* @__PURE__ */ new Set();
     if (this._renderingPdfUrls.has(url))
@@ -3715,12 +3717,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
       });
     }
     allImgs.forEach((img) => {
-      if (img.closest(".cloudattach-pdf-container"))
-        return;
       const src = img.getAttribute("src") || "";
-      if (this._isPdfUrl(src)) {
-        this._renderPdfAsCanvas(img, src);
-      }
+      if (!this._isPdfUrl(src))
+        return;
+      if (doc.querySelector('.cloudattach-pdf-container[data-pdf-url="' + CSS.escape(src) + '"]'))
+        return;
+      this._renderPdfAsCanvas(img, src);
     });
   }
   // Sign 检查与刷新
