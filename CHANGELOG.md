@@ -1,8 +1,80 @@
-## v0.3.232.dev - 2026-06-16
+## v0.3.233.dev - 2026-06-16
+
+### 修复
+
+- 修复 PDF 容器 opacity:0 导致的永久不可见问题：第二次 `_scanAllPdfImgs` 找到已有容器后，若 opacity !== '1' 则补设为可见
+
+## v0.3.231.dev - 2026-06-16
+
+### 修复
+
+- 版本标签文字修正（版本号硬编码对齐）
+
+## v0.3.230.dev - 2026-06-16
+
+### 修复
+
+- 版本标签文字修正
+
+## v0.3.229.dev - 2026-06-16
+
+### 修复
+
+- 版本标签文字修正
+
+## v0.3.228.dev - 2026-06-16
+
+### 修复
+
+- 版本标签文字修正
+
+## v0.3.227.dev - 2026-06-16
+
+### 修复
+
+- **手机端多 PDF 崩溃修复（核心）**：PDF.js 并发加载撑爆内存导致 iOS Obsidian crash。加并发锁（同一时间只渲染一个 PDF）；懒加载（只渲染第 1 页，其余页面灰色占位符）；IntersectionObserver 监听可见性；切换笔记时 `_cleanupPdfResources` 释放 PDF doc、observer、canvas
+
+## v0.3.225.dev - 2026-06-16
+
+### 修复
+
+- 双 `requestAnimationFrame` 确保 DOM layout 完成后再读取容器宽度，避免 containerW 返回 0 或错误值
+
+## v0.3.223.dev - 2026-06-16
+
+### 修复
+
+- **PDF 重复渲染根因修复**：将 `imgEl.replaceWith(container)` 移到 `await getDocument()` 之前同步执行，确保容器在并发查询时已存在于 DOM；改用 DOM 查询替代内存 Set 去重（`_renderedPdfUrls` Set 被 layout-change 清空导致去重失效）
+
+## v0.3.222.dev - 2026-06-16
+
+### 修复
+
+- 修复 `_scanAllPdfImgs` 中 `_renderedPdfUrls.add(url)` 位置错误（放在 async 操作之后导致并发失控）；改用 DOM dedup 检查替代内存 Set
+
+## v0.3.221.dev - 2026-06-16
+
+### 修复
+
+- 修复去重逻辑：`urlKey` 去重替代 `url`，避免同一 URL 不同 imgEl 标识导致重复入队；宽度读取改用 `getBoundingClientRect` 替代 `clientWidth`
+
+## v0.3.220.dev - 2026-06-16
 
 ### 修复
 
 - 手机端 PDF 预览滚动修复：触摸设备使用 `overflow-y: scroll` 替代 `auto`，解决 iOS Safari 不响应触摸滑动的问题
+
+## v0.3.218.dev - 2026-06-15
+
+### 修复
+
+- 回退宽度实时更新功能：删除 `_findPdfContainerByUrl`、`_updatePdfContainerWidth` 等未经验证的宽度复用逻辑，恢复到 v0.3.200 稳定代码
+
+## v0.3.216.dev - 2026-06-15
+
+### 新增
+
+- PDF 预览宽度实时响应：监听 img 的 alt/width/style/class 属性变化，用户修改 `![500]` → `![800]` 时自动更新容器宽高，无需重新打开笔记
 
 ## v0.3.214.dev - 2026-06-15
 
