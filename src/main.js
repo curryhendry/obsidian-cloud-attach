@@ -3479,7 +3479,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
 
   async _renderPdfAsCanvas(imgEl, url) {
-    // 去重（同步检查，必须在任何 await 之前）：查 DOM + 内存 Set 双重拦截
+    // 同步入口三保险：1) URL 在 Set 中直接拦 2) img 已不在 DOM 中（replaceWith 后的旧 img）直接拦 3) DOM 已有容器直接拦
+    if (!imgEl.isConnected) return; // replaceWith 后旧 img 已不在 DOM 中
     const doc = imgEl.ownerDocument;
     this._renderingPdfUrls = this._renderingPdfUrls || new Set();
     if (this._renderingPdfUrls.has(url)) return;
@@ -3964,11 +3965,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
       });
     }
     allImgs.forEach(img => {
-      if (img.closest('.cloudattach-pdf-container')) return;
       const src = img.getAttribute('src') || '';
-      if (this._isPdfUrl(src)) {
-        this._renderPdfAsCanvas(img, src);
-      }
+      if (!this._isPdfUrl(src)) return;
+      // 检查 DOM 中是否已有该 URL 的容器（比 closest 更可靠）
+      if (doc.querySelector('.cloudattach-pdf-container[data-pdf-url="' + CSS.escape(src) + '"]')) return;
+      this._renderPdfAsCanvas(img, src);
     });
   }
 
