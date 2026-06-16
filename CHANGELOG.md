@@ -1,3 +1,11 @@
+## v0.3.242.dev - 2026-06-16
+
+### 修复
+
+- PDF 重复渲染：`_renderPdfAsCanvas` 入口加 `isConnected` 检查，跳过已被 replaceWith 移除的旧 img
+- 手机端多 PDF crash：加并发锁（`_pdfRendering`）+ 队列（`_pdfQueue`），同一时间只渲染一个 PDF
+- 阅读模式延迟扫描：四处扫描点增加 3000ms 延迟兜底
+
 ## v0.3.240.dev - 2026-06-16
 
 ### 修复
