@@ -3275,10 +3275,18 @@ module.exports = class CloudAttachPlugin extends Plugin {
     return /\.pdf(\?|#|$)/i.test(url);
   }
   async _renderPdfAsCanvas(imgEl, url) {
+    if (!imgEl.isConnected)
+      return;
     const doc = imgEl.ownerDocument;
     if (doc.querySelector('.cloudattach-pdf-container[data-pdf-url="' + CSS.escape(url) + '"]')) {
       return;
     }
+    if (this._pdfRendering) {
+      await new Promise((resolve) => {
+        (this._pdfQueue = this._pdfQueue || []).push(resolve);
+      });
+    }
+    this._pdfRendering = true;
     let imgWidth = imgEl.getAttribute("width") || imgEl.style.width || "";
     let imgHeight = imgEl.getAttribute("height") || imgEl.style.height || "";
     let imgStyleMaxWidth = imgEl.style.maxWidth;
@@ -3382,6 +3390,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
       console.log("[CloudAttach] PDF container built, pages:", pdf.numPages);
     } catch (e) {
       console.error("[CloudAttach] PDF render failed:", e);
+    } finally {
+      this._pdfRendering = false;
+      if (this._pdfQueue && this._pdfQueue.length > 0) {
+        const next = this._pdfQueue.shift();
+        next();
+      }
     }
   }
   // 渲染指定页码的 PDF 页面到指定 canvas

@@ -3479,11 +3479,18 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
 
   async _renderPdfAsCanvas(imgEl, url) {
+    // 跳过已被 replaceWith 移除的旧 img
+    if (!imgEl.isConnected) return;
     // 去重：查 DOM 中是否已有该 URL 的容器
     const doc = imgEl.ownerDocument;
     if (doc.querySelector('.cloudattach-pdf-container[data-pdf-url="' + CSS.escape(url) + '"]')) {
       return;
     }
+    // 并发锁：同一时间只渲染一个 PDF，其余排队等待
+    if (this._pdfRendering) {
+      await new Promise(resolve => { (this._pdfQueue = this._pdfQueue || []).push(resolve); });
+    }
+    this._pdfRendering = true;
     // === 同步阶段：提取属性、创建容器、立即插入 DOM（在 await 之前完成） ===
     let imgWidth = imgEl.getAttribute("width") || imgEl.style.width || "";
     let imgHeight = imgEl.getAttribute("height") || imgEl.style.height || "";
@@ -3596,6 +3603,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
       console.log("[CloudAttach] PDF container built, pages:", pdf.numPages);
     } catch (e) {
       console.error("[CloudAttach] PDF render failed:", e);
+    } finally {
+      this._pdfRendering = false;
+      if (this._pdfQueue && this._pdfQueue.length > 0) {
+        const next = this._pdfQueue.shift();
+        next();
+      }
     }
   }
 
