@@ -3481,7 +3481,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
   async _renderPdfAsCanvas(imgEl, url) {
     // 去重：查 DOM 中是否已有该 URL 的容器
     const doc = imgEl.ownerDocument;
-    if (doc.querySelector('.cloudattach-pdf-container[data-pdf-url="' + CSS.escape(url) + '"]')) {
+    const existingContainer = doc.querySelector('.cloudattach-pdf-container[data-pdf-url="' + CSS.escape(url) + '"]');
+    if (existingContainer) {
+      // 容器已存在：若还 invisible（opacity:0），说明首次渲染尚未完成就触发了第二次扫描，补设为可见
+      const computedOpacity = existingContainer.style.getPropertyValue('opacity');
+      if (computedOpacity !== '1') {
+        existingContainer.style.setProperty('opacity', '1', 'important');
+      }
       return;
     }
     // 并发控制：排队渲染，避免多个 PDF 同时加载撑爆内存
@@ -3947,7 +3953,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     console.log('[CloudAttach] _scanAllPdfImgs:', allImgs.length, 'imgs total,', pdfImgs.length, 'pdf imgs');
     if (pdfImgs.length > 0) {
       pdfImgs.forEach(img => {
-        console.log('[CloudAttach]  pdf img src:', img.getAttribute('src')?.substring(0, 100), '| class:', img.className, '| alt:', img.alt);
+        console.log('[CloudAttach]  pdf img src:', img.getAttribute('src')?.substring(0, 200), '| class:', img.className, '| alt:', img.alt);
       });
     }
     allImgs.forEach(img => {
