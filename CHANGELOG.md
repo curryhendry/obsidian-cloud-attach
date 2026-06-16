@@ -1,3 +1,9 @@
+## v0.3.240.dev - 2026-06-16
+
+### 修复
+
+- 修复阅读模式 PDF 不渲染：增加 3000ms 延迟扫描兜底，`_observePdfEmbeds` 初始扫描、`rescanPdfImgs`、`layout-change` 均追加延迟扫描
+
 ## v0.3.238.dev - 2026-06-16
 
 ### 修复
