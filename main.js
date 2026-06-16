@@ -3524,7 +3524,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       new Notice2("\u{1F50D} \u5168\u5C4F\u9884\u89C8\u529F\u80FD\uFF0C\u656C\u8BF7\u671F\u5F85");
     };
     const versionBadge = document.createElement("span");
-    versionBadge.textContent = "v229";
+    versionBadge.textContent = "v230";
     versionBadge.style.cssText = "font-size:9px;opacity:0.5;cursor:default;";
     versionBadge.title = "CloudAttach \u7248\u672C\u53F7";
     toolbar.appendChild(versionBadge);
