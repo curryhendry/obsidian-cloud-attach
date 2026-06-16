@@ -3491,7 +3491,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (computedOpacity !== '1') {
         existingContainer.style.setProperty('opacity', '1', 'important');
       }
-      this._renderingPdfUrls.delete(url);
       return;
     }
     // 并发控制：排队渲染，避免多个 PDF 同时加载撑爆内存
@@ -3769,7 +3768,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       new Notice2("\u{1F50D} \u5168\u5C4F\u9884\u89C8\u529F\u80FD\uFF0C\u656C\u8BF7\u671F\u5F85");
     };
     const versionBadge = document.createElement("span");
-    versionBadge.textContent = "v234";
+    versionBadge.textContent = "v237";
     versionBadge.style.cssText = "font-size:9px;opacity:0.5;cursor:default;";
     versionBadge.title = "CloudAttach \u7248\u672C\u53F7";
     toolbar.appendChild(versionBadge);
