@@ -3276,7 +3276,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
   async _renderPdfAsCanvas(imgEl, url) {
     const doc = imgEl.ownerDocument;
-    if (doc.querySelector('.cloudattach-pdf-container[data-pdf-url="' + CSS.escape(url) + '"]')) {
+    const existingContainer = doc.querySelector('.cloudattach-pdf-container[data-pdf-url="' + CSS.escape(url) + '"]');
+    if (existingContainer) {
+      const computedOpacity = existingContainer.style.getPropertyValue("opacity");
+      if (computedOpacity !== "1") {
+        existingContainer.style.setProperty("opacity", "1", "important");
+      }
       return;
     }
     while (this._pdfRendering) {
@@ -3699,7 +3704,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     console.log("[CloudAttach] _scanAllPdfImgs:", allImgs.length, "imgs total,", pdfImgs.length, "pdf imgs");
     if (pdfImgs.length > 0) {
       pdfImgs.forEach((img) => {
-        console.log("[CloudAttach]  pdf img src:", img.getAttribute("src")?.substring(0, 100), "| class:", img.className, "| alt:", img.alt);
+        console.log("[CloudAttach]  pdf img src:", img.getAttribute("src")?.substring(0, 200), "| class:", img.className, "| alt:", img.alt);
       });
     }
     allImgs.forEach((img) => {
