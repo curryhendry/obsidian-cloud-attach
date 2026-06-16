@@ -3279,6 +3279,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (doc.querySelector('.cloudattach-pdf-container[data-pdf-url="' + CSS.escape(url) + '"]')) {
       return;
     }
+    while (this._pdfRendering) {
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    this._pdfRendering = true;
     let imgWidth = imgEl.getAttribute("width") || imgEl.style.width || "";
     let imgHeight = imgEl.getAttribute("height") || imgEl.style.height || "";
     let imgStyleMaxWidth = imgEl.style.maxWidth;
@@ -3330,9 +3334,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
     try {
       const pdfjsLib = await this._loadPdfJs();
       const loadingTask = pdfjsLib.getDocument({ url, ownerDocument: doc });
-      console.log("[CloudAttach] PDF doc loaded, pages:", (await loadingTask.promise).numPages);
       const pdf = await loadingTask.promise;
       container.dataset.totalPages = pdf.numPages.toString();
+      console.log("[CloudAttach] PDF doc loaded, pages:", pdf.numPages);
       const rect = container.getBoundingClientRect();
       const firstPage = await pdf.getPage(1);
       const firstViewport = firstPage.getViewport({ scale: FIXED_SCALE });
@@ -3345,6 +3349,18 @@ module.exports = class CloudAttachPlugin extends Plugin {
       firstCanvas.draggable = false;
       scrollArea.appendChild(firstCanvas);
       await this._renderPdfPage(firstCanvas, pdf, 1, FIXED_SCALE);
+      for (let i = 2; i <= pdf.numPages; i++) {
+        const placeholder = document.createElement("div");
+        placeholder.className = "cloudattach-pdf-page";
+        placeholder.dataset.pageNum = String(i);
+        placeholder.dataset.loaded = "false";
+        placeholder.style.width = Math.round(canvasW * 0.67) + "px";
+        placeholder.style.height = Math.round(canvasH * 0.67) + "px";
+        placeholder.style.background = "#f0f0f0";
+        placeholder.style.margin = "4px 0";
+        placeholder.style.userSelect = "none";
+        scrollArea.appendChild(placeholder);
+      }
       const containerRect = container.getBoundingClientRect();
       const containerW = containerRect.width > 10 ? containerRect.width : rect.width > 10 ? rect.width : 800;
       const displayH = canvasH * (containerW / canvasW);
@@ -3368,20 +3384,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
       });
       resizeObserver.observe(container);
       this._initPdfToolbar(container, pdf);
-      for (let i = 2; i <= pdf.numPages; i++) {
-        const canvas = document.createElement("canvas");
-        canvas.className = "cloudattach-pdf-page";
-        canvas.dataset.pageNum = String(i);
-        canvas.style.userSelect = "none";
-        canvas.draggable = false;
-        scrollArea.appendChild(canvas);
-        await this._renderPdfPage(canvas, pdf, i, FIXED_SCALE);
-      }
-      console.log("[CloudAttach] ALL DONE, pages:", pdf.numPages);
-      this._bindPdfScroll(container, pdf);
-      console.log("[CloudAttach] PDF container built, pages:", pdf.numPages);
+      this._setupLazyLoad(container, pdf, scrollArea, FIXED_SCALE, canvasW, canvasH, containerW);
+      console.log("[CloudAttach] PDF container built (lazy), pages:", pdf.numPages);
     } catch (e) {
       console.error("[CloudAttach] PDF render failed:", e);
+    } finally {
+      this._pdfRendering = false;
     }
   }
   // 渲染指定页码的 PDF 页面到指定 canvas
@@ -3392,6 +3400,53 @@ module.exports = class CloudAttachPlugin extends Plugin {
     canvas.height = viewport.height;
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     await page.render({ canvasContext: ctx, viewport }).promise;
+    page.cleanup();
+  }
+  // 懒加载：滚动时按需渲染可见的占位页
+  _setupLazyLoad(container, pdf, scrollArea, scale, canvasW, canvasH, containerW) {
+    const preloadMargin = 2;
+    const renderingPages = /* @__PURE__ */ new Set();
+    const loadPageIfNeeded = async (pageNum) => {
+      if (renderingPages.has(pageNum))
+        return;
+      const el = scrollArea.querySelector(`.cloudattach-pdf-page[data-page-num="${pageNum}"]`);
+      if (!el || el.dataset.loaded === "true" || el.tagName === "CANVAS")
+        return;
+      renderingPages.add(pageNum);
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.className = "cloudattach-pdf-page";
+        canvas.dataset.pageNum = String(pageNum);
+        canvas.dataset.loaded = "true";
+        canvas.style.userSelect = "none";
+        canvas.draggable = false;
+        el.replaceWith(canvas);
+        await this._renderPdfPage(canvas, pdf, pageNum, scale);
+      } catch (e) {
+        console.error("[CloudAttach] lazy load page", pageNum, "failed:", e);
+      } finally {
+        renderingPages.delete(pageNum);
+      }
+    };
+    const lazyObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          const pageNum = parseInt(entry.target.dataset.pageNum);
+          const start = Math.max(1, pageNum - preloadMargin);
+          const end = Math.min(pdf.numPages, pageNum + preloadMargin);
+          for (let p = start; p <= end; p++) {
+            loadPageIfNeeded(p);
+          }
+        }
+      });
+    }, { root: scrollArea, rootMargin: "200px 0px" });
+    scrollArea.querySelectorAll('.cloudattach-pdf-page[data-loaded="false"]').forEach((el) => {
+      lazyObserver.observe(el);
+    });
+    if (!this._pdfLazyObservers)
+      this._pdfLazyObservers = [];
+    this._pdfLazyObservers.push({ observer: lazyObserver, container });
+    this._bindPdfScroll(container, pdf);
   }
   // 监听滚动更新当前页码（连续滚动模式，监听 scrollArea）
   _bindPdfScroll(container, pdf) {
@@ -3405,8 +3460,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
         }
       });
     }, { root: scrollArea, threshold: 0.5 });
-    const canvases = scrollArea.querySelectorAll(".cloudattach-pdf-page");
-    canvases.forEach((canvas) => observer.observe(canvas));
+    const pages = scrollArea.querySelectorAll(".cloudattach-pdf-page");
+    pages.forEach((el) => observer.observe(el));
   }
   // 初始化 PDF 翻页工具栏（参考 v0.3.042 样式：底部右侧，hover 显示）
   _initPdfToolbar(container, pdf) {
@@ -3576,6 +3631,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     setTimeout(() => this._scanAllPdfImgs(), 500);
     const rescanPdfImgs = () => {
       this._renderedPdfUrls = /* @__PURE__ */ new Set();
+      this._cleanupPdfResources();
       this._scanAllPdfImgs();
       setTimeout(() => this._scanAllPdfImgs(), 500);
       setTimeout(() => this._scanAllPdfImgs(), 1500);
@@ -3621,6 +3677,15 @@ module.exports = class CloudAttachPlugin extends Plugin {
       this._popoutObservers.set(doc, popoutObserver);
       this._scanAllPdfImgs(doc);
     });
+  }
+  // 释放 PDF 相关资源（observer、canvas），防止内存堆积
+  _cleanupPdfResources() {
+    if (this._pdfLazyObservers) {
+      this._pdfLazyObservers.forEach(({ observer, container }) => {
+        observer.disconnect();
+      });
+      this._pdfLazyObservers = [];
+    }
   }
   _scanAllPdfImgs(doc) {
     const d = doc || document;
