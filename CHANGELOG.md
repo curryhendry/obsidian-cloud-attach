@@ -1,4 +1,4 @@
-## v0.3.233.dev - 2026-06-16
+## v0.3.234.dev - 2026-06-16
 
 ### 修复
 
@@ -8,7 +8,7 @@
 
 ### 修复
 
-- 版本标签文字修正（版本号硬编码对齐）
+- 版本标签文字修正
 
 ## v0.3.230.dev - 2026-06-16
 
@@ -44,7 +44,7 @@
 
 ### 修复
 
-- **PDF 重复渲染根因修复**：将 `imgEl.replaceWith(container)` 移到 `await getDocument()` 之前同步执行，确保容器在并发查询时已存在于 DOM；改用 DOM 查询替代内存 Set 去重（`_renderedPdfUrls` Set 被 layout-change 清空导致去重失效）
+- **PDF 重复渲染根因修复**：将 `imgEl.replaceWith(container)` 移到 `await getDocument()` 之前同步执行，确保容器在并发查询时已存在于 DOM；改用 DOM 查询替代内存 Set 去重
 
 ## v0.3.222.dev - 2026-06-16
 
