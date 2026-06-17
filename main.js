@@ -3178,21 +3178,34 @@ module.exports = class CloudAttachPlugin extends Plugin {
         if (!file)
           return;
         const content = await this.app.vault.read(file);
-        const allImgRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
-        const mdImages = [];
-        let m;
-        while ((m = allImgRegex.exec(content)) !== null) {
-          const url = m[2].trim();
-          mdImages.push({ url, isPdf: url.toLowerCase().endsWith(".pdf") });
+        let sectionText;
+        const si = ctx.getSectionInfo(el);
+        if (si) {
+          const lines = content.split("\n");
+          sectionText = lines.slice(si.lineStart, si.lineEnd + 1).join("\n");
+        } else {
+          sectionText = content;
         }
-        const pdfIndices = mdImages.map((img, idx) => img.isPdf ? idx : -1).filter((i) => i >= 0);
-        if (pdfIndices.length === 0)
+        const allInSection = [];
+        const re = /!\[([^\]]*)\]\(([^)]+)\)/g;
+        let match;
+        while ((match = re.exec(sectionText)) !== null) {
+          allInSection.push({ url: match[2].trim() });
+        }
+        if (allInSection.length === 0)
           return;
-        const sectionImgs = Array.from(el.querySelectorAll("img")).filter((img) => !img.closest(".cloudattach-pdf-container"));
-        for (const pdfIdx of pdfIndices) {
-          if (pdfIdx < sectionImgs.length) {
-            const img = sectionImgs[pdfIdx];
-            const url = mdImages[pdfIdx].url;
+        let sectionImgs;
+        if (si) {
+          sectionImgs = Array.from(el.querySelectorAll("img")).filter((img) => !img.closest(".cloudattach-pdf-container"));
+        } else {
+          const doc = el.ownerDocument || document;
+          const viewEl = doc.querySelector(".markdown-preview-view") || doc.body;
+          sectionImgs = Array.from(viewEl.querySelectorAll("img")).filter((img) => !img.closest(".cloudattach-pdf-container"));
+        }
+        for (let i = 0; i < allInSection.length && i < sectionImgs.length; i++) {
+          if (allInSection[i].url.toLowerCase().endsWith(".pdf")) {
+            const img = sectionImgs[i];
+            const url = allInSection[i].url;
             img.style.outline = "2px solid orange";
             img.dataset.cloudattachDebug = "postproc";
             await this._renderPdfAsCanvas(img, url);
@@ -3212,28 +3225,28 @@ module.exports = class CloudAttachPlugin extends Plugin {
           if (view.editor)
             return;
           const content = await this.app.vault.read(view.file);
-          const mdImages2 = [];
+          const allMd2 = [];
           const re2 = /!\[([^\]]*)\]\(([^)]+)\)/g;
           let m2;
           while ((m2 = re2.exec(content)) !== null) {
-            mdImages2.push({ url: m2[2].trim(), isPdf: m2[2].trim().toLowerCase().endsWith(".pdf") });
+            allMd2.push({ url: m2[2].trim(), isPdf: m2[2].trim().toLowerCase().endsWith(".pdf") });
           }
-          const pdfIndices2 = mdImages2.map((img, idx) => img.isPdf ? idx : -1).filter((i) => i >= 0);
-          if (pdfIndices2.length === 0)
+          if (!allMd2.some((x) => x.isPdf))
             return;
-          const allImgs2 = Array.from(view.containerEl.querySelectorAll("img")).filter((img) => !img.closest(".cloudattach-pdf-container"));
-          for (const pi of pdfIndices2) {
-            if (pi < allImgs2.length) {
-              if (!this._pdfRenderPromises || !this._pdfRenderPromises.has(allImgs2[pi])) {
-                this._renderPdfAsCanvas(allImgs2[pi], mdImages2[pi].url).catch(() => {
-                });
-              }
+          const doc2 = view.contentEl || view.containerEl || document.body;
+          const allImgs2 = Array.from(doc2.querySelectorAll("img")).filter((img) => !img.closest(".cloudattach-pdf-container"));
+          for (let i = 0; i < allMd2.length && i < allImgs2.length; i++) {
+            if (allMd2[i].isPdf) {
+              if (this._pdfRenderPromises && this._pdfRenderPromises.has(allImgs2[i]))
+                continue;
+              this._renderPdfAsCanvas(allImgs2[i], allMd2[i].url).catch(() => {
+              });
             }
           }
         } catch (e) {
           console.error("[CloudAttach] FullDocScan error:", e);
         }
-      }, 1500);
+      }, 3e3);
     }));
     this._iosLiveScanInterval = setInterval(async () => {
       const leaf = this.app.workspace.getMostRecentLeaf();
@@ -3244,23 +3257,23 @@ module.exports = class CloudAttachPlugin extends Plugin {
         return;
       try {
         const content = await this.app.vault.read(view.file);
-        const mdImages3 = [];
+        const allMd3 = [];
         const re3 = /!\[([^\]]*)\]\(([^)]+)\)/g;
         let m3;
         while ((m3 = re3.exec(content)) !== null) {
-          mdImages3.push({ url: m3[2].trim(), isPdf: m3[2].trim().toLowerCase().endsWith(".pdf") });
+          allMd3.push({ url: m3[2].trim(), isPdf: m3[2].trim().toLowerCase().endsWith(".pdf") });
         }
-        const pdfIndices3 = mdImages3.map((img, idx) => img.isPdf ? idx : -1).filter((i) => i >= 0);
-        if (pdfIndices3.length === 0)
+        if (!allMd3.some((x) => x.isPdf))
           return;
-        const allImgs3 = Array.from(view.containerEl.querySelectorAll("img")).filter((img) => !img.closest(".cloudattach-pdf-container"));
-        for (const pi of pdfIndices3) {
-          if (pi < allImgs3.length) {
-            if (!this._pdfRenderPromises || !this._pdfRenderPromises.has(allImgs3[pi])) {
-              allImgs3[pi].dataset.cloudattachDebug = "livescan";
-              this._renderPdfAsCanvas(allImgs3[pi], mdImages3[pi].url).catch(() => {
-              });
-            }
+        const doc3 = view.contentEl || view.containerEl || document.body;
+        const allImgs3 = Array.from(doc3.querySelectorAll("img")).filter((img) => !img.closest(".cloudattach-pdf-container"));
+        for (let i = 0; i < allMd3.length && i < allImgs3.length; i++) {
+          if (allMd3[i].isPdf) {
+            if (this._pdfRenderPromises && this._pdfRenderPromises.has(allImgs3[i]))
+              continue;
+            allImgs3[i].dataset.cloudattachDebug = "livescan";
+            this._renderPdfAsCanvas(allImgs3[i], allMd3[i].url).catch(() => {
+            });
           }
         }
       } catch (e) {
@@ -3726,7 +3739,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }).open();
     };
     const versionLabel = document.createElement("span");
-    versionLabel.textContent = "v256";
+    versionLabel.textContent = "v257";
     versionLabel.style.opacity = "0.4";
     versionLabel.style.fontSize = "10px";
     toolbar.appendChild(versionLabel);
