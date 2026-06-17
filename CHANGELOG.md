@@ -1,15 +1,17 @@
-## v0.3.252.dev - 2026-06-17
+## v0.3.253.dev - 2026-06-17
 
 ### 修复
-- iOS blob URL 预检拦截：MutationObserver 发现 blob URL img 时，先检查 alt 是否以 .pdf 结尾，是则调用 _resolveBlobToPdfAndRender() 从 markdown 源码按位置匹配真实 URL，再调用 _renderPdfAsCanvas 替换 Obsidian 原生 PDF 预览图
-- 工具栏版本标签更新为 v252
-
-## v0.3.251.dev - 2026-06-17
-
-### 修复
-- iOS blob URL PDF 渲染：_renderPdfAsCanvas 收到 blob URL 时，直接在函数内部 await _resolvePdfUrlFromMarkdown() 解析 markdown 源码得到真实 PDF URL，然后递归调用渲染；MutationObserver 无需等待
+- iOS blob URL 拦截（Observer 层）：严格限制只处理 alt 以 .pdf 结尾的 blob img，避免误匹配普通图片导致编辑模式 crash
+- _resolveBlobToPdfAndRender 使用 _pdfRenderPromises 并发保护，同一 img 只处理一次
+- popout observer 同步修复
+- 工具栏版本标签更新为 v253
 
 ## v0.3.246.dev - 2026-06-17
+
+### 修复
+
+- 手机端多 PDF crash：懒加载——只渲染第1页，剩余页 IntersectionObserver 按需加载；切换笔记时销毁 observer 释放资源
+
 ## v0.3.246.dev - 2026-06-17
 
 ### 修复
