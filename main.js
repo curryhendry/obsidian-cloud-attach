@@ -3355,10 +3355,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         firstCanvas.draggable = false;
         scrollArea.appendChild(firstCanvas);
         await this._renderPdfPage(firstCanvas, pdf, 1, FIXED_SCALE);
-        let containerW = container.clientWidth;
-        if (!containerW || containerW < 100) {
-          containerW = Math.round(container.getBoundingClientRect().width) || 800;
-        }
+        const containerW = container.clientWidth || 800;
         const displayH = canvasH * (containerW / canvasW);
         console.log("[CloudAttach] canvas WxH:", canvasW, "x", canvasH, "containerW:", containerW, "displayH:", displayH);
         let finalContainerHeight;
@@ -3589,7 +3586,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }).open();
     };
     const versionLabel = document.createElement("span");
-    versionLabel.textContent = "v248";
+    versionLabel.textContent = "v246";
     versionLabel.style.opacity = "0.4";
     versionLabel.style.fontSize = "10px";
     toolbar.appendChild(versionLabel);
@@ -3696,24 +3693,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     });
   }
   _scanAllPdfImgs(doc) {
-    if (!this._pdfUrlCache)
-      this._pdfUrlCache = [];
-    try {
-      const file = this.app.workspace.getActiveFile();
-      if (file) {
-        this.app.vault.read(file).then((md) => {
-          const regex = /![[^]]*](([^)]+.pdf[^)]*))/gi;
-          let match, idx2 = 0;
-          while ((match = regex.exec(md)) !== null) {
-            this._pdfUrlCache[idx2] = match[1];
-            idx2++;
-          }
-          console.log("[CloudAttach] Parsed", this._pdfUrlCache.length, "PDF URLs from markdown");
-        }).catch((e) => {
-        });
-      }
-    } catch (e) {
-    }
     const d = doc || document;
     const allImgs = d.querySelectorAll("img");
     const pdfImgs = Array.from(allImgs).filter((img) => this._isPdfUrl(img.getAttribute("src") || ""));
@@ -3727,11 +3706,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (img.closest(".cloudattach-pdf-container"))
         return;
       const src = img.getAttribute("src") || "";
-      const dataUrl = img.getAttribute("data-pdf-url") || img.dataset.pdfUrl || "";
-      const realUrl = this._isPdfUrl(src) ? src : this._isPdfUrl(dataUrl) ? dataUrl : null;
-      if (realUrl) {
-        img.dataset.pdfUrl = realUrl;
-        this._renderPdfAsCanvas(img, realUrl);
+      if (this._isPdfUrl(src)) {
+        this._renderPdfAsCanvas(img, src);
       }
     });
   }
