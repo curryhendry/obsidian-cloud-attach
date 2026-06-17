@@ -3370,30 +3370,120 @@ module.exports = class CloudAttachPlugin extends Plugin {
         throw e;
       }
     }
-    // iOS 阅读模式 PDF 渲染：registerMarkdownPostProcessor 拦截渲染，不依赖 img src
+    // iOS 阅读模式 PDF 渲染：registerMarkdownPostProcessor
     this.registerMarkdownPostProcessor(async (el, ctx) => {
       try {
-        const sectionInfo = ctx.getSectionInfo(el);
-        if (!sectionInfo) return;
         const file = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
         if (!file) return;
         const content = await this.app.vault.read(file);
-        const lines = content.split('\n');
-        const sectionText = lines.slice(sectionInfo.lineStart, sectionInfo.lineEnd + 1).join('\n');
-        const pdfUrls = [...sectionText.matchAll(/!\[[^\]]*\]\(([^)]+\.pdf[^)]*)\)/gi)].map(m => m[1]);
-        if (pdfUrls.length === 0) return;
-        const imgs = Array.from(el.querySelectorAll('img')).filter(img => {
-          const src = img.getAttribute('src') || '';
-          return src.startsWith('blob:') && !img.closest('.cloudattach-pdf-container');
-        });
-        for (let i = 0; i < imgs.length && i < pdfUrls.length; i++) {
-          await this._renderPdfAsCanvas(imgs[i], pdfUrls[i]);
+        
+        // Determine which part of the source to scan
+        let sectionText, lineOffset = 0;
+        const sectionInfo = ctx.getSectionInfo(el);
+        if (sectionInfo) {
+          const lines = content.split('\n');
+          sectionText = lines.slice(sectionInfo.lineStart, sectionInfo.lineEnd + 1).join('\n');
+          lineOffset = sectionInfo.lineStart;
+        } else {
+          // Fallback: scan entire file, match all blob imgs in the document
+          sectionText = content;
+        }
+        
+        // Extract all image patterns from section text with source positions
+        const allImgRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+        const pdfPositions = [];
+        let m;
+        while ((m = allImgRegex.exec(sectionText)) !== null) {
+          const url = m[2].trim();
+          if (url.toLowerCase().endsWith('.pdf')) {
+            pdfPositions.push({ url, idx: m.index, line: lineOffset + (sectionText.slice(0, m.index).match(/\n/g) || []).length });
+          }
+        }
+        if (pdfPositions.length === 0) return;
+        
+        // Find all blob img elements in this section (or document)
+        const sectionImgs = Array.from(el.querySelectorAll('img'))
+          .filter(img => !img.closest('.cloudattach-pdf-container'));
+        
+        // Order-based matching: ith PDF markdown position -> ith blob img in DOM order
+        for (let i = 0; i < pdfPositions.length && i < sectionImgs.length; i++) {
+          const img = sectionImgs[i];
+          const src = (img.getAttribute('src') || '');
+          // Visual debug: mark as processed
+          img.style.outline = '2px solid orange';
+          img.dataset.cloudattachDebug = 'postproc-matched';
+          await this._renderPdfAsCanvas(img, pdfPositions[i].url);
         }
       } catch(e) {
         console.error('[CloudAttach] PostProcessor error:', e);
       }
     });
 
+
+    // 全文档扫描兜底（阅读模式）：延迟扫描所有 blob img 匹配 markdown PDF URL
+    this.registerEvent(this.app.workspace.on('active-leaf-change', () => {
+      setTimeout(async () => {
+        const leaf = this.app.workspace.getMostRecentLeaf();
+        const view = leaf?.view;
+        if (!view || !view.file || !view.file.path.endsWith('.md')) return;
+        try {
+          // Only run in reading mode (no editor)
+          if (view.editor) return;
+          const content = await this.app.vault.read(view.file);
+          // Extract ALL PDF positions from the entire file
+          const allPdfPositions = [];
+          const re2 = /!\[([^\]]*)\]\(([^)]+)\)/g;
+          let m2;
+          while ((m2 = re2.exec(content)) !== null) {
+            if (m2[2].trim().toLowerCase().endsWith('.pdf')) {
+              allPdfPositions.push(m2[2].trim());
+            }
+          }
+          if (allPdfPositions.length === 0) return;
+          // Find all blob imgs not yet rendered
+          const allBlob = Array.from(view.containerEl.querySelectorAll('img'))
+            .filter(img => {
+              const src = img.getAttribute('src') || '';
+              return src.startsWith('blob:') && !img.closest('.cloudattach-pdf-container');
+            });
+          // Match by order
+          for (let i = 0; i < allBlob.length && i < allPdfPositions.length; i++) {
+            if (!this._pdfRenderPromises || !this._pdfRenderPromises.has(allBlob[i])) {
+              this._renderPdfAsCanvas(allBlob[i], allPdfPositions[i]).catch(() => {});
+            }
+          }
+        } catch(e) {
+          console.error('[CloudAttach] FullDocScan error:', e);
+        }
+      }, 1500);
+    }));
+
+    // 编辑模式辅助扫描（iOS live preview）：3 秒轮询
+    this._iosLiveScanInterval = setInterval(async () => {
+      const leaf = this.app.workspace.getMostRecentLeaf();
+      const view = leaf?.view;
+      if (!view || view.getViewType() !== 'markdown') return;
+      // Only run in edit/live preview mode
+      if (!view.editor) return;
+      try {
+        const content = await this.app.vault.read(view.file);
+        const pdfUrls2 = [...content.matchAll(/!\[[^\]]*\]\(([^)]+)\)/g)]
+          .map(m => m[1].trim())
+          .filter(u => u.toLowerCase().endsWith('.pdf'));
+        if (pdfUrls2.length === 0) return;
+        const blobImgs2 = Array.from(view.containerEl.querySelectorAll('img'))
+          .filter(img => {
+            const src = img.getAttribute('src') || '';
+            return src.startsWith('blob:') && !img.closest('.cloudattach-pdf-container');
+          });
+        for (let i = 0; i < blobImgs2.length && i < pdfUrls2.length; i++) {
+          if (!this._pdfRenderPromises || !this._pdfRenderPromises.has(blobImgs2[i])) {
+            img.dataset.cloudattachDebug = 'livescan-matched';
+            this._renderPdfAsCanvas(blobImgs2[i], pdfUrls2[i]).catch(() => {});
+          }
+        }
+      } catch(e) {}
+    }, 3000);
     console.log('CloudAttach loaded');
   }
   addStyles() {
@@ -3463,7 +3553,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
     workspace.revealLeaf(leaf);
     console.log('[CloudAttach] new leaf created');
   }
-  onunload() { 
+  onunload() {
+    if (this._iosLiveScanInterval) clearInterval(this._iosLiveScanInterval); 
     console.log('CloudAttach unloading...'); 
     if (this._pdfObserver) this._pdfObserver.disconnect();
   }
@@ -3870,7 +3961,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }).open();
     };
     const versionLabel = document.createElement("span");
-    versionLabel.textContent = "v254";
+    versionLabel.textContent = "v255";
     versionLabel.style.opacity = "0.4";
     versionLabel.style.fontSize = "10px";
     toolbar.appendChild(versionLabel);
