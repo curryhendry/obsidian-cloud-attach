@@ -3479,77 +3479,74 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
 
   async _renderPdfAsCanvas(imgEl, url) {
-    // 跳过已被 replaceWith 移除的旧 img
-    if (!imgEl.isConnected) return;
-    // 去重：查 DOM 中是否已有该 URL 的容器
-    const doc = imgEl.ownerDocument;
-    if (doc.querySelector('.cloudattach-pdf-container[data-pdf-url="' + CSS.escape(url) + '"]')) {
+    // 去重
+    if (this._renderedPdfUrls && this._renderedPdfUrls.has(url + ':' + (imgEl.id || imgEl.dataset.src || ''))) {
       return;
     }
-    // 并发锁：同一时间只渲染一个 PDF，其余排队等待
-    if (this._pdfRendering) {
-      await new Promise(resolve => { (this._pdfQueue = this._pdfQueue || []).push(resolve); });
+    // 渲染锁：同一 URL 同时只能有一个渲染任务
+    if (this._pdfRenderPromises && this._pdfRenderPromises.has(url)) {
+      return this._pdfRenderPromises.get(url);
     }
-    this._pdfRendering = true;
-    // === 同步阶段：提取属性、创建容器、立即插入 DOM（在 await 之前完成） ===
-    let imgWidth = imgEl.getAttribute("width") || imgEl.style.width || "";
-    let imgHeight = imgEl.getAttribute("height") || imgEl.style.height || "";
-    let imgStyleMaxWidth = imgEl.style.maxWidth;
-    const parentSpan = imgEl.parentElement;
-    if (parentSpan && parentSpan.tagName === "SPAN") {
-      if (!imgWidth && parentSpan.style.width) imgWidth = parentSpan.style.width;
-      if (!imgHeight && parentSpan.style.height) imgHeight = parentSpan.style.height;
-      if (!imgStyleMaxWidth && parentSpan.style.maxWidth) imgStyleMaxWidth = parentSpan.style.maxWidth;
-    }
-    const imgClasses = imgEl.className || "";
-    const widthClassMatch = imgClasses.match(/cm-image-width-(\d+)/);
-    if (widthClassMatch && !imgWidth) imgWidth = widthClassMatch[1] + "px";
-    const altWidthMatch = imgEl.alt?.match(/^(\d+)$/);
-    if (altWidthMatch && !imgWidth) imgWidth = altWidthMatch[1] + "px";
-
-    const FIXED_SCALE = 1.5;
-    const TOOLBAR_HEIGHT = 28;
-
-    const container = document.createElement("span");
-    container.className = "cloudattach-pdf-container";
-    container.dataset.currentPage = "1";
-    container.dataset.pdfUrl = url;
-    if (imgWidth) {
-      const w = imgWidth.includes("%") || imgWidth.includes("px") || imgWidth.includes("vw") ? imgWidth : imgWidth + "px";
-      container.style.setProperty("width", w, "important");
-    }
-    if (imgStyleMaxWidth) container.style.maxWidth = imgStyleMaxWidth;
-    let userHeightStr = "";
-    if (imgHeight && imgHeight !== "auto") {
-      userHeightStr = imgHeight.includes("%") || imgHeight.includes("px") || imgHeight.includes("vh") ? imgHeight : imgHeight + "px";
-      container.dataset.userHeight = userHeightStr;
-    }
-    container.style.setProperty("display", "block", "important");
-    container.style.setProperty("overflow", "hidden", "important");
-    container.style.setProperty("opacity", "0", "important");
-
-    const scrollArea = document.createElement("div");
-    scrollArea.className = "cloudattach-pdf-scrollarea";
-    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-    scrollArea.style.overflowY = isTouchDevice ? "scroll" : "auto";
-    scrollArea.style.overflowX = "hidden";
-    scrollArea.style.position = "relative";
-    container.appendChild(scrollArea);
-
-    // 同步替换：容器立即插入 DOM，后续并发调用通过 DOM 查询即可拦截
-    imgEl.replaceWith(container);
-    // 等浏览器完成 layout 再读宽度，否则 getBoundingClientRect 返回 0 或错误值
-    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-
+    if (!this._pdfRenderPromises) this._pdfRenderPromises = new Map();
+    const doRender = async () => {
     try {
       const pdfjsLib = await this._loadPdfJs();
-      const loadingTask = pdfjsLib.getDocument({ url, ownerDocument: doc });
+      // ownerDocument 确保 PDF.js 生成的 @font-face CSS 注入到正确的 document
+      // （popout 窗口的 canvas 在其独立的 document 中，需要 font-face 也在同一 document）
+      const loadingTask = pdfjsLib.getDocument({ url, ownerDocument: imgEl.ownerDocument });
       console.log("[CloudAttach] PDF doc loaded, pages:", (await loadingTask.promise).numPages);
       const pdf = await loadingTask.promise;
+      let imgWidth = imgEl.getAttribute("width") || imgEl.style.width || "";
+      let imgHeight = imgEl.getAttribute("height") || imgEl.style.height || "";
+      let imgStyleMaxWidth = imgEl.style.maxWidth;
+      const parentSpan = imgEl.parentElement;
+      if (parentSpan && parentSpan.tagName === "SPAN") {
+        if (!imgWidth && parentSpan.style.width)
+          imgWidth = parentSpan.style.width;
+        if (!imgHeight && parentSpan.style.height)
+          imgHeight = parentSpan.style.height;
+        if (!imgStyleMaxWidth && parentSpan.style.maxWidth)
+          imgStyleMaxWidth = parentSpan.style.maxWidth;
+      }
+      const imgClasses = imgEl.className || "";
+      const widthClassMatch = imgClasses.match(/cm-image-width-(\d+)/);
+      if (widthClassMatch && !imgWidth) {
+        imgWidth = widthClassMatch[1] + "px";
+      }
+      // 兼容 ![640](url) 语法：alt 为纯数字时当作宽度
+      const altWidthMatch = imgEl.alt?.match(/^(\d+)$/);
+      if (altWidthMatch && !imgWidth) {
+        imgWidth = altWidthMatch[1] + "px";
+      }
+      const container = document.createElement("span");
+      container.className = "cloudattach-pdf-container";
+      container.dataset.currentPage = "1";
       container.dataset.totalPages = pdf.numPages.toString();
-
-      // 等 layout 完成再读宽度
-      const rect = container.getBoundingClientRect();
+      container.dataset.pdfUrl = url;
+      if (imgWidth) {
+        const w = imgWidth.includes("%") || imgWidth.includes("px") || imgWidth.includes("vw") ? imgWidth : imgWidth + "px";
+        container.style.setProperty("width", w, "important");
+      }
+      if (imgStyleMaxWidth)
+        container.style.maxWidth = imgStyleMaxWidth;
+      let userHeightStr = "";
+      if (imgHeight && imgHeight !== "auto") {
+        userHeightStr = imgHeight.includes("%") || imgHeight.includes("px") || imgHeight.includes("vh") ? imgHeight : imgHeight + "px";
+        container.dataset.userHeight = userHeightStr;
+      }
+      const FIXED_SCALE = 1.5;
+      const TOOLBAR_HEIGHT = 28;
+      container.style.setProperty("display", "block", "important");
+      container.style.setProperty("overflow", "hidden", "important");
+      container.style.setProperty("opacity", "0", "important");
+      const scrollArea = document.createElement("div");
+      scrollArea.className = "cloudattach-pdf-scrollarea";
+      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      scrollArea.style.overflowY = isTouchDevice ? "scroll" : "auto";
+      scrollArea.style.overflowX = "hidden";
+      scrollArea.style.position = "relative";
+      container.appendChild(scrollArea);
+      imgEl.replaceWith(container);
       const firstPage = await pdf.getPage(1);
       const firstViewport = firstPage.getViewport({ scale: FIXED_SCALE });
       const canvasW = firstViewport.width;
@@ -3557,17 +3554,14 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const firstCanvas = document.createElement("canvas");
       firstCanvas.className = "cloudattach-pdf-page";
       firstCanvas.dataset.pageNum = "1";
+      // 阻止选中/拖拽
       firstCanvas.style.userSelect = 'none';
       firstCanvas.draggable = false;
       scrollArea.appendChild(firstCanvas);
       await this._renderPdfPage(firstCanvas, pdf, 1, FIXED_SCALE);
-
-      // 读容器宽度：getBoundingClientRect 更可靠
-      const containerRect = container.getBoundingClientRect();
-      const containerW = containerRect.width > 10 ? containerRect.width : (rect.width > 10 ? rect.width : 800);
+      const containerW = container.clientWidth || 800;
       const displayH = canvasH * (containerW / canvasW);
       console.log("[CloudAttach] canvas WxH:", canvasW, "x", canvasH, "containerW:", containerW, "displayH:", displayH);
-
       let finalContainerHeight;
       if (userHeightStr) {
         finalContainerHeight = userHeightStr;
@@ -3579,6 +3573,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       scrollArea.style.setProperty("padding-bottom", TOOLBAR_HEIGHT + "px", "important");
       container.style.setProperty("opacity", "1", "important");
 
+      // resize 监听：窗口大小变化时动态重算容器高度，保持宽高比
       const resizeObserver = new ResizeObserver(() => {
         const newW = container.clientWidth || 800;
         const newH = Math.round(canvasH * (newW / canvasW));
@@ -3596,20 +3591,23 @@ module.exports = class CloudAttachPlugin extends Plugin {
         canvas.draggable = false;
         scrollArea.appendChild(canvas);
         await this._renderPdfPage(canvas, pdf, i, FIXED_SCALE);
+        console.log("[CloudAttach] page", i, "/", pdf.numPages, "cw:", canvas.width, "ch:", canvas.height);
       }
-
+      // 记录去重
+      if (this._renderedPdfUrls) {
+        this._renderedPdfUrls.add(url + ':' + (imgEl.id || imgEl.dataset.src || ''));
+      }
       console.log("[CloudAttach] ALL DONE, pages:", pdf.numPages);
       this._bindPdfScroll(container, pdf);
       console.log("[CloudAttach] PDF container built, pages:", pdf.numPages);
     } catch (e) {
       console.error("[CloudAttach] PDF render failed:", e);
-    } finally {
-      this._pdfRendering = false;
-      if (this._pdfQueue && this._pdfQueue.length > 0) {
-        const next = this._pdfQueue.shift();
-        next();
-      }
     }
+    };
+    const promise = doRender();
+    promise.finally(() => { this._pdfRenderPromises.delete(url); });
+    this._pdfRenderPromises.set(url, promise);
+    return promise;
   }
 
   // 渲染指定页码的 PDF 页面到指定 canvas
@@ -3758,6 +3756,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
         scrollToPage(p);
       }).open();
     };
+    const versionLabel = document.createElement("span");
+    versionLabel.textContent = "v242";
+    versionLabel.style.opacity = "0.4";
+    versionLabel.style.fontSize = "10px";
+    toolbar.appendChild(versionLabel);
     container.appendChild(toolbar);
     this._updatePdfToolbar(container, pdf);
   }
@@ -3810,9 +3813,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
     this._popoutObservers = new Map();
     this._registerPopoutObservers();
 
-    // 初始扫描：多时段延迟，覆盖阅读模式和编辑模式的不同渲染时机
+    // 初始扫描：延迟执行确保编辑模式 DOM 已渲染
     setTimeout(() => this._scanAllPdfImgs(), 500);
-    setTimeout(() => this._scanAllPdfImgs(), 1500);
     setTimeout(() => this._scanAllPdfImgs(), 3000);
     // 切换笔记时清空去重记录并重新扫描
     const rescanPdfImgs = () => {
@@ -3824,7 +3826,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       setTimeout(() => this._scanAllPdfImgs(), 500);
       // 再延迟扫（应对慢渲染）
       setTimeout(() => this._scanAllPdfImgs(), 1500);
-      // 长延迟扫（阅读模式 DOM 渲染较慢，需等更久）
       setTimeout(() => this._scanAllPdfImgs(), 3000);
       // 所有 popout 窗口
       this._popoutObservers.forEach((obs, doc) => {
