@@ -6,6 +6,13 @@
 - iOS blob URL 兜底（Issue 2）：MutationObserver 和 _scanAllPdfImgs 中增加 data-pdf-url 属性检查，若 img.src 是 blob URL 则尝试从 dataset 获取原始 PDF URL
 - 版本标签更新为 v248
 
+## v0.3.250.dev - 2026-06-17
+
+### 修复
+- 编辑模式 PDF 宽度自适应：containerW 计算加入 getBoundingClientRect().width 兜底（2行）
+- iOS blob URL PDF 渲染成图片：_isPdfUrl 增加 imgEl 参数，检查 dataset.pdfUrl；新增 _syncPdfUrlsFromSource() 方法从 markdown 源码解析 PDF URL 并设置 data-pdf-url 属性
+- 阅读模式 crash 防御：IntersectionObserver callback 增加 try-catch 包装，避免异常传播崩溃_isPdfUrl 增加 imgEl 参数，检查 dataset.pdfUrl；新增 _syncPdfUrlsFromSource() 方法从 markdown 源码解析 PDF URL 并设置 data-pdf-url 属性
+
 ## v0.3.246.dev - 2026-06-17
 
 ### 修复
