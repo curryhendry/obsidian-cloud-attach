@@ -1,8 +1,15 @@
+## v0.3.252.dev - 2026-06-17
+
+### 修复
+- iOS blob URL 预检拦截：MutationObserver 发现 blob URL img 时，先检查 alt 是否以 .pdf 结尾，是则调用 _resolveBlobToPdfAndRender() 从 markdown 源码按位置匹配真实 URL，再调用 _renderPdfAsCanvas 替换 Obsidian 原生 PDF 预览图
+- 工具栏版本标签更新为 v252
+
 ## v0.3.251.dev - 2026-06-17
 
 ### 修复
 - iOS blob URL PDF 渲染：_renderPdfAsCanvas 收到 blob URL 时，直接在函数内部 await _resolvePdfUrlFromMarkdown() 解析 markdown 源码得到真实 PDF URL，然后递归调用渲染；MutationObserver 无需等待
 
+## v0.3.246.dev - 2026-06-17
 ## v0.3.246.dev - 2026-06-17
 
 ### 修复

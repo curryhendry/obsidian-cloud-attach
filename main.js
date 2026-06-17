@@ -3309,6 +3309,40 @@ module.exports = class CloudAttachPlugin extends Plugin {
       return null;
     }
   }
+  // iOS blob URL → 真实 PDF URL：按 DOM 位置匹配 markdown 中的 PDF ![]() 顺序
+  async _resolveBlobToPdfAndRender(imgEl, imgAlt) {
+    try {
+      const allBlobImgs = Array.from(document.querySelectorAll('img[src^="blob:"]'));
+      const blobIdx = allBlobImgs.indexOf(imgEl);
+      if (blobIdx < 0)
+        return;
+      const file = this.app.workspace.getActiveFile();
+      if (!file || !file.path.endsWith(".md"))
+        return;
+      let raw;
+      try {
+        raw = await this.app.vault.read(file);
+      } catch (e) {
+        return;
+      }
+      if (!raw)
+        return;
+      const pdfUrls = [];
+      const regex = /!\[[^\]]*\]\(([^)]+\.pdf[^)]*)\)/gi;
+      let match;
+      while ((match = regex.exec(raw)) !== null) {
+        pdfUrls.push(match[1]);
+      }
+      if (pdfUrls.length > blobIdx) {
+        const realUrl = pdfUrls[blobIdx];
+        console.log("[CloudAttach] Blob\u2192PDF:", imgAlt, "\u2192", realUrl);
+        imgEl.dataset.pdfUrl = realUrl;
+        await this._renderPdfAsCanvas(imgEl, realUrl);
+      }
+    } catch (e) {
+      console.error("[CloudAttach] _resolveBlobToPdfAndRender error:", e);
+    }
+  }
   async _renderPdfAsCanvas(imgEl, url) {
     if (url.startsWith("blob:")) {
       const realUrl = await this._resolvePdfUrlFromMarkdown(imgEl);
@@ -3630,7 +3664,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }).open();
     };
     const versionLabel = document.createElement("span");
-    versionLabel.textContent = "v251";
+    versionLabel.textContent = "v252";
     versionLabel.style.opacity = "0.4";
     versionLabel.style.fontSize = "10px";
     toolbar.appendChild(versionLabel);
@@ -3671,6 +3705,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
             const src = img.getAttribute("src") || "";
             if (this._isPdfUrl(src)) {
               this._renderPdfAsCanvas(img, src);
+            } else if (src.startsWith("blob:")) {
+              const alt = img.getAttribute("alt") || "";
+              if (alt.toLowerCase().endsWith(".pdf")) {
+                this._resolveBlobToPdfAndRender(img, alt).catch(() => {
+                });
+              }
             }
           });
         });

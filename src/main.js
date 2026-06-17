@@ -3512,6 +3512,40 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
   }
 
+  // iOS blob URL → 真实 PDF URL：按 DOM 位置匹配 markdown 中的 PDF ![]() 顺序
+  async _resolveBlobToPdfAndRender(imgEl, imgAlt) {
+    try {
+      // 1. 统计当前笔记中所有 blob img，定位当前 img 的索引
+      const allBlobImgs = Array.from(document.querySelectorAll('img[src^="blob:"]'));
+      const blobIdx = allBlobImgs.indexOf(imgEl);
+      if (blobIdx < 0) return;
+      // 2. 获取当前笔记的 markdown 源码
+      const file = this.app.workspace.getActiveFile();
+      if (!file || !file.path.endsWith('.md')) return;
+      let raw;
+      try {
+        raw = await this.app.vault.read(file);
+      } catch(e) { return; }
+      if (!raw) return;
+      // 3. 从 markdown 提取所有 PDF URL（按出现顺序）
+      const pdfUrls = [];
+      const regex = /!\[[^\]]*\]\(([^)]+\.pdf[^)]*)\)/gi;
+      let match;
+      while ((match = regex.exec(raw)) !== null) {
+        pdfUrls.push(match[1]);
+      }
+      // 4. 按位置匹配（blob img 顺序 ↔ markdown PDF URL 顺序）
+      if (pdfUrls.length > blobIdx) {
+        const realUrl = pdfUrls[blobIdx];
+        console.log('[CloudAttach] Blob→PDF:', imgAlt, '→', realUrl);
+        imgEl.dataset.pdfUrl = realUrl;
+        await this._renderPdfAsCanvas(imgEl, realUrl);
+      }
+    } catch(e) {
+      console.error('[CloudAttach] _resolveBlobToPdfAndRender error:', e);
+    }
+  }
+
   async _renderPdfAsCanvas(imgEl, url) {
     // iOS blob URL：尝试从 markdown 源码解析真实 PDF URL
     if (url.startsWith('blob:')) {
@@ -3850,7 +3884,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }).open();
     };
     const versionLabel = document.createElement("span");
-    versionLabel.textContent = "v251";
+    versionLabel.textContent = "v252";
     versionLabel.style.opacity = "0.4";
     versionLabel.style.fontSize = "10px";
     toolbar.appendChild(versionLabel);
@@ -3895,6 +3929,14 @@ module.exports = class CloudAttachPlugin extends Plugin {
             const src = img.getAttribute('src') || '';
             if (this._isPdfUrl(src)) {
               this._renderPdfAsCanvas(img, src);
+            } else if (src.startsWith('blob:')) {
+              // iOS Obsidian 把 PDF ![]() 转成 blob URL，原 URL 信息丢失
+              // 检查 alt 是否以 .pdf 结尾（Obsidian 保留 alt）
+              const alt = img.getAttribute('alt') || '';
+              if (alt.toLowerCase().endsWith('.pdf')) {
+                // 从 markdown 源码按位置匹配真实 URL
+                this._resolveBlobToPdfAndRender(img, alt).catch(() => {});
+              }
             }
           });
         });
