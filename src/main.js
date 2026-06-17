@@ -3371,34 +3371,52 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
     }
     // iOS 阅读模式 PDF 渲染：registerMarkdownPostProcessor
-    // 核心思路：markdown 中所有 ![]() 按 DOM img 顺序一一对应
-    // 先提取所有 ![]()（含 PDF 和非 PDF），标记哪些是 PDF，然后按索引匹配
+    // 核心：每个 section 内所有 ![]() 按顺序对应 section 内所有 img
     this.registerMarkdownPostProcessor(async (el, ctx) => {
       try {
         const file = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
         if (!file) return;
         const content = await this.app.vault.read(file);
-        
-        // Extract ALL ![]() in markdown order with URL
-        const allImgRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
-        const mdImages = []; // { url, isPdf }
-        let m;
-        while ((m = allImgRegex.exec(content)) !== null) {
-          const url = m[2].trim();
-          mdImages.push({ url, isPdf: url.toLowerCase().endsWith('.pdf') });
+
+        // 只处理当前 section 的文本
+        let sectionText;
+        const si = ctx.getSectionInfo(el);
+        if (si) {
+          const lines = content.split('\n');
+          sectionText = lines.slice(si.lineStart, si.lineEnd + 1).join('\n');
+        } else {
+          // Fallback: 用全文, 但 img 也要从全文档找
+          sectionText = content;
         }
-        const pdfIndices = mdImages.map((img, idx) => img.isPdf ? idx : -1).filter(i => i >= 0);
-        if (pdfIndices.length === 0) return;
-        
-        // Find ALL img elements in this section (including non-blob, like already-rendered)
-        const sectionImgs = Array.from(el.querySelectorAll('img'))
-          .filter(img => !img.closest('.cloudattach-pdf-container'));
-        
-        // Match by index: mdImages[i] corresponds to sectionImgs[i]
-        for (const pdfIdx of pdfIndices) {
-          if (pdfIdx < sectionImgs.length) {
-            const img = sectionImgs[pdfIdx];
-            const url = mdImages[pdfIdx].url;
+
+        // 从 section 文本提取所有 ![]()，按顺序
+        const allInSection = [];
+        const re = /!\[([^\]]*)\]\(([^)]+)\)/g;
+        let match;
+        while ((match = re.exec(sectionText)) !== null) {
+          allInSection.push({ url: match[2].trim() });
+        }
+        if (allInSection.length === 0) return;
+
+        // 找到 section 内所有 img
+        let sectionImgs;
+        if (si) {
+          sectionImgs = Array.from(el.querySelectorAll('img'))
+            .filter(img => !img.closest('.cloudattach-pdf-container'));
+        } else {
+          // Fallback: 全文档找 img
+          const doc = el.ownerDocument || document;
+          const viewEl = doc.querySelector('.markdown-preview-view') || doc.body;
+          sectionImgs = Array.from(viewEl.querySelectorAll('img'))
+            .filter(img => !img.closest('.cloudattach-pdf-container'));
+        }
+
+        // 第 i 个 ![]() → 第 i 个 img
+        // 如果 ![]() 是 PDF 则渲染对应的 img
+        for (let i = 0; i < allInSection.length && i < sectionImgs.length; i++) {
+          if (allInSection[i].url.toLowerCase().endsWith('.pdf')) {
+            const img = sectionImgs[i];
+            const url = allInSection[i].url;
             img.style.outline = '2px solid orange';
             img.dataset.cloudattachDebug = 'postproc';
             await this._renderPdfAsCanvas(img, url);
@@ -3410,7 +3428,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     });
 
 
-    // 全文档扫描兜底（阅读模式）：延迟扫描匹配 markdown PDF URL
+    // 全文档扫描兜底（阅读模式）：延迟扫描 - 只找未渲染的 PDF
     this.registerEvent(this.app.workspace.on('active-leaf-change', () => {
       setTimeout(async () => {
         const leaf = this.app.workspace.getMostRecentLeaf();
@@ -3419,28 +3437,29 @@ module.exports = class CloudAttachPlugin extends Plugin {
         try {
           if (view.editor) return;
           const content = await this.app.vault.read(view.file);
-          const mdImages2 = [];
+          // 全文所有 ![]()
+          const allMd2 = [];
           const re2 = /!\[([^\]]*)\]\(([^)]+)\)/g;
           let m2;
           while ((m2 = re2.exec(content)) !== null) {
-            mdImages2.push({ url: m2[2].trim(), isPdf: m2[2].trim().toLowerCase().endsWith('.pdf') });
+            allMd2.push({ url: m2[2].trim(), isPdf: m2[2].trim().toLowerCase().endsWith('.pdf') });
           }
-          const pdfIndices2 = mdImages2.map((img, idx) => img.isPdf ? idx : -1).filter(i => i >= 0);
-          if (pdfIndices2.length === 0) return;
-          // ALL imgs in DOM order (not just blob — some may already be rendered)
-          const allImgs2 = Array.from(view.containerEl.querySelectorAll('img'))
+          if (!allMd2.some(x => x.isPdf)) return;
+          // 从 view 容器找所有 img
+          const doc2 = view.contentEl || view.containerEl || document.body;
+          const allImgs2 = Array.from(doc2.querySelectorAll('img'))
             .filter(img => !img.closest('.cloudattach-pdf-container'));
-          for (const pi of pdfIndices2) {
-            if (pi < allImgs2.length) {
-              if (!this._pdfRenderPromises || !this._pdfRenderPromises.has(allImgs2[pi])) {
-                this._renderPdfAsCanvas(allImgs2[pi], mdImages2[pi].url).catch(() => {});
-              }
+          // 第 i 个 ![]() → 第 i 个 img, PDF 才渲染
+          for (let i = 0; i < allMd2.length && i < allImgs2.length; i++) {
+            if (allMd2[i].isPdf) {
+              if (this._pdfRenderPromises && this._pdfRenderPromises.has(allImgs2[i])) continue;
+              this._renderPdfAsCanvas(allImgs2[i], allMd2[i].url).catch(() => {});
             }
           }
         } catch(e) {
           console.error('[CloudAttach] FullDocScan error:', e);
         }
-      }, 1500);
+      }, 3000);  // 3s delay for iOS
     }));
 
     // 编辑模式辅助扫描（iOS live preview）：3 秒轮询
@@ -3451,22 +3470,21 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (!view.editor) return;
       try {
         const content = await this.app.vault.read(view.file);
-        const mdImages3 = [];
+        const allMd3 = [];
         const re3 = /!\[([^\]]*)\]\(([^)]+)\)/g;
         let m3;
         while ((m3 = re3.exec(content)) !== null) {
-          mdImages3.push({ url: m3[2].trim(), isPdf: m3[2].trim().toLowerCase().endsWith('.pdf') });
+          allMd3.push({ url: m3[2].trim(), isPdf: m3[2].trim().toLowerCase().endsWith('.pdf') });
         }
-        const pdfIndices3 = mdImages3.map((img, idx) => img.isPdf ? idx : -1).filter(i => i >= 0);
-        if (pdfIndices3.length === 0) return;
-        const allImgs3 = Array.from(view.containerEl.querySelectorAll('img'))
+        if (!allMd3.some(x => x.isPdf)) return;
+        const doc3 = view.contentEl || view.containerEl || document.body;
+        const allImgs3 = Array.from(doc3.querySelectorAll('img'))
           .filter(img => !img.closest('.cloudattach-pdf-container'));
-        for (const pi of pdfIndices3) {
-          if (pi < allImgs3.length) {
-            if (!this._pdfRenderPromises || !this._pdfRenderPromises.has(allImgs3[pi])) {
-              allImgs3[pi].dataset.cloudattachDebug = 'livescan';
-              this._renderPdfAsCanvas(allImgs3[pi], mdImages3[pi].url).catch(() => {});
-            }
+        for (let i = 0; i < allMd3.length && i < allImgs3.length; i++) {
+          if (allMd3[i].isPdf) {
+            if (this._pdfRenderPromises && this._pdfRenderPromises.has(allImgs3[i])) continue;
+            allImgs3[i].dataset.cloudattachDebug = 'livescan';
+            this._renderPdfAsCanvas(allImgs3[i], allMd3[i].url).catch(() => {});
           }
         }
       } catch(e) {}
@@ -3947,7 +3965,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }).open();
     };
     const versionLabel = document.createElement("span");
-    versionLabel.textContent = "v256";
+    versionLabel.textContent = "v257";
     versionLabel.style.opacity = "0.4";
     versionLabel.style.fontSize = "10px";
     toolbar.appendChild(versionLabel);
