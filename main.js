@@ -3275,128 +3275,160 @@ module.exports = class CloudAttachPlugin extends Plugin {
     return /\.pdf(\?|#|$)/i.test(url);
   }
   async _renderPdfAsCanvas(imgEl, url) {
-    if (!imgEl.isConnected)
-      return;
-    const doc = imgEl.ownerDocument;
-    if (doc.querySelector('.cloudattach-pdf-container[data-pdf-url="' + CSS.escape(url) + '"]')) {
+    if (this._renderedPdfUrls && this._renderedPdfUrls.has(url + ":" + (imgEl.id || imgEl.dataset.src || ""))) {
       return;
     }
-    if (this._pdfRendering) {
-      await new Promise((resolve) => {
-        (this._pdfQueue = this._pdfQueue || []).push(resolve);
-      });
+    if (!this._pdfRenderChain)
+      this._pdfRenderChain = Promise.resolve();
+    if (this._pdfQueuedUrls && this._pdfQueuedUrls.has(url)) {
+      return this._pdfRenderPromises ? this._pdfRenderPromises.get(url) : void 0;
     }
-    this._pdfRendering = true;
-    let imgWidth = imgEl.getAttribute("width") || imgEl.style.width || "";
-    let imgHeight = imgEl.getAttribute("height") || imgEl.style.height || "";
-    let imgStyleMaxWidth = imgEl.style.maxWidth;
-    const parentSpan = imgEl.parentElement;
-    if (parentSpan && parentSpan.tagName === "SPAN") {
-      if (!imgWidth && parentSpan.style.width)
-        imgWidth = parentSpan.style.width;
-      if (!imgHeight && parentSpan.style.height)
-        imgHeight = parentSpan.style.height;
-      if (!imgStyleMaxWidth && parentSpan.style.maxWidth)
-        imgStyleMaxWidth = parentSpan.style.maxWidth;
-    }
-    const imgClasses = imgEl.className || "";
-    const widthClassMatch = imgClasses.match(/cm-image-width-(\d+)/);
-    if (widthClassMatch && !imgWidth)
-      imgWidth = widthClassMatch[1] + "px";
-    const altWidthMatch = imgEl.alt?.match(/^(\d+)$/);
-    if (altWidthMatch && !imgWidth)
-      imgWidth = altWidthMatch[1] + "px";
-    const FIXED_SCALE = 1.5;
-    const TOOLBAR_HEIGHT = 28;
-    const container = document.createElement("span");
-    container.className = "cloudattach-pdf-container";
-    container.dataset.currentPage = "1";
-    container.dataset.pdfUrl = url;
-    if (imgWidth) {
-      const w = imgWidth.includes("%") || imgWidth.includes("px") || imgWidth.includes("vw") ? imgWidth : imgWidth + "px";
-      container.style.setProperty("width", w, "important");
-    }
-    if (imgStyleMaxWidth)
-      container.style.maxWidth = imgStyleMaxWidth;
-    let userHeightStr = "";
-    if (imgHeight && imgHeight !== "auto") {
-      userHeightStr = imgHeight.includes("%") || imgHeight.includes("px") || imgHeight.includes("vh") ? imgHeight : imgHeight + "px";
-      container.dataset.userHeight = userHeightStr;
-    }
-    container.style.setProperty("display", "block", "important");
-    container.style.setProperty("overflow", "hidden", "important");
-    container.style.setProperty("opacity", "0", "important");
-    const scrollArea = document.createElement("div");
-    scrollArea.className = "cloudattach-pdf-scrollarea";
-    const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
-    scrollArea.style.overflowY = isTouchDevice ? "scroll" : "auto";
-    scrollArea.style.overflowX = "hidden";
-    scrollArea.style.position = "relative";
-    container.appendChild(scrollArea);
-    imgEl.replaceWith(container);
-    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-    try {
-      const pdfjsLib = await this._loadPdfJs();
-      const loadingTask = pdfjsLib.getDocument({ url, ownerDocument: doc });
-      console.log("[CloudAttach] PDF doc loaded, pages:", (await loadingTask.promise).numPages);
-      const pdf = await loadingTask.promise;
-      container.dataset.totalPages = pdf.numPages.toString();
-      const rect = container.getBoundingClientRect();
-      const firstPage = await pdf.getPage(1);
-      const firstViewport = firstPage.getViewport({ scale: FIXED_SCALE });
-      const canvasW = firstViewport.width;
-      const canvasH = firstViewport.height;
-      const firstCanvas = document.createElement("canvas");
-      firstCanvas.className = "cloudattach-pdf-page";
-      firstCanvas.dataset.pageNum = "1";
-      firstCanvas.style.userSelect = "none";
-      firstCanvas.draggable = false;
-      scrollArea.appendChild(firstCanvas);
-      await this._renderPdfPage(firstCanvas, pdf, 1, FIXED_SCALE);
-      const containerRect = container.getBoundingClientRect();
-      const containerW = containerRect.width > 10 ? containerRect.width : rect.width > 10 ? rect.width : 800;
-      const displayH = canvasH * (containerW / canvasW);
-      console.log("[CloudAttach] canvas WxH:", canvasW, "x", canvasH, "containerW:", containerW, "displayH:", displayH);
-      let finalContainerHeight;
-      if (userHeightStr) {
-        finalContainerHeight = userHeightStr;
-      } else {
-        finalContainerHeight = Math.round(displayH) + "px";
-      }
-      container.style.setProperty("height", finalContainerHeight, "important");
-      scrollArea.style.setProperty("height", "100%", "important");
-      scrollArea.style.setProperty("padding-bottom", TOOLBAR_HEIGHT + "px", "important");
-      container.style.setProperty("opacity", "1", "important");
-      const resizeObserver = new ResizeObserver(() => {
-        const newW = container.clientWidth || 800;
-        const newH = Math.round(canvasH * (newW / canvasW));
-        if (!userHeightStr) {
-          container.style.setProperty("height", newH + "px", "important");
+    if (!this._pdfQueuedUrls)
+      this._pdfQueuedUrls = /* @__PURE__ */ new Set();
+    if (!this._pdfRenderPromises)
+      this._pdfRenderPromises = /* @__PURE__ */ new Map();
+    this._pdfQueuedUrls.add(url);
+    const doRender = async () => {
+      try {
+        const pdfjsLib = await this._loadPdfJs();
+        const loadingTask = pdfjsLib.getDocument({ url, ownerDocument: imgEl.ownerDocument });
+        console.log("[CloudAttach] PDF doc loaded, pages:", (await loadingTask.promise).numPages);
+        const pdf = await loadingTask.promise;
+        let imgWidth = imgEl.getAttribute("width") || imgEl.style.width || "";
+        let imgHeight = imgEl.getAttribute("height") || imgEl.style.height || "";
+        let imgStyleMaxWidth = imgEl.style.maxWidth;
+        const parentSpan = imgEl.parentElement;
+        if (parentSpan && parentSpan.tagName === "SPAN") {
+          if (!imgWidth && parentSpan.style.width)
+            imgWidth = parentSpan.style.width;
+          if (!imgHeight && parentSpan.style.height)
+            imgHeight = parentSpan.style.height;
+          if (!imgStyleMaxWidth && parentSpan.style.maxWidth)
+            imgStyleMaxWidth = parentSpan.style.maxWidth;
         }
-      });
-      resizeObserver.observe(container);
-      this._initPdfToolbar(container, pdf);
-      for (let i = 2; i <= pdf.numPages; i++) {
-        const canvas = document.createElement("canvas");
-        canvas.className = "cloudattach-pdf-page";
-        canvas.dataset.pageNum = String(i);
-        canvas.style.userSelect = "none";
-        canvas.draggable = false;
-        scrollArea.appendChild(canvas);
-        await this._renderPdfPage(canvas, pdf, i, FIXED_SCALE);
+        const imgClasses = imgEl.className || "";
+        const widthClassMatch = imgClasses.match(/cm-image-width-(\d+)/);
+        if (widthClassMatch && !imgWidth) {
+          imgWidth = widthClassMatch[1] + "px";
+        }
+        const altWidthMatch = imgEl.alt?.match(/^(\d+)$/);
+        if (altWidthMatch && !imgWidth) {
+          imgWidth = altWidthMatch[1] + "px";
+        }
+        const container = document.createElement("span");
+        container.className = "cloudattach-pdf-container";
+        container.dataset.currentPage = "1";
+        container.dataset.totalPages = pdf.numPages.toString();
+        container.dataset.pdfUrl = url;
+        if (imgWidth) {
+          const w = imgWidth.includes("%") || imgWidth.includes("px") || imgWidth.includes("vw") ? imgWidth : imgWidth + "px";
+          container.style.setProperty("width", w, "important");
+        }
+        if (imgStyleMaxWidth)
+          container.style.maxWidth = imgStyleMaxWidth;
+        let userHeightStr = "";
+        if (imgHeight && imgHeight !== "auto") {
+          userHeightStr = imgHeight.includes("%") || imgHeight.includes("px") || imgHeight.includes("vh") ? imgHeight : imgHeight + "px";
+          container.dataset.userHeight = userHeightStr;
+        }
+        const FIXED_SCALE = 1.5;
+        const TOOLBAR_HEIGHT = 28;
+        container.style.setProperty("display", "block", "important");
+        container.style.setProperty("overflow", "hidden", "important");
+        container.style.setProperty("opacity", "0", "important");
+        const scrollArea = document.createElement("div");
+        scrollArea.className = "cloudattach-pdf-scrollarea";
+        const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+        scrollArea.style.overflowY = isTouchDevice ? "scroll" : "auto";
+        scrollArea.style.overflowX = "hidden";
+        scrollArea.style.position = "relative";
+        container.appendChild(scrollArea);
+        imgEl.replaceWith(container);
+        const firstPage = await pdf.getPage(1);
+        const firstViewport = firstPage.getViewport({ scale: FIXED_SCALE });
+        const canvasW = firstViewport.width;
+        const canvasH = firstViewport.height;
+        const firstCanvas = document.createElement("canvas");
+        firstCanvas.className = "cloudattach-pdf-page";
+        firstCanvas.dataset.pageNum = "1";
+        firstCanvas.style.userSelect = "none";
+        firstCanvas.draggable = false;
+        scrollArea.appendChild(firstCanvas);
+        await this._renderPdfPage(firstCanvas, pdf, 1, FIXED_SCALE);
+        const containerW = container.clientWidth || 800;
+        const displayH = canvasH * (containerW / canvasW);
+        console.log("[CloudAttach] canvas WxH:", canvasW, "x", canvasH, "containerW:", containerW, "displayH:", displayH);
+        let finalContainerHeight;
+        if (userHeightStr) {
+          finalContainerHeight = userHeightStr;
+        } else {
+          finalContainerHeight = Math.round(displayH) + "px";
+        }
+        container.style.setProperty("height", finalContainerHeight, "important");
+        scrollArea.style.setProperty("height", "100%", "important");
+        scrollArea.style.setProperty("padding-bottom", TOOLBAR_HEIGHT + "px", "important");
+        container.style.setProperty("opacity", "1", "important");
+        const resizeObserver = new ResizeObserver(() => {
+          const newW = container.clientWidth || 800;
+          const newH = Math.round(canvasH * (newW / canvasW));
+          if (!userHeightStr) {
+            container.style.setProperty("height", newH + "px", "important");
+          }
+        });
+        resizeObserver.observe(container);
+        this._initPdfToolbar(container, pdf);
+        const pagePlaceholders = [];
+        for (let i = 2; i <= pdf.numPages; i++) {
+          const placeholder = document.createElement("div");
+          placeholder.className = "cloudattach-pdf-placeholder";
+          placeholder.dataset.pageNum = String(i);
+          placeholder.dataset.pdfUrl = url;
+          placeholder.style.minHeight = "100px";
+          placeholder.style.background = "#f0f0f0";
+          placeholder.style.margin = "10px 0";
+          scrollArea.appendChild(placeholder);
+          pagePlaceholders.push(placeholder);
+        }
+        if (pagePlaceholders.length > 0) {
+          const lazyObserver = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+              if (entry.isIntersecting) {
+                const ph = entry.target;
+                if (ph.dataset.rendered)
+                  return;
+                ph.dataset.rendered = "true";
+                const pageNum = parseInt(ph.dataset.pageNum);
+                const pdfUrl = ph.dataset.pdfUrl;
+                this._renderLazyPage(ph, pdf, pageNum, FIXED_SCALE).catch((e) => {
+                  console.error("[CloudAttach] lazy page render failed:", e);
+                });
+                lazyObserver.unobserve(ph);
+              }
+            });
+          }, { rootMargin: "200px" });
+          pagePlaceholders.forEach((ph) => lazyObserver.observe(ph));
+          if (!this._pdfLazyObservers)
+            this._pdfLazyObservers = /* @__PURE__ */ new Set();
+          this._pdfLazyObservers.add(lazyObserver);
+        }
+        if (this._renderedPdfUrls) {
+          this._renderedPdfUrls.add(url + ":" + (imgEl.id || imgEl.dataset.src || ""));
+        }
+        console.log("[CloudAttach] ALL DONE, pages:", pdf.numPages);
+        this._bindPdfScroll(container, pdf);
+        console.log("[CloudAttach] PDF container built, pages:", pdf.numPages);
+      } catch (e) {
+        console.error("[CloudAttach] PDF render failed:", e);
       }
-      console.log("[CloudAttach] ALL DONE, pages:", pdf.numPages);
-      this._bindPdfScroll(container, pdf);
-      console.log("[CloudAttach] PDF container built, pages:", pdf.numPages);
-    } catch (e) {
-      console.error("[CloudAttach] PDF render failed:", e);
-    } finally {
-      this._pdfRendering = false;
-      if (this._pdfQueue && this._pdfQueue.length > 0) {
-        const next = this._pdfQueue.shift();
-        next();
-      }
-    }
+    };
+    const renderPromise = this._pdfRenderChain.then(() => doRender());
+    renderPromise.finally(() => {
+      this._pdfRenderPromises.delete(url);
+      this._pdfQueuedUrls.delete(url);
+    });
+    this._pdfRenderPromises.set(url, renderPromise);
+    this._pdfRenderChain = renderPromise;
+    return renderPromise;
   }
   // 渲染指定页码的 PDF 页面到指定 canvas
   async _renderPdfPage(canvas, pdf, pageNum, scale) {
@@ -3406,6 +3438,17 @@ module.exports = class CloudAttachPlugin extends Plugin {
     canvas.height = viewport.height;
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     await page.render({ canvasContext: ctx, viewport }).promise;
+  }
+  // 懒加载：渲染单页并替换占位符
+  async _renderLazyPage(placeholder, pdf, pageNum, scale) {
+    const canvas = document.createElement("canvas");
+    canvas.className = "cloudattach-pdf-page";
+    canvas.dataset.pageNum = String(pageNum);
+    canvas.style.userSelect = "none";
+    canvas.draggable = false;
+    await this._renderPdfPage(canvas, pdf, pageNum, scale);
+    placeholder.replaceWith(canvas);
+    console.log("[CloudAttach] lazy page", pageNum, "rendered");
   }
   // 监听滚动更新当前页码（连续滚动模式，监听 scrollArea）
   _bindPdfScroll(container, pdf) {
@@ -3542,6 +3585,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
         scrollToPage(p);
       }).open();
     };
+    const versionLabel = document.createElement("span");
+    versionLabel.textContent = "v246";
+    versionLabel.style.opacity = "0.4";
+    versionLabel.style.fontSize = "10px";
+    toolbar.appendChild(versionLabel);
     container.appendChild(toolbar);
     this._updatePdfToolbar(container, pdf);
   }
@@ -3588,10 +3636,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
     this._popoutObservers = /* @__PURE__ */ new Map();
     this._registerPopoutObservers();
     setTimeout(() => this._scanAllPdfImgs(), 500);
-    setTimeout(() => this._scanAllPdfImgs(), 1500);
     setTimeout(() => this._scanAllPdfImgs(), 3e3);
     const rescanPdfImgs = () => {
       this._renderedPdfUrls = /* @__PURE__ */ new Set();
+      if (this._pdfLazyObservers) {
+        this._pdfLazyObservers.forEach((obs) => obs.disconnect());
+        this._pdfLazyObservers.clear();
+      }
       this._scanAllPdfImgs();
       setTimeout(() => this._scanAllPdfImgs(), 500);
       setTimeout(() => this._scanAllPdfImgs(), 1500);

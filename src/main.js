@@ -3588,15 +3588,41 @@ module.exports = class CloudAttachPlugin extends Plugin {
       });
       resizeObserver.observe(container);
       this._initPdfToolbar(container, pdf);
+      // 懒加载：只渲染第1页，其余页创建占位符，滚入视口时才渲染
+      const pagePlaceholders = [];
       for (let i = 2; i <= pdf.numPages; i++) {
-        const canvas = document.createElement("canvas");
-        canvas.className = "cloudattach-pdf-page";
-        canvas.dataset.pageNum = String(i);
-        canvas.style.userSelect = 'none';
-        canvas.draggable = false;
-        scrollArea.appendChild(canvas);
-        await this._renderPdfPage(canvas, pdf, i, FIXED_SCALE);
-        console.log("[CloudAttach] page", i, "/", pdf.numPages, "cw:", canvas.width, "ch:", canvas.height);
+        const placeholder = document.createElement("div");
+        placeholder.className = "cloudattach-pdf-placeholder";
+        placeholder.dataset.pageNum = String(i);
+        placeholder.dataset.pdfUrl = url;
+        placeholder.style.minHeight = "100px"; // 占位符最小高度
+        placeholder.style.background = "#f0f0f0";
+        placeholder.style.margin = "10px 0";
+        scrollArea.appendChild(placeholder);
+        pagePlaceholders.push(placeholder);
+      }
+      // IntersectionObserver 懒加载剩余页
+      if (pagePlaceholders.length > 0) {
+        const lazyObserver = new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              const ph = entry.target;
+              if (ph.dataset.rendered) return; // 已渲染跳过
+              ph.dataset.rendered = "true";
+              const pageNum = parseInt(ph.dataset.pageNum);
+              const pdfUrl = ph.dataset.pdfUrl;
+              // 异步渲染，不阻塞
+              this._renderLazyPage(ph, pdf, pageNum, FIXED_SCALE).catch(e => {
+                console.error("[CloudAttach] lazy page render failed:", e);
+              });
+              lazyObserver.unobserve(ph);
+            }
+          });
+        }, { rootMargin: "200px" }); // 提前200px开始加载
+        pagePlaceholders.forEach(ph => lazyObserver.observe(ph));
+        // 保存 observer 以便切换笔记时销毁
+        if (!this._pdfLazyObservers) this._pdfLazyObservers = new Set();
+        this._pdfLazyObservers.add(lazyObserver);
       }
       // 记录去重
       if (this._renderedPdfUrls) {
@@ -3628,6 +3654,18 @@ module.exports = class CloudAttachPlugin extends Plugin {
     canvas.height = viewport.height;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     await page.render({ canvasContext: ctx, viewport }).promise;
+  }
+
+  // 懒加载：渲染单页并替换占位符
+  async _renderLazyPage(placeholder, pdf, pageNum, scale) {
+    const canvas = document.createElement("canvas");
+    canvas.className = "cloudattach-pdf-page";
+    canvas.dataset.pageNum = String(pageNum);
+    canvas.style.userSelect = 'none';
+    canvas.draggable = false;
+    await this._renderPdfPage(canvas, pdf, pageNum, scale);
+    placeholder.replaceWith(canvas);
+    console.log("[CloudAttach] lazy page", pageNum, "rendered");
   }
 
   // 监听滚动更新当前页码（连续滚动模式，监听 scrollArea）
@@ -3767,7 +3805,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }).open();
     };
     const versionLabel = document.createElement("span");
-    versionLabel.textContent = "v242";
+    versionLabel.textContent = "v246";
     versionLabel.style.opacity = "0.4";
     versionLabel.style.fontSize = "10px";
     toolbar.appendChild(versionLabel);
@@ -3830,6 +3868,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const rescanPdfImgs = () => {
       // 清空已渲染记录，确保切换笔记后重新渲染
       this._renderedPdfUrls = new Set();
+      // 销毁懒加载 observer 释放资源
+      if (this._pdfLazyObservers) {
+        this._pdfLazyObservers.forEach(obs => obs.disconnect());
+        this._pdfLazyObservers.clear();
+      }
       // 主窗口：立即扫一次
       this._scanAllPdfImgs();
       // 延迟再扫（等 DOM 渲染完成）
