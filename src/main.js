@@ -3479,15 +3479,20 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
 
   async _renderPdfAsCanvas(imgEl, url) {
-    // 去重
+    // 去重：已在 DOM 中渲染过的直接跳过
     if (this._renderedPdfUrls && this._renderedPdfUrls.has(url + ':' + (imgEl.id || imgEl.dataset.src || ''))) {
       return;
     }
-    // 渲染锁：同一 URL 同时只能有一个渲染任务
-    if (this._pdfRenderPromises && this._pdfRenderPromises.has(url)) {
-      return this._pdfRenderPromises.get(url);
+    // 全局渲染队列：所有 PDF 串行渲染，防止多 PDF 并发导致手机端内存崩溃
+    // 初始化链
+    if (!this._pdfRenderChain) this._pdfRenderChain = Promise.resolve();
+    // 同一 URL 已在队列中则返回已有 Promise（避免重复入链）
+    if (this._pdfQueuedUrls && this._pdfQueuedUrls.has(url)) {
+      return this._pdfRenderPromises ? this._pdfRenderPromises.get(url) : undefined;
     }
+    if (!this._pdfQueuedUrls) this._pdfQueuedUrls = new Set();
     if (!this._pdfRenderPromises) this._pdfRenderPromises = new Map();
+    this._pdfQueuedUrls.add(url);
     const doRender = async () => {
     try {
       const pdfjsLib = await this._loadPdfJs();
@@ -3604,10 +3609,15 @@ module.exports = class CloudAttachPlugin extends Plugin {
       console.error("[CloudAttach] PDF render failed:", e);
     }
     };
-    const promise = doRender();
-    promise.finally(() => { this._pdfRenderPromises.delete(url); });
-    this._pdfRenderPromises.set(url, promise);
-    return promise;
+    // 追加到全局渲染链：所有 PDF 串行排队
+    const renderPromise = this._pdfRenderChain.then(() => doRender());
+    renderPromise.finally(() => {
+      this._pdfRenderPromises.delete(url);
+      this._pdfQueuedUrls.delete(url);
+    });
+    this._pdfRenderPromises.set(url, renderPromise);
+    this._pdfRenderChain = renderPromise;  // 更新链尾
+    return renderPromise;
   }
 
   // 渲染指定页码的 PDF 页面到指定 canvas
