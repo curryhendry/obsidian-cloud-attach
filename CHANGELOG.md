@@ -1,3 +1,17 @@
+## v0.3.255.dev - 2026-06-17
+
+### 修复
+- iOS 阅读模式 PDF 渲染增强：registerMarkdownPostProcessor 增加全文件兜底（getSectionInfo 返回 null 时扫描全文）
+- 全文档扫描兜底：active-leaf-change 在阅读模式下延迟 1500ms 扫描所有未渲染的 blob img 并匹配 PDF URL
+- 编辑模式扫描：每 3 秒轮询 blob img，通过源码顺序匹配 PDF URL
+- 视觉调试：处理过的 img 加橙色 outline 边框和 data 属性，用户可截图确认
+- onunload 清理定时器
+
+## v0.3.254.dev - 2026-06-17
+
+### 修复
+- iOS 阅读模式 PDF 渲染：registerMarkdownPostProcessor 拦截渲染，不依赖 img src
+
 ## v0.3.254.dev - 2026-06-17
 
 ### 修复
