@@ -3474,54 +3474,56 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
   }
 
-  _isPdfUrl(url, imgEl) {
-    if (imgEl && imgEl.dataset.pdfUrl) return true;
-    if (!url) return false;
-    if (url.startsWith('blob:')) {
-      // blob URL：尝试从 dataset 或父元素取原始 URL
-      return imgEl && (imgEl.dataset.pdfUrl || false);
-    }
+  _isPdfUrl(url) {
     return /\.pdf(\?|#|$)/i.test(url);
   }
 
-  // iOS 兜底：读取 markdown 源码，为 blob URL 的 img 设置 data-pdf-url
-  _syncPdfUrlsFromSource() {
+  // iOS 专用：从 markdown 源码解析 blob URL 对应的真实 PDF URL
+  async _resolvePdfUrlFromMarkdown(imgEl) {
     try {
       const file = this.app.workspace.getActiveFile();
-      if (!file) return;
-      // 非阻塞读取
-      this.app.vault.read(file).then(md => {
-        if (!md) return;
-        const pdfUrls = [];
-        const regex = /!\[[^\]]*\]\(([^)]+\.pdf[^)]*)\)/gi;
-        let match;
-        while ((match = regex.exec(md)) !== null) {
-          pdfUrls.push(match[1]);
-        }
-        if (pdfUrls.length === 0) return;
-        // 找到所有 blob URL 的 img，尝试匹配
-        const d = document;
-        const allImgs = d.querySelectorAll('img');
-        let pdfIdx = 0;
-        for (const img of allImgs) {
-          const src = img.getAttribute('src') || '';
-          if (src.startsWith('blob:') && !img.dataset.pdfUrl) {
-            if (pdfIdx < pdfUrls.length) {
-              img.dataset.pdfUrl = pdfUrls[pdfIdx];
-              console.log('[CloudAttach] Set data-pdf-url from source:', pdfUrls[pdfIdx]);
-              pdfIdx++;
-              // 触发渲染
-              if (!img.closest('.cloudattach-pdf-container')) {
-                this._renderPdfAsCanvas(img, pdfUrls[pdfIdx - 1]);
-              }
-            }
-          }
-        }
-      }).catch(e => {});
-    } catch(e) {}
+      if (!file || !file.path.endsWith('.md')) return null;
+      const md = this.app.metadataCache.getFileCache(file)?.sections;
+      if (!md) return null;
+      // 统计当前 blob img 在全文所有 blob img 中的位置
+      const allBlobImgs = Array.from(document.querySelectorAll('img[src^="blob:"]'));
+      const blobIdx = allBlobImgs.indexOf(imgEl);
+      if (blobIdx < 0) return null;
+      // 异步读取 markdown 源码（_renderPdfAsCanvas 本身是 async，调用方会 await）
+      let raw;
+      try {
+        raw = await this.app.vault.read(file);
+      } catch(e) {
+        return null;
+      }
+      if (!raw) return null;
+      const pdfUrls = [];
+      const regex = /!\[[^\]]*\]\(([^)]+\.pdf[^)]*)\)/gi;
+      let match;
+      while ((match = regex.exec(raw)) !== null) {
+        pdfUrls.push(match[1]);
+      }
+      if (pdfUrls.length > blobIdx) {
+        return pdfUrls[blobIdx];
+      }
+      return null;
+    } catch(e) {
+      return null;
+    }
   }
 
   async _renderPdfAsCanvas(imgEl, url) {
+    // iOS blob URL：尝试从 markdown 源码解析真实 PDF URL
+    if (url.startsWith('blob:')) {
+      const realUrl = await this._resolvePdfUrlFromMarkdown(imgEl);
+      if (realUrl) {
+        imgEl.dataset.pdfUrl = realUrl;
+        console.log('[CloudAttach] Resolved blob to PDF:', realUrl);
+        return this._renderPdfAsCanvas(imgEl, realUrl);
+      }
+      // 解析不出就不渲染（避免空渲染）
+      return;
+    }
     // 去重：已在 DOM 中渲染过的直接跳过
     if (this._renderedPdfUrls && this._renderedPdfUrls.has(url + ':' + (imgEl.id || imgEl.dataset.src || ''))) {
       return;
@@ -3607,7 +3609,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       firstCanvas.draggable = false;
       scrollArea.appendChild(firstCanvas);
       await this._renderPdfPage(firstCanvas, pdf, 1, FIXED_SCALE);
-      const containerW = container.getBoundingClientRect().width || container.clientWidth || 800;
+      const containerW = container.clientWidth || 800;
       const displayH = canvasH * (containerW / canvasW);
       console.log("[CloudAttach] canvas WxH:", canvasW, "x", canvasH, "containerW:", containerW, "displayH:", displayH);
       let finalContainerHeight;
@@ -3623,7 +3625,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
 
       // resize 监听：窗口大小变化时动态重算容器高度，保持宽高比
       const resizeObserver = new ResizeObserver(() => {
-        const newW = container.getBoundingClientRect().width || container.clientWidth || 800;
+        const newW = container.clientWidth || 800;
         const newH = Math.round(canvasH * (newW / canvasW));
         if (!userHeightStr) {
           container.style.setProperty("height", newH + "px", "important");
@@ -3647,24 +3649,20 @@ module.exports = class CloudAttachPlugin extends Plugin {
       // IntersectionObserver 懒加载剩余页
       if (pagePlaceholders.length > 0) {
         const lazyObserver = new IntersectionObserver((entries) => {
-          try {
-            entries.forEach(entry => {
-              if (!entry.isIntersecting) return;
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
               const ph = entry.target;
-              if (!ph || !ph.dataset || ph.dataset.rendered) return; // 已渲染或无效
+              if (ph.dataset.rendered) return; // 已渲染跳过
               ph.dataset.rendered = "true";
               const pageNum = parseInt(ph.dataset.pageNum);
               const pdfUrl = ph.dataset.pdfUrl;
-              if (!pdfUrl) return;
               // 异步渲染，不阻塞
               this._renderLazyPage(ph, pdf, pageNum, FIXED_SCALE).catch(e => {
                 console.error("[CloudAttach] lazy page render failed:", e);
               });
               lazyObserver.unobserve(ph);
-            });
-          } catch (e) {
-            console.error("[CloudAttach] IntersectionObserver error:", e);
-          }
+            }
+          });
         }, { rootMargin: "200px" }); // 提前200px开始加载
         pagePlaceholders.forEach(ph => lazyObserver.observe(ph));
         // 保存 observer 以便切换笔记时销毁
@@ -3852,7 +3850,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }).open();
     };
     const versionLabel = document.createElement("span");
-    versionLabel.textContent = "v250";
+    versionLabel.textContent = "v251";
     versionLabel.style.opacity = "0.4";
     versionLabel.style.fontSize = "10px";
     toolbar.appendChild(versionLabel);
@@ -3895,7 +3893,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
             // 避免重复处理已替换的容器
             if (img.closest('.cloudattach-pdf-container')) return;
             const src = img.getAttribute('src') || '';
-            if (this._isPdfUrl(src, img)) {
+            if (this._isPdfUrl(src)) {
               this._renderPdfAsCanvas(img, src);
             }
           });
@@ -3960,7 +3958,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
             imgs.forEach(img => {
               if (img.closest('.cloudattach-pdf-container')) return;
               const src = img.getAttribute('src') || '';
-              if (this._isPdfUrl(src, img)) {
+              if (this._isPdfUrl(src)) {
                 this._renderPdfAsCanvas(img, src);
               }
             });
@@ -3975,10 +3973,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
 
   _scanAllPdfImgs(doc) {
     const d = doc || document;
-    // iOS 兜底：从 markdown 源码解析 PDF URL
-    this._syncPdfUrlsFromSource();
     const allImgs = d.querySelectorAll('img');
-    const pdfImgs = Array.from(allImgs).filter(img => this._isPdfUrl(img.getAttribute('src') || '', img));
+    const pdfImgs = Array.from(allImgs).filter(img => this._isPdfUrl(img.getAttribute('src') || ''));
     console.log('[CloudAttach] _scanAllPdfImgs:', allImgs.length, 'imgs total,', pdfImgs.length, 'pdf imgs');
     if (pdfImgs.length > 0) {
       pdfImgs.forEach(img => {
@@ -3988,7 +3984,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     allImgs.forEach(img => {
       if (img.closest('.cloudattach-pdf-container')) return;
       const src = img.getAttribute('src') || '';
-      if (this._isPdfUrl(src, img)) {
+      if (this._isPdfUrl(src)) {
         this._renderPdfAsCanvas(img, src);
       }
     });
