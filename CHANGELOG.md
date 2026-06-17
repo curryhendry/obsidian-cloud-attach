@@ -1,8 +1,10 @@
-## v0.3.242.dev - 2026-06-16
+## v0.3.242.dev - 2026-06-17
 
 ### 修复
 
-- PDF 重复渲染：`_renderPdfAsCanvas` 入口加 `isConnected` 检查，跳过已被 replaceWith 移除的旧 img
+- PDF 并发渲染失控：引入 `_pdfRenderPromises` Map（per-URL Promise），首次渲染登记，后续并发调用返回已有 Promise，实现队列串行化；`doRender` async wrapper 包裹原函数体保持结构不变
+- 阅读模式 PDF 不渲染：所有扫描延迟点增加 3000ms 延迟（初始扫描 + active-leaf-change 4 次 + layout-change 2 次 + popout 4 次），确保 DOM 完全加载
+- 工具栏版本标签：`v242` 标签内置于 toolbar，便于肉眼确认部署版本
 - 手机端多 PDF crash：加并发锁（`_pdfRendering`）+ 队列（`_pdfQueue`），同一时间只渲染一个 PDF
 - 阅读模式延迟扫描：四处扫描点增加 3000ms 延迟兜底
 
