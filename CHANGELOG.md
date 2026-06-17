@@ -1,4 +1,17 @@
+## v0.3.244.dev - 2026-06-17
+
+### 修复
+
+- 手机端多 PDF crash：引入全局渲染链 `_pdfRenderChain`，所有 PDF 串行排队，任意时刻最多只有 1 个 PDF 在真正渲染，防止 iOS 内存爆炸；`_pdfQueuedUrls` Set 追踪排队 URL 防止同一 URL 重复入链
+- 工具栏版本标签更新为 `v244`
+
 ## v0.3.242.dev - 2026-06-17
+
+### 修复
+
+- PDF 并发渲染失控：引入 `_pdfRenderPromises` Map（per-URL Promise），首次渲染登记，后续并发调用返回已有 Promise，实现队列串行化；`doRender` async wrapper 包裹原函数体保持结构不变
+- 阅读模式 PDF 不渲染：所有扫描延迟点增加 3000ms 延迟（初始扫描 + active-leaf-change 4 次 + layout-change 2 次 + popout 4 次），确保 DOM 完全加载
+- 工具栏版本标签：`v242` 标签内置于 toolbar，便于肉眼确认部署版本
 
 ### 修复
 
