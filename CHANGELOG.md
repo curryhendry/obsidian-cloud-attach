@@ -1,3 +1,17 @@
+## v0.3.254.dev - 2026-06-17
+
+### 修复
+- iOS 阅读模式 PDF 渲染：改用 registerMarkdownPostProcessor 拦截渲染，不依赖 img src（blob URL 无法识别），直接读取 markdown 源码按位置匹配 PDF URL
+- 编辑模式：保留 MutationObserver，移除无效的 alt 检测，后续版本加定时扫描兜底
+- 工具栏版本标签更新为 v254
+
+## v0.3.253.dev - 2026-06-17
+
+### 修复
+- iOS blob URL 拦截（Observer 层）：严格限制只处理 alt 以 .pdf 结尾的 blob img，避免误匹配普通图片导致编辑模式 crash
+- _resolveBlobToPdfAndRender 使用 _pdfRenderPromises 并发保护，同一 img 只处理一次
+- popout observer 同步修复
+
 ## v0.3.253.dev - 2026-06-17
 
 ### 修复

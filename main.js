@@ -3172,6 +3172,31 @@ module.exports = class CloudAttachPlugin extends Plugin {
         throw e;
       }
     }
+    this.registerMarkdownPostProcessor(async (el, ctx) => {
+      try {
+        const sectionInfo = ctx.getSectionInfo(el);
+        if (!sectionInfo)
+          return;
+        const file = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
+        if (!file)
+          return;
+        const content = await this.app.vault.read(file);
+        const lines = content.split("\n");
+        const sectionText = lines.slice(sectionInfo.lineStart, sectionInfo.lineEnd + 1).join("\n");
+        const pdfUrls = [...sectionText.matchAll(/!\[[^\]]*\]\(([^)]+\.pdf[^)]*)\)/gi)].map((m) => m[1]);
+        if (pdfUrls.length === 0)
+          return;
+        const imgs = Array.from(el.querySelectorAll("img")).filter((img) => {
+          const src = img.getAttribute("src") || "";
+          return src.startsWith("blob:") && !img.closest(".cloudattach-pdf-container");
+        });
+        for (let i = 0; i < imgs.length && i < pdfUrls.length; i++) {
+          await this._renderPdfAsCanvas(imgs[i], pdfUrls[i]);
+        }
+      } catch (e) {
+        console.error("[CloudAttach] PostProcessor error:", e);
+      }
+    });
     console.log("CloudAttach loaded");
   }
   addStyles() {
@@ -3630,7 +3655,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }).open();
     };
     const versionLabel = document.createElement("span");
-    versionLabel.textContent = "v253";
+    versionLabel.textContent = "v254";
     versionLabel.style.opacity = "0.4";
     versionLabel.style.fontSize = "10px";
     toolbar.appendChild(versionLabel);
