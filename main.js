@@ -3177,39 +3177,37 @@ module.exports = class CloudAttachPlugin extends Plugin {
         const file = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
         if (!file)
           return;
-        const content = await this.app.vault.read(file);
-        let sectionText;
+        const fullContent = await this.app.vault.read(file);
+        const lines = fullContent.split("\n");
         const si = ctx.getSectionInfo(el);
-        if (si) {
-          const lines = content.split("\n");
-          sectionText = lines.slice(si.lineStart, si.lineEnd + 1).join("\n");
-        } else {
-          sectionText = content;
-        }
-        const allInSection = [];
+        let startLine = si ? si.lineStart : 0;
+        let endLine = si ? si.lineEnd : lines.length - 1;
+        const sectionContent = lines.slice(startLine, endLine + 1).join("\n");
+        const mdImgs = [];
         const re = /!\[([^\]]*)\]\(([^)]+)\)/g;
         let match;
-        while ((match = re.exec(sectionText)) !== null) {
-          allInSection.push({ url: match[2].trim() });
+        while ((match = re.exec(sectionContent)) !== null) {
+          mdImgs.push({ url: match[2].trim(), isPdf: match[2].trim().toLowerCase().endsWith(".pdf") });
         }
-        if (allInSection.length === 0)
+        if (mdImgs.length === 0)
           return;
-        let sectionImgs;
-        if (si) {
-          sectionImgs = Array.from(el.querySelectorAll("img")).filter((img) => !img.closest(".cloudattach-pdf-container"));
-        } else {
-          const doc = el.ownerDocument || document;
-          const viewEl = doc.querySelector(".markdown-preview-view") || doc.body;
-          sectionImgs = Array.from(viewEl.querySelectorAll("img")).filter((img) => !img.closest(".cloudattach-pdf-container"));
-        }
-        for (let i = 0; i < allInSection.length && i < sectionImgs.length; i++) {
-          if (allInSection[i].url.toLowerCase().endsWith(".pdf")) {
-            const img = sectionImgs[i];
-            const url = allInSection[i].url;
-            img.style.outline = "2px solid orange";
-            img.dataset.cloudattachDebug = "postproc";
-            await this._renderPdfAsCanvas(img, url);
-          }
+        const domImgs = Array.from(el.querySelectorAll("img")).filter((img) => !img.closest(".cloudattach-pdf-container"));
+        console.log("[CloudAttach] PostProcessor SECTION:", {
+          sourceLines: startLine + "->" + endLine,
+          mdImgs: mdImgs.map((m) => m.url.substring(0, 60)),
+          domImgs: domImgs.length,
+          elClass: el.className
+        });
+        for (let i = 0; i < mdImgs.length && i < domImgs.length; i++) {
+          if (!mdImgs[i].isPdf)
+            continue;
+          if (domImgs[i].dataset.cloudattachProcessed)
+            continue;
+          domImgs[i].dataset.cloudattachProcessed = "true";
+          domImgs[i].dataset.cloudattachPdfUrl = mdImgs[i].url;
+          domImgs[i].style.outline = "4px solid blue";
+          domImgs[i].style.outlineOffset = "3px";
+          await this._renderPdfAsCanvas(domImgs[i], mdImgs[i].url);
         }
       } catch (e) {
         console.error("[CloudAttach] PostProcessor error:", e);
@@ -3221,32 +3219,38 @@ module.exports = class CloudAttachPlugin extends Plugin {
         const view = leaf?.view;
         if (!view || !view.file || !view.file.path.endsWith(".md"))
           return;
+        if (view.editor)
+          return;
         try {
-          if (view.editor)
-            return;
           const content = await this.app.vault.read(view.file);
-          const allMd2 = [];
-          const re2 = /!\[([^\]]*)\]\(([^)]+)\)/g;
-          let m2;
-          while ((m2 = re2.exec(content)) !== null) {
-            allMd2.push({ url: m2[2].trim(), isPdf: m2[2].trim().toLowerCase().endsWith(".pdf") });
+          const allMd = [];
+          const re = /!\[([^\]]*)\]\(([^)]+)\)/g;
+          let m;
+          while ((m = re.exec(content)) !== null) {
+            allMd.push({ url: m[2].trim(), isPdf: m[2].trim().toLowerCase().endsWith(".pdf") });
           }
-          if (!allMd2.some((x) => x.isPdf))
+          if (!allMd.some((x) => x.isPdf))
             return;
-          const doc2 = view.contentEl || view.containerEl || document.body;
-          const allImgs2 = Array.from(doc2.querySelectorAll("img")).filter((img) => !img.closest(".cloudattach-pdf-container"));
-          for (let i = 0; i < allMd2.length && i < allImgs2.length; i++) {
-            if (allMd2[i].isPdf) {
-              if (this._pdfRenderPromises && this._pdfRenderPromises.has(allImgs2[i]))
-                continue;
-              this._renderPdfAsCanvas(allImgs2[i], allMd2[i].url).catch(() => {
-              });
-            }
+          const doc = view.contentEl || view.containerEl || document.body;
+          const allImgs = Array.from(doc.querySelectorAll("img")).filter((img) => !img.closest(".cloudattach-pdf-container"));
+          console.log("[CloudAttach] FullDocScan:", {
+            totalMd: allMd.length,
+            pdfMd: allMd.filter((x) => x.isPdf).length,
+            totalDomImg: allImgs.length
+          });
+          for (let i = 0; i < allMd.length && i < allImgs.length; i++) {
+            if (!allMd[i].isPdf)
+              continue;
+            if (allImgs[i].dataset.cloudattachProcessed)
+              continue;
+            allImgs[i].dataset.cloudattachProcessed = "true";
+            allImgs[i].style.outline = "4px solid magenta";
+            await this._renderPdfAsCanvas(allImgs[i], allMd[i].url);
           }
         } catch (e) {
           console.error("[CloudAttach] FullDocScan error:", e);
         }
-      }, 3e3);
+      }, 5e3);
     }));
     this._iosLiveScanInterval = setInterval(async () => {
       const leaf = this.app.workspace.getMostRecentLeaf();
@@ -3257,28 +3261,28 @@ module.exports = class CloudAttachPlugin extends Plugin {
         return;
       try {
         const content = await this.app.vault.read(view.file);
-        const allMd3 = [];
-        const re3 = /!\[([^\]]*)\]\(([^)]+)\)/g;
-        let m3;
-        while ((m3 = re3.exec(content)) !== null) {
-          allMd3.push({ url: m3[2].trim(), isPdf: m3[2].trim().toLowerCase().endsWith(".pdf") });
+        const allMd = [];
+        const re = /!\[([^\]]*)\]\(([^)]+)\)/g;
+        let m;
+        while ((m = re.exec(content)) !== null) {
+          allMd.push({ url: m[2].trim(), isPdf: m[2].trim().toLowerCase().endsWith(".pdf") });
         }
-        if (!allMd3.some((x) => x.isPdf))
+        if (!allMd.some((x) => x.isPdf))
           return;
-        const doc3 = view.contentEl || view.containerEl || document.body;
-        const allImgs3 = Array.from(doc3.querySelectorAll("img")).filter((img) => !img.closest(".cloudattach-pdf-container"));
-        for (let i = 0; i < allMd3.length && i < allImgs3.length; i++) {
-          if (allMd3[i].isPdf) {
-            if (this._pdfRenderPromises && this._pdfRenderPromises.has(allImgs3[i]))
-              continue;
-            allImgs3[i].dataset.cloudattachDebug = "livescan";
-            this._renderPdfAsCanvas(allImgs3[i], allMd3[i].url).catch(() => {
-            });
-          }
+        const doc = view.contentEl || view.containerEl || document.body;
+        const allImgs = Array.from(doc.querySelectorAll("img")).filter((img) => !img.closest(".cloudattach-pdf-container"));
+        for (let i = 0; i < allMd.length && i < allImgs.length; i++) {
+          if (!allMd[i].isPdf)
+            continue;
+          if (allImgs[i].dataset.cloudattachProcessed)
+            continue;
+          allImgs[i].dataset.cloudattachProcessed = "true";
+          allImgs[i].style.outline = "4px solid yellow";
+          await this._renderPdfAsCanvas(allImgs[i], allMd[i].url);
         }
       } catch (e) {
       }
-    }, 3e3);
+    }, 5e3);
     console.log("CloudAttach loaded");
   }
   addStyles() {
@@ -3739,7 +3743,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }).open();
     };
     const versionLabel = document.createElement("span");
-    versionLabel.textContent = "v257";
+    versionLabel.textContent = "v258";
     versionLabel.style.opacity = "0.4";
     versionLabel.style.fontSize = "10px";
     toolbar.appendChild(versionLabel);
