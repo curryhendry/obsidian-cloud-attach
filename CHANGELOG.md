@@ -1,3 +1,11 @@
+## v0.3.248.dev - 2026-06-17
+
+### 修复
+
+- 编辑模式 PDF 宽度适配（Issue 1）：containerW 计算改用 getBoundingClientRect().width 兜底，避免 opacity:0 时 clientWidth 读不到正确值
+- iOS blob URL 兜底（Issue 2）：MutationObserver 和 _scanAllPdfImgs 中增加 data-pdf-url 属性检查，若 img.src 是 blob URL 则尝试从 dataset 获取原始 PDF URL
+- 版本标签更新为 v248
+
 ## v0.3.246.dev - 2026-06-17
 
 ### 修复
