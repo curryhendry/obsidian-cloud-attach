@@ -3371,48 +3371,38 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
     }
     // iOS 阅读模式 PDF 渲染：registerMarkdownPostProcessor
+    // 核心思路：markdown 中所有 ![]() 按 DOM img 顺序一一对应
+    // 先提取所有 ![]()（含 PDF 和非 PDF），标记哪些是 PDF，然后按索引匹配
     this.registerMarkdownPostProcessor(async (el, ctx) => {
       try {
         const file = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
         if (!file) return;
         const content = await this.app.vault.read(file);
         
-        // Determine which part of the source to scan
-        let sectionText, lineOffset = 0;
-        const sectionInfo = ctx.getSectionInfo(el);
-        if (sectionInfo) {
-          const lines = content.split('\n');
-          sectionText = lines.slice(sectionInfo.lineStart, sectionInfo.lineEnd + 1).join('\n');
-          lineOffset = sectionInfo.lineStart;
-        } else {
-          // Fallback: scan entire file, match all blob imgs in the document
-          sectionText = content;
-        }
-        
-        // Extract all image patterns from section text with source positions
+        // Extract ALL ![]() in markdown order with URL
         const allImgRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
-        const pdfPositions = [];
+        const mdImages = []; // { url, isPdf }
         let m;
-        while ((m = allImgRegex.exec(sectionText)) !== null) {
+        while ((m = allImgRegex.exec(content)) !== null) {
           const url = m[2].trim();
-          if (url.toLowerCase().endsWith('.pdf')) {
-            pdfPositions.push({ url, idx: m.index, line: lineOffset + (sectionText.slice(0, m.index).match(/\n/g) || []).length });
-          }
+          mdImages.push({ url, isPdf: url.toLowerCase().endsWith('.pdf') });
         }
-        if (pdfPositions.length === 0) return;
+        const pdfIndices = mdImages.map((img, idx) => img.isPdf ? idx : -1).filter(i => i >= 0);
+        if (pdfIndices.length === 0) return;
         
-        // Find all blob img elements in this section (or document)
+        // Find ALL img elements in this section (including non-blob, like already-rendered)
         const sectionImgs = Array.from(el.querySelectorAll('img'))
           .filter(img => !img.closest('.cloudattach-pdf-container'));
         
-        // Order-based matching: ith PDF markdown position -> ith blob img in DOM order
-        for (let i = 0; i < pdfPositions.length && i < sectionImgs.length; i++) {
-          const img = sectionImgs[i];
-          const src = (img.getAttribute('src') || '');
-          // Visual debug: mark as processed
-          img.style.outline = '2px solid orange';
-          img.dataset.cloudattachDebug = 'postproc-matched';
-          await this._renderPdfAsCanvas(img, pdfPositions[i].url);
+        // Match by index: mdImages[i] corresponds to sectionImgs[i]
+        for (const pdfIdx of pdfIndices) {
+          if (pdfIdx < sectionImgs.length) {
+            const img = sectionImgs[pdfIdx];
+            const url = mdImages[pdfIdx].url;
+            img.style.outline = '2px solid orange';
+            img.dataset.cloudattachDebug = 'postproc';
+            await this._renderPdfAsCanvas(img, url);
+          }
         }
       } catch(e) {
         console.error('[CloudAttach] PostProcessor error:', e);
@@ -3420,36 +3410,31 @@ module.exports = class CloudAttachPlugin extends Plugin {
     });
 
 
-    // 全文档扫描兜底（阅读模式）：延迟扫描所有 blob img 匹配 markdown PDF URL
+    // 全文档扫描兜底（阅读模式）：延迟扫描匹配 markdown PDF URL
     this.registerEvent(this.app.workspace.on('active-leaf-change', () => {
       setTimeout(async () => {
         const leaf = this.app.workspace.getMostRecentLeaf();
         const view = leaf?.view;
         if (!view || !view.file || !view.file.path.endsWith('.md')) return;
         try {
-          // Only run in reading mode (no editor)
           if (view.editor) return;
           const content = await this.app.vault.read(view.file);
-          // Extract ALL PDF positions from the entire file
-          const allPdfPositions = [];
+          const mdImages2 = [];
           const re2 = /!\[([^\]]*)\]\(([^)]+)\)/g;
           let m2;
           while ((m2 = re2.exec(content)) !== null) {
-            if (m2[2].trim().toLowerCase().endsWith('.pdf')) {
-              allPdfPositions.push(m2[2].trim());
-            }
+            mdImages2.push({ url: m2[2].trim(), isPdf: m2[2].trim().toLowerCase().endsWith('.pdf') });
           }
-          if (allPdfPositions.length === 0) return;
-          // Find all blob imgs not yet rendered
-          const allBlob = Array.from(view.containerEl.querySelectorAll('img'))
-            .filter(img => {
-              const src = img.getAttribute('src') || '';
-              return src.startsWith('blob:') && !img.closest('.cloudattach-pdf-container');
-            });
-          // Match by order
-          for (let i = 0; i < allBlob.length && i < allPdfPositions.length; i++) {
-            if (!this._pdfRenderPromises || !this._pdfRenderPromises.has(allBlob[i])) {
-              this._renderPdfAsCanvas(allBlob[i], allPdfPositions[i]).catch(() => {});
+          const pdfIndices2 = mdImages2.map((img, idx) => img.isPdf ? idx : -1).filter(i => i >= 0);
+          if (pdfIndices2.length === 0) return;
+          // ALL imgs in DOM order (not just blob — some may already be rendered)
+          const allImgs2 = Array.from(view.containerEl.querySelectorAll('img'))
+            .filter(img => !img.closest('.cloudattach-pdf-container'));
+          for (const pi of pdfIndices2) {
+            if (pi < allImgs2.length) {
+              if (!this._pdfRenderPromises || !this._pdfRenderPromises.has(allImgs2[pi])) {
+                this._renderPdfAsCanvas(allImgs2[pi], mdImages2[pi].url).catch(() => {});
+              }
             }
           }
         } catch(e) {
@@ -3463,23 +3448,25 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const leaf = this.app.workspace.getMostRecentLeaf();
       const view = leaf?.view;
       if (!view || view.getViewType() !== 'markdown') return;
-      // Only run in edit/live preview mode
       if (!view.editor) return;
       try {
         const content = await this.app.vault.read(view.file);
-        const pdfUrls2 = [...content.matchAll(/!\[[^\]]*\]\(([^)]+)\)/g)]
-          .map(m => m[1].trim())
-          .filter(u => u.toLowerCase().endsWith('.pdf'));
-        if (pdfUrls2.length === 0) return;
-        const blobImgs2 = Array.from(view.containerEl.querySelectorAll('img'))
-          .filter(img => {
-            const src = img.getAttribute('src') || '';
-            return src.startsWith('blob:') && !img.closest('.cloudattach-pdf-container');
-          });
-        for (let i = 0; i < blobImgs2.length && i < pdfUrls2.length; i++) {
-          if (!this._pdfRenderPromises || !this._pdfRenderPromises.has(blobImgs2[i])) {
-            img.dataset.cloudattachDebug = 'livescan-matched';
-            this._renderPdfAsCanvas(blobImgs2[i], pdfUrls2[i]).catch(() => {});
+        const mdImages3 = [];
+        const re3 = /!\[([^\]]*)\]\(([^)]+)\)/g;
+        let m3;
+        while ((m3 = re3.exec(content)) !== null) {
+          mdImages3.push({ url: m3[2].trim(), isPdf: m3[2].trim().toLowerCase().endsWith('.pdf') });
+        }
+        const pdfIndices3 = mdImages3.map((img, idx) => img.isPdf ? idx : -1).filter(i => i >= 0);
+        if (pdfIndices3.length === 0) return;
+        const allImgs3 = Array.from(view.containerEl.querySelectorAll('img'))
+          .filter(img => !img.closest('.cloudattach-pdf-container'));
+        for (const pi of pdfIndices3) {
+          if (pi < allImgs3.length) {
+            if (!this._pdfRenderPromises || !this._pdfRenderPromises.has(allImgs3[pi])) {
+              allImgs3[pi].dataset.cloudattachDebug = 'livescan';
+              this._renderPdfAsCanvas(allImgs3[pi], mdImages3[pi].url).catch(() => {});
+            }
           }
         }
       } catch(e) {}
@@ -3593,32 +3580,31 @@ module.exports = class CloudAttachPlugin extends Plugin {
     return /\.pdf(\?|#|$)/i.test(url);
   }
 
-  // iOS blob URL → 真实 PDF URL：按 DOM 位置匹配 markdown 中的 PDF ![]() 顺序
+  // iOS blob URL → 真实 PDF URL：用全局索引匹配（非 PDF 图片也占位）
   async _resolveBlobToPdfAndRender(imgEl, imgAlt) {
-    // 用 _pdfRenderPromises 做并发保护，同一 img 只处理一次
     if (this._pdfRenderPromises && this._pdfRenderPromises.has(imgEl)) {
       return this._pdfRenderPromises.get(imgEl);
     }
     const p = (async () => {
       try {
-        // 1. 统计当前笔记中所有 blob img，定位当前 img 的索引
-        const allBlobImgs = Array.from(document.querySelectorAll('img[src^="blob:"]'));
-        const blobIdx = allBlobImgs.indexOf(imgEl);
-        if (blobIdx < 0) return;
-        // 2. 获取当前笔记的 markdown 源码
+        // 1. 找到 img 在所有 img 中的全局索引
+        const allImgs = Array.from(document.querySelectorAll('img'))
+          .filter(img => !img.closest('.cloudattach-pdf-container'));
+        const imgIdx = allImgs.indexOf(imgEl);
+        if (imgIdx < 0) return;
+        // 2. 获取 markdown 源码，提取所有 ![]()（含 PDF 和非 PDF）
         const file = this.app.workspace.getActiveFile();
         if (!file || !file.path.endsWith('.md')) return;
         let raw;
         try { raw = await this.app.vault.read(file); } catch(e) { return; }
         if (!raw) return;
-        // 3. 从 markdown 提取所有 PDF URL（按出现顺序）
-        const pdfUrls = [];
-        const regex = /!\[[^\]]*\]\(([^)]+\.pdf[^)]*)\)/gi;
+        const mdImages = [];
+        const regex = /!\[([^\]]*)\]\(([^)]+)\)/gi;
         let match;
-        while ((match = regex.exec(raw)) !== null) { pdfUrls.push(match[1]); }
-        // 4. 按位置匹配（blob img 顺序 ↔ markdown PDF URL 顺序）
-        if (pdfUrls.length > blobIdx) {
-          const realUrl = pdfUrls[blobIdx];
+        while ((match = regex.exec(raw)) !== null) { mdImages.push({ url: match[2].trim(), isPdf: match[2].trim().toLowerCase().endsWith('.pdf') }); }
+        // 3. 用全局索引匹配：mdImages[imgIdx] 就是对应的 markdown 项
+        if (imgIdx < mdImages.length && mdImages[imgIdx].isPdf) {
+          const realUrl = mdImages[imgIdx].url;
           console.log('[CloudAttach] Blob→PDF:', imgAlt, '→', realUrl);
           imgEl.dataset.pdfUrl = realUrl;
           await this._renderPdfAsCanvas(imgEl, realUrl);
@@ -3961,7 +3947,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }).open();
     };
     const versionLabel = document.createElement("span");
-    versionLabel.textContent = "v255";
+    versionLabel.textContent = "v256";
     versionLabel.style.opacity = "0.4";
     versionLabel.style.fontSize = "10px";
     toolbar.appendChild(versionLabel);
