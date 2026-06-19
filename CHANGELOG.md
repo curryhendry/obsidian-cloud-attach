@@ -1,4 +1,4 @@
-## v0.3.257.dev - 2026-06-19
+## v0.3.258.dev - 2026-06-19
 
 ### 修复
 - iOS 阅读模式 PDF 渲染增强：registerMarkdownPostProcessor 增加全文件兜底（getSectionInfo 返回 null 时扫描全文）
