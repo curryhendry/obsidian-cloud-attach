@@ -1,8 +1,8 @@
-## v0.3.271.dev - 2026-06-19
+## v0.3.273.dev - 2026-06-19
 
 ### 修复
 
-- 版本标签改为硬编码 v270（每次 deploy 手动更新）
+- `_isPdfUrl` 增加第二个参数 `img`，优先读 `img.dataset.cloudattachPdfUrl`，解决编辑模式下 iOS blob URL 检测失败
 
 ## v0.3.264 - 2026-06-19
 

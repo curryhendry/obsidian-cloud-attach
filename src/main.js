@@ -3495,7 +3495,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
   }
 
-  _isPdfUrl(url) {
+  _isPdfUrl(url, img) {
+    if (img && img.dataset && img.dataset.cloudattachPdfUrl) return true;
     return /\.pdf(\?|#|$)/i.test(url);
   }
 
