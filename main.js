@@ -3627,9 +3627,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
         scrollToPage(p);
       }).open();
     };
-    const manifestVersion = this.manifest && this.manifest.version || "unknown";
     const versionLabel = document.createElement("span");
-    versionLabel.textContent = "v" + manifestVersion;
+    versionLabel.textContent = "v269";
     versionLabel.style.opacity = "0.4";
     versionLabel.style.fontSize = "10px";
     toolbar.appendChild(versionLabel);
