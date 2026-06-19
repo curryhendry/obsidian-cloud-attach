@@ -1,9 +1,8 @@
-## v0.3.269.dev - 2026-06-19
+## v0.3.271.dev - 2026-06-19
 
 ### 修复
 
-- PostProcessor 匹配逻辑：从 URL 字符串匹配改为按位置顺序匹配（section 内第 N 个 `![]()` 对应第 N 个 `<img>`），直接写 `dataset.cloudattachPdfUrl`，不再依赖 `img.src`
-- 版本标签动态化：翻页按钮旁的版本号从硬编码 `v264` 改为 `this.manifest.version` 动态读取
+- 版本标签改为硬编码 v270（每次 deploy 手动更新）
 
 ## v0.3.264 - 2026-06-19
 
