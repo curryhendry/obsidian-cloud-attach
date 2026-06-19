@@ -3655,9 +3655,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
       this._bindPdfScroll(container, pdf);
       console.log("[CloudAttach] PDF container built, pages:", pdf.numPages);
     } catch (e) {
-      console.error("[CloudAttach] PDF render failed:", e);
+      const errMsg = e?.message || String(e);
+      console.error("[CloudAttach] PDF render failed:", errMsg, e);
+      new (require('obsidian').Notice)("CloudAttach PDF 渲染失败: " + errMsg, 8000);
       if (imgEl && imgEl.style) {
         imgEl.style.setProperty('border', '2px dashed #e74c3c', 'important');
+        imgEl.dataset.cloudattachError = errMsg;
       }
     }
     };
@@ -3853,7 +3856,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }).open();
     };
     const versionLabel = document.createElement("span");
-    versionLabel.textContent = "v273";
+    versionLabel.textContent = "v275";
     versionLabel.style.opacity = "0.4";
     versionLabel.style.fontSize = "10px";
     toolbar.appendChild(versionLabel);

@@ -1,8 +1,8 @@
-## v0.3.274.dev - 2026-06-19
+## v0.3.276.dev - 2026-06-19
 
 ### 修复
 
-- `_isPdfUrl` 增加第二个参数 `img`，优先读 `img.dataset.cloudattachPdfUrl`，解决编辑模式下 iOS blob URL 检测失败
+- catch 块增加 Notice 弹窗 + data-error 属性，渲染失败时显示具体错误信息（方便定位根因）
 
 ## v0.3.264 - 2026-06-19
 
