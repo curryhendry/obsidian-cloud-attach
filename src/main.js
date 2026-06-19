@@ -3370,116 +3370,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         throw e;
       }
     }
-    // iOS 阅读模式 PDF 渲染：registerMarkdownPostProcessor
-    // 核心：每个 section 内所有 ![]() 按顺序对应 section 内所有 img
-        // iOS 阅读模式 PDF 渲染（v258）：用 getSectionInfo 获取源码行范围，
-    // 在该行内提取所有 ![]()，与 el 内 img 按顺序配对，PDF 则渲染
-    this.registerMarkdownPostProcessor(async (el, ctx) => {
-      try {
-        const file = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
-        if (!file) return;
-        const fullContent = await this.app.vault.read(file);
-        const lines = fullContent.split('\n');
-        const si = ctx.getSectionInfo(el);
-        let startLine = si ? si.lineStart : 0;
-        let endLine = si ? si.lineEnd : lines.length - 1;
-        const sectionContent = lines.slice(startLine, endLine + 1).join('\n');
-        const mdImgs = [];
-        const re = /!\[([^\]]*)\]\(([^)]+)\)/g;
-        let match;
-        while ((match = re.exec(sectionContent)) !== null) {
-          mdImgs.push({ url: match[2].trim(), isPdf: match[2].trim().toLowerCase().endsWith('.pdf') });
-        }
-        if (mdImgs.length === 0) return;
-        const domImgs = Array.from(el.querySelectorAll('img'))
-          .filter(img => !img.closest('.cloudattach-pdf-container'));
-        console.log('[CloudAttach] PostProcessor SECTION:', {
-          sourceLines: startLine + '->' + endLine,
-          mdImgs: mdImgs.map(m => m.url.substring(0, 60)),
-          domImgs: domImgs.length,
-          elClass: el.className
-        });
-        for (let i = 0; i < mdImgs.length && i < domImgs.length; i++) {
-          if (!mdImgs[i].isPdf) continue;
-          if (domImgs[i].dataset.cloudattachProcessed) continue;
-          domImgs[i].dataset.cloudattachProcessed = 'pending';
-          domImgs[i].dataset.cloudattachPdfUrl = mdImgs[i].url;
-        }
-      } catch(e) {
-        console.error('[CloudAttach] PostProcessor error:', e);
-      }
-    });
-
-    // 全文档兜底扫描（阅读模式）：延迟 5s，全文匹配
-    this.registerEvent(this.app.workspace.on('active-leaf-change', () => {
-      setTimeout(async () => {
-        const leaf = this.app.workspace.getMostRecentLeaf();
-        const view = leaf?.view;
-        if (!view || !view.file || !view.file.path.endsWith('.md')) return;
-        if (view.editor) return;
-        try {
-          const content = await this.app.vault.read(view.file);
-          const allMd = [];
-          const re = /!\[([^\]]*)\]\(([^)]+)\)/g;
-          let m;
-          while ((m = re.exec(content)) !== null) {
-            allMd.push({ url: m[2].trim(), isPdf: m[2].trim().toLowerCase().endsWith('.pdf') });
-          }
-          if (!allMd.some(x => x.isPdf)) return;
-          const doc = view.contentEl || view.containerEl || document.body;
-          const allImgs = Array.from(doc.querySelectorAll('img'))
-            .filter(img => !img.closest('.cloudattach-pdf-container'));
-          // 找所有被 PostProcessor 标记为 pending 的 img
-          const pendingImgs = Array.from(
-            (view.contentEl || view.containerEl || document.body).querySelectorAll('img[data-cloudattach-processed="pending"]')
-          ).filter(img => !img.closest('.cloudattach-pdf-container'));
-          for (const img of pendingImgs) {
-            const pdfUrl = img.dataset.cloudattachPdfUrl;
-            if (!pdfUrl) continue;
-            img.dataset.cloudattachProcessed = 'true';
-            await this._renderPdfAsCanvas(img, pdfUrl);
-          }
-        } catch(e) {
-          console.error('[CloudAttach] FullDocScan error:', e);
-        }
-      }, 5000);
-    }));
-
-    // 编辑模式辅助扫描（iOS live preview）：15 秒轮询，内容不变跳过
-    this._iosLiveScanInterval = setInterval(async () => {
-      const leaf = this.app.workspace.getMostRecentLeaf();
-      const view = leaf?.view;
-      if (!view || view.getViewType() !== 'markdown') return;
-      if (!view.editor) return;
-      try {
-        const content = await this.app.vault.read(view.file);
-        // 内容未变则跳过
-        const hash = this._simpleHash(content);
-        if (this._lastEditScanHash === hash) return;
-        this._lastEditScanHash = hash;
-        const allMd = [];
-        const re = /!\[([^\]]*)\]\(([^)]+)\)/g;
-        let m;
-        while ((m = re.exec(content)) !== null) {
-          allMd.push({ url: m[2].trim(), isPdf: m[2].trim().toLowerCase().endsWith('.pdf') });
-        }
-        if (!allMd.some(x => x.isPdf)) return;
-        const doc = view.contentEl || view.containerEl || document.body;
-        const allImgs = Array.from(doc.querySelectorAll('img'))
-          .filter(img => !img.closest('.cloudattach-pdf-container'));
-        // 找所有 pending img（PostProcessor 标记的）
-        const pendingImgs = Array.from(
-          (view.contentEl || view.containerEl || document.body).querySelectorAll('img[data-cloudattach-processed="pending"]')
-        ).filter(img => !img.closest('.cloudattach-pdf-container'));
-        for (const img of pendingImgs) {
-          const pdfUrl = img.dataset.cloudattachPdfUrl;
-          if (!pdfUrl) continue;
-          img.dataset.cloudattachProcessed = 'true';
-          await this._renderPdfAsCanvas(img, pdfUrl);
-        }
-      } catch(e) {}
-    }, 15000);
-console.log('CloudAttach loaded');
+    console.log('CloudAttach loaded');
   }
   addStyles() {
     const css = `
@@ -3548,8 +3439,7 @@ console.log('CloudAttach loaded');
     workspace.revealLeaf(leaf);
     console.log('[CloudAttach] new leaf created');
   }
-  onunload() {
-    if (this._iosLiveScanInterval) clearInterval(this._iosLiveScanInterval); 
+  onunload() { 
     console.log('CloudAttach unloading...'); 
     if (this._pdfObserver) this._pdfObserver.disconnect();
   }
@@ -3584,58 +3474,8 @@ console.log('CloudAttach loaded');
     }
   }
 
-  _simpleHash(str) {
-    let h = 0;
-    for (let i = 0; i < str.length; i++) {
-      const c = str.charCodeAt(i);
-      h = ((h << 5) - h) + c;
-      h |= 0;
-    }
-    return h;
-  }
-
   _isPdfUrl(url) {
     return /\.pdf(\?|#|$)/i.test(url);
-  }
-
-  // iOS blob URL → 真实 PDF URL：用全局索引匹配（非 PDF 图片也占位）
-  async _resolveBlobToPdfAndRender(imgEl, imgAlt) {
-    if (this._pdfRenderPromises && this._pdfRenderPromises.has(imgEl)) {
-      return this._pdfRenderPromises.get(imgEl);
-    }
-    const p = (async () => {
-      try {
-        // 1. 找到 img 在所有 img 中的全局索引
-        const allImgs = Array.from(document.querySelectorAll('img'))
-          .filter(img => !img.closest('.cloudattach-pdf-container'));
-        const imgIdx = allImgs.indexOf(imgEl);
-        if (imgIdx < 0) return;
-        // 2. 获取 markdown 源码，提取所有 ![]()（含 PDF 和非 PDF）
-        const file = this.app.workspace.getActiveFile();
-        if (!file || !file.path.endsWith('.md')) return;
-        let raw;
-        try { raw = await this.app.vault.read(file); } catch(e) { return; }
-        if (!raw) return;
-        const mdImages = [];
-        const regex = /!\[([^\]]*)\]\(([^)]+)\)/gi;
-        let match;
-        while ((match = regex.exec(raw)) !== null) { mdImages.push({ url: match[2].trim(), isPdf: match[2].trim().toLowerCase().endsWith('.pdf') }); }
-        // 3. 用全局索引匹配：mdImages[imgIdx] 就是对应的 markdown 项
-        if (imgIdx < mdImages.length && mdImages[imgIdx].isPdf) {
-          const realUrl = mdImages[imgIdx].url;
-          console.log('[CloudAttach] Blob→PDF:', imgAlt, '→', realUrl);
-          imgEl.dataset.pdfUrl = realUrl;
-          await this._renderPdfAsCanvas(imgEl, realUrl);
-        }
-      } catch(e) {
-        console.error('[CloudAttach] _resolveBlobToPdfAndRender error:', e);
-      }
-    })();
-    if (this._pdfRenderPromises) {
-      this._pdfRenderPromises.set(imgEl, p);
-      p.finally(() => this._pdfRenderPromises.delete(imgEl));
-    }
-    return p;
   }
 
   async _renderPdfAsCanvas(imgEl, url) {
@@ -3793,6 +3633,10 @@ console.log('CloudAttach loaded');
       console.log("[CloudAttach] PDF container built, pages:", pdf.numPages);
     } catch (e) {
       console.error("[CloudAttach] PDF render failed:", e);
+      // Visual error indicator: red dashed border
+      const target = container.parentElement ? container : imgEl;
+      target.style.setProperty('border', '2px dashed #e74c3c', 'important');
+      target.style.setProperty('opacity', '1', 'important');
     }
     };
     // 追加到全局渲染链：所有 PDF 串行排队
@@ -3965,7 +3809,7 @@ console.log('CloudAttach loaded');
       }).open();
     };
     const versionLabel = document.createElement("span");
-    versionLabel.textContent = "v0.3.257";
+    versionLabel.textContent = "v246";
     versionLabel.style.opacity = "0.4";
     versionLabel.style.fontSize = "10px";
     toolbar.appendChild(versionLabel);
@@ -4010,13 +3854,6 @@ console.log('CloudAttach loaded');
             const src = img.getAttribute('src') || '';
             if (this._isPdfUrl(src)) {
               this._renderPdfAsCanvas(img, src);
-            } else if (src.startsWith('blob:')) {
-              // iOS Obsidian 把 PDF ![]() 转成 blob URL，原 URL 信息丢失
-              // 检查 alt 是否以 .pdf 结尾（Obsidian 保留 alt）
-              const alt = img.getAttribute('alt') || '';
-              if (alt.toLowerCase().endsWith('.pdf')) {
-                this._resolveBlobToPdfAndRender(img, alt).catch(() => {});
-              }
             }
           });
         });
@@ -4082,11 +3919,6 @@ console.log('CloudAttach loaded');
               const src = img.getAttribute('src') || '';
               if (this._isPdfUrl(src)) {
                 this._renderPdfAsCanvas(img, src);
-              } else if (src.startsWith('blob:')) {
-                const alt = img.getAttribute('alt') || '';
-                if (alt.toLowerCase().endsWith('.pdf')) {
-                  this._resolveBlobToPdfAndRender(img, alt).catch(() => {});
-                }
               }
             });
           });
