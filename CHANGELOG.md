@@ -1,8 +1,9 @@
-## v0.3.276.dev - 2026-06-19
+## v0.3.277.dev - 2026-06-19
 
 ### 修复
 
-- catch 块增加 Notice 弹窗 + data-error 属性，渲染失败时显示具体错误信息（方便定位根因）
+- catch 块增加弹窗和数据属性方便定位渲染失败根因
+- 修复 `require('obsidian').Notice` 在 iOS 上报错导致全量渲染失败：改用顶层 import 的 Notice，并包 try-catch 防止二次异常
 
 ## v0.3.264 - 2026-06-19
 
