@@ -3402,12 +3402,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
         for (let i = 0; i < mdImgs.length && i < domImgs.length; i++) {
           if (!mdImgs[i].isPdf) continue;
           if (domImgs[i].dataset.cloudattachProcessed) continue;
-          // 阅读模式：只标记 PDF URL，不直接渲染，避免 replaceWith 与 Obsidian 原生渲染冲突
           domImgs[i].dataset.cloudattachProcessed = 'pending';
           domImgs[i].dataset.cloudattachPdfUrl = mdImgs[i].url;
-          domImgs[i].style.outline = '4px solid blue';
-          domImgs[i].style.outlineOffset = '3px';
-          // 不直接调用 _renderPdfAsCanvas，由全文档/编辑模式统一扫描处理
         }
       } catch(e) {
         console.error('[CloudAttach] PostProcessor error:', e);
@@ -3433,18 +3429,15 @@ module.exports = class CloudAttachPlugin extends Plugin {
           const doc = view.contentEl || view.containerEl || document.body;
           const allImgs = Array.from(doc.querySelectorAll('img'))
             .filter(img => !img.closest('.cloudattach-pdf-container'));
-          console.log('[CloudAttach] FullDocScan:', {
-            totalMd: allMd.length,
-            pdfMd: allMd.filter(x => x.isPdf).length,
-            totalDomImg: allImgs.length
-          });
-          for (let i = 0; i < allMd.length && i < allImgs.length; i++) {
-            if (!allMd[i].isPdf) continue;
-            const img = allImgs[i];
-            if (img.dataset.cloudattachProcessed && img.dataset.cloudattachProcessed !== 'pending') continue;
+          // 找所有被 PostProcessor 标记为 pending 的 img
+          const pendingImgs = Array.from(
+            (view.contentEl || view.containerEl || document.body).querySelectorAll('img[data-cloudattach-processed="pending"]')
+          ).filter(img => !img.closest('.cloudattach-pdf-container'));
+          for (const img of pendingImgs) {
+            const pdfUrl = img.dataset.cloudattachPdfUrl;
+            if (!pdfUrl) continue;
             img.dataset.cloudattachProcessed = 'true';
-            img.style.outline = '4px solid magenta';
-            await this._renderPdfAsCanvas(img, allMd[i].url);
+            await this._renderPdfAsCanvas(img, pdfUrl);
           }
         } catch(e) {
           console.error('[CloudAttach] FullDocScan error:', e);
@@ -3474,13 +3467,15 @@ module.exports = class CloudAttachPlugin extends Plugin {
         const doc = view.contentEl || view.containerEl || document.body;
         const allImgs = Array.from(doc.querySelectorAll('img'))
           .filter(img => !img.closest('.cloudattach-pdf-container'));
-        for (let i = 0; i < allMd.length && i < allImgs.length; i++) {
-          if (!allMd[i].isPdf) continue;
-          const img = allImgs[i];
-          if (img.dataset.cloudattachProcessed && img.dataset.cloudattachProcessed !== 'pending') continue;
+        // 找所有 pending img（PostProcessor 标记的）
+        const pendingImgs = Array.from(
+          (view.contentEl || view.containerEl || document.body).querySelectorAll('img[data-cloudattach-processed="pending"]')
+        ).filter(img => !img.closest('.cloudattach-pdf-container'));
+        for (const img of pendingImgs) {
+          const pdfUrl = img.dataset.cloudattachPdfUrl;
+          if (!pdfUrl) continue;
           img.dataset.cloudattachProcessed = 'true';
-          img.style.outline = '4px solid yellow';
-          await this._renderPdfAsCanvas(img, allMd[i].url);
+          await this._renderPdfAsCanvas(img, pdfUrl);
         }
       } catch(e) {}
     }, 15000);
@@ -3970,7 +3965,7 @@ console.log('CloudAttach loaded');
       }).open();
     };
     const versionLabel = document.createElement("span");
-    versionLabel.textContent = "v0.3.256";
+    versionLabel.textContent = "v0.3.257";
     versionLabel.style.opacity = "0.4";
     versionLabel.style.fontSize = "10px";
     toolbar.appendChild(versionLabel);

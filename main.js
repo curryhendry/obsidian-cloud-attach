@@ -3205,8 +3205,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
             continue;
           domImgs[i].dataset.cloudattachProcessed = "pending";
           domImgs[i].dataset.cloudattachPdfUrl = mdImgs[i].url;
-          domImgs[i].style.outline = "4px solid blue";
-          domImgs[i].style.outlineOffset = "3px";
         }
       } catch (e) {
         console.error("[CloudAttach] PostProcessor error:", e);
@@ -3232,20 +3230,15 @@ module.exports = class CloudAttachPlugin extends Plugin {
             return;
           const doc = view.contentEl || view.containerEl || document.body;
           const allImgs = Array.from(doc.querySelectorAll("img")).filter((img) => !img.closest(".cloudattach-pdf-container"));
-          console.log("[CloudAttach] FullDocScan:", {
-            totalMd: allMd.length,
-            pdfMd: allMd.filter((x) => x.isPdf).length,
-            totalDomImg: allImgs.length
-          });
-          for (let i = 0; i < allMd.length && i < allImgs.length; i++) {
-            if (!allMd[i].isPdf)
-              continue;
-            const img = allImgs[i];
-            if (img.dataset.cloudattachProcessed && img.dataset.cloudattachProcessed !== "pending")
+          const pendingImgs = Array.from(
+            (view.contentEl || view.containerEl || document.body).querySelectorAll('img[data-cloudattach-processed="pending"]')
+          ).filter((img) => !img.closest(".cloudattach-pdf-container"));
+          for (const img of pendingImgs) {
+            const pdfUrl = img.dataset.cloudattachPdfUrl;
+            if (!pdfUrl)
               continue;
             img.dataset.cloudattachProcessed = "true";
-            img.style.outline = "4px solid magenta";
-            await this._renderPdfAsCanvas(img, allMd[i].url);
+            await this._renderPdfAsCanvas(img, pdfUrl);
           }
         } catch (e) {
           console.error("[CloudAttach] FullDocScan error:", e);
@@ -3275,15 +3268,15 @@ module.exports = class CloudAttachPlugin extends Plugin {
           return;
         const doc = view.contentEl || view.containerEl || document.body;
         const allImgs = Array.from(doc.querySelectorAll("img")).filter((img) => !img.closest(".cloudattach-pdf-container"));
-        for (let i = 0; i < allMd.length && i < allImgs.length; i++) {
-          if (!allMd[i].isPdf)
-            continue;
-          const img = allImgs[i];
-          if (img.dataset.cloudattachProcessed && img.dataset.cloudattachProcessed !== "pending")
+        const pendingImgs = Array.from(
+          (view.contentEl || view.containerEl || document.body).querySelectorAll('img[data-cloudattach-processed="pending"]')
+        ).filter((img) => !img.closest(".cloudattach-pdf-container"));
+        for (const img of pendingImgs) {
+          const pdfUrl = img.dataset.cloudattachPdfUrl;
+          if (!pdfUrl)
             continue;
           img.dataset.cloudattachProcessed = "true";
-          img.style.outline = "4px solid yellow";
-          await this._renderPdfAsCanvas(img, allMd[i].url);
+          await this._renderPdfAsCanvas(img, pdfUrl);
         }
       } catch (e) {
       }
@@ -3757,7 +3750,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }).open();
     };
     const versionLabel = document.createElement("span");
-    versionLabel.textContent = "v0.3.256";
+    versionLabel.textContent = "v0.3.257";
     versionLabel.style.opacity = "0.4";
     versionLabel.style.fontSize = "10px";
     toolbar.appendChild(versionLabel);
