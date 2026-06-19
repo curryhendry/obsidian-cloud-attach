@@ -3627,7 +3627,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         scrollToPage(p);
       }).open();
     };
-    const manifestVersion = typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.getManifest && chrome.runtime.getManifest().version || "unknown";
+    const manifestVersion = this.manifest && this.manifest.version || "unknown";
     const versionLabel = document.createElement("span");
     versionLabel.textContent = "v" + manifestVersion;
     versionLabel.style.opacity = "0.4";

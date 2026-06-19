@@ -1,8 +1,9 @@
-## v0.3.268.dev - 2026-06-19
+## v0.3.269.dev - 2026-06-19
 
 ### 修复
 
-- iOS blob URL 检测：注册 `registerMarkdownPostProcessor` 从 markdown 源码识别 PDF URL，写入 `dataset.cloudattachPdfUrl`；`_isPdfUrl` 优先读 dataset；扫描和 MutationObserver 均优先用 dataset 查找 PDF；同时修复了编辑模式宽度无效问题
+- PostProcessor 匹配逻辑：从 URL 字符串匹配改为按位置顺序匹配（section 内第 N 个 `![]()` 对应第 N 个 `<img>`），直接写 `dataset.cloudattachPdfUrl`，不再依赖 `img.src`
+- 版本标签动态化：翻页按钮旁的版本号从硬编码 `v264` 改为 `this.manifest.version` 动态读取
 
 ## v0.3.264 - 2026-06-19
 
