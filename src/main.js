@@ -3362,38 +3362,23 @@ module.exports = class CloudAttachPlugin extends Plugin {
     // PostProcessor：从 markdown 源码识别 PDF URL，iOS blob URL 场景下无法从 img.src 检测
     this.registerMarkdownPostProcessor((source, el, ctx) => {
       // 提取 markdown 源码中所有图片 URL，过滤出 PDF
-      const mdImageRegex = /!\[([^\]]*)\]\(([^)\s]+)\)/g;
+      const mdImageRegex = /!\[[^\]]*\]\(([^)\s]+)\)/g;
       const pdfUrls = [];
       let match;
       while ((match = mdImageRegex.exec(source)) !== null) {
-        const url = match[2];
+        const url = match[1];
         if (/\.pdf(\?|#|$)/i.test(url)) {
           pdfUrls.push(url);
         }
       }
       if (pdfUrls.length === 0) return;
-      // 在渲染后的 DOM 中找 img，匹配 PDF URL
-      const imgs = el.querySelectorAll('img');
-      const matchedUrls = new Set();
-      imgs.forEach(img => {
-        // src 精确匹配 PDF URL
-        const src = img.getAttribute('src') || '';
-        if (pdfUrls.some(u => src === u || src.endsWith(u) || u.endsWith(src))) {
-          img.dataset.cloudattachPdfUrl = src;
-          matchedUrls.add(src);
+      // 按位置顺序匹配：section 内第 N 个 ![]() 对应第 N 个 <img>
+      const imgs = Array.from(el.querySelectorAll('img'));
+      imgs.forEach((img, i) => {
+        if (i < pdfUrls.length) {
+          img.dataset.cloudattachPdfUrl = pdfUrls[i];
         }
       });
-      // 处理同一 URL 渲染多个 img、或 img.src 为 blob URL 的情况
-      // 只要 section 中存在 PDF URL，就给未匹配的 img 也尝试关联
-      if (matchedUrls.size < pdfUrls.length && imgs.length > 0) {
-        const unmatchedUrls = pdfUrls.filter(u => !matchedUrls.has(u));
-        let idx = 0;
-        imgs.forEach(img => {
-          if (!img.dataset.cloudattachPdfUrl && idx < unmatchedUrls.length) {
-            img.dataset.cloudattachPdfUrl = unmatchedUrls[idx++];
-          }
-        });
-      }
     });
     // 注册视图类型（必须，否则 setViewState 静默失败）
     // 防重复注册：禁用→重启用时 Obsidian 可能未注销旧 view type
@@ -3866,8 +3851,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
         scrollToPage(p);
       }).open();
     };
+    const manifestVersion = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getManifest && chrome.runtime.getManifest().version) || 'unknown';
     const versionLabel = document.createElement("span");
-    versionLabel.textContent = "v264";
+    versionLabel.textContent = 'v' + manifestVersion;
     versionLabel.style.opacity = "0.4";
     versionLabel.style.fontSize = "10px";
     toolbar.appendChild(versionLabel);

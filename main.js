@@ -3164,35 +3164,23 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
     this._observePdfEmbeds();
     this.registerMarkdownPostProcessor((source, el, ctx) => {
-      const mdImageRegex = /!\[([^\]]*)\]\(([^)\s]+)\)/g;
+      const mdImageRegex = /!\[[^\]]*\]\(([^)\s]+)\)/g;
       const pdfUrls = [];
       let match;
       while ((match = mdImageRegex.exec(source)) !== null) {
-        const url = match[2];
+        const url = match[1];
         if (/\.pdf(\?|#|$)/i.test(url)) {
           pdfUrls.push(url);
         }
       }
       if (pdfUrls.length === 0)
         return;
-      const imgs = el.querySelectorAll("img");
-      const matchedUrls = /* @__PURE__ */ new Set();
-      imgs.forEach((img) => {
-        const src = img.getAttribute("src") || "";
-        if (pdfUrls.some((u) => src === u || src.endsWith(u) || u.endsWith(src))) {
-          img.dataset.cloudattachPdfUrl = src;
-          matchedUrls.add(src);
+      const imgs = Array.from(el.querySelectorAll("img"));
+      imgs.forEach((img, i) => {
+        if (i < pdfUrls.length) {
+          img.dataset.cloudattachPdfUrl = pdfUrls[i];
         }
       });
-      if (matchedUrls.size < pdfUrls.length && imgs.length > 0) {
-        const unmatchedUrls = pdfUrls.filter((u) => !matchedUrls.has(u));
-        let idx = 0;
-        imgs.forEach((img) => {
-          if (!img.dataset.cloudattachPdfUrl && idx < unmatchedUrls.length) {
-            img.dataset.cloudattachPdfUrl = unmatchedUrls[idx++];
-          }
-        });
-      }
     });
     try {
       this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf, this));
@@ -3639,8 +3627,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
         scrollToPage(p);
       }).open();
     };
+    const manifestVersion = typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.getManifest && chrome.runtime.getManifest().version || "unknown";
     const versionLabel = document.createElement("span");
-    versionLabel.textContent = "v264";
+    versionLabel.textContent = "v" + manifestVersion;
     versionLabel.style.opacity = "0.4";
     versionLabel.style.fontSize = "10px";
     toolbar.appendChild(versionLabel);
