@@ -3657,7 +3657,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     } catch (e) {
       const errMsg = e?.message || String(e);
       console.error("[CloudAttach] PDF render failed:", errMsg, e);
-      new (require('obsidian').Notice)("CloudAttach PDF 渲染失败: " + errMsg, 8000);
+      try { new Notice("CloudAttach PDF 渲染失败: " + errMsg, 8000); } catch(e2) {}
       if (imgEl && imgEl.style) {
         imgEl.style.setProperty('border', '2px dashed #e74c3c', 'important');
         imgEl.dataset.cloudattachError = errMsg;

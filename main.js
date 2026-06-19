@@ -3442,7 +3442,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
       } catch (e) {
         const errMsg = e?.message || String(e);
         console.error("[CloudAttach] PDF render failed:", errMsg, e);
-        new (require("obsidian")).Notice("CloudAttach PDF \u6E32\u67D3\u5931\u8D25: " + errMsg, 8e3);
+        try {
+          new Notice("CloudAttach PDF \u6E32\u67D3\u5931\u8D25: " + errMsg, 8e3);
+        } catch (e2) {
+        }
         if (imgEl && imgEl.style) {
           imgEl.style.setProperty("border", "2px dashed #e74c3c", "important");
           imgEl.dataset.cloudattachError = errMsg;
