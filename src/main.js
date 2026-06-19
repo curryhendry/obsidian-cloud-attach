@@ -3633,6 +3633,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
       console.log("[CloudAttach] PDF container built, pages:", pdf.numPages);
     } catch (e) {
       console.error("[CloudAttach] PDF render failed:", e);
+      if (imgEl && imgEl.style) {
+        imgEl.style.setProperty('border', '2px dashed #e74c3c', 'important');
+      }
     }
     };
     // 追加到全局渲染链：所有 PDF 串行排队
