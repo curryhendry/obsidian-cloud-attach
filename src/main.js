@@ -3359,6 +3359,42 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
     // PDF.js 内联预览（v0.3.026）
     this._observePdfEmbeds();
+    // PostProcessor：从 markdown 源码识别 PDF URL，iOS blob URL 场景下无法从 img.src 检测
+    this.registerMarkdownPostProcessor((source, el, ctx) => {
+      // 提取 markdown 源码中所有图片 URL，过滤出 PDF
+      const mdImageRegex = /!\[([^\]]*)\]\(([^)\s]+)\)/g;
+      const pdfUrls = [];
+      let match;
+      while ((match = mdImageRegex.exec(source)) !== null) {
+        const url = match[2];
+        if (/\.pdf(\?|#|$)/i.test(url)) {
+          pdfUrls.push(url);
+        }
+      }
+      if (pdfUrls.length === 0) return;
+      // 在渲染后的 DOM 中找 img，匹配 PDF URL
+      const imgs = el.querySelectorAll('img');
+      const matchedUrls = new Set();
+      imgs.forEach(img => {
+        // src 精确匹配 PDF URL
+        const src = img.getAttribute('src') || '';
+        if (pdfUrls.some(u => src === u || src.endsWith(u) || u.endsWith(src))) {
+          img.dataset.cloudattachPdfUrl = src;
+          matchedUrls.add(src);
+        }
+      });
+      // 处理同一 URL 渲染多个 img、或 img.src 为 blob URL 的情况
+      // 只要 section 中存在 PDF URL，就给未匹配的 img 也尝试关联
+      if (matchedUrls.size < pdfUrls.length && imgs.length > 0) {
+        const unmatchedUrls = pdfUrls.filter(u => !matchedUrls.has(u));
+        let idx = 0;
+        imgs.forEach(img => {
+          if (!img.dataset.cloudattachPdfUrl && idx < unmatchedUrls.length) {
+            img.dataset.cloudattachPdfUrl = unmatchedUrls[idx++];
+          }
+        });
+      }
+    });
     // 注册视图类型（必须，否则 setViewState 静默失败）
     // 防重复注册：禁用→重启用时 Obsidian 可能未注销旧 view type
     try {
@@ -3874,8 +3910,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
             // 避免重复处理已替换的容器
             if (img.closest('.cloudattach-pdf-container')) return;
             const src = img.getAttribute('src') || '';
-            if (this._isPdfUrl(src)) {
-              this._renderPdfAsCanvas(img, src);
+            if (this._isPdfUrl(src, img)) {
+              this._renderPdfAsCanvas(img, img.dataset.cloudattachPdfUrl || src);
             }
           });
         });
@@ -3939,8 +3975,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
             imgs.forEach(img => {
               if (img.closest('.cloudattach-pdf-container')) return;
               const src = img.getAttribute('src') || '';
-              if (this._isPdfUrl(src)) {
-                this._renderPdfAsCanvas(img, src);
+              if (this._isPdfUrl(src, img)) {
+                this._renderPdfAsCanvas(img, img.dataset.cloudattachPdfUrl || src);
               }
             });
           });
@@ -3955,7 +3991,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
   _scanAllPdfImgs(doc) {
     const d = doc || document;
     const allImgs = d.querySelectorAll('img');
-    const pdfImgs = Array.from(allImgs).filter(img => this._isPdfUrl(img.getAttribute('src') || ''));
+    const pdfImgs = Array.from(allImgs).filter(img => this._isPdfUrl(img.getAttribute('src') || '', img));
     console.log('[CloudAttach] _scanAllPdfImgs:', allImgs.length, 'imgs total,', pdfImgs.length, 'pdf imgs');
     if (pdfImgs.length > 0) {
       pdfImgs.forEach(img => {
@@ -3965,8 +4001,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
     allImgs.forEach(img => {
       if (img.closest('.cloudattach-pdf-container')) return;
       const src = img.getAttribute('src') || '';
-      if (this._isPdfUrl(src)) {
-        this._renderPdfAsCanvas(img, src);
+      if (this._isPdfUrl(src, img)) {
+        this._renderPdfAsCanvas(img, img.dataset.cloudattachPdfUrl || src);
       }
     });
   }
