@@ -3552,6 +3552,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       scrollArea.style.position = "relative";
       container.appendChild(scrollArea);
       imgEl.replaceWith(container);
+      container.dataset.scale = String(FIXED_SCALE);
       const firstPage = await pdf.getPage(1);
       const firstViewport = firstPage.getViewport({ scale: FIXED_SCALE });
       const canvasW = firstViewport.width;
@@ -3669,6 +3670,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
     await this._renderPdfPage(canvas, pdf, pageNum, scale);
     placeholder.replaceWith(canvas);
     console.log("[CloudAttach] lazy page", pageNum, "rendered");
+    // 将新渲染的 canvas 加到滚动观察器
+    const scrollArea = canvas.closest(".cloudattach-pdf-scrollarea");
+    const container = scrollArea ? scrollArea.parentElement : null;
+    const scrollObserver = this._pdfScrollObservers?.get(container);
+    if (scrollObserver) {
+      scrollObserver.observe(canvas);
+    }
   }
 
   // 监听滚动更新当前页码（连续滚动模式，监听 scrollArea）
@@ -3685,6 +3693,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }, { root: scrollArea, threshold: 0.5 });
     const canvases = scrollArea.querySelectorAll(".cloudattach-pdf-page");
     canvases.forEach((canvas) => observer.observe(canvas));
+    // 保存观察器，供 _renderLazyPage 观察新渲染的 canvas
+    if (!this._pdfScrollObservers) this._pdfScrollObservers = new Map();
+    this._pdfScrollObservers.set(container, observer);
   }
 
   // 初始化 PDF 翻页工具栏（参考 v0.3.042 样式：底部右侧，hover 显示）
@@ -3748,23 +3759,35 @@ module.exports = class CloudAttachPlugin extends Plugin {
       new Notice2("\u{1F50D} \u5168\u5C4F\u9884\u89C8\u529F\u80FD\uFF0C\u656C\u8BF7\u671F\u5F85");
     };
     const scrollArea = container.querySelector(".cloudattach-pdf-scrollarea");
-    const scrollToPage = (pageNum) => {
-      const targetCanvas = scrollArea.querySelector(`.cloudattach-pdf-page[data-page-num="${pageNum}"]`);
+    const scrollToPage = async (pageNum) => {
+      // 先检查是否已渲染成 canvas
+      let targetCanvas = scrollArea.querySelector(`.cloudattach-pdf-page[data-page-num="${pageNum}"]`);
+      if (!targetCanvas) {
+        // 未渲染：找到占位符并渲染
+        const placeholder = scrollArea.querySelector(`.cloudattach-pdf-placeholder[data-page-num="${pageNum}"]`);
+        if (placeholder && !placeholder.dataset.rendered) {
+          const scale = parseFloat(container.dataset.scale) || 1.5;
+          await this._renderLazyPage(placeholder, pdf, pageNum, scale);
+          targetCanvas = scrollArea.querySelector(`.cloudattach-pdf-page[data-page-num="${pageNum}"]`);
+        }
+      }
       if (targetCanvas) {
         scrollArea.scrollTop = targetCanvas.offsetTop;
+        container.dataset.currentPage = String(pageNum);
+        this._updatePdfToolbar(container, pdf);
       }
     };
-    prevBtn.onclick = (e) => {
+    prevBtn.onclick = async (e) => {
       e.stopPropagation();
       const current = parseInt(container.dataset.currentPage);
       if (current > 1)
-        scrollToPage(current - 1);
+        await scrollToPage(current - 1);
     };
-    nextBtn.onclick = (e) => {
+    nextBtn.onclick = async (e) => {
       e.stopPropagation();
       const current = parseInt(container.dataset.currentPage);
       if (current < totalPages)
-        scrollToPage(current + 1);
+        await scrollToPage(current + 1);
     };
     pageIndicator.onclick = (e) => {
       e.stopPropagation();

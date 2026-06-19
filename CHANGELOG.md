@@ -1,3 +1,10 @@
+## v0.3.261.dev - 2026-06-19
+
+### 修复
+
+- PDF 翻页功能：点击 prev/next 按钮时，如果目标页是占位符（懒加载未渲染），先调用 `_renderLazyPage` 渲染再滚动，同时更新 `currentPage` 和工具栏显示
+- 滚动页码追踪：`_bindPdfScroll` 把 `IntersectionObserver` 保存到 `this._pdfScrollObservers` Map；`_renderLazyPage` 渲染完新 canvas 后自动加到滚动观察器，滑动时正确更新页码
+
 ## v0.3.259.dev - 2026-06-19
 
 ### 修复
