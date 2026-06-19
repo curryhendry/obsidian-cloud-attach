@@ -3402,11 +3402,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
         for (let i = 0; i < mdImgs.length && i < domImgs.length; i++) {
           if (!mdImgs[i].isPdf) continue;
           if (domImgs[i].dataset.cloudattachProcessed) continue;
-          domImgs[i].dataset.cloudattachProcessed = 'true';
+          // 阅读模式：只标记 PDF URL，不直接渲染，避免 replaceWith 与 Obsidian 原生渲染冲突
+          domImgs[i].dataset.cloudattachProcessed = 'pending';
           domImgs[i].dataset.cloudattachPdfUrl = mdImgs[i].url;
           domImgs[i].style.outline = '4px solid blue';
           domImgs[i].style.outlineOffset = '3px';
-          await this._renderPdfAsCanvas(domImgs[i], mdImgs[i].url);
+          // 不直接调用 _renderPdfAsCanvas，由全文档/编辑模式统一扫描处理
         }
       } catch(e) {
         console.error('[CloudAttach] PostProcessor error:', e);
@@ -3439,10 +3440,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
           });
           for (let i = 0; i < allMd.length && i < allImgs.length; i++) {
             if (!allMd[i].isPdf) continue;
-            if (allImgs[i].dataset.cloudattachProcessed) continue;
-            allImgs[i].dataset.cloudattachProcessed = 'true';
-            allImgs[i].style.outline = '4px solid magenta';
-            await this._renderPdfAsCanvas(allImgs[i], allMd[i].url);
+            const img = allImgs[i];
+            if (img.dataset.cloudattachProcessed && img.dataset.cloudattachProcessed !== 'pending') continue;
+            img.dataset.cloudattachProcessed = 'true';
+            img.style.outline = '4px solid magenta';
+            await this._renderPdfAsCanvas(img, allMd[i].url);
           }
         } catch(e) {
           console.error('[CloudAttach] FullDocScan error:', e);
@@ -3450,7 +3452,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }, 5000);
     }));
 
-    // 编辑模式辅助扫描（iOS live preview）：5 秒轮询
+    // 编辑模式辅助扫描（iOS live preview）：15 秒轮询，内容不变跳过
     this._iosLiveScanInterval = setInterval(async () => {
       const leaf = this.app.workspace.getMostRecentLeaf();
       const view = leaf?.view;
@@ -3458,6 +3460,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (!view.editor) return;
       try {
         const content = await this.app.vault.read(view.file);
+        // 内容未变则跳过
+        const hash = this._simpleHash(content);
+        if (this._lastEditScanHash === hash) return;
+        this._lastEditScanHash = hash;
         const allMd = [];
         const re = /!\[([^\]]*)\]\(([^)]+)\)/g;
         let m;
@@ -3470,13 +3476,14 @@ module.exports = class CloudAttachPlugin extends Plugin {
           .filter(img => !img.closest('.cloudattach-pdf-container'));
         for (let i = 0; i < allMd.length && i < allImgs.length; i++) {
           if (!allMd[i].isPdf) continue;
-          if (allImgs[i].dataset.cloudattachProcessed) continue;
-          allImgs[i].dataset.cloudattachProcessed = 'true';
-          allImgs[i].style.outline = '4px solid yellow';
-          await this._renderPdfAsCanvas(allImgs[i], allMd[i].url);
+          const img = allImgs[i];
+          if (img.dataset.cloudattachProcessed && img.dataset.cloudattachProcessed !== 'pending') continue;
+          img.dataset.cloudattachProcessed = 'true';
+          img.style.outline = '4px solid yellow';
+          await this._renderPdfAsCanvas(img, allMd[i].url);
         }
       } catch(e) {}
-    }, 5000);
+    }, 15000);
 console.log('CloudAttach loaded');
   }
   addStyles() {
@@ -3580,6 +3587,16 @@ console.log('CloudAttach loaded');
       console.error('[CloudAttach] _loadPdfJs failed:', e);
       throw e;
     }
+  }
+
+  _simpleHash(str) {
+    let h = 0;
+    for (let i = 0; i < str.length; i++) {
+      const c = str.charCodeAt(i);
+      h = ((h << 5) - h) + c;
+      h |= 0;
+    }
+    return h;
   }
 
   _isPdfUrl(url) {
@@ -3953,7 +3970,7 @@ console.log('CloudAttach loaded');
       }).open();
     };
     const versionLabel = document.createElement("span");
-    versionLabel.textContent = "v258";
+    versionLabel.textContent = "v0.3.256";
     versionLabel.style.opacity = "0.4";
     versionLabel.style.fontSize = "10px";
     toolbar.appendChild(versionLabel);
