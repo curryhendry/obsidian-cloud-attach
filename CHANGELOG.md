@@ -2,7 +2,7 @@
 
 ### 修复
 
-- 加回 PDF 工具栏版本标签（v264）用于手机端调试识别
+- iOS blob URL 检测：注册 `registerMarkdownPostProcessor` 从 markdown 源码识别 PDF URL，写入 `dataset.cloudattachPdfUrl`；`_isPdfUrl` 优先读 dataset；扫描和 MutationObserver 均优先用 dataset 查找 PDF；同时修复了编辑模式宽度无效问题
 
 ## v0.3.264 - 2026-06-19
 
