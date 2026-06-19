@@ -3830,11 +3830,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
         scrollToPage(p);
       }).open();
     };
-    const versionLabel = document.createElement("span");
-    versionLabel.textContent = "v246";
-    versionLabel.style.opacity = "0.4";
-    versionLabel.style.fontSize = "10px";
-    toolbar.appendChild(versionLabel);
     container.appendChild(toolbar);
     this._updatePdfToolbar(container, pdf);
   }
