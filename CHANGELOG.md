@@ -1,6 +1,9 @@
-## v0.3.286.dev - 2026-06-20
+## v0.3.288.dev - 2026-06-20
 
-- 回退 _scanAllPdfImgs 到 v0.3.246 纯净版本，去掉 v0.3.283/284 的兜底逻辑
+- 新增 PostProcessor：阅读模式下解析 Markdown 源码中的 .pdf URL 写入 img dataset，解决 iOS blob URL 检测不到 PDF 的问题
+- _scanAllPdfImgs 和 MutationObserver 优先读 dataset.cloudattachPdfUrl，兜底检查 alt 是否含 .pdf
+
+## v0.3.286.dev - 2026-06-20
 
 ## v0.3.281.dev - 2026-06-20
 

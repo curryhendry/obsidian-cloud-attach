@@ -3163,6 +3163,56 @@ module.exports = class CloudAttachPlugin extends Plugin {
       this.activeMarkdownView = activeLeaf.view;
     }
     this._observePdfEmbeds();
+    this.registerMarkdownPostProcessor(async (el, ctx) => {
+      const imgs = el.querySelectorAll("img");
+      if (imgs.length === 0)
+        return;
+      const hasBlob = Array.from(imgs).some(
+        (img) => (img.getAttribute("src") || "").startsWith("blob:")
+      );
+      if (!hasBlob)
+        return;
+      if (!ctx.sourcePath)
+        return;
+      const file = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
+      if (!file || !file.extension)
+        return;
+      try {
+        const content = await this.app.vault.cachedRead(file);
+        const pdfUrls = [];
+        const re = /!\[([^\]]*)\]\(([^)]*\.pdf[^)]*)\)/gi;
+        let m;
+        while ((m = re.exec(content)) !== null) {
+          pdfUrls.push(m[2]);
+        }
+        if (pdfUrls.length === 0)
+          return;
+        let sectionPdfUrls = [];
+        if (ctx.getSectionInfo) {
+          const sectionInfo = ctx.getSectionInfo(el);
+          if (sectionInfo) {
+            const lines = content.split("\n");
+            const sectionText = lines.slice(sectionInfo.lineStart, sectionInfo.lineEnd + 1).join("\n");
+            const secRe = /!\[([^\]]*)\]\(([^)]*\.pdf[^)]*)\)/gi;
+            let secM;
+            while ((secM = secRe.exec(sectionText)) !== null) {
+              sectionPdfUrls.push(secM[2]);
+            }
+          }
+        }
+        const urls = sectionPdfUrls.length > 0 ? sectionPdfUrls : pdfUrls;
+        const blobImgs = Array.from(imgs).filter(
+          (img) => !img.closest(".cloudattach-pdf-container") && (img.getAttribute("src") || "").startsWith("blob:")
+        );
+        blobImgs.forEach((img, idx) => {
+          if (idx < urls.length) {
+            img.dataset.cloudattachPdfUrl = urls[idx];
+          }
+        });
+      } catch (e) {
+        console.log("[CloudAttach] PostProcessor error:", e);
+      }
+    });
     try {
       this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf, this));
     } catch (e) {
@@ -3605,7 +3655,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }).open();
     };
     const versionLabel = document.createElement("span");
-    versionLabel.textContent = "v285";
+    versionLabel.textContent = "v287";
     versionLabel.style.opacity = "0.4";
     versionLabel.style.fontSize = "10px";
     toolbar.appendChild(versionLabel);
@@ -3644,7 +3694,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
             if (img.closest(".cloudattach-pdf-container"))
               return;
             const src = img.getAttribute("src") || "";
-            if (this._isPdfUrl(src)) {
+            if (img.dataset.cloudattachPdfUrl) {
+              this._renderPdfAsCanvas(img, img.dataset.cloudattachPdfUrl);
+            } else if (this._isPdfUrl(src)) {
               this._renderPdfAsCanvas(img, src);
             }
           });
@@ -3718,7 +3770,16 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (img.closest(".cloudattach-pdf-container"))
         return;
       const src = img.getAttribute("src") || "";
+      if (img.dataset.cloudattachPdfUrl) {
+        this._renderPdfAsCanvas(img, img.dataset.cloudattachPdfUrl);
+        return;
+      }
       if (this._isPdfUrl(src)) {
+        this._renderPdfAsCanvas(img, src);
+        return;
+      }
+      const alt = img.getAttribute("alt") || "";
+      if (alt && /\.pdf\s*$/i.test(alt.trim())) {
         this._renderPdfAsCanvas(img, src);
       }
     });
