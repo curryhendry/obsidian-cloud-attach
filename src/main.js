@@ -1066,15 +1066,14 @@ class OpenListClient {
       const srcUrl = `${this.serverUrl}${this.encodePath(this.webdavPath + path)}`;
       const dstDir = path.substring(0, path.lastIndexOf('/'));
       const dstPath = `${dstDir}/${newName}`;
-      // Destination 使用相对路径（不含 serverUrl），兼容 OpenList 等 WebDAV 服务
-      const dstRelativePath = this.encodePath(this.webdavPath + dstPath);
-      console.log("[CloudAttach] rename WebDAV MOVE: src:", srcUrl, "dst relative:", dstRelativePath);
+      const dstUrl = `${this.serverUrl}${this.encodePath(this.webdavPath + dstPath)}`;
+      console.log("[CloudAttach] rename WebDAV MOVE: src:", srcUrl, "dst:", dstUrl);
       
       const response = await this.requestViaObsidian(srcUrl, {
         method: 'MOVE',
         headers: {
           'Authorization': 'Basic ' + btoa(`${this.username}:${this.password}`),
-          'Destination': dstRelativePath
+          'Destination': dstUrl
         }
       });
       console.log("[CloudAttach] rename WebDAV response status:", response.status);
@@ -3360,27 +3359,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
     // PDF.js 内联预览（v0.3.026）
     this._observePdfEmbeds();
-    // PostProcessor：从 markdown 源码识别 PDF URL，iOS blob URL 场景下无法从 img.src 检测
-    this.registerMarkdownPostProcessor((source, el, ctx) => {
-      // 提取 markdown 源码中所有图片 URL，过滤出 PDF
-      const mdImageRegex = /!\[[^\]]*\]\(([^)\s]+)\)/g;
-      const pdfUrls = [];
-      let match;
-      while ((match = mdImageRegex.exec(source)) !== null) {
-        const url = match[1];
-        if (/\.pdf(\?|#|$)/i.test(url)) {
-          pdfUrls.push(url);
-        }
-      }
-      if (pdfUrls.length === 0) return;
-      // 按位置顺序匹配：section 内第 N 个 ![]() 对应第 N 个 <img>
-      const imgs = Array.from(el.querySelectorAll('img'));
-      imgs.forEach((img, i) => {
-        if (i < pdfUrls.length) {
-          img.dataset.cloudattachPdfUrl = pdfUrls[i];
-        }
-      });
-    });
     // 注册视图类型（必须，否则 setViewState 静默失败）
     // 防重复注册：禁用→重启用时 Obsidian 可能未注销旧 view type
     try {
@@ -3496,8 +3474,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
   }
 
-  _isPdfUrl(url, img) {
-    if (img && img.dataset && img.dataset.cloudattachPdfUrl) return true;
+  _isPdfUrl(url) {
     return /\.pdf(\?|#|$)/i.test(url);
   }
 
@@ -3575,7 +3552,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       scrollArea.style.position = "relative";
       container.appendChild(scrollArea);
       imgEl.replaceWith(container);
-      container.dataset.scale = String(FIXED_SCALE);
       const firstPage = await pdf.getPage(1);
       const firstViewport = firstPage.getViewport({ scale: FIXED_SCALE });
       const canvasW = firstViewport.width;
@@ -3656,12 +3632,25 @@ module.exports = class CloudAttachPlugin extends Plugin {
       this._bindPdfScroll(container, pdf);
       console.log("[CloudAttach] PDF container built, pages:", pdf.numPages);
     } catch (e) {
-      const errMsg = e?.message || String(e);
-      console.error("[CloudAttach] PDF render failed:", errMsg, e);
-      try { new Notice("CloudAttach PDF 渲染失败: " + errMsg, 8000); } catch(e2) {}
-      if (imgEl && imgEl.style) {
-        imgEl.style.setProperty('border', '2px dashed #e74c3c', 'important');
-        imgEl.dataset.cloudattachError = errMsg;
+      console.error("[CloudAttach] PDF render failed:", e);
+      const errorMsg = e && e.message ? String(e.message) : "PDF render failed";
+      try {
+        if (imgEl && imgEl.isConnected) {
+          imgEl.style.border = "2px dashed red";
+          imgEl.title = errorMsg;
+          const overlay = document.createElement("span");
+          overlay.textContent = errorMsg;
+          overlay.style.display = "block";
+          overlay.style.color = "red";
+          overlay.style.fontSize = "10px";
+          overlay.style.wordBreak = "break-all";
+          overlay.style.maxWidth = "100%";
+          overlay.style.overflow = "hidden";
+          overlay.style.textOverflow = "ellipsis";
+          imgEl.parentNode.insertBefore(overlay, imgEl.nextSibling);
+        }
+      } catch (overlayErr) {
+        console.error("[CloudAttach] error overlay failed:", overlayErr);
       }
     }
     };
@@ -3696,13 +3685,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     await this._renderPdfPage(canvas, pdf, pageNum, scale);
     placeholder.replaceWith(canvas);
     console.log("[CloudAttach] lazy page", pageNum, "rendered");
-    // 将新渲染的 canvas 加到滚动观察器
-    const scrollArea = canvas.closest(".cloudattach-pdf-scrollarea");
-    const container = scrollArea ? scrollArea.parentElement : null;
-    const scrollObserver = this._pdfScrollObservers?.get(container);
-    if (scrollObserver) {
-      scrollObserver.observe(canvas);
-    }
   }
 
   // 监听滚动更新当前页码（连续滚动模式，监听 scrollArea）
@@ -3719,9 +3701,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }, { root: scrollArea, threshold: 0.5 });
     const canvases = scrollArea.querySelectorAll(".cloudattach-pdf-page");
     canvases.forEach((canvas) => observer.observe(canvas));
-    // 保存观察器，供 _renderLazyPage 观察新渲染的 canvas
-    if (!this._pdfScrollObservers) this._pdfScrollObservers = new Map();
-    this._pdfScrollObservers.set(container, observer);
   }
 
   // 初始化 PDF 翻页工具栏（参考 v0.3.042 样式：底部右侧，hover 显示）
@@ -3785,35 +3764,23 @@ module.exports = class CloudAttachPlugin extends Plugin {
       new Notice2("\u{1F50D} \u5168\u5C4F\u9884\u89C8\u529F\u80FD\uFF0C\u656C\u8BF7\u671F\u5F85");
     };
     const scrollArea = container.querySelector(".cloudattach-pdf-scrollarea");
-    const scrollToPage = async (pageNum) => {
-      // 先检查是否已渲染成 canvas
-      let targetCanvas = scrollArea.querySelector(`.cloudattach-pdf-page[data-page-num="${pageNum}"]`);
-      if (!targetCanvas) {
-        // 未渲染：找到占位符并渲染
-        const placeholder = scrollArea.querySelector(`.cloudattach-pdf-placeholder[data-page-num="${pageNum}"]`);
-        if (placeholder && !placeholder.dataset.rendered) {
-          const scale = parseFloat(container.dataset.scale) || 1.5;
-          await this._renderLazyPage(placeholder, pdf, pageNum, scale);
-          targetCanvas = scrollArea.querySelector(`.cloudattach-pdf-page[data-page-num="${pageNum}"]`);
-        }
-      }
+    const scrollToPage = (pageNum) => {
+      const targetCanvas = scrollArea.querySelector(`.cloudattach-pdf-page[data-page-num="${pageNum}"]`);
       if (targetCanvas) {
         scrollArea.scrollTop = targetCanvas.offsetTop;
-        container.dataset.currentPage = String(pageNum);
-        this._updatePdfToolbar(container, pdf);
       }
     };
-    prevBtn.onclick = async (e) => {
+    prevBtn.onclick = (e) => {
       e.stopPropagation();
       const current = parseInt(container.dataset.currentPage);
       if (current > 1)
-        await scrollToPage(current - 1);
+        scrollToPage(current - 1);
     };
-    nextBtn.onclick = async (e) => {
+    nextBtn.onclick = (e) => {
       e.stopPropagation();
       const current = parseInt(container.dataset.currentPage);
       if (current < totalPages)
-        await scrollToPage(current + 1);
+        scrollToPage(current + 1);
     };
     pageIndicator.onclick = (e) => {
       e.stopPropagation();
@@ -3857,7 +3824,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }).open();
     };
     const versionLabel = document.createElement("span");
-    versionLabel.textContent = "v279";
+    versionLabel.textContent = "v281";
     versionLabel.style.opacity = "0.4";
     versionLabel.style.fontSize = "10px";
     toolbar.appendChild(versionLabel);
@@ -3900,8 +3867,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
             // 避免重复处理已替换的容器
             if (img.closest('.cloudattach-pdf-container')) return;
             const src = img.getAttribute('src') || '';
-            if (this._isPdfUrl(src, img)) {
-              this._renderPdfAsCanvas(img, img.dataset.cloudattachPdfUrl || src);
+            if (this._isPdfUrl(src)) {
+              this._renderPdfAsCanvas(img, src);
             }
           });
         });
@@ -3965,8 +3932,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
             imgs.forEach(img => {
               if (img.closest('.cloudattach-pdf-container')) return;
               const src = img.getAttribute('src') || '';
-              if (this._isPdfUrl(src, img)) {
-                this._renderPdfAsCanvas(img, img.dataset.cloudattachPdfUrl || src);
+              if (this._isPdfUrl(src)) {
+                this._renderPdfAsCanvas(img, src);
               }
             });
           });
@@ -3981,38 +3948,18 @@ module.exports = class CloudAttachPlugin extends Plugin {
   _scanAllPdfImgs(doc) {
     const d = doc || document;
     const allImgs = d.querySelectorAll('img');
-    const pdfImgs = Array.from(allImgs).filter(img => this._isPdfUrl(img.getAttribute('src') || '', img));
+    const pdfImgs = Array.from(allImgs).filter(img => this._isPdfUrl(img.getAttribute('src') || ''));
     console.log('[CloudAttach] _scanAllPdfImgs:', allImgs.length, 'imgs total,', pdfImgs.length, 'pdf imgs');
     if (pdfImgs.length > 0) {
       pdfImgs.forEach(img => {
         console.log('[CloudAttach]  pdf img src:', img.getAttribute('src')?.substring(0, 100), '| class:', img.className, '| alt:', img.alt);
       });
     }
-    // 兜底：从当前活动笔记的 markdown 源码提取 PDF URL，按位置匹配未识别的 img
-    let fallbackPdfUrls = [];
-    try {
-      const activeView = this.app.workspace.getActiveViewOfType(require('obsidian').MarkdownView);
-      if (activeView) {
-        const srcText = activeView.getViewData();
-        const mdRe = /!\[[^\]]*\]\(([^)\s]+\.pdf[^)]*)\)/gi;
-        let m;
-        while ((m = mdRe.exec(srcText)) !== null) fallbackPdfUrls.push(m[1]);
-      }
-    } catch (e) { /* 非编辑模式等场景静默失败 */ }
-    let fallbackIdx = 0;
     allImgs.forEach(img => {
       if (img.closest('.cloudattach-pdf-container')) return;
       const src = img.getAttribute('src') || '';
-      if (this._isPdfUrl(src, img)) {
-        this._renderPdfAsCanvas(img, img.dataset.cloudattachPdfUrl || src);
-      } else if (fallbackPdfUrls.length > 0 && !img.dataset.cloudattachPdfUrl) {
-        // 兜底：PostProcessor 未标记的 img，按顺序从源码匹配 PDF URL
-        const fallbackUrl = fallbackPdfUrls[fallbackIdx++];
-        if (fallbackUrl) {
-          console.log('[CloudAttach] fallback PDF match for img, url:', fallbackUrl?.substring(0, 80));
-          img.dataset.cloudattachPdfUrl = fallbackUrl;
-          this._renderPdfAsCanvas(img, fallbackUrl);
-        }
+      if (this._isPdfUrl(src)) {
+        this._renderPdfAsCanvas(img, src);
       }
     });
   }
