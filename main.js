@@ -964,13 +964,13 @@ var OpenListClient = class {
       const srcUrl = `${this.serverUrl}${this.encodePath(this.webdavPath + path)}`;
       const dstDir = path.substring(0, path.lastIndexOf("/"));
       const dstPath = `${dstDir}/${newName}`;
-      const dstRelativePath = this.encodePath(this.webdavPath + dstPath);
-      console.log("[CloudAttach] rename WebDAV MOVE: src:", srcUrl, "dst relative:", dstRelativePath);
+      const dstUrl = `${this.serverUrl}${this.encodePath(this.webdavPath + dstPath)}`;
+      console.log("[CloudAttach] rename WebDAV MOVE: src:", srcUrl, "dst:", dstUrl);
       const response2 = await this.requestViaObsidian(srcUrl, {
         method: "MOVE",
         headers: {
           "Authorization": "Basic " + btoa(`${this.username}:${this.password}`),
-          "Destination": dstRelativePath
+          "Destination": dstUrl
         }
       });
       console.log("[CloudAttach] rename WebDAV response status:", response2.status);
@@ -3163,25 +3163,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       this.activeMarkdownView = activeLeaf.view;
     }
     this._observePdfEmbeds();
-    this.registerMarkdownPostProcessor((source, el, ctx) => {
-      const mdImageRegex = /!\[[^\]]*\]\(([^)\s]+)\)/g;
-      const pdfUrls = [];
-      let match;
-      while ((match = mdImageRegex.exec(source)) !== null) {
-        const url = match[1];
-        if (/\.pdf(\?|#|$)/i.test(url)) {
-          pdfUrls.push(url);
-        }
-      }
-      if (pdfUrls.length === 0)
-        return;
-      const imgs = Array.from(el.querySelectorAll("img"));
-      imgs.forEach((img, i) => {
-        if (i < pdfUrls.length) {
-          img.dataset.cloudattachPdfUrl = pdfUrls[i];
-        }
-      });
-    });
     try {
       this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf, this));
     } catch (e) {
@@ -3290,9 +3271,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       throw e;
     }
   }
-  _isPdfUrl(url, img) {
-    if (img && img.dataset && img.dataset.cloudattachPdfUrl)
-      return true;
+  _isPdfUrl(url) {
     return /\.pdf(\?|#|$)/i.test(url);
   }
   async _renderPdfAsCanvas(imgEl, url) {
@@ -3365,7 +3344,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
         scrollArea.style.position = "relative";
         container.appendChild(scrollArea);
         imgEl.replaceWith(container);
-        container.dataset.scale = String(FIXED_SCALE);
         const firstPage = await pdf.getPage(1);
         const firstViewport = firstPage.getViewport({ scale: FIXED_SCALE });
         const canvasW = firstViewport.width;
@@ -3440,15 +3418,25 @@ module.exports = class CloudAttachPlugin extends Plugin {
         this._bindPdfScroll(container, pdf);
         console.log("[CloudAttach] PDF container built, pages:", pdf.numPages);
       } catch (e) {
-        const errMsg = e?.message || String(e);
-        console.error("[CloudAttach] PDF render failed:", errMsg, e);
+        console.error("[CloudAttach] PDF render failed:", e);
+        const errorMsg = e && e.message ? String(e.message) : "PDF render failed";
         try {
-          new Notice("CloudAttach PDF \u6E32\u67D3\u5931\u8D25: " + errMsg, 8e3);
-        } catch (e2) {
-        }
-        if (imgEl && imgEl.style) {
-          imgEl.style.setProperty("border", "2px dashed #e74c3c", "important");
-          imgEl.dataset.cloudattachError = errMsg;
+          if (imgEl && imgEl.isConnected) {
+            imgEl.style.border = "2px dashed red";
+            imgEl.title = errorMsg;
+            const overlay = document.createElement("span");
+            overlay.textContent = errorMsg;
+            overlay.style.display = "block";
+            overlay.style.color = "red";
+            overlay.style.fontSize = "10px";
+            overlay.style.wordBreak = "break-all";
+            overlay.style.maxWidth = "100%";
+            overlay.style.overflow = "hidden";
+            overlay.style.textOverflow = "ellipsis";
+            imgEl.parentNode.insertBefore(overlay, imgEl.nextSibling);
+          }
+        } catch (overlayErr) {
+          console.error("[CloudAttach] error overlay failed:", overlayErr);
         }
       }
     };
@@ -3480,12 +3468,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     await this._renderPdfPage(canvas, pdf, pageNum, scale);
     placeholder.replaceWith(canvas);
     console.log("[CloudAttach] lazy page", pageNum, "rendered");
-    const scrollArea = canvas.closest(".cloudattach-pdf-scrollarea");
-    const container = scrollArea ? scrollArea.parentElement : null;
-    const scrollObserver = this._pdfScrollObservers?.get(container);
-    if (scrollObserver) {
-      scrollObserver.observe(canvas);
-    }
   }
   // 监听滚动更新当前页码（连续滚动模式，监听 scrollArea）
   _bindPdfScroll(container, pdf) {
@@ -3501,9 +3483,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }, { root: scrollArea, threshold: 0.5 });
     const canvases = scrollArea.querySelectorAll(".cloudattach-pdf-page");
     canvases.forEach((canvas) => observer.observe(canvas));
-    if (!this._pdfScrollObservers)
-      this._pdfScrollObservers = /* @__PURE__ */ new Map();
-    this._pdfScrollObservers.set(container, observer);
   }
   // 初始化 PDF 翻页工具栏（参考 v0.3.042 样式：底部右侧，hover 显示）
   _initPdfToolbar(container, pdf) {
@@ -3566,33 +3545,23 @@ module.exports = class CloudAttachPlugin extends Plugin {
       new Notice2("\u{1F50D} \u5168\u5C4F\u9884\u89C8\u529F\u80FD\uFF0C\u656C\u8BF7\u671F\u5F85");
     };
     const scrollArea = container.querySelector(".cloudattach-pdf-scrollarea");
-    const scrollToPage = async (pageNum) => {
-      let targetCanvas = scrollArea.querySelector(`.cloudattach-pdf-page[data-page-num="${pageNum}"]`);
-      if (!targetCanvas) {
-        const placeholder = scrollArea.querySelector(`.cloudattach-pdf-placeholder[data-page-num="${pageNum}"]`);
-        if (placeholder && !placeholder.dataset.rendered) {
-          const scale = parseFloat(container.dataset.scale) || 1.5;
-          await this._renderLazyPage(placeholder, pdf, pageNum, scale);
-          targetCanvas = scrollArea.querySelector(`.cloudattach-pdf-page[data-page-num="${pageNum}"]`);
-        }
-      }
+    const scrollToPage = (pageNum) => {
+      const targetCanvas = scrollArea.querySelector(`.cloudattach-pdf-page[data-page-num="${pageNum}"]`);
       if (targetCanvas) {
         scrollArea.scrollTop = targetCanvas.offsetTop;
-        container.dataset.currentPage = String(pageNum);
-        this._updatePdfToolbar(container, pdf);
       }
     };
-    prevBtn.onclick = async (e) => {
+    prevBtn.onclick = (e) => {
       e.stopPropagation();
       const current = parseInt(container.dataset.currentPage);
       if (current > 1)
-        await scrollToPage(current - 1);
+        scrollToPage(current - 1);
     };
-    nextBtn.onclick = async (e) => {
+    nextBtn.onclick = (e) => {
       e.stopPropagation();
       const current = parseInt(container.dataset.currentPage);
       if (current < totalPages)
-        await scrollToPage(current + 1);
+        scrollToPage(current + 1);
     };
     pageIndicator.onclick = (e) => {
       e.stopPropagation();
@@ -3636,7 +3605,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }).open();
     };
     const versionLabel = document.createElement("span");
-    versionLabel.textContent = "v279";
+    versionLabel.textContent = "v281";
     versionLabel.style.opacity = "0.4";
     versionLabel.style.fontSize = "10px";
     toolbar.appendChild(versionLabel);
@@ -3675,8 +3644,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
             if (img.closest(".cloudattach-pdf-container"))
               return;
             const src = img.getAttribute("src") || "";
-            if (this._isPdfUrl(src, img)) {
-              this._renderPdfAsCanvas(img, img.dataset.cloudattachPdfUrl || src);
+            if (this._isPdfUrl(src)) {
+              this._renderPdfAsCanvas(img, src);
             }
           });
         });
@@ -3730,8 +3699,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
               if (img.closest(".cloudattach-pdf-container"))
                 return;
               const src = img.getAttribute("src") || "";
-              if (this._isPdfUrl(src, img)) {
-                this._renderPdfAsCanvas(img, img.dataset.cloudattachPdfUrl || src);
+              if (this._isPdfUrl(src)) {
+                this._renderPdfAsCanvas(img, src);
               }
             });
           });
@@ -3745,39 +3714,19 @@ module.exports = class CloudAttachPlugin extends Plugin {
   _scanAllPdfImgs(doc) {
     const d = doc || document;
     const allImgs = d.querySelectorAll("img");
-    const pdfImgs = Array.from(allImgs).filter((img) => this._isPdfUrl(img.getAttribute("src") || "", img));
+    const pdfImgs = Array.from(allImgs).filter((img) => this._isPdfUrl(img.getAttribute("src") || ""));
     console.log("[CloudAttach] _scanAllPdfImgs:", allImgs.length, "imgs total,", pdfImgs.length, "pdf imgs");
     if (pdfImgs.length > 0) {
       pdfImgs.forEach((img) => {
         console.log("[CloudAttach]  pdf img src:", img.getAttribute("src")?.substring(0, 100), "| class:", img.className, "| alt:", img.alt);
       });
     }
-    let fallbackPdfUrls = [];
-    try {
-      const activeView = this.app.workspace.getActiveViewOfType(require("obsidian").MarkdownView);
-      if (activeView) {
-        const srcText = activeView.getViewData();
-        const mdRe = /!\[[^\]]*\]\(([^)\s]+\.pdf[^)]*)\)/gi;
-        let m;
-        while ((m = mdRe.exec(srcText)) !== null)
-          fallbackPdfUrls.push(m[1]);
-      }
-    } catch (e) {
-    }
-    let fallbackIdx = 0;
     allImgs.forEach((img) => {
       if (img.closest(".cloudattach-pdf-container"))
         return;
       const src = img.getAttribute("src") || "";
-      if (this._isPdfUrl(src, img)) {
-        this._renderPdfAsCanvas(img, img.dataset.cloudattachPdfUrl || src);
-      } else if (fallbackPdfUrls.length > 0 && !img.dataset.cloudattachPdfUrl) {
-        const fallbackUrl = fallbackPdfUrls[fallbackIdx++];
-        if (fallbackUrl) {
-          console.log("[CloudAttach] fallback PDF match for img, url:", fallbackUrl?.substring(0, 80));
-          img.dataset.cloudattachPdfUrl = fallbackUrl;
-          this._renderPdfAsCanvas(img, fallbackUrl);
-        }
+      if (this._isPdfUrl(src)) {
+        this._renderPdfAsCanvas(img, src);
       }
     });
   }
