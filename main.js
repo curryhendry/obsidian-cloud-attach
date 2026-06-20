@@ -3605,7 +3605,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }).open();
     };
     const versionLabel = document.createElement("span");
-    versionLabel.textContent = "v282";
+    versionLabel.textContent = "v284";
     versionLabel.style.opacity = "0.4";
     versionLabel.style.fontSize = "10px";
     toolbar.appendChild(versionLabel);
@@ -3716,19 +3716,18 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const allImgs = d.querySelectorAll("img");
     let notePdfUrls = [];
     try {
-      const activeFile = this.app.workspace.getActiveViewOfType(require("obsidian").MarkdownView)?.file;
-      if (activeFile) {
-        const srcText = this.app.vault.cachedRead ? this.app.vault.cachedRead(activeFile) : "";
-        if (srcText) {
-          const pdfRe = /!\[[^\]]*\]\(([^)]+\.pdf(?:\?|#)[^)]*)\)/gi;
-          let m;
-          while ((m = pdfRe.exec(srcText)) !== null)
-            notePdfUrls.push(m[1]);
+      const editor = this.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
+      if (editor) {
+        const content = editor.getValue();
+        const pdfRe = /!\[([^\]]*)\]\(([^)]*\.pdf[^)]*)\)/gi;
+        let m;
+        while ((m = pdfRe.exec(content)) !== null) {
+          notePdfUrls.push(m[2]);
         }
       }
     } catch (e) {
     }
-    console.log("[CloudAttach] _scanAllPdfImgs: notePdfUrls=", notePdfUrls.length);
+    console.log("[CloudAttach] _scanAllPdfImgs:", allImgs.length, "total,", notePdfUrls.length, "note pdf urls");
     allImgs.forEach((img) => {
       if (img.closest(".cloudattach-pdf-container"))
         return;
@@ -3736,13 +3735,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
       let url = null;
       if (this._isPdfUrl(src)) {
         url = src;
-      } else if (notePdfUrls.length > 0 && img.dataset.cloudattachPdfUrl) {
-        url = img.dataset.cloudattachPdfUrl;
       } else if (notePdfUrls.length > 0) {
-        const unmatchedIdx = Array.from(allImgs).filter((i) => !i.closest(".cloudattach-pdf-container") && !this._isPdfUrl(i.getAttribute("src") || "")).indexOf(img);
+        const unmatched = Array.from(allImgs).filter((i) => !i.closest(".cloudattach-pdf-container") && !this._isPdfUrl(i.getAttribute("src") || ""));
+        const unmatchedIdx = unmatched.indexOf(img);
         if (unmatchedIdx >= 0 && unmatchedIdx < notePdfUrls.length) {
           url = notePdfUrls[unmatchedIdx];
-          console.log("[CloudAttach] fallback match: img index", unmatchedIdx, "->", url?.substring(0, 80));
         }
       }
       if (url) {
