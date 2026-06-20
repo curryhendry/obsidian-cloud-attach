@@ -1,3 +1,10 @@
+## v0.3.279.dev - 2026-06-20
+
+### 修复
+
+- PDF 渲染兜底：_scanAllPdfImgs 增加从笔记 markdown 源码反查 PDF URL，解决 PostProcessor 未标记的 img 无法识别问题
+- WebDAV 重命名 500 错误：MOVE 请求 Destination 头部改为相对路径（兼容 OpenList）
+
 ## v0.3.277.dev - 2026-06-19
 
 ### 修复
