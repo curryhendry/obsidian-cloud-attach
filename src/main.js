@@ -1066,14 +1066,15 @@ class OpenListClient {
       const srcUrl = `${this.serverUrl}${this.encodePath(this.webdavPath + path)}`;
       const dstDir = path.substring(0, path.lastIndexOf('/'));
       const dstPath = `${dstDir}/${newName}`;
-      const dstUrl = `${this.serverUrl}${this.encodePath(this.webdavPath + dstPath)}`;
-      console.log("[CloudAttach] rename WebDAV MOVE: src:", srcUrl, "dst:", dstUrl);
+      // Destination 使用相对路径（不含 serverUrl），兼容 OpenList 等 WebDAV 服务
+      const dstRelativePath = this.encodePath(this.webdavPath + dstPath);
+      console.log("[CloudAttach] rename WebDAV MOVE: src:", srcUrl, "dst relative:", dstRelativePath);
       
       const response = await this.requestViaObsidian(srcUrl, {
         method: 'MOVE',
         headers: {
           'Authorization': 'Basic ' + btoa(`${this.username}:${this.password}`),
-          'Destination': dstUrl
+          'Destination': dstRelativePath
         }
       });
       console.log("[CloudAttach] rename WebDAV response status:", response.status);
@@ -3987,11 +3988,31 @@ module.exports = class CloudAttachPlugin extends Plugin {
         console.log('[CloudAttach]  pdf img src:', img.getAttribute('src')?.substring(0, 100), '| class:', img.className, '| alt:', img.alt);
       });
     }
+    // 兜底：从当前活动笔记的 markdown 源码提取 PDF URL，按位置匹配未识别的 img
+    let fallbackPdfUrls = [];
+    try {
+      const activeView = this.app.workspace.getActiveViewOfType(require('obsidian').MarkdownView);
+      if (activeView) {
+        const srcText = activeView.getViewData();
+        const mdRe = /!\[[^\]]*\]\(([^)\s]+\.pdf[^)]*)\)/gi;
+        let m;
+        while ((m = mdRe.exec(srcText)) !== null) fallbackPdfUrls.push(m[1]);
+      }
+    } catch (e) { /* 非编辑模式等场景静默失败 */ }
+    let fallbackIdx = 0;
     allImgs.forEach(img => {
       if (img.closest('.cloudattach-pdf-container')) return;
       const src = img.getAttribute('src') || '';
       if (this._isPdfUrl(src, img)) {
         this._renderPdfAsCanvas(img, img.dataset.cloudattachPdfUrl || src);
+      } else if (fallbackPdfUrls.length > 0 && !img.dataset.cloudattachPdfUrl) {
+        // 兜底：PostProcessor 未标记的 img，按顺序从源码匹配 PDF URL
+        const fallbackUrl = fallbackPdfUrls[fallbackIdx++];
+        if (fallbackUrl) {
+          console.log('[CloudAttach] fallback PDF match for img, url:', fallbackUrl?.substring(0, 80));
+          img.dataset.cloudattachPdfUrl = fallbackUrl;
+          this._renderPdfAsCanvas(img, fallbackUrl);
+        }
       }
     });
   }

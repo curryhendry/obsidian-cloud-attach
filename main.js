@@ -964,13 +964,13 @@ var OpenListClient = class {
       const srcUrl = `${this.serverUrl}${this.encodePath(this.webdavPath + path)}`;
       const dstDir = path.substring(0, path.lastIndexOf("/"));
       const dstPath = `${dstDir}/${newName}`;
-      const dstUrl = `${this.serverUrl}${this.encodePath(this.webdavPath + dstPath)}`;
-      console.log("[CloudAttach] rename WebDAV MOVE: src:", srcUrl, "dst:", dstUrl);
+      const dstRelativePath = this.encodePath(this.webdavPath + dstPath);
+      console.log("[CloudAttach] rename WebDAV MOVE: src:", srcUrl, "dst relative:", dstRelativePath);
       const response2 = await this.requestViaObsidian(srcUrl, {
         method: "MOVE",
         headers: {
           "Authorization": "Basic " + btoa(`${this.username}:${this.password}`),
-          "Destination": dstUrl
+          "Destination": dstRelativePath
         }
       });
       console.log("[CloudAttach] rename WebDAV response status:", response2.status);
@@ -3752,12 +3752,32 @@ module.exports = class CloudAttachPlugin extends Plugin {
         console.log("[CloudAttach]  pdf img src:", img.getAttribute("src")?.substring(0, 100), "| class:", img.className, "| alt:", img.alt);
       });
     }
+    let fallbackPdfUrls = [];
+    try {
+      const activeView = this.app.workspace.getActiveViewOfType(require("obsidian").MarkdownView);
+      if (activeView) {
+        const srcText = activeView.getViewData();
+        const mdRe = /!\[[^\]]*\]\(([^)\s]+\.pdf[^)]*)\)/gi;
+        let m;
+        while ((m = mdRe.exec(srcText)) !== null)
+          fallbackPdfUrls.push(m[1]);
+      }
+    } catch (e) {
+    }
+    let fallbackIdx = 0;
     allImgs.forEach((img) => {
       if (img.closest(".cloudattach-pdf-container"))
         return;
       const src = img.getAttribute("src") || "";
       if (this._isPdfUrl(src, img)) {
         this._renderPdfAsCanvas(img, img.dataset.cloudattachPdfUrl || src);
+      } else if (fallbackPdfUrls.length > 0 && !img.dataset.cloudattachPdfUrl) {
+        const fallbackUrl = fallbackPdfUrls[fallbackIdx++];
+        if (fallbackUrl) {
+          console.log("[CloudAttach] fallback PDF match for img, url:", fallbackUrl?.substring(0, 80));
+          img.dataset.cloudattachPdfUrl = fallbackUrl;
+          this._renderPdfAsCanvas(img, fallbackUrl);
+        }
       }
     });
   }
