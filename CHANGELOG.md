@@ -1,3 +1,7 @@
+## v0.3.283.dev - 2026-06-20
+
+- 修复 iOS blob URL 导致第二个 PDF 检测失败：_scanAllPdfImgs 增加从笔记源码提取 .pdf URL 兜底匹配
+
 ## v0.3.281.dev - 2026-06-20
 
 ### 修复

@@ -3824,7 +3824,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }).open();
     };
     const versionLabel = document.createElement("span");
-    versionLabel.textContent = "v281";
+    versionLabel.textContent = "v282";
     versionLabel.style.opacity = "0.4";
     versionLabel.style.fontSize = "10px";
     toolbar.appendChild(versionLabel);
@@ -3948,18 +3948,38 @@ module.exports = class CloudAttachPlugin extends Plugin {
   _scanAllPdfImgs(doc) {
     const d = doc || document;
     const allImgs = d.querySelectorAll('img');
-    const pdfImgs = Array.from(allImgs).filter(img => this._isPdfUrl(img.getAttribute('src') || ''));
-    console.log('[CloudAttach] _scanAllPdfImgs:', allImgs.length, 'imgs total,', pdfImgs.length, 'pdf imgs');
-    if (pdfImgs.length > 0) {
-      pdfImgs.forEach(img => {
-        console.log('[CloudAttach]  pdf img src:', img.getAttribute('src')?.substring(0, 100), '| class:', img.className, '| alt:', img.alt);
-      });
-    }
+    // 从当前笔记源码提取 .pdf URL 作为 iOS blob URL 兜底
+    let notePdfUrls = [];
+    try {
+      const activeFile = this.app.workspace.getActiveViewOfType(require('obsidian').MarkdownView)?.file;
+      if (activeFile) {
+        const srcText = this.app.vault.cachedRead ? this.app.vault.cachedRead(activeFile) : '';
+        if (srcText) {
+          const pdfRe = /!\[[^\]]*\]\(([^)]+\.pdf(?:\?|#)[^)]*)\)/gi;
+          let m;
+          while ((m = pdfRe.exec(srcText)) !== null) notePdfUrls.push(m[1]);
+        }
+      }
+    } catch (e) { /* 静默失败 */ }
+    console.log('[CloudAttach] _scanAllPdfImgs: notePdfUrls=', notePdfUrls.length);
     allImgs.forEach(img => {
       if (img.closest('.cloudattach-pdf-container')) return;
       const src = img.getAttribute('src') || '';
+      let url = null;
       if (this._isPdfUrl(src)) {
-        this._renderPdfAsCanvas(img, src);
+        url = src;
+      } else if (notePdfUrls.length > 0 && img.dataset.cloudattachPdfUrl) {
+        url = img.dataset.cloudattachPdfUrl;
+      } else if (notePdfUrls.length > 0) {
+        // 兜底：按位置顺序匹配（第 N 个未识别 img 对应第 N 个 .pdf URL）
+        const unmatchedIdx = Array.from(allImgs).filter(i => !i.closest('.cloudattach-pdf-container') && !this._isPdfUrl(i.getAttribute('src') || '')).indexOf(img);
+        if (unmatchedIdx >= 0 && unmatchedIdx < notePdfUrls.length) {
+          url = notePdfUrls[unmatchedIdx];
+          console.log('[CloudAttach] fallback match: img index', unmatchedIdx, '->', url?.substring(0, 80));
+        }
+      }
+      if (url) {
+        this._renderPdfAsCanvas(img, url);
       }
     });
   }
