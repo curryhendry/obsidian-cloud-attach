@@ -1,7 +1,9 @@
-## v0.3.290.dev - 2026-06-21
+## v0.3.292.dev - 2026-06-21
 
-- PostProcessor 直接调用 _renderPdfAsCanvas 渲染 iOS blob URL 的 PDF img，不再依赖 dataset 中转时序
-- _scanAllPdfImgs 和 MutationObserver 回退到 _isPdfUrl 过滤，移除 dataset 读取逻辑
+- PostProcessor 匹配所有 `[]()` / `![]()` 模式，按 DOM 顺序对应 blob img，只渲染 URL 含 .pdf 的条目，修复非 PDF 图片误识别和宽度错位
+- 版本角标更新为 v290
+
+## v0.3.290.dev - 2026-06-21
 
 ## v0.3.286.dev - 2026-06-20
 
