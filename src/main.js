@@ -3372,34 +3372,38 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (!file || !file.extension) return;
       try {
         const content = await this.app.vault.cachedRead(file);
-        const pdfUrls = [];
-        const re = /!\[([^\]]*)\]\(([^)]*\.pdf[^)]*)\)/gi;
+        // 匹配所有 []() 和 ![]() 模式，按 DOM 顺序对应 blob img
+        const allPatterns = [];
+        const re = /!?\[([^\]]*)\]\(([^)]*)\)/gi;
         let m;
         while ((m = re.exec(content)) !== null) {
-          pdfUrls.push(m[2]);
+          allPatterns.push(m[2]);
         }
-        if (pdfUrls.length === 0) return;
-        let sectionPdfUrls = [];
+        if (allPatterns.length === 0) return;
+        let sectionUrls = [];
         if (ctx.getSectionInfo) {
           const sectionInfo = ctx.getSectionInfo(el);
           if (sectionInfo) {
             const lines = content.split('\n');
             const sectionText = lines.slice(sectionInfo.lineStart, sectionInfo.lineEnd + 1).join('\n');
-            const secRe = /!\[([^\]]*)\]\(([^)]*\.pdf[^)]*)\)/gi;
+            const secRe = /!?\[([^\]]*)\]\(([^)]*)\)/gi;
             let secM;
             while ((secM = secRe.exec(sectionText)) !== null) {
-              sectionPdfUrls.push(secM[2]);
+              sectionUrls.push(secM[2]);
             }
           }
         }
-        const urls = sectionPdfUrls.length > 0 ? sectionPdfUrls : pdfUrls;
+        const urls = sectionUrls.length > 0 ? sectionUrls : allPatterns;
         const blobImgs = Array.from(imgs).filter(
           img => !img.closest('.cloudattach-pdf-container') &&
                  (img.getAttribute('src') || '').startsWith('blob:')
         );
         blobImgs.forEach((img, idx) => {
           if (idx < urls.length) {
-            this._renderPdfAsCanvas(img, urls[idx]);
+            const url = urls[idx];
+            if (url.toLowerCase().includes('.pdf')) {
+              this._renderPdfAsCanvas(img, url);
+            }
           }
         });
       } catch(e) {
@@ -3871,7 +3875,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }).open();
     };
     const versionLabel = document.createElement("span");
-    versionLabel.textContent = "v288";
+    versionLabel.textContent = "v290";
     versionLabel.style.opacity = "0.4";
     versionLabel.style.fontSize = "10px";
     toolbar.appendChild(versionLabel);
