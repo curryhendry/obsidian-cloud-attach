@@ -3208,6 +3208,16 @@ module.exports = class CloudAttachPlugin extends Plugin {
           if (idx < urls.length) {
             const url = urls[idx];
             if (url.toLowerCase().includes(".pdf")) {
+              if (idx < allPatterns.length) {
+                const rawPattern = allPatterns[idx];
+                const barIdx = rawPattern.lastIndexOf("|");
+                if (barIdx !== -1) {
+                  const afterBar = rawPattern.substring(barIdx + 1).trim();
+                  if (/^\d+$/.test(afterBar)) {
+                    img.dataset.cloudattachWidth = afterBar;
+                  }
+                }
+              }
               this._renderPdfAsCanvas(img, url);
             }
           }
@@ -3347,12 +3357,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
         const loadingTask = pdfjsLib.getDocument({ url, ownerDocument: imgEl.ownerDocument });
         console.log("[CloudAttach] PDF doc loaded, pages:", (await loadingTask.promise).numPages);
         const pdf = await loadingTask.promise;
-        let imgWidth = imgEl.getAttribute("width") || imgEl.style.width || "";
+        let imgWidth = imgEl.dataset.cloudattachWidth || imgEl.getAttribute("width") || imgEl.style.width || "";
         let imgHeight = imgEl.getAttribute("height") || imgEl.style.height || "";
         let imgStyleMaxWidth = imgEl.style.maxWidth;
         const parentSpan = imgEl.parentElement;
         if (parentSpan && parentSpan.tagName === "SPAN") {
-          if (!imgWidth && parentSpan.style.width)
+          if (!imgEl.dataset.cloudattachWidth && !imgWidth && parentSpan.style.width)
             imgWidth = parentSpan.style.width;
           if (!imgHeight && parentSpan.style.height)
             imgHeight = parentSpan.style.height;
@@ -3361,11 +3371,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
         }
         const imgClasses = imgEl.className || "";
         const widthClassMatch = imgClasses.match(/cm-image-width-(\d+)/);
-        if (widthClassMatch && !imgWidth) {
+        if (widthClassMatch && !imgWidth && !imgEl.dataset.cloudattachWidth) {
           imgWidth = widthClassMatch[1] + "px";
         }
         const altWidthMatch = imgEl.alt?.match(/^(\d+)$/);
-        if (altWidthMatch && !imgWidth) {
+        if (altWidthMatch && !imgWidth && !imgEl.dataset.cloudattachWidth) {
           imgWidth = altWidthMatch[1] + "px";
         }
         const container = document.createElement("span");
