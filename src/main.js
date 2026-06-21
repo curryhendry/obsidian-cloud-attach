@@ -3399,7 +3399,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         );
         blobImgs.forEach((img, idx) => {
           if (idx < urls.length) {
-            img.dataset.cloudattachPdfUrl = urls[idx];
+            this._renderPdfAsCanvas(img, urls[idx]);
           }
         });
       } catch(e) {
@@ -3871,7 +3871,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }).open();
     };
     const versionLabel = document.createElement("span");
-    versionLabel.textContent = "v287";
+    versionLabel.textContent = "v288";
     versionLabel.style.opacity = "0.4";
     versionLabel.style.fontSize = "10px";
     toolbar.appendChild(versionLabel);
@@ -3914,9 +3914,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
             // 避免重复处理已替换的容器
             if (img.closest('.cloudattach-pdf-container')) return;
             const src = img.getAttribute('src') || '';
-            if (img.dataset.cloudattachPdfUrl) {
-              this._renderPdfAsCanvas(img, img.dataset.cloudattachPdfUrl);
-            } else if (this._isPdfUrl(src)) {
+            if (this._isPdfUrl(src)) {
               this._renderPdfAsCanvas(img, src);
             }
           });
@@ -4000,10 +3998,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     allImgs.forEach(img => {
       if (img.closest('.cloudattach-pdf-container')) return;
       const src = img.getAttribute('src') || '';
-      if (img.dataset.cloudattachPdfUrl) {
-        this._renderPdfAsCanvas(img, img.dataset.cloudattachPdfUrl);
-        return;
-      }
       if (this._isPdfUrl(src)) {
         this._renderPdfAsCanvas(img, src);
         return;

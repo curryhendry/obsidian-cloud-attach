@@ -1,7 +1,7 @@
-## v0.3.288.dev - 2026-06-20
+## v0.3.290.dev - 2026-06-21
 
-- 新增 PostProcessor：阅读模式下解析 Markdown 源码中的 .pdf URL 写入 img dataset，解决 iOS blob URL 检测不到 PDF 的问题
-- _scanAllPdfImgs 和 MutationObserver 优先读 dataset.cloudattachPdfUrl，兜底检查 alt 是否含 .pdf
+- PostProcessor 直接调用 _renderPdfAsCanvas 渲染 iOS blob URL 的 PDF img，不再依赖 dataset 中转时序
+- _scanAllPdfImgs 和 MutationObserver 回退到 _isPdfUrl 过滤，移除 dataset 读取逻辑
 
 ## v0.3.286.dev - 2026-06-20
 
