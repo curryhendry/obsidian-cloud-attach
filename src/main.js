@@ -3378,8 +3378,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
         let m;
         while ((m = re.exec(content)) !== null) {
           allPatterns.push({ label: m[1], url: m[2] });
+          console.log('[CloudAttach] Pattern matched — label:', JSON.stringify(m[1]), 'url:', JSON.stringify(m[2]));
         }
-        if (allPatterns.length === 0) return;
+        if (allPatterns.length === 0) { console.log('[CloudAttach] No patterns matched in content'); return; }
         let sectionPatterns = [];
         if (ctx.getSectionInfo) {
           const sectionInfo = ctx.getSectionInfo(el);
@@ -3404,10 +3405,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
             if (pat.url.toLowerCase().includes('.pdf')) {
               // 从 markdown label 解析 名称|宽度 格式，写入 dataset
               const barIdx = pat.label.lastIndexOf('|');
+              console.log('[CloudAttach] Processing pattern idx', idx, 'label:', JSON.stringify(pat.label), 'barIdx:', barIdx);
               if (barIdx !== -1) {
                 const afterBar = pat.label.substring(barIdx + 1).trim();
+                console.log('[CloudAttach] afterBar:', JSON.stringify(afterBar), 'isDigit:', /^\d+$/.test(afterBar));
                 if (/^\d+$/.test(afterBar)) {
                   img.dataset.cloudattachWidth = afterBar;
+                  console.log('[CloudAttach] Set dataset.cloudattachWidth =', afterBar);
                 }
               }
               this._renderPdfAsCanvas(img, pat.url);
@@ -3561,6 +3565,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       console.log("[CloudAttach] PDF doc loaded, pages:", (await loadingTask.promise).numPages);
       const pdf = await loadingTask.promise;
       let imgWidth = imgEl.dataset.cloudattachWidth || imgEl.getAttribute("width") || imgEl.style.width || "";
+      console.log('[CloudAttach] _renderPdfAsCanvas width — dataset:', imgEl.dataset.cloudattachWidth, 'attr:', imgEl.getAttribute('width'), 'style:', imgEl.style.width, 'final:', imgWidth);
       let imgHeight = imgEl.getAttribute("height") || imgEl.style.height || "";
       let imgStyleMaxWidth = imgEl.style.maxWidth;
       const parentSpan = imgEl.parentElement;
