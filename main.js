@@ -3183,11 +3183,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
         const re = /!?\[([^\]]*)\]\(([^)]*)\)/gi;
         let m;
         while ((m = re.exec(content)) !== null) {
-          allPatterns.push(m[2]);
+          allPatterns.push({ label: m[1], url: m[2] });
         }
         if (allPatterns.length === 0)
           return;
-        let sectionUrls = [];
+        let sectionPatterns = [];
         if (ctx.getSectionInfo) {
           const sectionInfo = ctx.getSectionInfo(el);
           if (sectionInfo) {
@@ -3196,29 +3196,26 @@ module.exports = class CloudAttachPlugin extends Plugin {
             const secRe = /!?\[([^\]]*)\]\(([^)]*)\)/gi;
             let secM;
             while ((secM = secRe.exec(sectionText)) !== null) {
-              sectionUrls.push(secM[2]);
+              sectionPatterns.push({ label: secM[1], url: secM[2] });
             }
           }
         }
-        const urls = sectionUrls.length > 0 ? sectionUrls : allPatterns;
+        const patterns = sectionPatterns.length > 0 ? sectionPatterns : allPatterns;
         const blobImgs = Array.from(imgs).filter(
           (img) => !img.closest(".cloudattach-pdf-container") && (img.getAttribute("src") || "").startsWith("blob:")
         );
         blobImgs.forEach((img, idx) => {
-          if (idx < urls.length) {
-            const url = urls[idx];
-            if (url.toLowerCase().includes(".pdf")) {
-              if (idx < allPatterns.length) {
-                const rawPattern = allPatterns[idx];
-                const barIdx = rawPattern.lastIndexOf("|");
-                if (barIdx !== -1) {
-                  const afterBar = rawPattern.substring(barIdx + 1).trim();
-                  if (/^\d+$/.test(afterBar)) {
-                    img.dataset.cloudattachWidth = afterBar;
-                  }
+          if (idx < patterns.length) {
+            const pat = patterns[idx];
+            if (pat.url.toLowerCase().includes(".pdf")) {
+              const barIdx = pat.label.lastIndexOf("|");
+              if (barIdx !== -1) {
+                const afterBar = pat.label.substring(barIdx + 1).trim();
+                if (/^\d+$/.test(afterBar)) {
+                  img.dataset.cloudattachWidth = afterBar;
                 }
               }
-              this._renderPdfAsCanvas(img, url);
+              this._renderPdfAsCanvas(img, pat.url);
             }
           }
         });
