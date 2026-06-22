@@ -3184,8 +3184,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
         let m;
         while ((m = re.exec(content)) !== null) {
           allPatterns.push({ label: m[1], url: m[2] });
+          console.log("[CloudAttach] Pattern matched \u2014 label:", JSON.stringify(m[1]), "url:", JSON.stringify(m[2]));
         }
         if (allPatterns.length === 0) {
+          console.log("[CloudAttach] No patterns matched in content");
           return;
         }
         let sectionPatterns = [];
@@ -3210,10 +3212,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
             const pat = patterns[idx];
             if (pat.url.toLowerCase().includes(".pdf")) {
               const barIdx = pat.label.lastIndexOf("|");
+              console.log("[CloudAttach] Processing pattern idx", idx, "label:", JSON.stringify(pat.label), "barIdx:", barIdx);
               if (barIdx !== -1) {
                 const afterBar = pat.label.substring(barIdx + 1).trim();
+                console.log("[CloudAttach] afterBar:", JSON.stringify(afterBar), "isDigit:", /^\d+$/.test(afterBar));
                 if (/^\d+$/.test(afterBar)) {
                   img.dataset.cloudattachWidth = afterBar;
+                  console.log("[CloudAttach] Set dataset.cloudattachWidth =", afterBar);
                 }
               }
               this._renderPdfAsCanvas(img, pat.url);
@@ -3221,6 +3226,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
           }
         });
       } catch (e) {
+        console.log("[CloudAttach] PostProcessor error:", e);
       }
     });
     try {
@@ -3352,8 +3358,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
       try {
         const pdfjsLib = await this._loadPdfJs();
         const loadingTask = pdfjsLib.getDocument({ url, ownerDocument: imgEl.ownerDocument });
+        console.log("[CloudAttach] PDF doc loaded, pages:", (await loadingTask.promise).numPages);
         const pdf = await loadingTask.promise;
         let imgWidth = imgEl.dataset.cloudattachWidth || imgEl.getAttribute("width") || imgEl.style.width || "";
+        console.log("[CloudAttach] _renderPdfAsCanvas width \u2014 dataset:", imgEl.dataset.cloudattachWidth, "attr:", imgEl.getAttribute("width"), "style:", imgEl.style.width, "final:", imgWidth);
         let imgHeight = imgEl.getAttribute("height") || imgEl.style.height || "";
         let imgStyleMaxWidth = imgEl.style.maxWidth;
         const parentSpan = imgEl.parentElement;
@@ -3382,6 +3390,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         if (imgWidth) {
           const w = imgWidth.includes("%") || imgWidth.includes("px") || imgWidth.includes("vw") ? imgWidth : imgWidth + "px";
           container.style.setProperty("width", w, "important");
+          container.style.setProperty("max-width", "100%", "important");
         }
         if (imgStyleMaxWidth)
           container.style.maxWidth = imgStyleMaxWidth;
@@ -3473,7 +3482,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
         if (this._renderedPdfUrls) {
           this._renderedPdfUrls.add(url + ":" + (imgEl.id || imgEl.dataset.src || ""));
         }
+        console.log("[CloudAttach] ALL DONE, pages:", pdf.numPages);
         this._bindPdfScroll(container, pdf);
+        console.log("[CloudAttach] PDF container built, pages:", pdf.numPages);
       } catch (e) {
         console.error("[CloudAttach] PDF render failed:", e);
         const errorMsg = e && e.message ? String(e.message) : "PDF render failed";
@@ -3662,7 +3673,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }).open();
     };
     const versionLabel = document.createElement("span");
-    versionLabel.textContent = "v0.3.300.dev";
+    versionLabel.textContent = "v295";
     versionLabel.style.opacity = "0.4";
     versionLabel.style.fontSize = "10px";
     toolbar.appendChild(versionLabel);
