@@ -3390,7 +3390,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
         if (imgWidth) {
           const w = imgWidth.includes("%") || imgWidth.includes("px") || imgWidth.includes("vw") ? imgWidth : imgWidth + "px";
           container.style.setProperty("width", w, "important");
-          container.style.setProperty("max-width", "100%", "important");
         }
         if (imgStyleMaxWidth)
           container.style.maxWidth = imgStyleMaxWidth;
@@ -3673,7 +3672,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }).open();
     };
     const versionLabel = document.createElement("span");
-    versionLabel.textContent = "v295";
+    versionLabel.textContent = "0.3.302.dev";
     versionLabel.style.opacity = "0.4";
     versionLabel.style.fontSize = "10px";
     toolbar.appendChild(versionLabel);
