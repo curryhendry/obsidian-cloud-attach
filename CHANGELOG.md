@@ -1,3 +1,8 @@
+## v0.3.294.dev - 2026-06-22
+
+- PDF 宽度自适应修复：用动态 scale（targetW/pdfPageW）替代 FIXED_SCALE=1.5，用户指定像素宽度时优先使用指定宽度，否则用容器宽度
+- ResizeObserver 改为重新渲染 canvas 而非只改高度
+
 ## v0.3.292.dev - 2026-06-21
 
 - PostProcessor 匹配所有 `[]()` / `![]()` 模式，按 DOM 顺序对应 blob img，只渲染 URL 含 .pdf 的条目，修复非 PDF 图片误识别和宽度错位
