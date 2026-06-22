@@ -1,8 +1,6 @@
-## v0.3.303.dev - 2026-06-22
+## v0.3.305.dev - 2026-06-22
 
-- 修复：PDF 设定宽度无效（![|width](url.pdf)），删除 FIXED_SCALE=1.5，改为动态 scale = targetW / pdfPageW
-- 版本角标改为占位符 CLOUDATTACH_VERSION，deploy.sh 自动替换
-- deploy.sh 移除版本号自动递增，改为直接读取 CHANGELOG 版本号
+- 修复：PostProcessor 解析 markdown `![alt|width](url.pdf)` 宽度写入 dataset，_renderPdfAsCanvas 优先读取，修复 PDF 设定宽度无效
 
 ## v0.3.290.dev - 2026-06-21
 

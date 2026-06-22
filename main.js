@@ -3183,7 +3183,18 @@ module.exports = class CloudAttachPlugin extends Plugin {
         const re = /!?\[([^\]]*)\]\(([^)]*)\)/gi;
         let m;
         while ((m = re.exec(content)) !== null) {
-          allPatterns.push(m[2]);
+          const label = m[1];
+          const url = m[2];
+          let width = "";
+          if (label) {
+            const wMatch = label.match(/\|(\d+)$/);
+            if (wMatch) {
+              width = wMatch[1];
+            } else if (/^\d+$/.test(label)) {
+              width = label;
+            }
+          }
+          allPatterns.push({ url, width });
         }
         if (allPatterns.length === 0)
           return;
@@ -3196,7 +3207,18 @@ module.exports = class CloudAttachPlugin extends Plugin {
             const secRe = /!?\[([^\]]*)\]\(([^)]*)\)/gi;
             let secM;
             while ((secM = secRe.exec(sectionText)) !== null) {
-              sectionUrls.push(secM[2]);
+              const label = secM[1];
+              const url = secM[2];
+              let width = "";
+              if (label) {
+                const wMatch = label.match(/\|(\d+)$/);
+                if (wMatch) {
+                  width = wMatch[1];
+                } else if (/^\d+$/.test(label)) {
+                  width = label;
+                }
+              }
+              sectionUrls.push({ url, width });
             }
           }
         }
@@ -3206,8 +3228,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
         );
         blobImgs.forEach((img, idx) => {
           if (idx < urls.length) {
-            const url = urls[idx];
+            const { url, width } = urls[idx];
             if (url.toLowerCase().includes(".pdf")) {
+              if (width)
+                img.dataset.cloudattachPdfWidth = width;
               this._renderPdfAsCanvas(img, url);
             }
           }
@@ -3347,7 +3371,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         const loadingTask = pdfjsLib.getDocument({ url, ownerDocument: imgEl.ownerDocument });
         console.log("[CloudAttach] PDF doc loaded, pages:", (await loadingTask.promise).numPages);
         const pdf = await loadingTask.promise;
-        let imgWidth = imgEl.getAttribute("width") || imgEl.style.width || "";
+        let imgWidth = imgEl.dataset.cloudattachPdfWidth || imgEl.getAttribute("width") || imgEl.style.width || "";
         let imgHeight = imgEl.getAttribute("height") || imgEl.style.height || "";
         let imgStyleMaxWidth = imgEl.style.maxWidth;
         const parentSpan = imgEl.parentElement;
@@ -3662,7 +3686,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }).open();
     };
     const versionLabel = document.createElement("span");
-    versionLabel.textContent = "0.3.303.dev";
+    versionLabel.textContent = "0.3.305.dev";
     versionLabel.style.opacity = "0.4";
     versionLabel.style.fontSize = "10px";
     toolbar.appendChild(versionLabel);
