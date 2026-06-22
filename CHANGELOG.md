@@ -1,7 +1,8 @@
-## v0.3.292.dev - 2026-06-21
+## v0.3.303.dev - 2026-06-22
 
-- PostProcessor 匹配所有 `[]()` / `![]()` 模式，按 DOM 顺序对应 blob img，只渲染 URL 含 .pdf 的条目，修复非 PDF 图片误识别和宽度错位
-- 版本角标更新为 v290
+- 修复：PDF 设定宽度无效（![|width](url.pdf)），删除 FIXED_SCALE=1.5，改为动态 scale = targetW / pdfPageW
+- 版本角标改为占位符 CLOUDATTACH_VERSION，deploy.sh 自动替换
+- deploy.sh 移除版本号自动递增，改为直接读取 CHANGELOG 版本号
 
 ## v0.3.290.dev - 2026-06-21
 

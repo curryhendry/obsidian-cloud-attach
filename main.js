@@ -3384,7 +3384,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
           userHeightStr = imgHeight.includes("%") || imgHeight.includes("px") || imgHeight.includes("vh") ? imgHeight : imgHeight + "px";
           container.dataset.userHeight = userHeightStr;
         }
-        const FIXED_SCALE = 1.5;
         const TOOLBAR_HEIGHT = 28;
         container.style.setProperty("display", "block", "important");
         container.style.setProperty("overflow", "hidden", "important");
@@ -3398,7 +3397,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
         container.appendChild(scrollArea);
         imgEl.replaceWith(container);
         const firstPage = await pdf.getPage(1);
-        const firstViewport = firstPage.getViewport({ scale: FIXED_SCALE });
+        const baseViewport = firstPage.getViewport({ scale: 1 });
+        const baseW = baseViewport.width;
+        const baseH = baseViewport.height;
+        const hasUserWidth = imgWidth && !imgWidth.includes("%") && !imgWidth.includes("vw");
+        const targetW = hasUserWidth ? parseInt(imgWidth) : container.clientWidth || 800;
+        const scale = targetW / baseW;
+        const firstViewport = firstPage.getViewport({ scale });
         const canvasW = firstViewport.width;
         const canvasH = firstViewport.height;
         const firstCanvas = document.createElement("canvas");
@@ -3407,15 +3412,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
         firstCanvas.style.userSelect = "none";
         firstCanvas.draggable = false;
         scrollArea.appendChild(firstCanvas);
-        await this._renderPdfPage(firstCanvas, pdf, 1, FIXED_SCALE);
-        const containerW = container.clientWidth || 800;
-        const displayH = canvasH * (containerW / canvasW);
-        console.log("[CloudAttach] canvas WxH:", canvasW, "x", canvasH, "containerW:", containerW, "displayH:", displayH);
+        await this._renderPdfPage(firstCanvas, pdf, 1, scale);
+        console.log("[CloudAttach] canvas WxH:", canvasW, "x", canvasH, "scale:", scale);
         let finalContainerHeight;
         if (userHeightStr) {
           finalContainerHeight = userHeightStr;
         } else {
-          finalContainerHeight = Math.round(displayH) + "px";
+          finalContainerHeight = Math.round(canvasH) + "px";
         }
         container.style.setProperty("height", finalContainerHeight, "important");
         scrollArea.style.setProperty("height", "100%", "important");
@@ -3423,7 +3426,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
         container.style.setProperty("opacity", "1", "important");
         const resizeObserver = new ResizeObserver(() => {
           const newW = container.clientWidth || 800;
-          const newH = Math.round(canvasH * (newW / canvasW));
+          const newScale = hasUserWidth ? scale : newW / baseW;
+          const newH = Math.round(baseH * newScale);
           if (!userHeightStr) {
             container.style.setProperty("height", newH + "px", "important");
           }
@@ -3452,7 +3456,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
                 ph.dataset.rendered = "true";
                 const pageNum = parseInt(ph.dataset.pageNum);
                 const pdfUrl = ph.dataset.pdfUrl;
-                this._renderLazyPage(ph, pdf, pageNum, FIXED_SCALE).catch((e) => {
+                this._renderLazyPage(ph, pdf, pageNum, scale).catch((e) => {
                   console.error("[CloudAttach] lazy page render failed:", e);
                 });
                 lazyObserver.unobserve(ph);
@@ -3658,7 +3662,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }).open();
     };
     const versionLabel = document.createElement("span");
-    versionLabel.textContent = "v290";
+    versionLabel.textContent = "0.3.303.dev";
     versionLabel.style.opacity = "0.4";
     versionLabel.style.fontSize = "10px";
     toolbar.appendChild(versionLabel);
