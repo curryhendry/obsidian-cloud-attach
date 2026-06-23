@@ -1,3 +1,8 @@
+## v0.3.316.dev - 2026-06-23
+
+- 翻页按钮修复：IntersectionObserver → scroll 事件计算页码
+- 触摸设备工具栏始终可见（不依赖 mouseenter/mouseleave）
+
 ## v0.3.315.dev - 2026-06-23
 
 - 手机端无视用户设定宽度，一律自适应页面宽度
