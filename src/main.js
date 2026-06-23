@@ -3544,9 +3544,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (!this._renderedPdfUrlsByMode) this._renderedPdfUrlsByMode = {};
     if (!this._renderedPdfUrlsByMode[modeKey]) this._renderedPdfUrlsByMode[modeKey] = new Set();
     const renderedSet = this._renderedPdfUrlsByMode[modeKey];
-    const dedupKey = url + ':' + (imgEl.id || imgEl.dataset.src || imgEl.src || '');
-    if (renderedSet.has(dedupKey)) return;
-    // 去重标记移到渲染成功后，失败可重试
+    // 用 URL 作为去重 key（避免不同 imgEl 实例导致重复）
+    if (renderedSet.has(url)) return;
+    // 立即标记去重，防止并发重复渲染
     // 全局渲染队列：所有 PDF 串行渲染，防止多 PDF 并发导致手机端内存崩溃
     // 初始化链
     if (!this._pdfRenderChain) this._pdfRenderChain = Promise.resolve();
@@ -3602,6 +3602,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
         docErr._fetchInfo = fetchInfo;
         throw docErr;
       }
+      // 等待布局完成后读取宽度
+      await new Promise(r => requestAnimationFrame(r));
       let imgWidth = imgEl.dataset.cloudattachWidth || imgEl.getAttribute("width") || imgEl.style.width || "";
       // 兜底：用实际显示宽度
       if (!imgWidth && imgEl.clientWidth > 10) imgWidth = imgEl.clientWidth + "px";
@@ -3739,10 +3741,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
         if (!this._pdfLazyObservers) this._pdfLazyObservers = new Set();
         this._pdfLazyObservers.add(lazyObserver);
       }
-      // 渲染成功后清除 pending 标记，失败保留供重试
+      // 渲染成功后清除 pending 标记
       imgEl.dataset.cloudattachProcessed = 'done';
-      // 去重标记：渲染成功后记录，失败不记录
-      renderedSet.add(dedupKey);
       console.log("[CloudAttach] ALL DONE, pages:", pdf.numPages);
       this._bindPdfScroll(container, pdf);
       console.log("[CloudAttach] PDF container built, pages:", pdf.numPages);
