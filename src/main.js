@@ -1061,10 +1061,12 @@ class OpenListClient {
    * @returns {Promise<void>}
    */
   async rename(path, newName) {
+    // 去尾 /（文件夹路径以 / 结尾，需去掉才能正确获取父目录）
+    const cleanPath = path.replace(/\/$/, '');
     // WebDAV 账户使用 MOVE 方法
     if (this.username && this.password) {
       const srcUrl = `${this.serverUrl}${this.encodePath(this.webdavPath + path)}`;
-      const dstDir = path.substring(0, path.lastIndexOf('/'));
+      const dstDir = cleanPath.substring(0, cleanPath.lastIndexOf('/'));
       const dstPath = `${dstDir}/${newName}`;
       const dstUrl = `${this.serverUrl}${this.encodePath(this.webdavPath + dstPath)}`;
       console.log("[CloudAttach] rename WebDAV MOVE: src:", srcUrl, "dst:", dstUrl);
@@ -1812,7 +1814,7 @@ class S3Client {
 
     const url = `${this.endpoint}/${this.bucket}/${encodeURIComponent(objectKey).replace(/%2F/g, '/')}`;
     try {
-      const resp = await this.requestViaObsidian(url, {
+      const resp = await fetch(url, {
         method,
         headers: { ...allSignedHeaders, 'Authorization': authHeader }
       });
@@ -1924,12 +1926,12 @@ class S3Client {
     const signature = await this._hmacSha256Hex(kSigning, stringToSign);
     const authHeader = `AWS4-HMAC-SHA256, Credential=${this.accessKey}/${dateOnly}/${this.region}/s3/aws4_request, SignedHeaders=${signedHeaderNames}, Signature=${signature}`;
     const copyUrl = `${this.endpoint}/${this.bucket}/${encodeURIComponent(dstKey).replace(/%2F/g, '/')}`;
-    const resp = await this.requestViaObsidian(copyUrl, {
+    const resp = await fetch(copyUrl, {
       method: 'PUT',
       headers: { ...extraHeaders, 'Authorization': authHeader }
     });
     if (!resp.ok) {
-      const err = resp.text || `HTTP ${resp.status}`;
+      const err = await resp.text().catch(() => `HTTP ${resp.status}`);
       throw new Error(err);
     }
     // 复制成功后删除原对象
