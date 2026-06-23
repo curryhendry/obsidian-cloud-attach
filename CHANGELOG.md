@@ -1,3 +1,7 @@
+## v0.3.321.dev - 2026-06-23
+
+- 懒加载改为 scroll + 300ms 防抖 + 串行队列（一次一页），修复 iOS 滑动翻页并发渲染 crash
+
 ## v0.3.320.dev - 2026-06-23
 
 - 按钮跳转设 scrollProgrammatic flag，屏蔽 scroll 事件干扰页码

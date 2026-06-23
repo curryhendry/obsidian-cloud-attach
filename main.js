@@ -3497,26 +3497,51 @@ module.exports = class CloudAttachPlugin extends Plugin {
           pagePlaceholders.push(placeholder);
         }
         if (pagePlaceholders.length > 0) {
-          const lazyObserver = new IntersectionObserver((entries) => {
-            entries.forEach((entry) => {
-              if (entry.isIntersecting) {
-                const ph = entry.target;
+          const scrollAreaEl = scrollArea;
+          const lazyQueue = [];
+          let lazyBusy = false;
+          let lazyTimer = null;
+          const processQueue = async () => {
+            if (lazyBusy || lazyQueue.length === 0)
+              return;
+            lazyBusy = true;
+            const ph = lazyQueue.shift();
+            const pageNum = parseInt(ph.dataset.pageNum);
+            try {
+              await this._renderLazyPage(ph, pdf, pageNum, FIXED_SCALE);
+            } catch (e) {
+              console.error("[CloudAttach] lazy page render failed:", e);
+            }
+            lazyBusy = false;
+            processQueue();
+          };
+          const onScroll = () => {
+            if (container.dataset.scrollProgrammatic)
+              return;
+            clearTimeout(lazyTimer);
+            lazyTimer = setTimeout(() => {
+              const scrollTop = scrollAreaEl.scrollTop;
+              const clientH = scrollAreaEl.clientHeight;
+              const viewEnd = scrollTop + clientH + 200;
+              pagePlaceholders.forEach((ph) => {
                 if (ph.dataset.rendered)
                   return;
-                ph.dataset.rendered = "true";
-                const pageNum = parseInt(ph.dataset.pageNum);
-                const pdfUrl = ph.dataset.pdfUrl;
-                this._renderLazyPage(ph, pdf, pageNum, FIXED_SCALE).catch((e) => {
-                  console.error("[CloudAttach] lazy page render failed:", e);
-                });
-                lazyObserver.unobserve(ph);
-              }
-            });
-          }, { rootMargin: "200px" });
-          pagePlaceholders.forEach((ph) => lazyObserver.observe(ph));
-          if (!this._pdfLazyObservers)
-            this._pdfLazyObservers = /* @__PURE__ */ new Set();
-          this._pdfLazyObservers.add(lazyObserver);
+                if (ph.offsetTop < viewEnd && ph.offsetTop + ph.offsetHeight > scrollTop - 200) {
+                  ph.dataset.rendered = "true";
+                  lazyQueue.push(ph);
+                  processQueue();
+                }
+              });
+            }, 300);
+          };
+          scrollAreaEl.addEventListener("scroll", onScroll, { passive: true });
+          onScroll();
+          if (!this._pdfLazyCleanups)
+            this._pdfLazyCleanups = [];
+          this._pdfLazyCleanups.push(() => {
+            scrollAreaEl.removeEventListener("scroll", onScroll);
+            clearTimeout(lazyTimer);
+          });
         }
         if (this._renderedPdfUrls) {
           this._renderedPdfUrls.add(url + ":" + (imgEl.id || imgEl.dataset.src || ""));
@@ -3735,7 +3760,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         scrollToPage(p);
       }).open();
     };
-    container.dataset.cloudattachVersion = "0.3.320.dev";
+    container.dataset.cloudattachVersion = "0.3.321.dev";
     container.appendChild(toolbar);
     this._updatePdfToolbar(container, pdf);
   }
@@ -3787,9 +3812,14 @@ module.exports = class CloudAttachPlugin extends Plugin {
     setTimeout(() => this._scanAllPdfImgs(), 3e3);
     const rescanPdfImgs = () => {
       this._renderedPdfUrls = /* @__PURE__ */ new Set();
-      if (this._pdfLazyObservers) {
-        this._pdfLazyObservers.forEach((obs) => obs.disconnect());
-        this._pdfLazyObservers.clear();
+      if (this._pdfLazyCleanups) {
+        this._pdfLazyCleanups.forEach((fn) => {
+          try {
+            fn();
+          } catch (e) {
+          }
+        });
+        this._pdfLazyCleanups = [];
       }
       this._scanAllPdfImgs();
       setTimeout(() => this._scanAllPdfImgs(), 500);
