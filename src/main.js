@@ -3803,20 +3803,27 @@ module.exports = class CloudAttachPlugin extends Plugin {
     console.log("[CloudAttach] lazy page", pageNum, "rendered");
   }
 
-  // 监听滚动更新当前页码（连续滚动模式，监听 scrollArea）
+  // 监听滚动更新当前页码（连续滚动模式，scroll 事件 + scrollTop/pageHeight）
   _bindPdfScroll(container, pdf) {
     const scrollArea = container.querySelector(".cloudattach-pdf-scrollarea");
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          const pageNum = entry.target.dataset.pageNum;
-          container.dataset.currentPage = pageNum;
-          this._updatePdfToolbar(container, pdf);
-        }
-      });
-    }, { root: scrollArea, threshold: 0.5 });
-    const canvases = scrollArea.querySelectorAll(".cloudattach-pdf-page");
-    canvases.forEach((canvas) => observer.observe(canvas));
+    if (!scrollArea) return;
+    const calcPageHeight = () => {
+      const firstPage = scrollArea.querySelector(".cloudattach-pdf-page");
+      return firstPage ? firstPage.offsetHeight : 1;
+    };
+    const onScroll = () => {
+      const pageH = calcPageHeight();
+      if (pageH <= 0) return;
+      const pageNum = Math.max(1, Math.min(
+        parseInt(pdf.numPages),
+        Math.round(scrollArea.scrollTop / pageH) + 1
+      ));
+      if (container.dataset.currentPage !== String(pageNum)) {
+        container.dataset.currentPage = String(pageNum);
+        this._updatePdfToolbar(container, pdf);
+      }
+    };
+    scrollArea.addEventListener("scroll", onScroll, { passive: true });
   }
 
   // 初始化 PDF 翻页工具栏（参考 v0.3.042 样式：底部右侧，hover 显示）
@@ -3839,15 +3846,18 @@ module.exports = class CloudAttachPlugin extends Plugin {
     toolbar.style.position = "absolute";
     toolbar.style.bottom = "8px";
     toolbar.style.right = "8px";
-    toolbar.style.opacity = "0";
+    const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    toolbar.style.opacity = isTouch ? "1" : "0";
     toolbar.style.transition = "opacity 0.2s";
     container.style.position = "relative";
-    container.addEventListener("mouseenter", () => {
-      toolbar.style.opacity = "1";
-    });
-    container.addEventListener("mouseleave", () => {
-      toolbar.style.opacity = "0";
-    });
+    if (!isTouch) {
+      container.addEventListener("mouseenter", () => {
+        toolbar.style.opacity = "1";
+      });
+      container.addEventListener("mouseleave", () => {
+        toolbar.style.opacity = "0";
+      });
+    }
     const prevBtn = document.createElement("span");
     prevBtn.textContent = "\u25C0";
     prevBtn.style.cursor = "pointer";
