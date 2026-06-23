@@ -1576,75 +1576,19 @@ var S3Client = class {
     });
   }
   /**
-   * 通用 S3 请求（直接 Authorization header，非 presigned URL）
-   * @param {string} objectKey - S3 object key（不含 /bucket/ 前缀）
-   * @param {string} method - HTTP 方法
-   * @param {Object} extraHeaders - 额外请求头
-   * @returns {Promise<{ok: boolean, status: number, error?: string}>}
-   */
-  async _s3DirectRequest(objectKey, method, extraHeaders = {}) {
-    const host = this.endpoint.replace(/^https?:\/\//, "");
-    const date = /* @__PURE__ */ new Date();
-    const dateStr = date.toISOString().replace(/[:-]|\.\d{3}/g, "");
-    const dateOnly = dateStr.slice(0, 8);
-    const allSignedHeaders = {
-      "host": host,
-      ...extraHeaders
-    };
-    const signedHeaderNames = Object.keys(allSignedHeaders).sort().join(";");
-    const canonicalUri = objectKey ? encodeURIComponent("/" + this.bucket + "/" + objectKey).replace(/%2F/g, "/") : encodeURIComponent("/" + this.bucket).replace(/%2F/g, "/");
-    const canonicalQueryString = "";
-    const sortedHeaders = Object.entries(allSignedHeaders).sort((a, b) => a[0].localeCompare(b[0]));
-    const canonicalHeaders = sortedHeaders.map(([k, v]) => `${k.toLowerCase()}:${v.trim()}`).join("\n") + "\n";
-    const canonicalRequest = [method.toUpperCase(), canonicalUri, canonicalQueryString, canonicalHeaders, signedHeaderNames, "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"].join("\n");
-    const canonicalHash = await this._sha256Hex(canonicalRequest);
-    const stringToSign = [`AWS4-HMAC-SHA256`, dateStr, `${dateOnly}/${this.region}/s3/aws4_request`, canonicalHash].join("\n");
-    const kDate = await this._hmacSha256(`AWS4${this.secretKey}`, dateOnly);
-    const kRegion = await this._hmacSha256(kDate, this.region);
-    const kService = await this._hmacSha256(kRegion, "s3");
-    const kSigning = await this._hmacSha256(kService, "aws4_request");
-    const signature = await this._hmacSha256Hex(kSigning, stringToSign);
-    const authHeader = [
-      `AWS4-HMAC-SHA256`,
-      `Credential=${this.accessKey}/${dateOnly}/${this.region}/s3/aws4_request`,
-      `SignedHeaders=${signedHeaderNames}`,
-      `Signature=${signature}`
-    ].join(", ");
-    const url = `${this.endpoint}/${this.bucket}/${encodeURIComponent(objectKey).replace(/%2F/g, "/")}`;
-    try {
-      const resp = await fetch(url, {
-        method,
-        headers: { ...allSignedHeaders, "Authorization": authHeader }
-      });
-      return { ok: resp.ok, status: resp.status };
-    } catch (e) {
-      return { ok: false, status: 0, error: e.message };
+     * 通用 S3 请求（直接 Authorization header，非 presigned URL）
+  
+  
+    _objectKey(filePath) {
+      const clean = filePath.replace(/^\/+/, '');
+      return this.prefix ? this.prefix.replace(/\/$/, '') + '/' + clean : clean;
     }
-  }
-  async _sha256Hex(data) {
-    const msgUint8 = new TextEncoder().encode(data);
-    const hashBuffer = await crypto.subtle.digest("SHA-256", msgUint8);
-    return Array.from(new Uint8Array(hashBuffer)).map((b) => b.toString(16).padStart(2, "0")).join("");
-  }
-  async _hmacSha256(key, data) {
-    const keyData = new TextEncoder().encode(key);
-    const cryptoKey = await crypto.subtle.importKey("raw", keyData, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-    const sig = await crypto.subtle.sign("HMAC", cryptoKey, new TextEncoder().encode(data));
-    return new Uint8Array(sig);
-  }
-  async _hmacSha256Hex(key, data) {
-    const sig = await this._hmacSha256(key, data);
-    return Array.from(sig).map((b) => b.toString(16).padStart(2, "0")).join("");
-  }
-  _objectKey(filePath) {
-    const clean = filePath.replace(/^\/+/, "");
-    return this.prefix ? this.prefix.replace(/\/$/, "") + "/" + clean : clean;
-  }
-  /**
-   * 删除文件或文件夹（批量）
-   * @param {string[]} paths - 要删除的路径列表
-   * @returns {Promise<{success: string[], failed: Array<{path, error}>}>}
-   */
+  
+    /**
+     * 删除文件或文件夹（批量）
+     * @param {string[]} paths - 要删除的路径列表
+     * @returns {Promise<{success: string[], failed: Array<{path, error}>}>}
+     */
   async delete(paths) {
     const results = { success: [], failed: [] };
     for (const fullPath of paths) {
