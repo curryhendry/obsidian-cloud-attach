@@ -3424,7 +3424,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
           if (idx < urls.length) {
             const {url, width} = urls[idx];
             if (url.toLowerCase().includes('.pdf')) {
-              if (width) img.dataset.cloudattachPdfWidth = width;
+              if (width) img.setAttribute("width", width);
               this._renderPdfAsCanvas(img, url);
             }
           }
@@ -3575,7 +3575,30 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const loadingTask = pdfjsLib.getDocument({ url, ownerDocument: imgEl.ownerDocument });
       console.log("[CloudAttach] PDF doc loaded, pages:", (await loadingTask.promise).numPages);
       const pdf = await loadingTask.promise;
-      let imgWidth = imgEl.dataset.cloudattachPdfWidth || imgEl.getAttribute("width") || imgEl.style.width || "";
+      // 从编辑器源码解析宽度：![alt|500](url.pdf) 或 ![500](url.pdf)
+      let editorWidth = "";
+      try {
+        const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+        if (view && view.editor) {
+          const src = view.editor.getValue();
+          const lines = src.split('\n');
+          for (const line of lines) {
+            if (line.includes(url) && /!\[.*?\|\d+\]/.test(line)) {
+              const wm = line.match(/!\[[^\]]*\|(\d+)\]/);
+              if (wm) { editorWidth = wm[1] + "px"; break; }
+            }
+          }
+          if (!editorWidth) {
+            for (const line of lines) {
+              if (line.includes(url) && /!\[\d+\]\(/.test(line)) {
+                const nm = line.match(/!\[(\d+)\]\(/);
+                if (nm) { editorWidth = nm[1] + "px"; break; }
+              }
+            }
+          }
+        }
+      } catch(e) {}
+      let imgWidth = editorWidth || imgEl.dataset.cloudattachPdfWidth || imgEl.getAttribute("width") || imgEl.style.width || "";
       let imgHeight = imgEl.getAttribute("height") || imgEl.style.height || "";
       let imgStyleMaxWidth = imgEl.style.maxWidth;
       const parentSpan = imgEl.parentElement;

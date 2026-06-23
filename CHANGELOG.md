@@ -1,3 +1,7 @@
+## v0.3.307.dev - 2026-06-23
+
+- 修复：_renderPdfAsCanvas 从编辑器源码直接解析 `![alt|width](url.pdf)` 和 `![width](url.pdf)` 宽度，不依赖 PostProcessor/DOM 属性传递
+
 ## v0.3.305.dev - 2026-06-22
 
 - 修复：PostProcessor 解析 markdown `![alt|width](url.pdf)` 宽度写入 dataset，_renderPdfAsCanvas 优先读取，修复 PDF 设定宽度无效
