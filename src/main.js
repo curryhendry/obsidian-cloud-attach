@@ -3546,7 +3546,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const renderedSet = this._renderedPdfUrlsByMode[modeKey];
     const dedupKey = url + ':' + (imgEl.id || imgEl.dataset.src || imgEl.src || '');
     if (renderedSet.has(dedupKey)) return;
-    renderedSet.add(dedupKey);
+    // 去重标记移到渲染成功后，失败可重试
     // 全局渲染队列：所有 PDF 串行渲染，防止多 PDF 并发导致手机端内存崩溃
     // 初始化链
     if (!this._pdfRenderChain) this._pdfRenderChain = Promise.resolve();
@@ -3725,7 +3725,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
         if (!this._pdfLazyObservers) this._pdfLazyObservers = new Set();
         this._pdfLazyObservers.add(lazyObserver);
       }
-      // 去重已在开头处理
+      // 渲染成功后清除 pending 标记，失败保留供重试
+      img.dataset.cloudattachProcessed = 'done';
+      // 去重标记：渲染成功后记录，失败不记录
+      renderedSet.add(dedupKey);
       console.log("[CloudAttach] ALL DONE, pages:", pdf.numPages);
       this._bindPdfScroll(container, pdf);
       console.log("[CloudAttach] PDF container built, pages:", pdf.numPages);
