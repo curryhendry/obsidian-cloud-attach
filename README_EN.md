@@ -15,7 +15,7 @@
 - A firm believer in the 'Zero-Attachment' workflow in Obsidian.
 - Heavy OpenList user
 - Former e-commerce practitioner, zero coding background
-- Built entirely with 🦞 (AI-assisted), token consumption: ~95M and counting
+- Built entirely with 🦞 (AI-assisted), token consumption: ~530M and counting
 
 ---
 
@@ -60,13 +60,16 @@ Add accounts in plugin settings:
 | WebDAV Path | Usually `/dav` |
 | Token | Get from OpenList Settings → Other |
 
+S3 object storage configuration:
+<img alt="S3 Configuration" src="https://github.com/user-attachments/assets/6866656b-9e84-4b07-851d-3c892f06f6c0" />
+
 ---
 
 ## Usage
 
 1. Click the sidebar icon to open the cloud file panel
 2. Browse directories, click a file name to insert a link
-3. Right-click for more actions (preview, copy, delete)
+3. Right-click for more actions (preview, copy, rename, delete)
 
 <img alt="Sidebar" src="https://github.com/user-attachments/assets/cdfdc813-a6a0-4ba1-ae7c-effb224a6981" />
 <br>
@@ -77,6 +80,10 @@ Add accounts in plugin settings:
 
 **Upload attachments to server:**
 <img alt="Upload" src="https://github.com/user-attachments/assets/15261330-aeca-42bf-aa2d-67dbac244abf" />
+<br>
+
+**Inline PDF preview:**
+<img alt="PDF Preview" src="https://github.com/user-attachments/assets/102e265a-c77c-4823-bdbd-1c9cba6fc9b0" />
 
 ---
 

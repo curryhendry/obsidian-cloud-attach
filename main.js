@@ -983,9 +983,9 @@ var OpenListClient = class {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        src_dir: path.substring(0, path.lastIndexOf("/")),
-        src_name: path.substring(path.lastIndexOf("/") + 1),
-        dst_dir: path.substring(0, path.lastIndexOf("/")),
+        src_dir: cleanPath.substring(0, cleanPath.lastIndexOf("/")),
+        src_name: cleanPath.substring(cleanPath.lastIndexOf("/") + 1),
+        dst_dir: cleanPath.substring(0, cleanPath.lastIndexOf("/")),
         dst_name: newName
       })
     });
@@ -1259,10 +1259,10 @@ var S3Client = class {
    */
   async listDirectory(remotePath = "/") {
     try {
-      const cleanPath = remotePath === "/" ? "" : remotePath.replace(/^\/|\/$/g, "");
+      const cleanPath2 = remotePath === "/" ? "" : remotePath.replace(/^\/|\/$/g, "");
       const basePrefix = this.prefix ? this.prefix.replace(/\/$/, "") : "";
-      const s3Prefix = cleanPath ? basePrefix ? basePrefix + "/" + cleanPath + "/" : cleanPath + "/" : basePrefix ? basePrefix + "/" : "";
-      console.log("[CloudAttach] listDirectory remotePath:", remotePath, "cleanPath:", cleanPath, "s3Prefix:", s3Prefix);
+      const s3Prefix = cleanPath2 ? basePrefix ? basePrefix + "/" + cleanPath2 + "/" : cleanPath2 + "/" : basePrefix ? basePrefix + "/" : "";
+      console.log("[CloudAttach] listDirectory remotePath:", remotePath, "cleanPath:", cleanPath2, "s3Prefix:", s3Prefix);
       const params = new URLSearchParams({
         "list-type": "2",
         "prefix": s3Prefix,
@@ -1289,8 +1289,8 @@ var S3Client = class {
   getFileUrl(remotePath) {
     const encodePath = (p) => p.split("/").map((s) => encodeURIComponent(s)).join("/");
     const basePrefix = this.prefix ? this.prefix.replace(/\/$/, "") : "";
-    const cleanPath = remotePath.replace(/^\/+/, "");
-    const fullPath = basePrefix ? `${basePrefix}/${cleanPath}` : cleanPath;
+    const cleanPath2 = remotePath.replace(/^\/+/, "");
+    const fullPath = basePrefix ? `${basePrefix}/${cleanPath2}` : cleanPath2;
     let base = this.publicUrl || this.endpoint;
     const protoFromEndpoint = (this.endpoint || "").match(/^https?:/)?.[0] || "http:";
     if (!base.startsWith("http")) {
@@ -1306,10 +1306,10 @@ var S3Client = class {
    */
   async getSignedUrl(remotePath, expires = 3600) {
     try {
-      const cleanPath = remotePath.replace(/^\/+/, "");
+      const cleanPath2 = remotePath.replace(/^\/+/, "");
       const params = new URLSearchParams({ "X-Amz-Expires": expires.toString() });
-      const signedQuery = await this.signQuery(params, cleanPath);
-      const objectKey = encodeURIComponent(cleanPath);
+      const signedQuery = await this.signQuery(params, cleanPath2);
+      const objectKey = encodeURIComponent(cleanPath2);
       return `${this.endpoint}/${this.bucket}/${objectKey}?${signedQuery}`;
     } catch (e) {
       console.error("[CloudAttach] S3 getSignedUrl error:", e);
@@ -1611,7 +1611,7 @@ var S3Client = class {
     ].join(", ");
     const url = `${this.endpoint}/${this.bucket}/${encodeURIComponent(objectKey).replace(/%2F/g, "/")}`;
     try {
-      const resp = await fetch(url, {
+      const resp = await this.requestViaObsidian(url, {
         method,
         headers: { ...allSignedHeaders, "Authorization": authHeader }
       });
@@ -1715,12 +1715,12 @@ var S3Client = class {
     const signature = await this._hmacSha256Hex(kSigning, stringToSign);
     const authHeader = `AWS4-HMAC-SHA256, Credential=${this.accessKey}/${dateOnly}/${this.region}/s3/aws4_request, SignedHeaders=${signedHeaderNames}, Signature=${signature}`;
     const copyUrl = `${this.endpoint}/${this.bucket}/${encodeURIComponent(dstKey).replace(/%2F/g, "/")}`;
-    const resp = await fetch(copyUrl, {
+    const resp = await this.requestViaObsidian(copyUrl, {
       method: "PUT",
       headers: { ...extraHeaders, "Authorization": authHeader }
     });
     if (!resp.ok) {
-      const err = await resp.text().catch(() => `HTTP ${resp.status}`);
+      const err = resp.text || `HTTP ${resp.status}`;
       throw new Error(err);
     }
     const delResult = await this._s3DirectRequest(srcKey, "DELETE");
