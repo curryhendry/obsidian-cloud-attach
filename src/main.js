@@ -3505,6 +3505,22 @@ module.exports = class CloudAttachPlugin extends Plugin {
   onunload() { 
     console.log('CloudAttach unloading...'); 
     if (this._pdfObserver) this._pdfObserver.disconnect();
+    this._flushPdfErrorLog();
+  }
+
+  _flushPdfErrorLog() {
+    if (!this._pdfErrorLog) return;
+    try {
+      const filePath = (this.app.vault.configDir || '.obsidian') + '/plugins/cloud-attach/pdf-error-log.md';
+      const existingPromise = this.app.vault.adapter.read(filePath).catch(() => '');
+      existingPromise.then(existing => {
+        const content = (existing ? existing + '\n' : '# CloudAttach PDF Error Log\n') + this._pdfErrorLog;
+        this.app.vault.adapter.write(filePath, content).catch(e => console.error('[CloudAttach] flush log failed:', e));
+      });
+    } catch(e) {
+      console.error('[CloudAttach] _flushPdfErrorLog failed:', e);
+    }
+    this._pdfErrorLog = '';
   }
 
   // ============================================================
@@ -3569,6 +3585,14 @@ module.exports = class CloudAttachPlugin extends Plugin {
       // ownerDocument 确保 PDF.js 生成的 @font-face CSS 注入到正确的 document
       // （popout 窗口的 canvas 在其独立的 document 中，需要 font-face 也在同一 document）
       // disableAutoFetch: 阻止预加载所有页面，iOS 内存受限时避免加载失败
+      // fetch 探活: 确认 URL 可访问，获取 HTTP 状态/文件大小用于错误诊断
+      let fetchInfo = "";
+      try {
+        const resp = await fetch(url, { method: "HEAD" });
+        fetchInfo = "status=" + resp.status + " size=" + (resp.headers.get("content-length") || "?");
+      } catch (fErr) {
+        fetchInfo = "fetch_err:" + (fErr.message || fErr);
+      }
       const loadingTask = pdfjsLib.getDocument({ url, ownerDocument: imgEl.ownerDocument, disableAutoFetch: true });
       let pdf;
       try {
@@ -3576,6 +3600,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         console.log("[CloudAttach] PDF doc loaded, pages:", pdf.numPages);
       } catch (docErr) {
         failStage = 'getDocument';
+        docErr._fetchInfo = fetchInfo;
         throw docErr;
       }
       let imgWidth = imgEl.dataset.cloudattachWidth || imgEl.getAttribute("width") || imgEl.style.width || "";
@@ -3710,8 +3735,18 @@ module.exports = class CloudAttachPlugin extends Plugin {
       this._bindPdfScroll(container, pdf);
       console.log("[CloudAttach] PDF container built, pages:", pdf.numPages);
     } catch (e) {
-      console.error("[CloudAttach] PDF render failed:", e, "| stage:", failStage, "| url:", url);
+      const fetchInfo = e._fetchInfo || "";
+      const errorDetails = [
+        "stage=" + failStage,
+        "name=" + (e.name || "?"),
+        "msg=" + (e.message || "?"),
+        fetchInfo ? "fetch=" + fetchInfo : ""
+      ].filter(Boolean).join(" ");
+      console.error("[CloudAttach] PDF render failed:", e, "| " + errorDetails + "| url:", url);
       const errorMsg = e && e.message ? String(e.message) : "PDF render failed (" + failStage + ")";
+      // 写入日志笔记
+      this._pdfErrorLog = (this._pdfErrorLog || "") +
+        "\n- " + new Date().toISOString() + " | " + errorDetails + " | " + url;
       try {
         if (imgEl && imgEl.isConnected) {
           imgEl.style.border = "2px dashed red";

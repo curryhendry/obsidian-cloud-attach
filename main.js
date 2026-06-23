@@ -3309,6 +3309,22 @@ module.exports = class CloudAttachPlugin extends Plugin {
     console.log("CloudAttach unloading...");
     if (this._pdfObserver)
       this._pdfObserver.disconnect();
+    this._flushPdfErrorLog();
+  }
+  _flushPdfErrorLog() {
+    if (!this._pdfErrorLog)
+      return;
+    try {
+      const filePath = (this.app.vault.configDir || ".obsidian") + "/plugins/cloud-attach/pdf-error-log.md";
+      const existingPromise = this.app.vault.adapter.read(filePath).catch(() => "");
+      existingPromise.then((existing) => {
+        const content = (existing ? existing + "\n" : "# CloudAttach PDF Error Log\n") + this._pdfErrorLog;
+        this.app.vault.adapter.write(filePath, content).catch((e) => console.error("[CloudAttach] flush log failed:", e));
+      });
+    } catch (e) {
+      console.error("[CloudAttach] _flushPdfErrorLog failed:", e);
+    }
+    this._pdfErrorLog = "";
   }
   // ============================================================
   // PDF.js 内联预览（v0.3.026）
@@ -3364,6 +3380,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
           failStage = "loadPdfJs";
           throw loadErr;
         }
+        let fetchInfo = "";
+        try {
+          const resp = await fetch(url, { method: "HEAD" });
+          fetchInfo = "status=" + resp.status + " size=" + (resp.headers.get("content-length") || "?");
+        } catch (fErr) {
+          fetchInfo = "fetch_err:" + (fErr.message || fErr);
+        }
         const loadingTask = pdfjsLib.getDocument({ url, ownerDocument: imgEl.ownerDocument, disableAutoFetch: true });
         let pdf;
         try {
@@ -3371,6 +3394,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
           console.log("[CloudAttach] PDF doc loaded, pages:", pdf.numPages);
         } catch (docErr) {
           failStage = "getDocument";
+          docErr._fetchInfo = fetchInfo;
           throw docErr;
         }
         let imgWidth = imgEl.dataset.cloudattachWidth || imgEl.getAttribute("width") || imgEl.style.width || "";
@@ -3498,8 +3522,16 @@ module.exports = class CloudAttachPlugin extends Plugin {
         this._bindPdfScroll(container, pdf);
         console.log("[CloudAttach] PDF container built, pages:", pdf.numPages);
       } catch (e) {
-        console.error("[CloudAttach] PDF render failed:", e, "| stage:", failStage, "| url:", url);
+        const fetchInfo = e._fetchInfo || "";
+        const errorDetails = [
+          "stage=" + failStage,
+          "name=" + (e.name || "?"),
+          "msg=" + (e.message || "?"),
+          fetchInfo ? "fetch=" + fetchInfo : ""
+        ].filter(Boolean).join(" ");
+        console.error("[CloudAttach] PDF render failed:", e, "| " + errorDetails + "| url:", url);
         const errorMsg = e && e.message ? String(e.message) : "PDF render failed (" + failStage + ")";
+        this._pdfErrorLog = (this._pdfErrorLog || "") + "\n- " + (/* @__PURE__ */ new Date()).toISOString() + " | " + errorDetails + " | " + url;
         try {
           if (imgEl && imgEl.isConnected) {
             imgEl.style.border = "2px dashed red";
@@ -3684,7 +3716,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         scrollToPage(p);
       }).open();
     };
-    container.dataset.cloudattachVersion = "0.3.311.dev";
+    container.dataset.cloudattachVersion = "0.3.312.dev";
     container.appendChild(toolbar);
     this._updatePdfToolbar(container, pdf);
   }
