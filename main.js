@@ -3364,7 +3364,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
           failStage = "loadPdfJs";
           throw loadErr;
         }
-        const loadingTask = pdfjsLib.getDocument({ url, ownerDocument: imgEl.ownerDocument });
+        const loadingTask = pdfjsLib.getDocument({ url, ownerDocument: imgEl.ownerDocument, disableAutoFetch: true });
         let pdf;
         try {
           pdf = await loadingTask.promise;
@@ -3684,7 +3684,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         scrollToPage(p);
       }).open();
     };
-    container.dataset.cloudattachVersion = "0.3.310.dev";
+    container.dataset.cloudattachVersion = "0.3.311.dev";
     container.appendChild(toolbar);
     this._updatePdfToolbar(container, pdf);
   }
