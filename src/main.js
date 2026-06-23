@@ -3646,7 +3646,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
         container.dataset.userHeight = userHeightStr;
       }
       const FIXED_SCALE = 1.5;
-      container.dataset.fixedScale = String(FIXED_SCALE);
       const TOOLBAR_HEIGHT = 28;
       container.style.setProperty("display", "block", "important");
       container.style.setProperty("overflow", "hidden", "important");
@@ -3886,38 +3885,23 @@ module.exports = class CloudAttachPlugin extends Plugin {
       new Notice2("\u{1F50D} \u5168\u5C4F\u9884\u89C8\u529F\u80FD\uFF0C\u656C\u8BF7\u671F\u5F85");
     };
     const scrollArea = container.querySelector(".cloudattach-pdf-scrollarea");
-    const fixedScale = parseFloat(container.dataset.fixedScale) || 1.5;
-    const scrollToPage = async (pageNum) => {
-      // 先检查目标页是否已渲染（有 canvas），未渲染则触发懒加载
-      let targetCanvas = scrollArea.querySelector(`.cloudattach-pdf-page[data-page-num="${pageNum}"]`);
-      if (!targetCanvas) {
-        const placeholder = scrollArea.querySelector(`.cloudattach-pdf-placeholder[data-page-num="${pageNum}"]`);
-        if (placeholder) {
-          placeholder.dataset.rendered = "true";
-          try {
-            await this._renderLazyPage(placeholder, pdf, pageNum, fixedScale);
-          } catch (e) {
-            console.error("[CloudAttach] scrollToPage lazy render failed:", e);
-            return;
-          }
-          targetCanvas = scrollArea.querySelector(`.cloudattach-pdf-page[data-page-num="${pageNum}"]`);
-        }
-      }
-      if (targetCanvas) {
-        scrollArea.scrollTop = targetCanvas.offsetTop;
-      }
+    const scrollToPage = (pageNum) => {
+      const firstPage = scrollArea.querySelector(".cloudattach-pdf-page");
+      if (!firstPage) return;
+      const pageH = firstPage.offsetHeight;
+      scrollArea.scrollTop = (pageNum - 1) * pageH;
     };
-    prevBtn.onclick = async (e) => {
+    prevBtn.onclick = (e) => {
       e.stopPropagation();
-      const current = parseInt(container.dataset.currentPage);
+      const current = parseInt(container.dataset.currentPage) || 1;
       if (current > 1)
-        await scrollToPage(current - 1);
+        scrollToPage(current - 1);
     };
-    nextBtn.onclick = async (e) => {
+    nextBtn.onclick = (e) => {
       e.stopPropagation();
-      const current = parseInt(container.dataset.currentPage);
+      const current = parseInt(container.dataset.currentPage) || 1;
       if (current < totalPages)
-        await scrollToPage(current + 1);
+        scrollToPage(current + 1);
     };
     pageIndicator.onclick = (e) => {
       e.stopPropagation();
@@ -3956,8 +3940,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
           this.contentEl.empty();
         }
       }
-      new PageJumpModal(this.app, current, totalPages, async (p) => {
-        await scrollToPage(p);
+      new PageJumpModal(this.app, current, totalPages, (p) => {
+        scrollToPage(p);
       }).open();
     };
     container.dataset.cloudattachVersion = "CLOUDATTACH_VERSION";
