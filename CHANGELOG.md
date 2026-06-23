@@ -1,9 +1,9 @@
+## v0.3.328.dev - 2026-06-23
+
+- 回退宽度读取逻辑：去掉 requestAnimationFrame + clientWidth 兜底，回到 292 基线（避免电脑端读到未布局 img 的 95px）
+- 去重标记恢复渲染成功后添加（跟 292 一致）
+
 ## v0.3.327.dev - 2026-06-23
-
-- 去重改用 URL 作为 key，立即标记防止重复渲染
-- 宽度读取前加 requestAnimationFrame 等待布局完成
-
-## v0.3.326.dev - 2026-06-23
 
 - Fetch 失败时用 Obsidian requestUrl 下载 PDF 二进制传给 PDF.js，绕过 CORS
 
