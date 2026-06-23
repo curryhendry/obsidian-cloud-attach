@@ -1690,43 +1690,25 @@ var S3Client = class {
     const srcKey = this._objectKey(path);
     const dstPath = path.substring(0, path.lastIndexOf("/") + 1) + newName;
     const dstKey = this._objectKey(dstPath);
-    const host = this.endpoint.replace(/^https?:\/\//, "");
-    const date = /* @__PURE__ */ new Date();
-    const dateStr = date.toISOString().replace(/[:-]|\.\d{3}/g, "");
-    const dateOnly = dateStr.slice(0, 8);
     const copySource = encodeURIComponent("/" + this.bucket + "/" + srcKey).replace(/%2F/g, "/");
-    const extraHeaders = {
-      "host": host,
-      "x-amz-content-sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "x-amz-date": dateStr,
-      "x-amz-copy-source": copySource
-    };
-    const signedHeaderNames = Object.keys(extraHeaders).sort().join(";");
-    const canonicalUri = encodeURIComponent("/" + this.bucket + "/" + dstKey).replace(/%2F/g, "/");
-    const canonicalQueryString = "";
-    const sortedHeaders = Object.entries(extraHeaders).sort((a, b) => a[0].localeCompare(b[0]));
-    const canonicalHeaders = sortedHeaders.map(([k, v]) => `${k.toLowerCase()}:${v.trim()}`).join("\n") + "\n";
-    const canonicalRequest = ["PUT", canonicalUri, canonicalQueryString, canonicalHeaders, signedHeaderNames, "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"].join("\n");
-    const canonicalHash = await this._sha256Hex(canonicalRequest);
-    const stringToSign = [`AWS4-HMAC-SHA256`, dateStr, `${dateOnly}/${this.region}/s3/aws4_request`, canonicalHash].join("\n");
-    const kDate = await this._hmacSha256(`AWS4${this.secretKey}`, dateOnly);
-    const kRegion = await this._hmacSha256(kDate, this.region);
-    const kService = await this._hmacSha256(kRegion, "s3");
-    const kSigning = await this._hmacSha256(kService, "aws4_request");
-    const signature = await this._hmacSha256Hex(kSigning, stringToSign);
-    const authHeader = `AWS4-HMAC-SHA256, Credential=${this.accessKey}/${dateOnly}/${this.region}/s3/aws4_request, SignedHeaders=${signedHeaderNames}, Signature=${signature}`;
-    const copyUrl = `${this.endpoint}/${this.bucket}/${encodeURIComponent(dstKey).replace(/%2F/g, "/")}`;
-    const resp = await fetch(copyUrl, {
+    const copyParams = new URLSearchParams({ "X-Amz-Expires": "3600" });
+    const copyQuery = await this.signQuery(copyParams, dstKey, "PUT", { "x-amz-copy-source": copySource });
+    const encodedDstKey = encodeURIComponent(dstKey);
+    const copyUrl = `${this.endpoint}/${this.bucket}/${encodedDstKey}?${copyQuery}`;
+    const resp = await this.requestViaObsidian(copyUrl, {
       method: "PUT",
-      headers: { ...extraHeaders, "Authorization": authHeader }
+      headers: { "x-amz-copy-source": copySource }
     });
     if (!resp.ok) {
-      const err = await resp.text().catch(() => `HTTP ${resp.status}`);
+      const err = resp.text || `HTTP ${resp.status}`;
       throw new Error(err);
     }
-    const delResult = await this._s3DirectRequest(srcKey, "DELETE");
-    if (!delResult.ok) {
-      throw new Error(`Rename succeeded but delete original failed: HTTP ${delResult.status}`);
+    const delQuery = await this.signQuery(new URLSearchParams({ "X-Amz-Expires": "3600" }), srcKey, "DELETE", {});
+    const encodedSrcKey = encodeURIComponent(srcKey);
+    const delUrl = `${this.endpoint}/${this.bucket}/${encodedSrcKey}?${delQuery}`;
+    const delResp = await this.requestViaObsidian(delUrl, { method: "DELETE" });
+    if (!delResp.ok) {
+      throw new Error(`Rename succeeded but delete original failed: HTTP ${delResp.status}`);
     }
   }
 };
