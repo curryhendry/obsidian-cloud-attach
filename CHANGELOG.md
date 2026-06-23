@@ -1,3 +1,8 @@
+## v0.3.331.dev - 2026-06-23
+
+- 修复 WebDAV 文件夹重命名 500：去尾 / 再算父目录
+- 修复 S3 rename/reload 调用 fetch() 被 CORS 拦截：改用 requestViaObsidian
+
 ## v0.3.330 - 2026-06-23
 
 - 去掉 toolbar 版本号显示（仅用于开发调试区分版本）
