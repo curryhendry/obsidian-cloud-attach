@@ -1,7 +1,9 @@
-## v0.3.331.dev - 2026-06-23
+## v0.3.331 - 2026-06-23
 
-- 修复 WebDAV 文件夹重命名 500：去尾 / 再算父目录（WebDAV + OpenList 两分支）
-- S3 rename 改用 presigned URL + requestViaObsidian 绕过 CORS（CopyObject 和 Delete 都走此路径）
+- 修复 WebDAV 文件夹重命名 500：去尾 / 再算父目录
+- S3 文件重命名：改用 presigned URL + requestViaObsidian 绕过 CORS
+- S3 文件夹重命名：S3 无原生目录操作，改为列出子对象逐个 CopyObject + Delete
+- 删除死代码 _s3DirectRequest / _sha256Hex / _hmacSha256 / _hmacSha256Hex
 
 ## v0.3.330 - 2026-06-23
 
