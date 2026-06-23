@@ -1,3 +1,8 @@
+## v0.3.323.dev - 2026-06-23
+
+- 编辑/阅读模式使用独立去重 Set，修复模式切换互相影响
+- PostProcessor 改为只标记 blob img，由 _scanAllPdfImgs 统一处理，修复索引错位
+
 ## v0.3.322.dev - 2026-06-23
 
 - 回退到 IntersectionObserver + 仅加串行队列限制并发，修复 v0.3.321 阅读模式全变成图片问题
