@@ -1,3 +1,7 @@
+## v0.3.309.dev - 2026-06-23
+
+- PDF 渲染失败时用 Notice 弹窗显示错误信息（手机端可读），catch 块增加 failStage 标记区分 loadPdfJs/getDocument/getPage 阶段
+
 ## v0.3.308.dev - 2026-06-23
 
 - 版本号从独立 toolbar 标签移到翻页指示器后面，手机端可见（`1 / 5  v0.3.308`）

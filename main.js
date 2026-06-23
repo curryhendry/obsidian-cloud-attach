@@ -3685,7 +3685,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         scrollToPage(p);
       }).open();
     };
-    container.dataset.cloudattachVersion = "0.3.308.dev";
+    container.dataset.cloudattachVersion = "0.3.309.dev";
     container.appendChild(toolbar);
     this._updatePdfToolbar(container, pdf);
   }
