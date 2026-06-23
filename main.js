@@ -3500,6 +3500,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       } catch (e) {
         console.error("[CloudAttach] PDF render failed:", e, "| stage:", failStage, "| url:", url);
         const errorMsg = e && e.message ? String(e.message) : "PDF render failed (" + failStage + ")";
+        new Notice("CloudAttach PDF: " + errorMsg);
         try {
           if (imgEl && imgEl.isConnected) {
             imgEl.style.border = "2px dashed red";
