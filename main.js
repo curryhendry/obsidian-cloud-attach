@@ -3635,10 +3635,14 @@ module.exports = class CloudAttachPlugin extends Plugin {
     toolbar.style.bottom = "8px";
     toolbar.style.right = "8px";
     const isTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
-    toolbar.style.opacity = isTouch ? "1" : "0";
+    toolbar.style.opacity = "0";
     toolbar.style.transition = "opacity 0.2s";
     container.style.position = "relative";
-    if (!isTouch) {
+    if (isTouch) {
+      container.addEventListener("click", (e) => {
+        toolbar.style.opacity = toolbar.style.opacity === "1" ? "0" : "1";
+      });
+    } else {
       container.addEventListener("mouseenter", () => {
         toolbar.style.opacity = "1";
       });
@@ -3744,7 +3748,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
         scrollToPage(p);
       }).open();
     };
-    container.dataset.cloudattachVersion = "0.3.328.dev";
     container.appendChild(toolbar);
     this._updatePdfToolbar(container, pdf);
   }
@@ -3758,8 +3761,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const totalPages = parseInt(container.dataset.totalPages);
     const pageIndicator = toolbar.querySelector('[data-role="pageIndicator"]');
     if (pageIndicator) {
-      const ver = container.dataset.cloudattachVersion || "";
-      pageIndicator.textContent = `${currentPage} / ${totalPages}` + (ver ? `  v${ver}` : "");
+      pageIndicator.textContent = `${currentPage} / ${totalPages}`;
     }
     const prevBtn = toolbar.querySelector('[data-role="prev"]');
     const nextBtn = toolbar.querySelector('[data-role="next"]');
