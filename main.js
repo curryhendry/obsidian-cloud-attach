@@ -3397,7 +3397,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
           docErr._fetchInfo = fetchInfo;
           throw docErr;
         }
-        await new Promise((r) => requestAnimationFrame(r));
         let imgWidth = imgEl.dataset.cloudattachWidth || imgEl.getAttribute("width") || imgEl.style.width || "";
         if (!imgWidth && imgEl.clientWidth > 10)
           imgWidth = imgEl.clientWidth + "px";
@@ -3724,7 +3723,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         scrollToPage(p);
       }).open();
     };
-    container.dataset.cloudattachVersion = "0.3.313.dev";
+    container.dataset.cloudattachVersion = "0.3.314.dev";
     container.appendChild(toolbar);
     this._updatePdfToolbar(container, pdf);
   }

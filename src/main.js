@@ -3603,8 +3603,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
         docErr._fetchInfo = fetchInfo;
         throw docErr;
       }
-      // 延迟一帧确保 Obsidian 已设置 width 属性
-      await new Promise(r => requestAnimationFrame(r));
       let imgWidth = imgEl.dataset.cloudattachWidth || imgEl.getAttribute("width") || imgEl.style.width || "";
       // 兜底：用实际显示宽度
       if (!imgWidth && imgEl.clientWidth > 10) imgWidth = imgEl.clientWidth + "px";
