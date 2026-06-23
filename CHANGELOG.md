@@ -1,3 +1,7 @@
+## v0.3.314.dev - 2026-06-23
+
+- 去掉 requestAnimationFrame（iOS 上不触发导致渲染卡死）
+
 ## v0.3.313.dev - 2026-06-23
 
 - 宽度读取加 requestAnimationFrame 延迟，确保 Obsidian 已设置 width 属性
