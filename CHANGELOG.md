@@ -1,3 +1,8 @@
+## v0.3.320.dev - 2026-06-23
+
+- 按钮跳转设 scrollProgrammatic flag，屏蔽 scroll 事件干扰页码
+- scrollToPage 直接用 pageH × (pageNum - 1) 计算位置，跳转前手动更新 currentPage
+
 ## v0.3.319.dev - 2026-06-23
 
 - 按钮翻页改回 offsetHeight 简单计算（第一页高度 × 页码）

@@ -3809,6 +3809,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (!scrollArea) return;
     const totalPages = parseInt(container.dataset.totalPages) || 1;
     const onScroll = () => {
+      if (container.dataset.scrollProgrammatic) return;
       const scrollH = scrollArea.scrollHeight - scrollArea.clientHeight;
       if (scrollH <= 0) return;
       const ratio = scrollArea.scrollTop / scrollH;
@@ -3889,7 +3890,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const firstPage = scrollArea.querySelector(".cloudattach-pdf-page");
       if (!firstPage) return;
       const pageH = firstPage.offsetHeight;
+      container.dataset.scrollProgrammatic = "1";
+      container.dataset.currentPage = String(pageNum);
+      this._updatePdfToolbar(container, pdf);
       scrollArea.scrollTop = (pageNum - 1) * pageH;
+      requestAnimationFrame(() => {
+        delete container.dataset.scrollProgrammatic;
+      });
     };
     prevBtn.onclick = (e) => {
       e.stopPropagation();
