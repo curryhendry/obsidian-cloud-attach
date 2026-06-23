@@ -3571,14 +3571,28 @@ module.exports = class CloudAttachPlugin extends Plugin {
       // （popout 窗口的 canvas 在其独立的 document 中，需要 font-face 也在同一 document）
       // disableAutoFetch: 阻止预加载所有页面，iOS 内存受限时避免加载失败
       // fetch 探活: 确认 URL 可访问，获取 HTTP 状态/文件大小用于错误诊断
+      // HEAD 失败时回退到 Obsidian requestUrl 下载二进制（绕过 CORS）
       let fetchInfo = "";
+      let pdfData = null;
       try {
         const resp = await fetch(url, { method: "HEAD" });
         fetchInfo = "status=" + resp.status + " size=" + (resp.headers.get("content-length") || "?");
       } catch (fErr) {
         fetchInfo = "fetch_err:" + (fErr.message || fErr);
+        // CORS blocked: download via Obsidian requestUrl
+        let reqUrl = null;
+        try { reqUrl = require('obsidian').requestUrl; } catch(e) {}
+        if (reqUrl) {
+          try {
+            const resp = await reqUrl({ url, method: 'GET' });
+            pdfData = resp.arrayBuffer;
+            fetchInfo = "status=" + resp.status + " viaObsidian";
+          } catch(e) {}
+        }
       }
-      const loadingTask = pdfjsLib.getDocument({ url, ownerDocument: imgEl.ownerDocument, disableAutoFetch: true });
+      const loadingTask = pdfData
+        ? pdfjsLib.getDocument({ data: pdfData, ownerDocument: imgEl.ownerDocument })
+        : pdfjsLib.getDocument({ url, ownerDocument: imgEl.ownerDocument, disableAutoFetch: true });
       let pdf;
       try {
         pdf = await loadingTask.promise;
