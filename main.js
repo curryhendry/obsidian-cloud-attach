@@ -3168,7 +3168,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (imgs.length === 0)
         return;
       const blobImgs = Array.from(imgs).filter(
-        (img2) => !img2.closest(".cloudattach-pdf-container") && (img2.getAttribute("src") || "").startsWith("blob:")
+        (img) => !img.closest(".cloudattach-pdf-container") && (img.getAttribute("src") || "").startsWith("blob:")
       );
       if (blobImgs.length === 0)
         return;
@@ -3196,13 +3196,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
             pdfPatterns.push({ url, width });
           }
         }
-        blobImgs.forEach((img2, idx) => {
+        blobImgs.forEach((img, idx) => {
           if (idx < pdfPatterns.length) {
             const pat = pdfPatterns[idx];
-            img2.dataset.cloudattachPdfUrl = pat.url;
+            img.dataset.cloudattachPdfUrl = pat.url;
             if (pat.width)
-              img2.dataset.cloudattachWidth = pat.width;
-            img2.dataset.cloudattachProcessed = "pending";
+              img.dataset.cloudattachWidth = pat.width;
+            img.dataset.cloudattachProcessed = "pending";
           }
         });
       } catch (e) {
@@ -3517,7 +3517,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
             this._pdfLazyObservers = /* @__PURE__ */ new Set();
           this._pdfLazyObservers.add(lazyObserver);
         }
-        img.dataset.cloudattachProcessed = "done";
+        imgEl.dataset.cloudattachProcessed = "done";
         renderedSet.add(dedupKey);
         console.log("[CloudAttach] ALL DONE, pages:", pdf.numPages);
         this._bindPdfScroll(container, pdf);
@@ -3733,7 +3733,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         scrollToPage(p);
       }).open();
     };
-    container.dataset.cloudattachVersion = "0.3.324.dev";
+    container.dataset.cloudattachVersion = "0.3.325.dev";
     container.appendChild(toolbar);
     this._updatePdfToolbar(container, pdf);
   }
@@ -3768,12 +3768,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
           if (n.nodeType !== 1)
             return;
           const imgs = n.tagName === "IMG" ? [n] : Array.from(n.querySelectorAll("img"));
-          imgs.forEach((img2) => {
-            if (img2.closest(".cloudattach-pdf-container"))
+          imgs.forEach((img) => {
+            if (img.closest(".cloudattach-pdf-container"))
               return;
-            const src = img2.getAttribute("src") || "";
+            const src = img.getAttribute("src") || "";
             if (this._isPdfUrl(src)) {
-              this._renderPdfAsCanvas(img2, src);
+              this._renderPdfAsCanvas(img, src);
             }
           });
         });
@@ -3823,12 +3823,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
             if (n.nodeType !== 1)
               return;
             const imgs = n.tagName === "IMG" ? [n] : Array.from(n.querySelectorAll("img"));
-            imgs.forEach((img2) => {
-              if (img2.closest(".cloudattach-pdf-container"))
+            imgs.forEach((img) => {
+              if (img.closest(".cloudattach-pdf-container"))
                 return;
-              const src = img2.getAttribute("src") || "";
+              const src = img.getAttribute("src") || "";
               if (this._isPdfUrl(src)) {
-                this._renderPdfAsCanvas(img2, src);
+                this._renderPdfAsCanvas(img, src);
               }
             });
           });
@@ -3842,27 +3842,27 @@ module.exports = class CloudAttachPlugin extends Plugin {
   _scanAllPdfImgs(doc) {
     const d = doc || document;
     const pendingImgs = d.querySelectorAll('img[data-cloudattach-processed="pending"]');
-    pendingImgs.forEach((img2) => {
-      if (img2.closest(".cloudattach-pdf-container"))
+    pendingImgs.forEach((img) => {
+      if (img.closest(".cloudattach-pdf-container"))
         return;
-      const pdfUrl = img2.dataset.cloudattachPdfUrl;
+      const pdfUrl = img.dataset.cloudattachPdfUrl;
       if (pdfUrl) {
-        img2.dataset.cloudattachProcessed = "done";
-        this._renderPdfAsCanvas(img2, pdfUrl);
+        img.dataset.cloudattachProcessed = "done";
+        this._renderPdfAsCanvas(img, pdfUrl);
       }
     });
     const allImgs = d.querySelectorAll("img");
-    allImgs.forEach((img2) => {
-      if (img2.closest(".cloudattach-pdf-container"))
+    allImgs.forEach((img) => {
+      if (img.closest(".cloudattach-pdf-container"))
         return;
-      const src = img2.getAttribute("src") || "";
+      const src = img.getAttribute("src") || "";
       if (this._isPdfUrl(src)) {
-        this._renderPdfAsCanvas(img2, src);
+        this._renderPdfAsCanvas(img, src);
         return;
       }
-      const alt = img2.getAttribute("alt") || "";
+      const alt = img.getAttribute("alt") || "";
       if (alt && /\.pdf\s*$/i.test(alt.trim())) {
-        this._renderPdfAsCanvas(img2, src);
+        this._renderPdfAsCanvas(img, src);
       }
     });
   }
