@@ -1687,28 +1687,58 @@ var S3Client = class {
    * @returns {Promise<void>}
    */
   async rename(path, newName) {
+    const isDir = path.endsWith("/");
+    if (isDir) {
+      const cleanPath = path.replace(/\/$/, "");
+      const dstDir = cleanPath.substring(0, cleanPath.lastIndexOf("/"));
+      const dstBase = dstDir + "/" + newName;
+      const dirContents = await this.listDirectory(path);
+      for (const item of dirContents) {
+        const srcKey2 = this._objectKey(item.path);
+        const relativeName = item.path.slice(path.length);
+        const dstKey2 = this._objectKey(dstBase + "/" + relativeName.replace(/^\//, ""));
+        const copySource2 = encodeURIComponent("/" + this.bucket + "/" + srcKey2).replace(/%2F/g, "/");
+        const copyParams2 = new URLSearchParams({ "X-Amz-Expires": "3600" });
+        const copyQuery2 = await this.signQuery(copyParams2, dstKey2, "PUT", { "x-amz-copy-source": copySource2 });
+        const copyResp2 = await this.requestViaObsidian(
+          `${this.endpoint}/${this.bucket}/${encodeURIComponent(dstKey2)}?${copyQuery2}`,
+          { method: "PUT", headers: { "x-amz-copy-source": copySource2 } }
+        );
+        if (!copyResp2.ok) {
+          throw new Error(`CopyObject failed for ${item.name}: HTTP ${copyResp2.status}`);
+        }
+        const delQuery2 = await this.signQuery(new URLSearchParams({ "X-Amz-Expires": "3600" }), srcKey2, "DELETE", {});
+        const delResp2 = await this.requestViaObsidian(
+          `${this.endpoint}/${this.bucket}/${encodeURIComponent(srcKey2)}?${delQuery2}`,
+          { method: "DELETE" }
+        );
+        if (!delResp2.ok) {
+          throw new Error(`Delete original failed for ${item.name}: HTTP ${delResp2.status}`);
+        }
+      }
+      return;
+    }
     const srcKey = this._objectKey(path);
     const dstPath = path.substring(0, path.lastIndexOf("/") + 1) + newName;
     const dstKey = this._objectKey(dstPath);
     const copySource = encodeURIComponent("/" + this.bucket + "/" + srcKey).replace(/%2F/g, "/");
     const copyParams = new URLSearchParams({ "X-Amz-Expires": "3600" });
     const copyQuery = await this.signQuery(copyParams, dstKey, "PUT", { "x-amz-copy-source": copySource });
-    const encodedDstKey = encodeURIComponent(dstKey);
-    const copyUrl = `${this.endpoint}/${this.bucket}/${encodedDstKey}?${copyQuery}`;
-    const resp = await this.requestViaObsidian(copyUrl, {
-      method: "PUT",
-      headers: { "x-amz-copy-source": copySource }
-    });
-    if (!resp.ok) {
-      const err = resp.text || `HTTP ${resp.status}`;
+    const copyResp = await this.requestViaObsidian(
+      `${this.endpoint}/${this.bucket}/${encodeURIComponent(dstKey)}?${copyQuery}`,
+      { method: "PUT", headers: { "x-amz-copy-source": copySource } }
+    );
+    if (!copyResp.ok) {
+      const err = copyResp.text || `HTTP ${copyResp.status}`;
       throw new Error(err);
     }
     const delQuery = await this.signQuery(new URLSearchParams({ "X-Amz-Expires": "3600" }), srcKey, "DELETE", {});
-    const encodedSrcKey = encodeURIComponent(srcKey);
-    const delUrl = `${this.endpoint}/${this.bucket}/${encodedSrcKey}?${delQuery}`;
-    const delResp = await this.requestViaObsidian(delUrl, { method: "DELETE" });
+    const delResp = await this.requestViaObsidian(
+      `${this.endpoint}/${this.bucket}/${encodeURIComponent(srcKey)}?${delQuery}`,
+      { method: "DELETE" }
+    );
     if (!delResp.ok) {
-      throw new Error(`Rename succeeded but delete original failed: HTTP ${delResp.status}`);
+      throw new Error(`Delete original failed: HTTP ${delResp.status}`);
     }
   }
 };
