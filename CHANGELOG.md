@@ -1,3 +1,8 @@
+## v0.3.318.dev - 2026-06-23
+
+- 按钮翻页/跳转：先触发懒加载渲染目标页，再用 offsetTop 跳转
+- 修复按钮跳转不准问题（scrollHeight 比例 → offsetTop）
+
 ## v0.3.317.dev - 2026-06-23
 
 - 翻页计算改用 scrollHeight 比例（兼容 iOS offsetHeight 不准问题）
