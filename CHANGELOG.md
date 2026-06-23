@@ -1,3 +1,7 @@
+## v0.3.310.dev - 2026-06-23
+
+- 去掉 catch 块 Notice 弹窗（iOS 上可能触发渲染副作用导致所有 PDF Load failed），保留 console.error + failStage + 红框错误信息
+
 ## v0.3.309.dev - 2026-06-23
 
 - PDF 渲染失败时用 Notice 弹窗显示错误信息（手机端可读），catch 块增加 failStage 标记区分 loadPdfJs/getDocument/getPage 阶段

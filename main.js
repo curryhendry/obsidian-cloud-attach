@@ -3500,7 +3500,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       } catch (e) {
         console.error("[CloudAttach] PDF render failed:", e, "| stage:", failStage, "| url:", url);
         const errorMsg = e && e.message ? String(e.message) : "PDF render failed (" + failStage + ")";
-        new Notice("CloudAttach PDF: " + errorMsg);
         try {
           if (imgEl && imgEl.isConnected) {
             imgEl.style.border = "2px dashed red";
@@ -3685,7 +3684,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         scrollToPage(p);
       }).open();
     };
-    container.dataset.cloudattachVersion = "0.3.309.dev";
+    container.dataset.cloudattachVersion = "0.3.310.dev";
     container.appendChild(toolbar);
     this._updatePdfToolbar(container, pdf);
   }
