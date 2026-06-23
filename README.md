@@ -15,7 +15,7 @@
 - 坚定的 Obsidian 库内 0 附件使用者
 - 重度 OpenList 依赖者
 - 前电商从业者，0 代码基础
-- 全程 🦞 龙虾操作，目前消耗 token：📈33000W 左右
+- 全程 🦞 龙虾操作，目前消耗 token：📈53000W 左右
 
 ---
 
@@ -69,7 +69,7 @@
 
 1. 点击侧边栏图标打开云端文件面板
 2. 浏览目录，单击文件名插入链接
-3. 右键有更多操作（插入、复制链接、重命名、删除）
+3. 右键有更多操作（预览、复制、重命名、删除）
 
 <img alt="侧边栏浏览" src="https://github.com/user-attachments/assets/cdfdc813-a6a0-4ba1-ae7c-effb224a6981" />
 <br>
@@ -84,6 +84,22 @@
 
 **在线PDF预览：**
 <img alt="插入PDF预览_缩小_压缩" src="https://github.com/user-attachments/assets/102e265a-c77c-4823-bdbd-1c9cba6fc9b0" />
+
+---
+
+### PDF.js 预览
+
+CloudAttach 支持使用 PDF.js 内联预览 PDF 文件。启用方法：
+
+1. 打开 CloudAttach 设置 → **高级设置**
+2. 选择 **PDF.js** 作为 PDF 预览方式
+3. 点击 **保存** — 插件将自动下载并应用 PDF.js
+4. 通过 CloudAttach 侧边栏插入 PDF 文件
+5. PDF 将使用 `![]()` 语法插入并在笔记中内联渲染
+
+如需切换回 iframe 预览，在高级设置中改回即可。
+
+*注：手动指定尺寸（如 `![|500](file.pdf)`）暂未支持，后续版本将补充。*
 
 ---
 

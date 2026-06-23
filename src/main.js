@@ -1089,9 +1089,9 @@ class OpenListClient {
     const response = await this.authFetch('/api/fs/rename', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ src_dir: path.substring(0, path.lastIndexOf('/')),
-                             src_name: path.substring(path.lastIndexOf('/') + 1),
-                             dst_dir: path.substring(0, path.lastIndexOf('/')),
+      body: JSON.stringify({ src_dir: cleanPath.substring(0, cleanPath.lastIndexOf('/')),
+                             src_name: cleanPath.substring(cleanPath.lastIndexOf('/') + 1),
+                             dst_dir: cleanPath.substring(0, cleanPath.lastIndexOf('/')),
                              dst_name: newName })
     });
     if (!response.ok) {
@@ -1812,7 +1812,7 @@ class S3Client {
 
     const url = `${this.endpoint}/${this.bucket}/${encodeURIComponent(objectKey).replace(/%2F/g, '/')}`;
     try {
-      const resp = await fetch(url, {
+      const resp = await this.requestViaObsidian(url, {
         method,
         headers: { ...allSignedHeaders, 'Authorization': authHeader }
       });
@@ -1924,12 +1924,12 @@ class S3Client {
     const signature = await this._hmacSha256Hex(kSigning, stringToSign);
     const authHeader = `AWS4-HMAC-SHA256, Credential=${this.accessKey}/${dateOnly}/${this.region}/s3/aws4_request, SignedHeaders=${signedHeaderNames}, Signature=${signature}`;
     const copyUrl = `${this.endpoint}/${this.bucket}/${encodeURIComponent(dstKey).replace(/%2F/g, '/')}`;
-    const resp = await fetch(copyUrl, {
+    const resp = await this.requestViaObsidian(copyUrl, {
       method: 'PUT',
       headers: { ...extraHeaders, 'Authorization': authHeader }
     });
     if (!resp.ok) {
-      const err = await resp.text().catch(() => `HTTP ${resp.status}`);
+      const err = resp.text || `HTTP ${resp.status}`;
       throw new Error(err);
     }
     // 复制成功后删除原对象
