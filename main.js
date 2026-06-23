@@ -3426,17 +3426,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
         container.dataset.currentPage = "1";
         container.dataset.totalPages = pdf.numPages.toString();
         container.dataset.pdfUrl = url;
-        imgEl.replaceWith(container);
-        const availableW = container.parentElement ? container.parentElement.clientWidth : document.body.clientWidth || 800;
-        if (imgWidth) {
-          let w = parseInt(imgWidth, 10);
-          if (!isNaN(w)) {
-            if (w > availableW)
-              w = availableW;
-            container.style.setProperty("width", w + "px", "important");
-          }
+        const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+        if (imgWidth && !isTouchDevice) {
+          const w = imgWidth.includes("%") || imgWidth.includes("px") || imgWidth.includes("vw") ? imgWidth : imgWidth + "px";
+          container.style.setProperty("width", w, "important");
         }
-        if (imgStyleMaxWidth)
+        if (imgStyleMaxWidth && !isTouchDevice)
           container.style.maxWidth = imgStyleMaxWidth;
         let userHeightStr = "";
         if (imgHeight && imgHeight !== "auto") {
@@ -3450,11 +3445,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
         container.style.setProperty("opacity", "0", "important");
         const scrollArea = document.createElement("div");
         scrollArea.className = "cloudattach-pdf-scrollarea";
-        const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+        let touchDevice = false;
         scrollArea.style.overflowY = isTouchDevice ? "scroll" : "auto";
         scrollArea.style.overflowX = "hidden";
         scrollArea.style.position = "relative";
         container.appendChild(scrollArea);
+        imgEl.replaceWith(container);
         const firstPage = await pdf.getPage(1);
         const firstViewport = firstPage.getViewport({ scale: FIXED_SCALE });
         const canvasW = firstViewport.width;
@@ -3723,7 +3719,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         scrollToPage(p);
       }).open();
     };
-    container.dataset.cloudattachVersion = "0.3.314.dev";
+    container.dataset.cloudattachVersion = "0.3.315.dev";
     container.appendChild(toolbar);
     this._updatePdfToolbar(container, pdf);
   }

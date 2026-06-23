@@ -3633,19 +3633,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
       container.dataset.currentPage = "1";
       container.dataset.totalPages = pdf.numPages.toString();
       container.dataset.pdfUrl = url;
-      // 先插入 DOM 才能获取可用宽度
-      imgEl.replaceWith(container);
-      // 计算可用宽度（父容器宽度）
-      const availableW = container.parentElement ? container.parentElement.clientWidth : (document.body.clientWidth || 800);
-      // 处理用户设定的宽度
-      if (imgWidth) {
-        let w = parseInt(imgWidth, 10);
-        if (!isNaN(w)) {
-          if (w > availableW) w = availableW; // 超过则限制
-          container.style.setProperty("width", w + "px", "important");
-        }
+      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      if (imgWidth && !isTouchDevice) {
+        const w = imgWidth.includes("%") || imgWidth.includes("px") || imgWidth.includes("vw") ? imgWidth : imgWidth + "px";
+        container.style.setProperty("width", w, "important");
       }
-      if (imgStyleMaxWidth)
+      if (imgStyleMaxWidth && !isTouchDevice)
         container.style.maxWidth = imgStyleMaxWidth;
       let userHeightStr = "";
       if (imgHeight && imgHeight !== "auto") {
@@ -3659,11 +3652,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
       container.style.setProperty("opacity", "0", "important");
       const scrollArea = document.createElement("div");
       scrollArea.className = "cloudattach-pdf-scrollarea";
-      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      let touchDevice = false; // 已在上面定义
       scrollArea.style.overflowY = isTouchDevice ? "scroll" : "auto";
       scrollArea.style.overflowX = "hidden";
       scrollArea.style.position = "relative";
       container.appendChild(scrollArea);
+      imgEl.replaceWith(container);
       const firstPage = await pdf.getPage(1);
       const firstViewport = firstPage.getViewport({ scale: FIXED_SCALE });
       const canvasW = firstViewport.width;
