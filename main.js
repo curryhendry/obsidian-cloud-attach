@@ -3397,8 +3397,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
           docErr._fetchInfo = fetchInfo;
           throw docErr;
         }
+        await new Promise((r) => requestAnimationFrame(r));
         let imgWidth = imgEl.dataset.cloudattachWidth || imgEl.getAttribute("width") || imgEl.style.width || "";
-        console.log("[CloudAttach] _renderPdfAsCanvas width \u2014 dataset:", imgEl.dataset.cloudattachWidth, "attr:", imgEl.getAttribute("width"), "style:", imgEl.style.width, "final:", imgWidth);
+        if (!imgWidth && imgEl.clientWidth > 10)
+          imgWidth = imgEl.clientWidth + "px";
+        console.log("[CloudAttach] _renderPdfAsCanvas width \u2014 dataset:", imgEl.dataset.cloudattachWidth, "attr:", imgEl.getAttribute("width"), "style:", imgEl.style.width, "clientW:", imgEl.clientWidth, "final:", imgWidth);
         let imgHeight = imgEl.getAttribute("height") || imgEl.style.height || "";
         let imgStyleMaxWidth = imgEl.style.maxWidth;
         const parentSpan = imgEl.parentElement;
@@ -3424,9 +3427,15 @@ module.exports = class CloudAttachPlugin extends Plugin {
         container.dataset.currentPage = "1";
         container.dataset.totalPages = pdf.numPages.toString();
         container.dataset.pdfUrl = url;
+        imgEl.replaceWith(container);
+        const availableW = container.parentElement ? container.parentElement.clientWidth : document.body.clientWidth || 800;
         if (imgWidth) {
-          const w = imgWidth.includes("%") || imgWidth.includes("px") || imgWidth.includes("vw") ? imgWidth : imgWidth + "px";
-          container.style.setProperty("width", w, "important");
+          let w = parseInt(imgWidth, 10);
+          if (!isNaN(w)) {
+            if (w > availableW)
+              w = availableW;
+            container.style.setProperty("width", w + "px", "important");
+          }
         }
         if (imgStyleMaxWidth)
           container.style.maxWidth = imgStyleMaxWidth;
@@ -3447,7 +3456,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
         scrollArea.style.overflowX = "hidden";
         scrollArea.style.position = "relative";
         container.appendChild(scrollArea);
-        imgEl.replaceWith(container);
         const firstPage = await pdf.getPage(1);
         const firstViewport = firstPage.getViewport({ scale: FIXED_SCALE });
         const canvasW = firstViewport.width;
@@ -3716,7 +3724,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         scrollToPage(p);
       }).open();
     };
-    container.dataset.cloudattachVersion = "0.3.312.dev";
+    container.dataset.cloudattachVersion = "0.3.313.dev";
     container.appendChild(toolbar);
     this._updatePdfToolbar(container, pdf);
   }

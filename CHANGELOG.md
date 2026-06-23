@@ -1,3 +1,10 @@
+## v0.3.313.dev - 2026-06-23
+
+- 宽度读取加 requestAnimationFrame 延迟，确保 Obsidian 已设置 width 属性
+- 宽度兜底：未读到时用 imgEl.clientWidth
+- 设定宽度超过父容器时自动限制在可用宽度内
+- replaceWith 提前到宽度计算前，确保能获取父容器宽度
+
 ## v0.3.312.dev - 2026-06-23
 
 - getDocument 前加 fetch HEAD 探活获取状态码/文件大小
