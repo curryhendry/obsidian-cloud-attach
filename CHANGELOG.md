@@ -1,3 +1,9 @@
+## v0.3.312.dev - 2026-06-23
+
+- getDocument 前加 fetch HEAD 探活获取状态码/文件大小
+- 错误信息增加 name + stage + fetch 详情，写入 pdf-error-log.md 日志笔记
+- onunload 时 flush 日志到 .obsidian/plugins/cloud-attach/pdf-error-log.md
+
 ## v0.3.311.dev - 2026-06-23
 
 - getDocument 加 disableAutoFetch: true，阻止 PDF.js 预加载所有页面，修复 iOS 上大 PDF 加载失败（Load failed）
