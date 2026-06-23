@@ -1,7 +1,7 @@
 ## v0.3.331.dev - 2026-06-23
 
 - 修复 WebDAV 文件夹重命名 500：去尾 / 再算父目录（WebDAV + OpenList 两分支）
-- 回退 S3 _s3DirectRequest/rename 的 requestViaObsidian 改动，恢复 fetch()
+- S3 rename 改用 presigned URL + requestViaObsidian 绕过 CORS（CopyObject 和 Delete 都走此路径）
 
 ## v0.3.330 - 2026-06-23
 
