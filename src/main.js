@@ -3726,7 +3726,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         this._pdfLazyObservers.add(lazyObserver);
       }
       // 渲染成功后清除 pending 标记，失败保留供重试
-      img.dataset.cloudattachProcessed = 'done';
+      imgEl.dataset.cloudattachProcessed = 'done';
       // 去重标记：渲染成功后记录，失败不记录
       renderedSet.add(dedupKey);
       console.log("[CloudAttach] ALL DONE, pages:", pdf.numPages);
