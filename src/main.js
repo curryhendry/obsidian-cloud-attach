@@ -3803,21 +3803,16 @@ module.exports = class CloudAttachPlugin extends Plugin {
     console.log("[CloudAttach] lazy page", pageNum, "rendered");
   }
 
-  // 监听滚动更新当前页码（连续滚动模式，scroll 事件 + scrollTop/pageHeight）
+  // 监听滚动更新当前页码（连续滚动模式，scroll 事件 + scrollTop/scrollHeight）
   _bindPdfScroll(container, pdf) {
     const scrollArea = container.querySelector(".cloudattach-pdf-scrollarea");
     if (!scrollArea) return;
-    const calcPageHeight = () => {
-      const firstPage = scrollArea.querySelector(".cloudattach-pdf-page");
-      return firstPage ? firstPage.offsetHeight : 1;
-    };
+    const totalPages = parseInt(container.dataset.totalPages) || 1;
     const onScroll = () => {
-      const pageH = calcPageHeight();
-      if (pageH <= 0) return;
-      const pageNum = Math.max(1, Math.min(
-        parseInt(pdf.numPages),
-        Math.round(scrollArea.scrollTop / pageH) + 1
-      ));
+      const scrollH = scrollArea.scrollHeight - scrollArea.clientHeight;
+      if (scrollH <= 0) return;
+      const ratio = scrollArea.scrollTop / scrollH;
+      const pageNum = Math.max(1, Math.min(totalPages, Math.round(ratio * (totalPages - 1)) + 1));
       if (container.dataset.currentPage !== String(pageNum)) {
         container.dataset.currentPage = String(pageNum);
         this._updatePdfToolbar(container, pdf);
@@ -3891,10 +3886,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
     };
     const scrollArea = container.querySelector(".cloudattach-pdf-scrollarea");
     const scrollToPage = (pageNum) => {
-      const targetCanvas = scrollArea.querySelector(`.cloudattach-pdf-page[data-page-num="${pageNum}"]`);
-      if (targetCanvas) {
-        scrollArea.scrollTop = targetCanvas.offsetTop;
-      }
+      const scrollH = scrollArea.scrollHeight - scrollArea.clientHeight;
+      if (scrollH <= 0) return;
+      const ratio = (pageNum - 1) / (totalPages - 1);
+      scrollArea.scrollTop = Math.round(ratio * scrollH);
     };
     prevBtn.onclick = (e) => {
       e.stopPropagation();

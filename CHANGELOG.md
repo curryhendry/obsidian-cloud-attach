@@ -1,3 +1,8 @@
+## v0.3.317.dev - 2026-06-23
+
+- 翻页计算改用 scrollHeight 比例（兼容 iOS offsetHeight 不准问题）
+- scrollToPage 跳转改用 scrollHeight 比例计算
+
 ## v0.3.316.dev - 2026-06-23
 
 - 翻页按钮修复：IntersectionObserver → scroll 事件计算页码
