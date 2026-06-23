@@ -3568,7 +3568,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
       // ownerDocument 确保 PDF.js 生成的 @font-face CSS 注入到正确的 document
       // （popout 窗口的 canvas 在其独立的 document 中，需要 font-face 也在同一 document）
-      const loadingTask = pdfjsLib.getDocument({ url, ownerDocument: imgEl.ownerDocument });
+      // disableAutoFetch: 阻止预加载所有页面，iOS 内存受限时避免加载失败
+      const loadingTask = pdfjsLib.getDocument({ url, ownerDocument: imgEl.ownerDocument, disableAutoFetch: true });
       let pdf;
       try {
         pdf = await loadingTask.promise;

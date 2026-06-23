@@ -1,3 +1,7 @@
+## v0.3.311.dev - 2026-06-23
+
+- getDocument 加 disableAutoFetch: true，阻止 PDF.js 预加载所有页面，修复 iOS 上大 PDF 加载失败（Load failed）
+
 ## v0.3.310.dev - 2026-06-23
 
 - 去掉 catch 块 Notice 弹窗（iOS 上可能触发渲染副作用导致所有 PDF Load failed），保留 console.error + failStage + 红框错误信息
