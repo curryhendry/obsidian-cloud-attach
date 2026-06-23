@@ -3355,11 +3355,24 @@ module.exports = class CloudAttachPlugin extends Plugin {
       this._pdfRenderPromises = /* @__PURE__ */ new Map();
     this._pdfQueuedUrls.add(url);
     const doRender = async () => {
+      let failStage = "unknown";
       try {
-        const pdfjsLib = await this._loadPdfJs();
+        let pdfjsLib;
+        try {
+          pdfjsLib = await this._loadPdfJs();
+        } catch (loadErr) {
+          failStage = "loadPdfJs";
+          throw loadErr;
+        }
         const loadingTask = pdfjsLib.getDocument({ url, ownerDocument: imgEl.ownerDocument });
-        console.log("[CloudAttach] PDF doc loaded, pages:", (await loadingTask.promise).numPages);
-        const pdf = await loadingTask.promise;
+        let pdf;
+        try {
+          pdf = await loadingTask.promise;
+          console.log("[CloudAttach] PDF doc loaded, pages:", pdf.numPages);
+        } catch (docErr) {
+          failStage = "getDocument";
+          throw docErr;
+        }
         let imgWidth = imgEl.dataset.cloudattachWidth || imgEl.getAttribute("width") || imgEl.style.width || "";
         console.log("[CloudAttach] _renderPdfAsCanvas width \u2014 dataset:", imgEl.dataset.cloudattachWidth, "attr:", imgEl.getAttribute("width"), "style:", imgEl.style.width, "final:", imgWidth);
         let imgHeight = imgEl.getAttribute("height") || imgEl.style.height || "";
@@ -3485,8 +3498,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
         this._bindPdfScroll(container, pdf);
         console.log("[CloudAttach] PDF container built, pages:", pdf.numPages);
       } catch (e) {
-        console.error("[CloudAttach] PDF render failed:", e);
-        const errorMsg = e && e.message ? String(e.message) : "PDF render failed";
+        console.error("[CloudAttach] PDF render failed:", e, "| stage:", failStage, "| url:", url);
+        const errorMsg = e && e.message ? String(e.message) : "PDF render failed (" + failStage + ")";
         try {
           if (imgEl && imgEl.isConnected) {
             imgEl.style.border = "2px dashed red";
