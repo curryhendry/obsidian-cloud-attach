@@ -3887,11 +3887,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         scrollToPage(p);
       }).open();
     };
-    const versionLabel = document.createElement("span");
-    versionLabel.textContent = "CLOUDATTACH_VERSION";
-    versionLabel.style.opacity = "0.4";
-    versionLabel.style.fontSize = "10px";
-    toolbar.appendChild(versionLabel);
+    container.dataset.cloudattachVersion = "CLOUDATTACH_VERSION";
     container.appendChild(toolbar);
     this._updatePdfToolbar(container, pdf);
   }
@@ -3907,8 +3903,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const currentPage = parseInt(container.dataset.currentPage);
     const totalPages = parseInt(container.dataset.totalPages);
     const pageIndicator = toolbar.querySelector('[data-role="pageIndicator"]');
-    if (pageIndicator)
-      pageIndicator.textContent = `${currentPage} / ${totalPages}`;
+    if (pageIndicator) {
+      const ver = container.dataset.cloudattachVersion || '';
+      pageIndicator.textContent = `${currentPage} / ${totalPages}` + (ver ? `  v${ver}` : '');
+    }
     const prevBtn = toolbar.querySelector('[data-role="prev"]');
     const nextBtn = toolbar.querySelector('[data-role="next"]');
     if (prevBtn)
