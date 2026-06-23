@@ -1,3 +1,7 @@
+## v0.3.326.dev - 2026-06-23
+
+- Fetch 失败时用 Obsidian requestUrl 下载 PDF 二进制传给 PDF.js，绕过 CORS
+
 ## v0.3.325.dev - 2026-06-23
 
 - 修复变量名引用错误：img → imgEl（导致 ReferenceError）

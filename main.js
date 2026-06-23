@@ -3367,13 +3367,27 @@ module.exports = class CloudAttachPlugin extends Plugin {
           throw loadErr;
         }
         let fetchInfo = "";
+        let pdfData = null;
         try {
           const resp = await fetch(url, { method: "HEAD" });
           fetchInfo = "status=" + resp.status + " size=" + (resp.headers.get("content-length") || "?");
         } catch (fErr) {
           fetchInfo = "fetch_err:" + (fErr.message || fErr);
+          let reqUrl = null;
+          try {
+            reqUrl = require("obsidian").requestUrl;
+          } catch (e) {
+          }
+          if (reqUrl) {
+            try {
+              const resp = await reqUrl({ url, method: "GET" });
+              pdfData = resp.arrayBuffer;
+              fetchInfo = "status=" + resp.status + " viaObsidian";
+            } catch (e) {
+            }
+          }
         }
-        const loadingTask = pdfjsLib.getDocument({ url, ownerDocument: imgEl.ownerDocument, disableAutoFetch: true });
+        const loadingTask = pdfData ? pdfjsLib.getDocument({ data: pdfData, ownerDocument: imgEl.ownerDocument }) : pdfjsLib.getDocument({ url, ownerDocument: imgEl.ownerDocument, disableAutoFetch: true });
         let pdf;
         try {
           pdf = await loadingTask.promise;
@@ -3733,7 +3747,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         scrollToPage(p);
       }).open();
     };
-    container.dataset.cloudattachVersion = "0.3.325.dev";
+    container.dataset.cloudattachVersion = "0.3.326.dev";
     container.appendChild(toolbar);
     this._updatePdfToolbar(container, pdf);
   }
