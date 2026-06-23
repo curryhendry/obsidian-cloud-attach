@@ -3396,11 +3396,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
           docErr._fetchInfo = fetchInfo;
           throw docErr;
         }
-        await new Promise((r) => requestAnimationFrame(r));
         let imgWidth = imgEl.dataset.cloudattachWidth || imgEl.getAttribute("width") || imgEl.style.width || "";
-        if (!imgWidth && imgEl.clientWidth > 10)
-          imgWidth = imgEl.clientWidth + "px";
-        console.log("[CloudAttach] _renderPdfAsCanvas width \u2014 dataset:", imgEl.dataset.cloudattachWidth, "attr:", imgEl.getAttribute("width"), "style:", imgEl.style.width, "clientW:", imgEl.clientWidth, "final:", imgWidth);
+        console.log("[CloudAttach] _renderPdfAsCanvas width \u2014 dataset:", imgEl.dataset.cloudattachWidth, "attr:", imgEl.getAttribute("width"), "style:", imgEl.style.width, "final:", imgWidth);
         let imgHeight = imgEl.getAttribute("height") || imgEl.style.height || "";
         let imgStyleMaxWidth = imgEl.style.maxWidth;
         const parentSpan = imgEl.parentElement;
@@ -3532,6 +3529,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
           this._pdfLazyObservers.add(lazyObserver);
         }
         imgEl.dataset.cloudattachProcessed = "done";
+        renderedSet.add(url);
         console.log("[CloudAttach] ALL DONE, pages:", pdf.numPages);
         this._bindPdfScroll(container, pdf);
         console.log("[CloudAttach] PDF container built, pages:", pdf.numPages);
@@ -3746,7 +3744,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         scrollToPage(p);
       }).open();
     };
-    container.dataset.cloudattachVersion = "0.3.327.dev";
+    container.dataset.cloudattachVersion = "0.3.328.dev";
     container.appendChild(toolbar);
     this._updatePdfToolbar(container, pdf);
   }
