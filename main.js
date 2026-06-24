@@ -1735,30 +1735,6 @@ var CloudAttachView = class extends ItemView {
       titleEl.textContent = "\u2601\uFE0F " + t("view.plugin_title");
       titleEl.style.margin = "0";
       titleRow.appendChild(titleEl);
-      if (this.plugin.defaultAccountId) {
-        const defAccount = this.plugin.accounts.find((a) => a.id === this.plugin.defaultAccountId);
-        if (defAccount) {
-          const badge = document.createElement("button");
-          badge.className = "cloud-attach-btn";
-          badge.style.fontSize = "11px";
-          badge.style.padding = "2px 8px";
-          badge.style.background = "var(--text-accent)";
-          badge.style.color = "var(--text-on-accent)";
-          badge.style.borderRadius = "10px";
-          badge.textContent = "\u{1F31F} " + t("settings.default_account") + ": " + defAccount.name;
-          badge.title = t("view.select_account_hint") + ": " + defAccount.name;
-          badge.onclick = async () => {
-            if (this.accountId !== this.plugin.defaultAccountId) {
-              this.accountId = this.plugin.defaultAccountId;
-              this.selectedFiles.clear();
-              this.currentPath = "/";
-              this.client = this.plugin.createClient(this.accountId);
-              await this.render();
-            }
-          };
-          titleRow.appendChild(badge);
-        }
-      }
       header.appendChild(titleRow);
       this.contentEl.appendChild(header);
       if (this.plugin.accounts.length === 0) {
@@ -4314,7 +4290,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (!client) {
       return { ok: false, error: t("error.no_account") };
     }
-    const remotePath = client.webdavPath || "/";
+    const remotePath = "/";
     return {
       ok: true,
       client,
@@ -4672,8 +4648,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
         const ext = rep.localPath.split(".").pop().toLowerCase();
         const fileName = rep.localPath.split("/").pop();
         const nameWithoutExt = fileName.replace(/\.[^.]+$/, "");
+        const isPdfJsInsert = ext === "pdf" && this.settings.pdfPreview === "pdfjs";
         let url;
-        if (docExts.includes(ext)) {
+        if (docExts.includes(ext) && !isPdfJsInsert) {
           url = client.getRawUrl ? client.getRawUrl(rep.remotePath) : client.getFileUrl(rep.remotePath);
         } else {
           url = rep.newUrl;
@@ -4692,8 +4669,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
             newSyntax = `<audio controls>
  <source src="${url}" type="audio/mpeg">
 </audio>`;
-          } else if (docExts.includes(ext)) {
+          } else if (docExts.includes(ext) && !isPdfJsInsert) {
             newSyntax = `<iframe src="${url}" width="100%" height="800px"></iframe>`;
+          } else if (isPdfJsInsert) {
+            newSyntax = `![${alias}](${url})`;
           } else {
             newSyntax = `[${alias}](${url})`;
           }
@@ -4710,8 +4689,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
             newSyntax = `<audio controls>
  <source src="${url}" type="audio/mpeg">
 </audio>`;
-          } else if (docExts.includes(ext)) {
+          } else if (docExts.includes(ext) && !isPdfJsInsert) {
             newSyntax = `<iframe src="${url}" width="100%" height="800px"></iframe>`;
+          } else if (isPdfJsInsert) {
+            newSyntax = `![${alt}](${url})`;
           } else {
             newSyntax = `[${alt}](${url})`;
           }
