@@ -2908,7 +2908,7 @@ class CloudAttachSettingTab extends PluginSettingTab {
     const headerRow = document.createElement('div');
     headerRow.style.display = 'flex';
     headerRow.style.alignItems = 'center';
-    headerRow.style.justifyContent = 'space-between';
+    headerRow.style.justifyContent = 'flex-start';
     headerRow.style.marginBottom = '8px';
     const h3 = document.createElement('h3');
     h3.textContent = account.name;
