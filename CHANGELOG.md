@@ -1,8 +1,7 @@
-## v0.3.338.dev - 2026-06-24
+## v0.3.339.dev - 2026-06-24
 
-- 修复：删除视图头部默认账号徽章（用户要求移除）
-- 修复：getDefaultUploadContext 返回根目录/而非 webdavPath，解决 WebDAV 路径重复拼接导致上传到错误深层目录
-- 修复：上传 PDF 时遵循 pdfPreview 设置，pdfjs 模式下生成 ![]() 格式而非 iframe
+- 优化：视图头部标题与账号名间距拉开（header padding）
+- 修复：上传附件识别支持普通 wiki-link [[path]] 格式（之前只支持 ![[path]]）
 
 ## v0.3.331 - 2026-06-23
 
