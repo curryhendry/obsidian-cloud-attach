@@ -4850,12 +4850,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
           infoLabel.style.fontSize = '12px';
           infoLabel.style.color = 'var(--text-muted)';
           infoLabel.style.marginBottom = '4px';
-          infoLabel.textContent = t('view.upload_to') + ':';
+          infoLabel.textContent = t('view.upload_to_default_account') + ':';
           infoEl.appendChild(infoLabel);
           const infoValue = document.createElement('div');
-          infoValue.style.fontSize = '14px';
+          infoValue.style.fontSize = '13px';
           infoValue.style.fontWeight = '600';
-          infoValue.innerHTML = `<span style="color:var(--text-accent)">✨</span> ${this.escapeHtml(defAccount.name)}`;
+          infoValue.innerHTML = `<span style="color:var(--text-accent);font-size:11px">✨</span> ${this.escapeHtml(defAccount.name)}`;
           infoEl.appendChild(infoValue);
           content.appendChild(infoEl);
           useDefault = true;
