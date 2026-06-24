@@ -3412,7 +3412,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
   addStyles() {
     const css = `
-      .cloud-attach-header { padding: 0 8px; }
+      .cloud-attach-header { padding: 8px 8px 6px; }
       .cloud-attach-title { font-size: 14px; margin: 8px 0; }
       .cloud-attach-select-area { padding: 0 8px 8px; }
       .cloud-attach-select { width: 100%; padding: 6px 8px; font-size: 13px; border-radius: 4px; border: 1px solid var(--background-modifier-border); background: var(--background-primary); }
@@ -4579,6 +4579,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
           if (wikiMatch) {
             localPath = wikiMatch[1];
             markdownSyntax = wikiMatch[0];
+          } else {
+            // 尝试匹配普通 wiki-link 格式 [[path]]（无 ! 前缀）
+            const plainWikiMatch = line.match(/\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/);
+            if (plainWikiMatch) {
+              localPath = plainWikiMatch[1];
+              markdownSyntax = plainWikiMatch[0];
+            }
           }
         }
       }
@@ -4685,6 +4692,28 @@ module.exports = class CloudAttachPlugin extends Plugin {
         }
       }
       // 检查是否已存在
+      if (!attachments.find(a => a.localPath === absolutePath)) {
+        attachments.push({
+          localPath: absolutePath,
+          syntax: match[0]
+        });
+      }
+    }
+    // 匹配普通 wiki-link 格式 [[path]]（无 ! 前缀）
+    const plainWikiRegex = /\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g;
+    while ((match = plainWikiRegex.exec(text)) !== null) {
+      const localPath = match[1];
+      const cacheResolved = this.app.metadataCache.getFirstLinkpathDest(localPath, notePath);
+      let absolutePath;
+      if (cacheResolved && cacheResolved.path) {
+        absolutePath = cacheResolved.path;
+      } else {
+        if (localPath.startsWith('/')) {
+          absolutePath = localPath.substring(1);
+        } else {
+          absolutePath = noteDir + localPath;
+        }
+      }
       if (!attachments.find(a => a.localPath === absolutePath)) {
         attachments.push({
           localPath: absolutePath,
