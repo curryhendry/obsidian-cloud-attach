@@ -105,6 +105,13 @@ Object.assign(I18n.translations.zh, {
   "settings.openlist": "\u5BF9\u8C61\u5B58\u50A8",
   "settings.openlist_desc": "\u8FDE\u63A5 OpenList \u7BA1\u7406\u4E91\u9644\u4EF6",
   "settings.advanced": "\u9AD8\u7EA7",
+  "settings.set_as_default": "\u2605 \u8BBE\u4E3A\u9ED8\u8BA4",
+  "settings.unset_default": "\u2606 \u53D6\u6D88\u9ED8\u8BA4",
+  "settings.is_default": "\u9ED8\u8BA4",
+  "settings.default_account": "\u9ED8\u8BA4\u8D26\u53F7",
+  "view.upload_to_current_path": "\u4E0A\u4F20\u5230\u5F53\u524D CloudAttach \u8DEF\u5F84",
+  "view.upload_to_default_account": "\u4E0A\u4F20\u5230\u9ED8\u8BA4\u8D26\u53F7",
+  "view.no_default_account_hint": "\u8BF7\u5148\u5728\u8BBE\u7F6E\u4E2D\u8BBE\u5B9A\u9ED8\u8BA4\u8D26\u53F7",
   "settings.advanced_title": "\u9AD8\u7EA7\u8BBE\u7F6E",
   "settings.preview_category": "\u6587\u4EF6\u9884\u89C8",
   "settings.pdf_preview": "PDF \u9884\u89C8\u65B9\u5F0F",
@@ -1717,7 +1724,40 @@ var CloudAttachView = class extends ItemView {
       this.contentEl.innerHTML = "";
       const header = document.createElement("div");
       header.className = "cloud-attach-header";
-      header.innerHTML = '<h3 class="cloud-attach-title">\u2601\uFE0F ' + t("view.plugin_title") + "</h3>";
+      const titleRow = document.createElement("div");
+      titleRow.style.display = "flex";
+      titleRow.style.alignItems = "center";
+      titleRow.style.justifyContent = "space-between";
+      const titleEl = document.createElement("h3");
+      titleEl.className = "cloud-attach-title";
+      titleEl.textContent = "\u2601\uFE0F " + t("view.plugin_title");
+      titleEl.style.margin = "0";
+      titleRow.appendChild(titleEl);
+      if (this.plugin.defaultAccountId) {
+        const defAccount = this.plugin.accounts.find((a) => a.id === this.plugin.defaultAccountId);
+        if (defAccount) {
+          const badge = document.createElement("button");
+          badge.className = "cloud-attach-btn";
+          badge.style.fontSize = "11px";
+          badge.style.padding = "2px 8px";
+          badge.style.background = "var(--text-accent)";
+          badge.style.color = "var(--text-on-accent)";
+          badge.style.borderRadius = "10px";
+          badge.textContent = "\u{1F31F} " + t("settings.default_account") + ": " + defAccount.name;
+          badge.title = t("view.select_account_hint") + ": " + defAccount.name;
+          badge.onclick = async () => {
+            if (this.accountId !== this.plugin.defaultAccountId) {
+              this.accountId = this.plugin.defaultAccountId;
+              this.selectedFiles.clear();
+              this.currentPath = "/";
+              this.client = this.plugin.createClient(this.accountId);
+              await this.render();
+            }
+          };
+          titleRow.appendChild(badge);
+        }
+      }
+      header.appendChild(titleRow);
       this.contentEl.appendChild(header);
       if (this.plugin.accounts.length === 0) {
         this.contentEl.innerHTML += '<p class="cloud-attach-hint">' + t("view.no_account_hint") + "</p>";
@@ -2726,6 +2766,25 @@ var CloudAttachSettingTab = class extends PluginSettingTab {
     h3.style.margin = "0";
     h3.style.fontSize = "14px";
     headerRow.appendChild(h3);
+    const starBtn = document.createElement("button");
+    starBtn.className = "cloud-attach-btn";
+    starBtn.style.fontSize = "16px";
+    starBtn.style.padding = "0 4px";
+    starBtn.style.marginRight = "4px";
+    starBtn.title = this.plugin.defaultAccountId === account.id ? t("settings.unset_default") : t("settings.set_as_default");
+    starBtn.textContent = this.plugin.defaultAccountId === account.id ? "\u2605" : "\u2606";
+    starBtn.style.color = this.plugin.defaultAccountId === account.id ? "var(--text-accent)" : "var(--text-muted)";
+    starBtn.onclick = async () => {
+      if (this.plugin.defaultAccountId === account.id) {
+        await this.plugin.setDefaultAccount(null);
+      } else {
+        await this.plugin.setDefaultAccount(account.id);
+      }
+      this.containerEl.innerHTML = "";
+      this.render();
+      this.refreshViewSelect();
+    };
+    headerRow.appendChild(starBtn);
     const typeBadge = document.createElement("span");
     typeBadge.style.fontSize = "10px";
     typeBadge.style.padding = "2px 6px";
@@ -4151,9 +4210,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
     this.settings = { accounts: [], pdfPreview: "iframe", ...data };
     this.accounts = this.settings.accounts || [];
     this.settings.pdfPreview = this.settings.pdfPreview || "iframe";
+    this.defaultAccountId = this.settings.defaultAccountId || null;
   }
   async saveSettings() {
     this.settings.accounts = this.accounts;
+    this.settings.defaultAccountId = this.defaultAccountId;
     await this.saveData(this.settings);
   }
   getAccount(id) {
@@ -4166,6 +4227,14 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
   async removeAccount(id) {
     this.accounts = this.accounts.filter((a) => a.id !== id);
+    if (this.defaultAccountId === id)
+      this.defaultAccountId = null;
+    await this.saveSettings();
+  }
+  async setDefaultAccount(id) {
+    if (id && !this.accounts.find((a) => a.id === id))
+      return;
+    this.defaultAccountId = id || null;
     await this.saveSettings();
   }
   async updateAccount(id, updates) {
@@ -4216,6 +4285,30 @@ module.exports = class CloudAttachPlugin extends Plugin {
       client: view.client,
       remotePath: view.currentPath,
       account: this.getAccount(view.accountId)
+    };
+  }
+  /**
+   * 获取默认账号的上传上下文
+   * @returns {{ok: boolean, client: object, remotePath: string, account: object}|null}
+   */
+  getDefaultUploadContext() {
+    if (!this.defaultAccountId) {
+      return { ok: false, error: t("view.no_default_account_hint") };
+    }
+    const account = this.getAccount(this.defaultAccountId);
+    if (!account) {
+      return { ok: false, error: t("error.no_account") };
+    }
+    const client = this.createClient(this.defaultAccountId);
+    if (!client) {
+      return { ok: false, error: t("error.no_account") };
+    }
+    const remotePath = client.webdavPath || "/";
+    return {
+      ok: true,
+      client,
+      remotePath,
+      account
     };
   }
   /**
@@ -4284,7 +4377,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const confirmed = await this.showUploadConfirmModal([{ localPath: absolutePath, syntax: markdownSyntax }], ctx.remotePath);
     if (!confirmed)
       return;
-    await this.doUpload([{ localPath: absolutePath, syntax: markdownSyntax }], ctx);
+    const uploadCtx = confirmed.useDefault ? this.getDefaultUploadContext() : ctx;
+    if (!uploadCtx || !uploadCtx.ok) {
+      new Notice(`\u26A0\uFE0F ${uploadCtx?.error || t("error.no_account")}`, 4e3);
+      return;
+    }
+    await this.doUpload([{ localPath: absolutePath, syntax: markdownSyntax }], uploadCtx);
   }
   /**
    * 上传当前笔记中的所有附件
@@ -4354,7 +4452,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const confirmed = await this.showUploadConfirmModal(attachments, ctx.remotePath);
     if (!confirmed)
       return;
-    await this.doUpload(attachments, ctx);
+    const uploadCtx = confirmed.useDefault ? this.getDefaultUploadContext() : ctx;
+    if (!uploadCtx || !uploadCtx.ok) {
+      new Notice(`\u26A0\uFE0F ${uploadCtx?.error || t("error.no_account")}`, 4e3);
+      return;
+    }
+    await this.doUpload(attachments, uploadCtx);
   }
   /**
    * 显示上传确认对话框
@@ -4384,12 +4487,65 @@ module.exports = class CloudAttachPlugin extends Plugin {
         listEl.appendChild(item);
       });
       content.appendChild(listEl);
-      const targetEl = document.createElement("div");
-      targetEl.style.marginBottom = "16px";
-      targetEl.style.fontSize = "13px";
-      targetEl.style.color = "var(--text-muted)";
-      targetEl.innerHTML = t("view.upload_to", { path: this.escapeHtml(remotePath) });
-      content.appendChild(targetEl);
+      const targetGroup = document.createElement("div");
+      targetGroup.style.marginBottom = "16px";
+      targetGroup.style.padding = "12px";
+      targetGroup.style.background = "var(--background-secondary)";
+      targetGroup.style.borderRadius = "6px";
+      let useDefault = false;
+      const mkRadio = (label, subLabel, checked, onCheck) => {
+        const row = document.createElement("div");
+        row.style.display = "flex";
+        row.style.alignItems = "center";
+        row.style.gap = "6px";
+        row.style.padding = "4px 0";
+        const radio = document.createElement("input");
+        radio.type = "radio";
+        radio.name = "upload_target";
+        radio.checked = checked;
+        radio.onchange = () => {
+          if (radio.checked)
+            onCheck();
+        };
+        row.appendChild(radio);
+        const labelEl = document.createElement("span");
+        labelEl.style.fontSize = "13px";
+        labelEl.style.fontWeight = "600";
+        labelEl.textContent = label;
+        row.appendChild(labelEl);
+        if (subLabel) {
+          const sub = document.createElement("span");
+          sub.style.fontSize = "11px";
+          sub.style.color = "var(--text-muted)";
+          sub.textContent = subLabel;
+          row.appendChild(sub);
+        }
+        return row;
+      };
+      targetGroup.appendChild(mkRadio(
+        t("view.upload_to_current_path"),
+        this.escapeHtml(remotePath),
+        true,
+        () => {
+          useDefault = false;
+        }
+      ));
+      if (this.defaultAccountId) {
+        const defAccount = this.accounts.find((a) => a.id === this.defaultAccountId);
+        if (defAccount) {
+          const defLabel = t("view.upload_to_default_account");
+          const defSub = defAccount.name;
+          targetGroup.appendChild(mkRadio(
+            defLabel,
+            defSub,
+            false,
+            () => {
+              useDefault = true;
+            }
+          ));
+        }
+      }
+      content.appendChild(targetGroup);
       const btnRow = document.createElement("div");
       btnRow.style.display = "flex";
       btnRow.style.gap = "8px";
@@ -4400,7 +4556,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       cancelBtn.style.padding = "8px 16px";
       cancelBtn.onclick = () => {
         modal.close();
-        resolve(false);
+        resolve(null);
       };
       const uploadBtn = document.createElement("button");
       uploadBtn.textContent = t("view.upload_btn", { count: attachments.length });
@@ -4410,7 +4566,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       uploadBtn.style.padding = "8px 16px";
       uploadBtn.onclick = () => {
         modal.close();
-        resolve(true);
+        resolve({ confirmed: true, useDefault });
       };
       btnRow.appendChild(cancelBtn);
       btnRow.appendChild(uploadBtn);
