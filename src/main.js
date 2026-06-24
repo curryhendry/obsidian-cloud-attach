@@ -1932,31 +1932,6 @@ class CloudAttachView extends ItemView {
       titleEl.textContent = '☁️ ' + t('view.plugin_title');
       titleEl.style.margin = '0';
       titleRow.appendChild(titleEl);
-      // 默认账号徽章
-      if (this.plugin.defaultAccountId) {
-        const defAccount = this.plugin.accounts.find(a => a.id === this.plugin.defaultAccountId);
-        if (defAccount) {
-          const badge = document.createElement('button');
-          badge.className = 'cloud-attach-btn';
-          badge.style.fontSize = '11px';
-          badge.style.padding = '2px 8px';
-          badge.style.background = 'var(--text-accent)';
-          badge.style.color = 'var(--text-on-accent)';
-          badge.style.borderRadius = '10px';
-          badge.textContent = '🌟 ' + t('settings.default_account') + ': ' + defAccount.name;
-          badge.title = t('view.select_account_hint') + ': ' + defAccount.name;
-          badge.onclick = async () => {
-            if (this.accountId !== this.plugin.defaultAccountId) {
-              this.accountId = this.plugin.defaultAccountId;
-              this.selectedFiles.clear();
-              this.currentPath = '/';
-              this.client = this.plugin.createClient(this.accountId);
-              await this.render();
-            }
-          };
-          titleRow.appendChild(badge);
-        }
-      }
       header.appendChild(titleRow);
       this.contentEl.appendChild(header);
       if (this.plugin.accounts.length === 0) {
@@ -4550,7 +4525,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (!client) {
       return { ok: false, error: t('error.no_account') };
     }
-    const remotePath = client.webdavPath || '/';
+    // remotePath 是相对于 webdavPath/prefix 的路径，不是含 webdavPath 的绝对路径
+    // 视图未打开时无法知道当前浏览位置，默认根目录
+    const remotePath = '/';
     return {
       ok: true,
       client,
@@ -4939,9 +4916,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
         const ext = rep.localPath.split('.').pop().toLowerCase();
         const fileName = rep.localPath.split('/').pop();
         const nameWithoutExt = fileName.replace(/\.[^.]+$/, '');
-        // 根据文件类型选择 URL（文档类型用不带签名的原始 URL）
+        // PDF 检查 pdfPreview 设置
+        const isPdfJsInsert = ext === 'pdf' && this.settings.pdfPreview === 'pdfjs';
+        // 根据文件类型选择 URL
         let url;
-        if (docExts.includes(ext)) {
+        if (docExts.includes(ext) && !isPdfJsInsert) {
+          // 文档类型（iframe 预览）：用 getRawUrl（OpenList）或 getFileUrl（S3），不带签名
           // 文档类型（iframe 预览）：用 getRawUrl（OpenList）或 getFileUrl（S3），不带签名
           url = client.getRawUrl
             ? client.getRawUrl(rep.remotePath)
@@ -4961,8 +4941,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
             newSyntax = `<video controls width="600" height="400">\n <source src="${url}" type="video/mp4">\n</video>`;
           } else if (audioExts.includes(ext)) {
             newSyntax = `<audio controls>\n <source src="${url}" type="audio/mpeg">\n</audio>`;
-          } else if (docExts.includes(ext)) {
+          } else if (docExts.includes(ext) && !isPdfJsInsert) {
             newSyntax = `<iframe src="${url}" width="100%" height="800px"></iframe>`;
+          } else if (isPdfJsInsert) {
+            newSyntax = `![${alias}](${url})`;
           } else {
             newSyntax = `[${alias}](${url})`;
           }
@@ -4976,8 +4958,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
             newSyntax = `<video controls width="600" height="400">\n <source src="${url}" type="video/mp4">\n</video>`;
           } else if (audioExts.includes(ext)) {
             newSyntax = `<audio controls>\n <source src="${url}" type="audio/mpeg">\n</audio>`;
-          } else if (docExts.includes(ext)) {
+          } else if (docExts.includes(ext) && !isPdfJsInsert) {
             newSyntax = `<iframe src="${url}" width="100%" height="800px"></iframe>`;
+          } else if (isPdfJsInsert) {
+            // PDF + pdfjs 模式用图片语法
+            newSyntax = `![${alt}](${url})`;
           } else {
             newSyntax = `[${alt}](${url})`;
           }
