@@ -2914,6 +2914,31 @@ class CloudAttachSettingTab extends PluginSettingTab {
     h3.textContent = account.name;
     h3.style.margin = '0';
     h3.style.fontSize = '14px';
+    // ✨ 默认账号按钮（标题前）
+    const starBtn = document.createElement('button');
+    starBtn.className = 'cloud-attach-btn';
+    starBtn.style.fontSize = '14px';
+    starBtn.style.padding = '0 4px';
+    starBtn.style.marginRight = '6px';
+    starBtn.style.cursor = 'pointer';
+    starBtn.style.background = 'none';
+    starBtn.style.border = 'none';
+    starBtn.title = this.plugin.defaultAccountId === account.id ? t('settings.unset_default') : t('settings.set_as_default');
+    starBtn.textContent = this.plugin.defaultAccountId === account.id ? '✨' : '☆';
+    starBtn.style.color = this.plugin.defaultAccountId === account.id ? '#f1c40f' : 'var(--text-muted)';
+    starBtn.onmouseenter = () => { starBtn.style.opacity = '0.7'; };
+    starBtn.onmouseleave = () => { starBtn.style.opacity = '1'; };
+    starBtn.onclick = async () => {
+      if (this.plugin.defaultAccountId === account.id) {
+        await this.plugin.setDefaultAccount(null);
+      } else {
+        await this.plugin.setDefaultAccount(account.id);
+      }
+      this.containerEl.innerHTML = '';
+      this.render();
+      this.refreshViewSelect();
+    };
+    headerRow.appendChild(starBtn);
     headerRow.appendChild(h3);
     const typeBadge = document.createElement('span');
     typeBadge.style.fontSize = '10px';
@@ -2930,29 +2955,6 @@ class CloudAttachSettingTab extends PluginSettingTab {
       typeBadge.style.color = '#1565c0';
     }
     headerRow.appendChild(typeBadge);
-    // ☆/★ 默认账号按钮（放最右侧）
-    const starBtn = document.createElement('button');
-    starBtn.className = 'cloud-attach-btn';
-    starBtn.style.fontSize = '16px';
-    starBtn.style.padding = '4px 8px';
-    starBtn.style.marginLeft = '8px';
-    starBtn.style.cursor = 'pointer';
-    starBtn.title = this.plugin.defaultAccountId === account.id ? t('settings.unset_default') : t('settings.set_as_default');
-    starBtn.textContent = this.plugin.defaultAccountId === account.id ? '★' : '☆';
-    starBtn.style.color = this.plugin.defaultAccountId === account.id ? 'var(--text-accent)' : 'var(--text-muted)';
-    starBtn.onmouseenter = () => { starBtn.style.opacity = '0.7'; };
-    starBtn.onmouseleave = () => { starBtn.style.opacity = '1'; };
-    starBtn.onclick = async () => {
-      if (this.plugin.defaultAccountId === account.id) {
-        await this.plugin.setDefaultAccount(null);
-      } else {
-        await this.plugin.setDefaultAccount(account.id);
-      }
-      this.containerEl.innerHTML = '';
-      this.render();
-      this.refreshViewSelect();
-    };
-    headerRow.appendChild(starBtn);
     card.appendChild(headerRow);
     if (account.type === 's3') {
       const p1 = document.createElement('p');
