@@ -230,6 +230,7 @@ Object.assign(I18n.translations.zh, {
   "error.file_not_found": "\u6587\u4EF6\u4E0D\u5B58\u5728\uFF08\u53EF\u80FD\u5728\u670D\u52A1\u5668\u4E0A\u88AB\u5220\u9664\u6216\u79FB\u52A8\uFF09",
   "error.network_error": "\u7F51\u7EDC\u9519\u8BEF",
   "error.no_view_or_folder": "\u8BF7\u5148\u6253\u5F00 CloudAttach \u6807\u7B7E\u9875\u5E76\u9009\u62E9\u4E0A\u4F20\u76EE\u5F55",
+  "error.no_default_account_set": "\u672A\u8BBE\u7F6E\u9ED8\u8BA4\u8D26\u53F7\uFF0C\u8BF7\u5728\u8BBE\u7F6E\u4E2D\u9009\u62E9\u4E00\u4E2A\u9ED8\u8BA4\u8D26\u53F7",
   "error.no_account": "\u8BF7\u5148\u9009\u62E9\u4E00\u4E2A\u8D26\u6237",
   "view.loading": "\u23F3 \u52A0\u8F7D\u4E2D...",
   "view.no_account_hint": "\u8BF7\u5148\u5728\u8BBE\u7F6E\u4E2D\u6DFB\u52A0\u8D26\u6237",
@@ -456,6 +457,7 @@ Object.assign(I18n.translations.en, {
   "error.file_not_found": "File not found (may have been deleted or moved on server)",
   "error.network_error": "Network error",
   "error.no_view_or_folder": "Please open CloudAttach tab and select an upload folder",
+  "error.no_default_account_set": "No default account set. Please set one in settings.",
   "error.no_account": "Please select an account first",
   "view.loading": "\u23F3 Loading...",
   "view.no_account_hint": "Please add an account in Settings first",
@@ -4378,15 +4380,19 @@ module.exports = class CloudAttachPlugin extends Plugin {
         absolutePath = noteDir + localPath;
       }
     }
-    const ctx = this.getUploadContext();
-    if (!ctx.ok) {
-      new Notice(`\u26A0\uFE0F ${ctx.error}`, 4e3);
-      return;
+    const viewOpen = !!this.app.workspace.getLeavesOfType(VIEW_TYPE_CLOUDATTACH).length;
+    let ctx = null;
+    if (viewOpen) {
+      ctx = this.getUploadContext();
+      if (!ctx.ok) {
+        new Notice(`\u26A0\uFE0F ${ctx.error}`, 4e3);
+        return;
+      }
     }
-    const confirmed = await this.showUploadConfirmModal([{ localPath: absolutePath, syntax: markdownSyntax }], ctx.remotePath);
+    const confirmed = await this.showUploadConfirmModal([{ localPath: absolutePath, syntax: markdownSyntax }], ctx?.remotePath || "", viewOpen);
     if (!confirmed)
       return;
-    const uploadCtx = confirmed.useDefault ? this.getDefaultUploadContext() : ctx;
+    const uploadCtx = confirmed.useDefault || !viewOpen ? this.getDefaultUploadContext() : ctx;
     if (!uploadCtx || !uploadCtx.ok) {
       new Notice(`\u26A0\uFE0F ${uploadCtx?.error || t("error.no_account")}`, 4e3);
       return;
@@ -4453,15 +4459,19 @@ module.exports = class CloudAttachPlugin extends Plugin {
       new Notice(t("notice.no_attachment_found"), 3e3);
       return;
     }
-    const ctx = this.getUploadContext();
-    if (!ctx.ok) {
-      new Notice(`\u26A0\uFE0F ${ctx.error}`, 4e3);
-      return;
+    const viewOpen = !!this.app.workspace.getLeavesOfType(VIEW_TYPE_CLOUDATTACH).length;
+    let ctx = null;
+    if (viewOpen) {
+      ctx = this.getUploadContext();
+      if (!ctx.ok) {
+        new Notice(`\u26A0\uFE0F ${ctx.error}`, 4e3);
+        return;
+      }
     }
-    const confirmed = await this.showUploadConfirmModal(attachments, ctx.remotePath);
+    const confirmed = await this.showUploadConfirmModal(attachments, ctx?.remotePath || "", viewOpen);
     if (!confirmed)
       return;
-    const uploadCtx = confirmed.useDefault ? this.getDefaultUploadContext() : ctx;
+    const uploadCtx = confirmed.useDefault || !viewOpen ? this.getDefaultUploadContext() : ctx;
     if (!uploadCtx || !uploadCtx.ok) {
       new Notice(`\u26A0\uFE0F ${uploadCtx?.error || t("error.no_account")}`, 4e3);
       return;
@@ -4474,7 +4484,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
    * @param {string} remotePath - 远程目录
    * @returns {Promise<boolean>} 用户是否确认
    */
-  showUploadConfirmModal(attachments, remotePath) {
+  showUploadConfirmModal(attachments, remotePath, viewOpen = true) {
     return new Promise((resolve) => {
       const modal = new (require("obsidian")).Modal(this.app);
       modal.titleEl.textContent = t("view.upload_confirm_title");
@@ -4496,65 +4506,97 @@ module.exports = class CloudAttachPlugin extends Plugin {
         listEl.appendChild(item);
       });
       content.appendChild(listEl);
-      const targetGroup = document.createElement("div");
-      targetGroup.style.marginBottom = "16px";
-      targetGroup.style.padding = "12px";
-      targetGroup.style.background = "var(--background-secondary)";
-      targetGroup.style.borderRadius = "6px";
       let useDefault = false;
-      const mkRadio = (label, subLabel, checked, onCheck) => {
-        const row = document.createElement("div");
-        row.style.display = "flex";
-        row.style.alignItems = "center";
-        row.style.gap = "6px";
-        row.style.padding = "4px 0";
-        const radio = document.createElement("input");
-        radio.type = "radio";
-        radio.name = "upload_target";
-        radio.checked = checked;
-        radio.onchange = () => {
-          if (radio.checked)
-            onCheck();
+      if (viewOpen) {
+        const targetGroup = document.createElement("div");
+        targetGroup.style.marginBottom = "16px";
+        targetGroup.style.padding = "12px";
+        targetGroup.style.background = "var(--background-secondary)";
+        targetGroup.style.borderRadius = "6px";
+        const mkRadio = (label, subLabel, checked, onCheck) => {
+          const row = document.createElement("div");
+          row.style.display = "flex";
+          row.style.alignItems = "center";
+          row.style.gap = "6px";
+          row.style.padding = "4px 0";
+          const radio = document.createElement("input");
+          radio.type = "radio";
+          radio.name = "upload_target";
+          radio.checked = checked;
+          radio.onchange = () => {
+            if (radio.checked)
+              onCheck();
+          };
+          row.appendChild(radio);
+          const labelEl = document.createElement("span");
+          labelEl.style.fontSize = "13px";
+          labelEl.style.fontWeight = "600";
+          labelEl.textContent = label;
+          row.appendChild(labelEl);
+          if (subLabel) {
+            const sub = document.createElement("span");
+            sub.style.fontSize = "11px";
+            sub.style.color = "var(--text-muted)";
+            sub.textContent = subLabel;
+            row.appendChild(sub);
+          }
+          return row;
         };
-        row.appendChild(radio);
-        const labelEl = document.createElement("span");
-        labelEl.style.fontSize = "13px";
-        labelEl.style.fontWeight = "600";
-        labelEl.textContent = label;
-        row.appendChild(labelEl);
-        if (subLabel) {
-          const sub = document.createElement("span");
-          sub.style.fontSize = "11px";
-          sub.style.color = "var(--text-muted)";
-          sub.textContent = subLabel;
-          row.appendChild(sub);
+        targetGroup.appendChild(mkRadio(
+          t("view.upload_to_current_path"),
+          this.escapeHtml(remotePath),
+          true,
+          () => {
+            useDefault = false;
+          }
+        ));
+        if (this.defaultAccountId) {
+          const defAccount = this.accounts.find((a) => a.id === this.defaultAccountId);
+          if (defAccount) {
+            targetGroup.appendChild(mkRadio(
+              t("view.upload_to_default_account"),
+              defAccount.name,
+              false,
+              () => {
+                useDefault = true;
+              }
+            ));
+          }
         }
-        return row;
-      };
-      targetGroup.appendChild(mkRadio(
-        t("view.upload_to_current_path"),
-        this.escapeHtml(remotePath),
-        true,
-        () => {
-          useDefault = false;
-        }
-      ));
-      if (this.defaultAccountId) {
-        const defAccount = this.accounts.find((a) => a.id === this.defaultAccountId);
-        if (defAccount) {
-          const defLabel = t("view.upload_to_default_account");
-          const defSub = defAccount.name;
-          targetGroup.appendChild(mkRadio(
-            defLabel,
-            defSub,
-            false,
-            () => {
-              useDefault = true;
-            }
-          ));
+        content.appendChild(targetGroup);
+      } else {
+        const defAccount = this.defaultAccountId ? this.accounts.find((a) => a.id === this.defaultAccountId) : null;
+        if (!defAccount) {
+          const warnEl = document.createElement("div");
+          warnEl.style.marginBottom = "16px";
+          warnEl.style.padding = "12px";
+          warnEl.style.background = "var(--background-secondary)";
+          warnEl.style.borderRadius = "6px";
+          warnEl.style.color = "var(--text-warning)";
+          warnEl.style.fontSize = "13px";
+          warnEl.textContent = "\u26A0\uFE0F " + t("error.no_default_account_set");
+          content.appendChild(warnEl);
+        } else {
+          const infoEl = document.createElement("div");
+          infoEl.style.marginBottom = "16px";
+          infoEl.style.padding = "12px";
+          infoEl.style.background = "var(--background-secondary)";
+          infoEl.style.borderRadius = "6px";
+          const infoLabel = document.createElement("div");
+          infoLabel.style.fontSize = "12px";
+          infoLabel.style.color = "var(--text-muted)";
+          infoLabel.style.marginBottom = "4px";
+          infoLabel.textContent = t("view.upload_to") + ":";
+          infoEl.appendChild(infoLabel);
+          const infoValue = document.createElement("div");
+          infoValue.style.fontSize = "14px";
+          infoValue.style.fontWeight = "600";
+          infoValue.innerHTML = `<span style="color:var(--text-accent)">\u2728</span> ${this.escapeHtml(defAccount.name)}`;
+          infoEl.appendChild(infoValue);
+          content.appendChild(infoEl);
+          useDefault = true;
         }
       }
-      content.appendChild(targetGroup);
       const btnRow = document.createElement("div");
       btnRow.style.display = "flex";
       btnRow.style.gap = "8px";
