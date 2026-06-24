@@ -2765,31 +2765,17 @@ var CloudAttachSettingTab = class extends PluginSettingTab {
     h3.textContent = account.name;
     h3.style.margin = "0";
     h3.style.fontSize = "14px";
-    headerRow.appendChild(h3);
-    const typeBadge = document.createElement("span");
-    typeBadge.style.fontSize = "10px";
-    typeBadge.style.padding = "2px 6px";
-    typeBadge.style.borderRadius = "10px";
-    typeBadge.style.fontWeight = "600";
-    if (account.type === "s3") {
-      typeBadge.textContent = t("settings.openlist");
-      typeBadge.style.background = "#e8f5e9";
-      typeBadge.style.color = "#2e7d32";
-    } else {
-      typeBadge.textContent = t("settings.webdav_label");
-      typeBadge.style.background = "#e3f2fd";
-      typeBadge.style.color = "#1565c0";
-    }
-    headerRow.appendChild(typeBadge);
     const starBtn = document.createElement("button");
     starBtn.className = "cloud-attach-btn";
-    starBtn.style.fontSize = "16px";
-    starBtn.style.padding = "4px 8px";
-    starBtn.style.marginLeft = "8px";
+    starBtn.style.fontSize = "14px";
+    starBtn.style.padding = "0 4px";
+    starBtn.style.marginRight = "6px";
     starBtn.style.cursor = "pointer";
+    starBtn.style.background = "none";
+    starBtn.style.border = "none";
     starBtn.title = this.plugin.defaultAccountId === account.id ? t("settings.unset_default") : t("settings.set_as_default");
-    starBtn.textContent = this.plugin.defaultAccountId === account.id ? "\u2605" : "\u2606";
-    starBtn.style.color = this.plugin.defaultAccountId === account.id ? "var(--text-accent)" : "var(--text-muted)";
+    starBtn.textContent = this.plugin.defaultAccountId === account.id ? "\u2728" : "\u2606";
+    starBtn.style.color = this.plugin.defaultAccountId === account.id ? "#f1c40f" : "var(--text-muted)";
     starBtn.onmouseenter = () => {
       starBtn.style.opacity = "0.7";
     };
@@ -2807,6 +2793,22 @@ var CloudAttachSettingTab = class extends PluginSettingTab {
       this.refreshViewSelect();
     };
     headerRow.appendChild(starBtn);
+    headerRow.appendChild(h3);
+    const typeBadge = document.createElement("span");
+    typeBadge.style.fontSize = "10px";
+    typeBadge.style.padding = "2px 6px";
+    typeBadge.style.borderRadius = "10px";
+    typeBadge.style.fontWeight = "600";
+    if (account.type === "s3") {
+      typeBadge.textContent = t("settings.openlist");
+      typeBadge.style.background = "#e8f5e9";
+      typeBadge.style.color = "#2e7d32";
+    } else {
+      typeBadge.textContent = t("settings.webdav_label");
+      typeBadge.style.background = "#e3f2fd";
+      typeBadge.style.color = "#1565c0";
+    }
+    headerRow.appendChild(typeBadge);
     card.appendChild(headerRow);
     if (account.type === "s3") {
       const p1 = document.createElement("p");
