@@ -4343,7 +4343,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     });
   }
 
-  _scanAllPdfImgs(doc) {
+  async _scanAllPdfImgs(doc) {
     const d = doc || document;
     // 优先处理 PostProcessor 标记的 pending img（阅读模式 iOS blob URL）
     const pendingImgs = d.querySelectorAll('img[data-cloudattach-processed="pending"]');
@@ -4377,6 +4377,27 @@ module.exports = class CloudAttachPlugin extends Plugin {
         this._renderPdfAsCanvas(img, src);
       }
     });
+    // Obsidian 不认识 HEIC/DNG 可能不创建 img 也不调用 PostProcessor
+    // ——从笔记原始内容解析 HEIC/DNG 语法并手动创建 img 渲染
+    if (!doc) {
+      const view = this.app.workspace.getActiveViewOfType(require('obsidian').MarkdownView);
+      if (view && view.file) {
+        const content = await this.app.vault.cachedRead(view.file);
+        const re = /!?\[([^\]]*)\]\(([^)]+)\)/gi;
+        let m;
+        while ((m = re.exec(content)) !== null) {
+          const url = m[2];
+          if (this._isHeicDngUrl(url) && !this._renderedHeicDngByMode?.reading?.has(url)) {
+            const container = d.querySelector('.markdown-preview-section') || d.querySelector('.markdown-reading-view > div');
+            if (!container) { console.log('[CloudAttach] HEIC/DNG: no preview container found'); break; }
+            const img = d.createElement('img');
+            img.src = url; img.style.maxWidth = '100%';
+            container.appendChild(img);
+            this._renderHeicDngAsImage(img, url);
+          }
+        }
+      }
+    }
   }
 
   // Sign 检查与刷新
