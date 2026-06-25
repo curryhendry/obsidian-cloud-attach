@@ -138,9 +138,9 @@ Object.assign(I18n.translations.zh, {
   "settings.auto_upload": "\u81EA\u52A8\u4E0A\u4F20",
   "settings.auto_upload_desc": "\u5F00\u542F\u540E\u81EA\u52A8\u4E0A\u4F20\u9644\u4EF6\u5230\u9ED8\u8BA4\u670D\u52A1",
   "settings.auto_upload_confirm_title": "\u786E\u8BA4\u542F\u7528\u81EA\u52A8\u4E0A\u4F20",
-  "settings.auto_upload_confirm_msg": "\u5F00\u542F\u540E\u81EA\u52A8\u4E0A\u4F20\u9644\u4EF6\u5230\u9ED8\u8BA4\u670D\u52A1",
+  "settings.auto_upload_confirm_msg": "\u5F00\u542F\u540E\u81EA\u52A8\u4E0A\u4F20\u9644\u4EF6\u5230\u9ED8\u8BA4\u670D\u52A1\uFF1A",
   "settings.auto_upload_need_default": "\u8BF7\u5148\u5728\u8BBE\u7F6E\u4E2D\u6307\u5B9A\u9ED8\u8BA4\u8D26\u53F7",
-  "settings.auto_upload_confirm_again": "\u8BF7\u518D\u6B21\u786E\u8BA4",
+  "settings.auto_upload_confirm_again": "\u8BF7\u518D\u6B21\u786E\u8BA4\uFF01",
   // 视图界面
   "view.select_account": "\u9009\u62E9\u8D26\u6237",
   "view.no_account": "\u8BF7\u5148\u5728\u8BBE\u7F6E\u4E2D\u6DFB\u52A0\u8D26\u6237",
@@ -384,9 +384,9 @@ Object.assign(I18n.translations.en, {
   "settings.auto_upload": "Auto Upload",
   "settings.auto_upload_desc": "Auto upload attachments to default service",
   "settings.auto_upload_confirm_title": "Enable Auto Upload",
-  "settings.auto_upload_confirm_msg": "Auto upload attachments to default service when enabled",
+  "settings.auto_upload_confirm_msg": "Auto upload attachments to default service when enabled:",
   "settings.auto_upload_need_default": "Please set a default account in Settings first",
-  "settings.auto_upload_confirm_again": "Please confirm again",
+  "settings.auto_upload_confirm_again": "Please confirm again!",
   "view.select_account": "Select Account",
   "view.no_account": "Please add an account in Settings first",
   "view.upload_to_current_path": "Upload to current CloudAttach path",
@@ -2003,22 +2003,16 @@ var CloudAttachView = class extends ItemView {
     btnRow.style.display = "flex";
     btnRow.style.gap = "8px";
     btnRow.style.justifyContent = "flex-end";
-    const cancelBtn = document.createElement("button");
-    cancelBtn.className = "mod-secondary";
-    cancelBtn.textContent = t("view.cancel");
-    cancelBtn.style.padding = "8px 16px";
-    cancelBtn.onclick = () => modal.close();
-    const confirmBtn = document.createElement("button");
-    confirmBtn.style.background = "var(--text-error)";
-    confirmBtn.style.color = "var(--background-primary)";
-    confirmBtn.style.padding = "8px 16px";
-    confirmBtn.textContent = t("view.confirm_delete", { count: selected.length });
-    confirmBtn.onclick = async () => {
+    const confirmBtn2 = document.createElement("button");
+    confirmBtn2.style.background = "var(--text-error)";
+    confirmBtn2.style.color = "var(--background-primary)";
+    confirmBtn2.style.padding = "8px 16px";
+    confirmBtn2.textContent = t("view.confirm_delete", { count: selected.length });
+    confirmBtn2.onclick = async () => {
       modal.close();
       await this.doDelete(selected);
     };
-    btnRow.appendChild(confirmBtn);
-    btnRow.appendChild(cancelBtn);
+    btnRow.appendChild(confirmBtn2);
     content.appendChild(btnRow);
     modal.open();
   }
@@ -2073,17 +2067,12 @@ var CloudAttachView = class extends ItemView {
     btnRow.style.display = "flex";
     btnRow.style.gap = "8px";
     btnRow.style.justifyContent = "flex-end";
-    const cancelBtn = document.createElement("button");
-    cancelBtn.className = "mod-secondary";
-    cancelBtn.textContent = t("view.cancel");
-    cancelBtn.style.padding = "8px 16px";
-    cancelBtn.onclick = () => modal.close();
-    const confirmBtn = document.createElement("button");
-    confirmBtn.style.background = "var(--interactive-accent)";
-    confirmBtn.style.color = "var(--text-on-accent)";
-    confirmBtn.style.padding = "8px 16px";
-    confirmBtn.textContent = t("view.confirm_rename", { count: 1 });
-    confirmBtn.onclick = async () => {
+    const confirmBtn2 = document.createElement("button");
+    confirmBtn2.style.background = "var(--interactive-accent)";
+    confirmBtn2.style.color = "var(--text-on-accent)";
+    confirmBtn2.style.padding = "8px 16px";
+    confirmBtn2.textContent = t("view.confirm_rename", { count: 1 });
+    confirmBtn2.onclick = async () => {
       const newName = input.value.trim();
       if (!newName) {
         new Notice(t("notice.rename_failed", { error: "Name cannot be empty" }), 3e3);
@@ -2096,7 +2085,11 @@ var CloudAttachView = class extends ItemView {
       modal.close();
       await this.doRename(file, newName);
     };
-    btnRow.appendChild(confirmBtn);
+    btnRow.appendChild(confirmBtn2);
+    content.appendChild(btnRow);
+    modal.open();
+    input.focus();
+    input.select();
     content.appendChild(btnRow);
     modal.open();
     input.focus();
@@ -2946,7 +2939,8 @@ var AdvancedSettingModal = class extends Modal {
           confirmModal.titleEl.textContent = t("settings.auto_upload_confirm_title");
           const cContent = confirmModal.contentEl;
           confirmModal.onClose = () => {
-            toggle.setValue(false);
+            if (!this.plugin.settings.enableAutoUpload)
+              toggle.setValue(false);
           };
           cContent.style.padding = "16px";
           cContent.createEl("p", { text: t("settings.auto_upload_confirm_msg") }).style.marginBottom = "12px";
@@ -3128,8 +3122,6 @@ var AdvancedSettingModal = class extends Modal {
       new Notice(t("settings.saved") || "\u8BBE\u7F6E\u5DF2\u4FDD\u5B58");
       this.close();
     };
-    const cancelBtn = btnRow.createEl("button", { text: t("settings.cancel") });
-    cancelBtn.onclick = () => this.close();
   }
   async downloadPdfjs(destDir) {
     const destDirNorm = destDir.replace(/\/$/, "");
@@ -4787,14 +4779,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       btnRow.style.display = "flex";
       btnRow.style.gap = "8px";
       btnRow.style.justifyContent = "flex-end";
-      const cancelBtn = document.createElement("button");
-      cancelBtn.textContent = t("view.cancel");
-      cancelBtn.className = "mod-cta";
-      cancelBtn.style.padding = "8px 16px";
-      cancelBtn.onclick = () => {
-        modal.close();
-        resolve(null);
-      };
       const uploadBtn = document.createElement("button");
       uploadBtn.textContent = t("view.upload_btn", { count: attachments.length });
       uploadBtn.className = "mod-cta";
