@@ -3238,7 +3238,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     );
     this.registerEvent(
       this.app.workspace.on("file-menu", (menu, file, source) => {
-        if (!file || source !== "file-explorer")
+        if (!file || !source.startsWith("file-explorer"))
           return;
         const ext = file.extension?.toLowerCase() || "";
         const attachExts = ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico", "mp4", "mov", "avi", "mkv", "webm", "flv", "mp3", "wav", "flac", "aac", "ogg", "m4a", "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx"];
@@ -3266,7 +3266,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
               const noteContent = await this.app.vault.read(targetNote);
               let syntax = null;
               const patterns = [
-                new RegExp(`![([^]]*)](.*?${this._escapeRegex(file.name)})`),
+                new RegExp(`!\\[([^\\]]*)\\]\\(.*?${this._escapeRegex(file.name)}\\)`),
                 new RegExp(`![[(${this._escapeRegex(file.name)})(?:|[^]]*)?]]`),
                 new RegExp(`[[(${this._escapeRegex(file.name)})(?:|[^]]*)?]]`)
               ];
