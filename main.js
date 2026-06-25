@@ -4067,7 +4067,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
           imgs.forEach((img) => {
             if (img.closest(".cloudattach-pdf-container"))
               return;
-            const src = img.getAttribute("src") || "";
+            const src = img.src || img.getAttribute("src") || "";
             if (this._isPdfUrl(src)) {
               this._renderPdfAsCanvas(img, src);
             } else if (this._isHeicDngUrl(src)) {
@@ -4126,7 +4126,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
             imgs.forEach((img) => {
               if (img.closest(".cloudattach-pdf-container"))
                 return;
-              const src = img.getAttribute("src") || "";
+              const src = img.src || img.getAttribute("src") || "";
               if (this._isPdfUrl(src)) {
                 this._renderPdfAsCanvas(img, src);
               } else if (this._isHeicDngUrl(src)) {
@@ -4160,7 +4160,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     allImgs.forEach((img) => {
       if (img.closest(".cloudattach-pdf-container"))
         return;
-      const src = img.getAttribute("src") || "";
+      const src = img.src || img.getAttribute("src") || "";
       if (this._isPdfUrl(src)) {
         this._renderPdfAsCanvas(img, src);
         return;

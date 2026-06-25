@@ -1,3 +1,7 @@
+## v0.4.025.dev - 2026-06-25
+
+- 修复：HEIC/DNG 渲染 `getAttribute('src')` 取不到 src，改为 `img.src || img.getAttribute('src')`（三处统一：MutationObserver/popoutObserver/_scanAllPdfImgs）
+
 ## v0.4.024.dev - 2026-06-25
 
 - 新增：HEIC/DNG 图片预览支持（提取内嵌 JPEG，零外部依赖）
