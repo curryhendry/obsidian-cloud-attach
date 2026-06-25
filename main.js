@@ -3306,6 +3306,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     this.registerEvent(this.app.vault.on("create", (file) => {
       if (!this.settings.enableAutoUpload)
         return;
+      console.log("[CloudAttach] vault.create:", file.path, "ext:", ext);
       if (!this.defaultAccountId)
         return;
       const TFile = require("obsidian").TFile;
@@ -3354,8 +3355,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
         const mdPattern = new RegExp(`!\\[[^\\]]*\\]\\(.*/${escapedName}\\)`);
         const wikiMatch = text.match(wikiPattern);
         const mdMatch = text.match(mdPattern);
-        if (!wikiMatch && !mdMatch)
+        console.log("[CloudAttach] auto-upload text sample:", text.substring(0, 500));
+        if (!wikiMatch && !mdMatch) {
+          console.log("[CloudAttach] auto-upload: no match for", escapedName);
           return;
+        }
         const ctx = this.getDefaultUploadContext();
         if (!ctx || !ctx.ok)
           return;
