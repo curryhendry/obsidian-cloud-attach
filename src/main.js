@@ -3780,9 +3780,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const jpeg = this._extractEmbeddedJpeg(buf);
       if (!jpeg) { console.log('[CloudAttach] HEIC/DNG: no embedded JPEG'); return; }
       const blob = new Blob([jpeg], { type: 'image/jpeg' });
-      imgEl.src = URL.createObjectURL(blob);
+      const blobUrl = URL.createObjectURL(blob);
+      imgEl.src = blobUrl;
       imgEl.style.maxWidth = '100%';
       imgEl.style.height = 'auto';
+      imgEl.style.display = 'block';
+      console.log('[CloudAttach] HEIC/DNG rendered:', imgEl.naturalWidth || 'pending', 'element:', imgEl.offsetWidth + 'x' + imgEl.offsetHeight, 'inDoc:', !!imgEl.closest('body'));
       renderedSet.add(url);
     } catch (e) {
       console.log('[CloudAttach] _renderHeicDngAsImage failed:', e);
@@ -4391,9 +4394,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
             const container = d.querySelector('.markdown-preview-section') || d.querySelector('.markdown-reading-view > div');
             if (!container) { console.log('[CloudAttach] HEIC/DNG: no preview container found'); break; }
             const img = d.createElement('img');
-            img.src = url; img.style.maxWidth = '100%';
+            img.style.maxWidth = '100%';
             container.appendChild(img);
-            this._renderHeicDngAsImage(img, url);
+            this._renderHeicDngAsImage(img, url).then(() => {
+              console.log('[CloudAttach] HEIC/DNG img.src after render:', img.src.substring(0,50), 'offset:', img.offsetWidth+'x'+img.offsetHeight);
+            });
           }
         }
       }
