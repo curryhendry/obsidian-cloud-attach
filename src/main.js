@@ -148,8 +148,8 @@ Object.assign(I18n.translations.zh, {
   'settings.folder_required': '⚠️ 请选择上传到的文件夹，不能是根目录',
   'settings.auto_upload': '自动上传',
   'settings.auto_upload_desc': '粘贴/拖入附件后自动用默认账号上传到默认路径',
-  'settings.auto_upload_confirm_title': '🤖 确认启用自动上传',
-  'settings.auto_upload_confirm_msg': '开启后，笔记中粘贴/拖入的附件将自动上传到:\n\n📂 {name}/{path}\n\n请确认配置无误',
+  'settings.auto_upload_confirm_title': '确认启用自动上传',
+  'settings.auto_upload_confirm_msg': '开启后自动上传附件到默认服务',
   'settings.auto_upload_need_default': '请先在设置中指定默认账号',
 
   // 视图界面
@@ -403,8 +403,8 @@ Object.assign(I18n.translations.en, {
   'settings.default_account': 'Default Account',
   'settings.auto_upload': 'Auto Upload',
   'settings.auto_upload_desc': 'Auto upload pasted/dropped attachments with default account',
-  'settings.auto_upload_confirm_title': '🤖 Enable Auto Upload',
-  'settings.auto_upload_confirm_msg': 'Pasted/dropped attachments will auto upload to:\n\n📂 {name}/{path}\n\nPlease confirm the configuration is correct.',
+  'settings.auto_upload_confirm_title': 'Enable Auto Upload',
+  'settings.auto_upload_confirm_msg': 'Auto upload attachments to default service when enabled',
   'settings.auto_upload_need_default': 'Please set a default account in Settings first',
 
   'view.select_account': 'Select Account',
@@ -3070,7 +3070,7 @@ class AdvancedSettingModal extends Modal {
     title.style.marginTop = '0';
     title.style.marginBottom = '20px';
     
-    // === 自动上传（卡片容器）===
+        // === 自动上传（卡片容器）===
     const autoUploadCard = contentEl.createDiv();
     autoUploadCard.className = 'cloudattach-settings-card';
     autoUploadCard.style.background = 'var(--background-secondary)';
@@ -3078,89 +3078,64 @@ class AdvancedSettingModal extends Modal {
     autoUploadCard.style.padding = '20px';
     autoUploadCard.style.marginBottom = '16px';
 
-    const autoTitle = autoUploadCard.createEl('h3', { text: t('settings.auto_upload') });
-    autoTitle.style.marginTop = '0';
-    autoTitle.style.marginBottom = '12px';
-    autoTitle.style.fontSize = '14px';
-    autoTitle.style.fontWeight = '600';
-    autoTitle.style.color = 'var(--text-normal)';
-    autoTitle.style.textTransform = 'uppercase';
-    autoTitle.style.letterSpacing = '0.5px';
-    autoTitle.style.opacity = '0.7';
-
-    const autoToggleRow = autoUploadCard.createDiv();
-    autoToggleRow.style.display = 'flex';
-    autoToggleRow.style.alignItems = 'center';
-    autoToggleRow.style.justifyContent = 'space-between';
-    autoToggleRow.style.gap = '12px';
-
-    const autoToggleLabel = autoToggleRow.createEl('span', { text: t('settings.auto_upload_desc') });
-    autoToggleLabel.style.fontSize = '13px';
-    autoToggleLabel.style.color = 'var(--text-muted)';
-    autoToggleLabel.style.flex = '1';
-
-    const autoToggleBtn = autoToggleRow.createEl('button');
-    const updateAutoUploadToggleStyle = () => {
-      const on = this.plugin.settings.enableAutoUpload;
-      autoToggleBtn.textContent = on ? '🟢 开' : '⚫ 关';
-      autoToggleBtn.style.background = on ? 'var(--interactive-accent)' : 'var(--background-modifier-border)';
-      autoToggleBtn.style.color = on ? 'var(--text-on-accent)' : 'var(--text-muted)';
-      autoToggleBtn.style.border = 'none';
-      autoToggleBtn.style.borderRadius = '6px';
-      autoToggleBtn.style.padding = '6px 16px';
-      autoToggleBtn.style.fontSize = '13px';
-      autoToggleBtn.style.cursor = 'pointer';
-    };
-    updateAutoUploadToggleStyle();
-    autoToggleBtn.onclick = async () => {
-      const current = this.plugin.settings.enableAutoUpload;
-      if (!current) {
-        // 开 → 检查默认账号
-        if (!this.plugin.defaultAccountId) {
-          new Notice('⚠️ ' + t('settings.auto_upload_need_default'), 4000);
-          return;
-        }
-        const defAccount = this.plugin.accounts.find(a => a.id === this.plugin.defaultAccountId);
-        if (!defAccount) {
-          new Notice('⚠️ ' + t('settings.auto_upload_need_default'), 4000);
-          return;
-        }
-        const confirmText = t('settings.auto_upload_confirm_msg', { name: defAccount.name, path: defAccount.prefix || '/' });
-        const modal = new (require('obsidian').Modal)(this.app);
-        modal.titleEl.textContent = t('settings.auto_upload_confirm_title');
-        const modalContent = modal.contentEl;
-        modalContent.style.padding = '16px';
-        const msgEl = modalContent.createEl('p', { text: confirmText });
-        msgEl.style.fontSize = '14px';
-        msgEl.style.whiteSpace = 'pre-line';
-        msgEl.style.marginBottom = '16px';
-        const btnRow = modalContent.createDiv();
-        btnRow.style.display = 'flex';
-        btnRow.style.gap = '8px';
-        btnRow.style.justifyContent = 'flex-end';
-        const cancelBtn = btnRow.createEl('button', { text: t('settings.cancel') });
-        cancelBtn.onclick = () => modal.close();
-        const confirmBtn = btnRow.createEl('button', { text: '✅ ' + (t('settings.auto_upload') || '启用') });
-        confirmBtn.style.background = 'var(--interactive-accent)';
-        confirmBtn.style.color = 'var(--text-on-accent)';
-        confirmBtn.style.border = 'none';
-        confirmBtn.style.borderRadius = '4px';
-        confirmBtn.style.padding = '8px 16px';
-        confirmBtn.style.cursor = 'pointer';
-        confirmBtn.onclick = async () => {
-          this.plugin.settings.enableAutoUpload = true;
-          await this.plugin.saveSettings();
-          updateAutoUploadToggleStyle();
-          modal.close();
-        };
-        modal.open();
-      } else {
-        // 关 → 直接关
-        this.plugin.settings.enableAutoUpload = false;
-        await this.plugin.saveSettings();
-        updateAutoUploadToggleStyle();
-      }
-    };
+    const Setting = require('obsidian').Setting;
+    new Setting(autoUploadCard)
+      .setName(t('settings.auto_upload'))
+      .setDesc(t('settings.auto_upload_desc'))
+      .addToggle((toggle) => {
+        toggle.setValue(this.plugin.settings.enableAutoUpload);
+        toggle.onChange(async (value) => {
+          if (value) {
+            if (!this.plugin.defaultAccountId) {
+              new Notice('⚠️ ' + t('settings.auto_upload_need_default'), 4000);
+              toggle.setValue(false);
+              return;
+            }
+            const defAccount = this.plugin.accounts.find(a => a.id === this.plugin.defaultAccountId);
+            if (!defAccount) {
+              new Notice('⚠️ ' + t('settings.auto_upload_need_default'), 4000);
+              toggle.setValue(false);
+              return;
+            }
+            // 弹确认框（Obsidian Modal 系统样式）
+            const confirmModal = new (require('obsidian').Modal)(this.app);
+            confirmModal.titleEl.textContent = t('settings.auto_upload_confirm_title');
+            const cContent = confirmModal.contentEl;
+            cContent.style.padding = '16px';
+            cContent.createEl('p', { text: t('settings.auto_upload_confirm_msg') }).style.marginBottom = '12px';
+            // 路径框
+            const pathBox = cContent.createDiv();
+            pathBox.style.marginBottom = '16px';
+            pathBox.style.padding = '10px 12px';
+            pathBox.style.background = 'var(--background-secondary)';
+            pathBox.style.borderRadius = '4px';
+            pathBox.style.fontSize = '13px';
+            pathBox.textContent = '📂 ' + defAccount.name + '/' + (defAccount.prefix || '/');
+            // 系统按钮
+            confirmModal.modalEl.querySelector('.modal-button-container')?.remove();
+            const btnContainer = document.createElement('div');
+            btnContainer.className = 'modal-button-container';
+            const okBtn = document.createElement('button');
+            okBtn.className = 'mod-cta';
+            okBtn.textContent = t('settings.auto_upload') || '自动上传';
+            okBtn.onclick = async () => {
+              this.plugin.settings.enableAutoUpload = true;
+              await this.plugin.saveSettings();
+              confirmModal.close();
+            };
+            const cancelBtn2 = document.createElement('button');
+            cancelBtn2.textContent = t('settings.cancel');
+            cancelBtn2.onclick = () => { confirmModal.close(); toggle.setValue(false); };
+            btnContainer.appendChild(cancelBtn2);
+            btnContainer.appendChild(okBtn);
+            confirmModal.modalEl.appendChild(btnContainer);
+            confirmModal.open();
+          } else {
+            this.plugin.settings.enableAutoUpload = false;
+            await this.plugin.saveSettings();
+          }
+        });
+      });
 
     // === 文件预览（卡片容器）===
     const card = contentEl.createDiv();
