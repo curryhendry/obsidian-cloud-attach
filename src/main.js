@@ -3556,11 +3556,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
     // Auto-upload: 监听粘贴/拖入创建的新文件
     this.registerEvent(this.app.vault.on('create', (file) => {
       if (!this.settings.enableAutoUpload) return;
-      console.log("[CloudAttach] vault.create:", file.path, "ext:", ext);
       if (!this.defaultAccountId) return;
       const TFile = require('obsidian').TFile;
       if (!(file instanceof TFile)) return;
       const ext = file.extension.toLowerCase();
+      console.log("[CloudAttach] vault.create:", file.path, "ext:", ext);
       const attachmentExts = ['jpg','jpeg','png','gif','webp','svg','bmp','ico',
         'pdf','doc','docx','xls','xlsx','ppt','pptx',
         'mp4','mov','avi','mkv','webm','flv',
