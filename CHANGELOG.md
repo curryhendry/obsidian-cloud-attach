@@ -1,12 +1,14 @@
+## v0.4.024.dev - 2026-06-25
+
+- 新增：HEIC/DNG 图片预览支持（提取内嵌 JPEG，零外部依赖）
+  - `_extractEmbeddedJpeg()` — 扫描二进制 SOI/EOI 标记提取 JPEG
+  - `_isHeicDngUrl()` — 判断 .heic/.dng 后缀
+  - `_renderHeicDngAsImage()` — 下载 → 提取 JPEG → blob URL 渲染
+  - PostProcessor/扫描链路统一标记 HEIC/DNG 同 PDF 处理模式
+
 ## v0.4.023.dev - 2026-06-25
 
 - 优化：右键菜文件类型过滤从白名单改为排除 .md（DNG 等非标格式也能上传）
-
-## v0.4.022.dev - 2026-06-25
-
-- 修复：右键菜单正则表达式括号不匹配导致 Invalid regular expression 报错
-
-## v0.4.021.dev - 2026-06-25
 
 - 恢复：左侧文件列表右键菜单「☁️ 上传到云端」（仅 source=file-explorer，不影响编辑器右键）
 
