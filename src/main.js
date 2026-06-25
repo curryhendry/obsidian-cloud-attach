@@ -3751,17 +3751,16 @@ module.exports = class CloudAttachPlugin extends Plugin {
 
   _extractEmbeddedJpeg(buffer) {
     const data = new Uint8Array(buffer);
+    const segments = [];
     let soi = -1;
     for (let i = 0; i < data.length - 1; i++) {
-      if (data[i] === 0xFF && data[i + 1] === 0xD8) { soi = i; break; }
+      if (data[i] === 0xFF && data[i + 1] === 0xD8) { soi = i; }
+      else if (data[i] === 0xFF && data[i + 1] === 0xD9 && soi >= 0) {
+        segments.push(data.slice(soi, i + 2));
+        soi = -1;
+      }
     }
-    if (soi < 0) return null;
-    let eoi = -1;
-    for (let i = soi + 2; i < data.length - 1; i++) {
-      if (data[i] === 0xFF && data[i + 1] === 0xD9) { eoi = i + 1; }
-    }
-    if (eoi <= soi) return null;
-    return data.slice(soi, eoi + 1);
+    return segments;
   }
 
   async _renderHeicDngAsImage(imgEl, url) {
@@ -3780,15 +3779,41 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const buf = resp.arrayBuffer || (await resp.arrayBuffer());
       const arr = new Uint8Array(buf);
       console.log('[CloudAttach] HEIC/DNG buf size:', arr.length, 'first bytes:', Array.from(arr.slice(0,10)).map(b=>b.toString(16)).join(' '));
-      const jpeg = this._extractEmbeddedJpeg(buf);
-      if (!jpeg) { console.log('[CloudAttach] HEIC/DNG: no embedded JPEG'); return; }
-      const blob = new Blob([jpeg], { type: 'image/jpeg' });
-      const blobUrl = URL.createObjectURL(blob);
-      await new Promise((resolve, reject) => {
-        imgEl.onload = resolve;
-        imgEl.onerror = () => { console.log('[CloudAttach] HEIC/DNG blob load failed'); resolve(); };
+      const segments = this._extractEmbeddedJpeg(buf);
+      if (!segments.length) { console.log('[CloudAttach] HEIC/DNG: no embedded JPEG'); return; }
+      console.log('[CloudAttach] HEIC/DNG found', segments.length, 'JPEG candidates');
+      let blobUrl = null;
+      let bestSize = 0;
+      for (let s = 0; s < segments.length; s++) {
+        const blob = new Blob([segments[s]], { type: 'image/jpeg' });
+        const tryUrl = URL.createObjectURL(blob);
+        try {
+          await new Promise((resolve, reject) => {
+            imgEl.onload = () => resolve(true);
+            imgEl.onerror = () => resolve(false);
+            imgEl.src = tryUrl;
+          });
+          if (imgEl.naturalWidth > 0) {
+            console.log('[CloudAttach] HEIC/DNG segment', s, 'valid:', imgEl.naturalWidth + 'x' + imgEl.naturalHeight, 'size:', segments[s].length);
+            blobUrl = tryUrl;
+            break;
+          }
+          URL.revokeObjectURL(tryUrl);
+        } catch (e) {
+          URL.revokeObjectURL(tryUrl);
+        }
+      }
+      if (!blobUrl) {
+        // brute force keep the biggest segment as fallback
+        console.log('[CloudAttach] HEIC/DNG no valid segment, using biggest in hopes it renders later');
+        let biggest = segments[0];
+        for (let s = 1; s < segments.length; s++) {
+          if (segments[s].length > biggest.length) biggest = segments[s];
+        }
+        const blob = new Blob([biggest], { type: 'image/jpeg' });
+        blobUrl = URL.createObjectURL(blob);
         imgEl.src = blobUrl;
-      });
+      }
       imgEl.style.maxWidth = '100%';
       imgEl.style.height = 'auto';
       imgEl.style.display = 'block';

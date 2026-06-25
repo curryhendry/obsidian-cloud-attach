@@ -1,3 +1,7 @@
+## v0.4.035.dev - 2026-06-26
+
+- 修复：`_extractEmbeddedJpeg` 改为遍历所有 SOI-EOI 片段，逐个尝试 `onload` 找到有效内嵌 JPEG
+
 ## v0.4.034.dev - 2026-06-25
 
 - 诊断：HEIC/DNG 下载 buf 大小+首字节诊断（确认是否 HTML 替换了 HEIC 二进制）
