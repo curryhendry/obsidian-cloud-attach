@@ -151,6 +151,7 @@ Object.assign(I18n.translations.zh, {
   'settings.auto_upload_confirm_title': '确认启用自动上传',
   'settings.auto_upload_confirm_msg': '开启后自动上传附件到默认服务',
   'settings.auto_upload_need_default': '请先在设置中指定默认账号',
+  'settings.auto_upload_confirm_again': '请再次确认',
 
   // 视图界面
   'view.select_account': '选择账户',
@@ -355,7 +356,6 @@ Object.assign(I18n.translations.en, {
   'settings.delete': 'Delete',
   'settings.move_up': 'Move Up',
   'settings.move_down': 'Move Down',
-  'settings.cancel': 'Cancel',
   'settings.server_address': 'Server Address',
   'settings.endpoint': 'Endpoint',
   'settings.bucket': 'Bucket',
@@ -406,6 +406,7 @@ Object.assign(I18n.translations.en, {
   'settings.auto_upload_confirm_title': 'Enable Auto Upload',
   'settings.auto_upload_confirm_msg': 'Auto upload attachments to default service when enabled',
   'settings.auto_upload_need_default': 'Please set a default account in Settings first',
+  'settings.auto_upload_confirm_again': 'Please confirm again',
 
   'view.select_account': 'Select Account',
   'view.no_account': 'Please add an account in Settings first',
@@ -2274,7 +2275,6 @@ class CloudAttachView extends ItemView {
       await this.doRename(file, newName);
     };
     btnRow.appendChild(confirmBtn);
-    btnRow.appendChild(cancelBtn);
     content.appendChild(btnRow);
     modal.open();
     input.focus();
@@ -2788,10 +2788,7 @@ class AddAccountModal extends Modal {
     btnRow.style.gap = '8px';
     btnRow.style.justifyContent = 'flex-end';
     btnRow.style.marginTop = '16px';
-    const cancelBtn = document.createElement('button');
-    cancelBtn.textContent = t('view.cancel');
-    cancelBtn.className = 'cloud-attach-btn';
-    cancelBtn.onclick = () => this.close();
+    // cancel removed - use X button to close
     const saveBtn = document.createElement('button');
     saveBtn.textContent = t('settings.save');
     saveBtn.className = 'cloud-attach-btn mod-cta';
@@ -2839,7 +2836,6 @@ class AddAccountModal extends Modal {
       setTimeout(() => this.onSave?.(), 50);
     };
     btnRow.appendChild(saveBtn);
-    btnRow.appendChild(cancelBtn);
     this.contentEl.appendChild(btnRow);
   }
   createFieldDiv(label, placeholder) {
@@ -3101,6 +3097,8 @@ class AdvancedSettingModal extends Modal {
             const confirmModal = new (require('obsidian').Modal)(this.app);
             confirmModal.titleEl.textContent = t('settings.auto_upload_confirm_title');
             const cContent = confirmModal.contentEl;
+            // 关闭 X 时重置 toggle
+            confirmModal.onClose = () => { toggle.setValue(false); };
             cContent.style.padding = '16px';
             cContent.createEl('p', { text: t('settings.auto_upload_confirm_msg') }).style.marginBottom = '12px';
             // 路径框
@@ -3111,7 +3109,7 @@ class AdvancedSettingModal extends Modal {
             pathBox.style.borderRadius = '4px';
             pathBox.style.fontSize = '13px';
             pathBox.textContent = '📂 ' + defAccount.name + '/' + (defAccount.prefix || '/');
-            cContent.createEl('p', { text: '请再次确认' }).style.marginBottom = '12px';
+            cContent.createEl('p', { text: t('settings.auto_upload_confirm_again') }).style.marginBottom = '12px';
             // 系统按钮
             confirmModal.modalEl.querySelector('.modal-button-container')?.remove();
             const btnContainer = document.createElement('div');
@@ -3124,11 +3122,7 @@ class AdvancedSettingModal extends Modal {
               await this.plugin.saveSettings();
               confirmModal.close();
             };
-            const cancelBtn2 = document.createElement('button');
-            cancelBtn2.textContent = t('settings.cancel');
-            cancelBtn2.onclick = () => { confirmModal.close(); toggle.setValue(false); };
             btnContainer.appendChild(okBtn);
-            btnContainer.appendChild(cancelBtn2);
             confirmModal.modalEl.appendChild(btnContainer);
             confirmModal.open();
           } else {
@@ -5106,7 +5100,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       uploadBtn.style.padding = '8px 16px';
       uploadBtn.onclick = () => { modal.close(); resolve({ confirmed: true, useDefault }); };
       btnRow.appendChild(uploadBtn);
-      btnRow.appendChild(cancelBtn);
       content.appendChild(btnRow);
       modal.open();
     });
