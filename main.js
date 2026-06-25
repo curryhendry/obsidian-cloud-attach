@@ -2016,8 +2016,8 @@ var CloudAttachView = class extends ItemView {
       modal.close();
       await this.doDelete(selected);
     };
-    btnRow.appendChild(cancelBtn);
     btnRow.appendChild(confirmBtn);
+    btnRow.appendChild(cancelBtn);
     content.appendChild(btnRow);
     modal.open();
   }
@@ -2095,8 +2095,8 @@ var CloudAttachView = class extends ItemView {
       modal.close();
       await this.doRename(file, newName);
     };
-    btnRow.appendChild(cancelBtn);
     btnRow.appendChild(confirmBtn);
+    btnRow.appendChild(cancelBtn);
     content.appendChild(btnRow);
     modal.open();
     input.focus();
@@ -2697,8 +2697,8 @@ var AddAccountModal = class extends Modal {
       this.close();
       setTimeout(() => this.onSave?.(), 50);
     };
-    btnRow.appendChild(cancelBtn);
     btnRow.appendChild(saveBtn);
+    btnRow.appendChild(cancelBtn);
     this.contentEl.appendChild(btnRow);
   }
   createFieldDiv(label, placeholder) {
@@ -2952,14 +2952,14 @@ var AdvancedSettingModal = class extends Modal {
           const cContent = confirmModal.contentEl;
           cContent.style.padding = "16px";
           cContent.createEl("p", { text: t("settings.auto_upload_confirm_msg") }).style.marginBottom = "12px";
-          cContent.createEl("p", { text: "\u8BF7\u786E\u8BA4" }).style.marginBottom = "12px";
           const pathBox = cContent.createDiv();
-          pathBox.style.marginBottom = "16px";
+          pathBox.style.marginBottom = "12px";
           pathBox.style.padding = "10px 12px";
           pathBox.style.background = "var(--background-secondary)";
           pathBox.style.borderRadius = "4px";
           pathBox.style.fontSize = "13px";
           pathBox.textContent = "\u{1F4C2} " + defAccount.name + "/" + (defAccount.prefix || "/");
+          cContent.createEl("p", { text: "\u8BF7\u518D\u6B21\u786E\u8BA4" }).style.marginBottom = "12px";
           confirmModal.modalEl.querySelector(".modal-button-container")?.remove();
           const btnContainer = document.createElement("div");
           btnContainer.className = "modal-button-container";
@@ -4814,8 +4814,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
         modal.close();
         resolve({ confirmed: true, useDefault });
       };
-      btnRow.appendChild(cancelBtn);
       btnRow.appendChild(uploadBtn);
+      btnRow.appendChild(cancelBtn);
       content.appendChild(btnRow);
       modal.open();
     });

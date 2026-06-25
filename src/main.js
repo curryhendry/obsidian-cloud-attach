@@ -2204,8 +2204,8 @@ class CloudAttachView extends ItemView {
       modal.close();
       await this.doDelete(selected);
     };
-    btnRow.appendChild(cancelBtn);
     btnRow.appendChild(confirmBtn);
+    btnRow.appendChild(cancelBtn);
     content.appendChild(btnRow);
     modal.open();
   }
@@ -2273,8 +2273,8 @@ class CloudAttachView extends ItemView {
       modal.close();
       await this.doRename(file, newName);
     };
-    btnRow.appendChild(cancelBtn);
     btnRow.appendChild(confirmBtn);
+    btnRow.appendChild(cancelBtn);
     content.appendChild(btnRow);
     modal.open();
     input.focus();
@@ -2838,8 +2838,8 @@ class AddAccountModal extends Modal {
       this.close();
       setTimeout(() => this.onSave?.(), 50);
     };
-    btnRow.appendChild(cancelBtn);
     btnRow.appendChild(saveBtn);
+    btnRow.appendChild(cancelBtn);
     this.contentEl.appendChild(btnRow);
   }
   createFieldDiv(label, placeholder) {
@@ -3103,15 +3103,15 @@ class AdvancedSettingModal extends Modal {
             const cContent = confirmModal.contentEl;
             cContent.style.padding = '16px';
             cContent.createEl('p', { text: t('settings.auto_upload_confirm_msg') }).style.marginBottom = '12px';
-            cContent.createEl('p', { text: '请确认' }).style.marginBottom = '12px';
             // 路径框
             const pathBox = cContent.createDiv();
-            pathBox.style.marginBottom = '16px';
+            pathBox.style.marginBottom = '12px';
             pathBox.style.padding = '10px 12px';
             pathBox.style.background = 'var(--background-secondary)';
             pathBox.style.borderRadius = '4px';
             pathBox.style.fontSize = '13px';
             pathBox.textContent = '📂 ' + defAccount.name + '/' + (defAccount.prefix || '/');
+            cContent.createEl('p', { text: '请再次确认' }).style.marginBottom = '12px';
             // 系统按钮
             confirmModal.modalEl.querySelector('.modal-button-container')?.remove();
             const btnContainer = document.createElement('div');
@@ -5105,8 +5105,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
       uploadBtn.style.color = 'var(--text-on-accent)';
       uploadBtn.style.padding = '8px 16px';
       uploadBtn.onclick = () => { modal.close(); resolve({ confirmed: true, useDefault }); };
-      btnRow.appendChild(cancelBtn);
       btnRow.appendChild(uploadBtn);
+      btnRow.appendChild(cancelBtn);
       content.appendChild(btnRow);
       modal.open();
     });
