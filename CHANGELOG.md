@@ -1,3 +1,7 @@
+## v0.4.033.dev - 2026-06-25
+
+- 修复：HEIC/DNG 渲染等 `onload` 后再设样式（`img.src = blobUrl` 异步加载未完成时尺寸为 0x0）
+
 ## v0.4.032.dev - 2026-06-25
 
 - 修复：HEIC/DNG 创建 img 时不预设 src（避免 Electron 覆盖 blob），渲染后确认 blob URL 生效

@@ -3782,11 +3782,15 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (!jpeg) { console.log('[CloudAttach] HEIC/DNG: no embedded JPEG'); return; }
       const blob = new Blob([jpeg], { type: 'image/jpeg' });
       const blobUrl = URL.createObjectURL(blob);
-      imgEl.src = blobUrl;
+      await new Promise((resolve, reject) => {
+        imgEl.onload = resolve;
+        imgEl.onerror = () => { console.log('[CloudAttach] HEIC/DNG blob load failed'); resolve(); };
+        imgEl.src = blobUrl;
+      });
       imgEl.style.maxWidth = '100%';
       imgEl.style.height = 'auto';
       imgEl.style.display = 'block';
-      console.log('[CloudAttach] HEIC/DNG rendered:', imgEl.naturalWidth || 'pending', 'element:', imgEl.offsetWidth + 'x' + imgEl.offsetHeight, 'inDoc:', !!imgEl.closest('body'));
+      console.log('[CloudAttach] HEIC/DNG rendered:', imgEl.naturalWidth, 'element:', imgEl.offsetWidth + 'x' + imgEl.offsetHeight, 'inDoc:', !!imgEl.closest('body'));
       renderedSet.add(url);
     } catch (e) {
       console.log('[CloudAttach] _renderHeicDngAsImage failed:', e);
