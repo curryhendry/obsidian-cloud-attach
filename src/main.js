@@ -4368,6 +4368,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         return;
       }
       if (this._isHeicDngUrl(src)) {
+        console.log('[CloudAttach] _scanAllPdfImgs calling _renderHeicDngAsImage for:', src.substring(0,60));
         this._renderHeicDngAsImage(img, src);
         return;
       }
