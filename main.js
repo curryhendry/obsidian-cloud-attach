@@ -3241,8 +3241,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         if (!file || !source.startsWith("file-explorer"))
           return;
         const ext = file.extension?.toLowerCase() || "";
-        const attachExts = ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico", "mp4", "mov", "avi", "mkv", "webm", "flv", "mp3", "wav", "flac", "aac", "ogg", "m4a", "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx"];
-        if (!attachExts.includes(ext))
+        if (ext === "md")
           return;
         menu.addSeparator();
         menu.addItem((item) => {
