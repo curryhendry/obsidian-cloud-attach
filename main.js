@@ -3629,15 +3629,20 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const scrollArea = container.querySelector(".cloudattach-pdf-scrollarea");
     if (!scrollArea)
       return;
-    const totalPages = parseInt(container.dataset.totalPages) || 1;
     const onScroll = () => {
       if (container.dataset.scrollProgrammatic)
         return;
-      const scrollH = scrollArea.scrollHeight - scrollArea.clientHeight;
-      if (scrollH <= 0)
+      const canvases = scrollArea.querySelectorAll("canvas.cloudattach-pdf-page");
+      if (!canvases.length)
         return;
-      const ratio = scrollArea.scrollTop / scrollH;
-      const pageNum = Math.max(1, Math.min(totalPages, Math.round(ratio * (totalPages - 1)) + 1));
+      const scrollMid = scrollArea.scrollTop + scrollArea.clientHeight / 3;
+      let pageNum = 1;
+      for (let i = 0; i < canvases.length; i++) {
+        if (canvases[i].offsetTop <= scrollMid) {
+          pageNum = parseInt(canvases[i].dataset.pageNum) || i + 1;
+        } else
+          break;
+      }
       if (container.dataset.currentPage !== String(pageNum)) {
         container.dataset.currentPage = String(pageNum);
         this._updatePdfToolbar(container, pdf);
