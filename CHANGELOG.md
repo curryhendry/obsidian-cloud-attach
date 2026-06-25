@@ -1,3 +1,7 @@
+## v0.4.030.dev - 2026-06-25
+
+- 诊断：HEIC PostProcessor 加调试日志确认回调是否被触发
+
 ## v0.4.029.dev - 2026-06-25
 
 - 修复：HEIC/DNG 预览第五次修复 — `img.src` 长 URL 被浏览器截断丢失 `.HEIC` 后缀致 `_isHeicDngUrl` 永远 false，全部改为 `getAttribute('src')` 优先
