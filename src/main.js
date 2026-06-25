@@ -1799,16 +1799,17 @@ class S3Client {
    */
   async delete(paths) {
     const results = { success: [], failed: [] };
+    const objKey = (filePath) => { const clean = filePath.replace(/^\/+/, ''); return this.prefix ? this.prefix.replace(/\/$/, '') + '/' + clean : clean; };
     for (const fullPath of paths) {
       try {
-        const objectKey = this._objectKey(fullPath);
+        const objectKey = objKey(fullPath);
         // 判断是文件还是文件夹（文件夹以 / 结尾或通过 listDirectory 判断）
         const isDir = fullPath.endsWith('/');
         if (isDir) {
           // S3 无原生目录，列出所有子对象后逐个删除
           const dirContents = await this.listDirectory(fullPath);
           for (const item of dirContents) {
-            const itemKey = this._objectKey(item.path);
+            const itemKey = objKey(item.path);
             const itemSignedQuery = await this.signQuery(new URLSearchParams({'X-Amz-Expires':'3600'}), itemKey, 'DELETE', {});
             const itemEncodedKey = encodeURIComponent(itemKey);
             const itemDeleteUrl = `${this.endpoint}/${this.bucket}/${itemEncodedKey}?${itemSignedQuery}`;
@@ -1818,9 +1819,9 @@ class S3Client {
           }
         } else {
           const signedQuery = await this.signQuery(new URLSearchParams({'X-Amz-Expires':'3600'}), objectKey, 'DELETE', {});
-        const encodedKey = encodeURIComponent(objectKey);
-        const deleteUrl = `${this.endpoint}/${this.bucket}/${encodedKey}?${signedQuery}`;
-        const r = await this.requestViaObsidian(deleteUrl, { method: 'DELETE' });
+          const encodedKey = encodeURIComponent(objectKey);
+          const deleteUrl = `${this.endpoint}/${this.bucket}/${encodedKey}?${signedQuery}`;
+          const r = await this.requestViaObsidian(deleteUrl, { method: 'DELETE' });
           if (r.ok) results.success.push(fullPath);
           else results.failed.push({ path: fullPath, error: `HTTP ${r.status}` });
         }
@@ -1839,6 +1840,7 @@ class S3Client {
    */
   async rename(path, newName) {
     const isDir = path.endsWith('/');
+    const objKey = (filePath) => { const clean = filePath.replace(/^\/+/, ''); return this.prefix ? this.prefix.replace(/\/$/, '') + '/' + clean : clean; };
 
     // 文件夹：S3 无原生目录，需列出所有子对象逐个复制+删除
     if (isDir) {
@@ -1848,9 +1850,9 @@ class S3Client {
 
       const dirContents = await this.listDirectory(path);
       for (const item of dirContents) {
-        const srcKey = this._objectKey(item.path);
+        const srcKey = objKey(item.path);
         const relativeName = item.path.slice(path.length);
-        const dstKey = this._objectKey(dstBase + '/' + relativeName.replace(/^\//, ''));
+        const dstKey = objKey(dstBase + '/' + relativeName.replace(/^\//, ''));
 
         // CopyObject presigned URL
         const copySource = encodeURIComponent('/' + this.bucket + '/' + srcKey).replace(/%2F/g, '/');
@@ -1877,9 +1879,9 @@ class S3Client {
     }
 
     // 文件：CopyObject + Delete
-    const srcKey = this._objectKey(path);
+    const srcKey = objKey(path);
     const dstPath = path.substring(0, path.lastIndexOf('/') + 1) + newName;
-    const dstKey = this._objectKey(dstPath);
+    const dstKey = objKey(dstPath);
 
     const copySource = encodeURIComponent('/' + this.bucket + '/' + srcKey).replace(/%2F/g, '/');
     const copyParams = new URLSearchParams({ 'X-Amz-Expires': '3600' });
