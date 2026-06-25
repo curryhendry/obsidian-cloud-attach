@@ -3544,6 +3544,15 @@ module.exports = class CloudAttachPlugin extends Plugin {
       } catch(e) {
         console.log('[CloudAttach] PostProcessor error:', e);
       }
+      // 直链 HEIC/DNG（macOS/桌面端非 blob URL）：直接触发渲染
+      Array.from(el.querySelectorAll('img')).forEach(img => {
+        if (img.closest('.cloudattach-pdf-container')) return;
+        const src = img.src || img.getAttribute('src') || '';
+        if (this._isHeicDngUrl(src) && !img.dataset.cloudattachHeicDngDone) {
+          img.dataset.cloudattachHeicDngDone = '1';
+          this._renderHeicDngAsImage(img, src);
+        }
+      });
     });
     // 注册视图类型（必须，否则 setViewState 静默失败）
     // 防重复注册：禁用→重启用时 Obsidian 可能未注销旧 view type
