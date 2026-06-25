@@ -1,3 +1,7 @@
+## v0.4.032.dev - 2026-06-25
+
+- 修复：HEIC/DNG 创建 img 时不预设 src（避免 Electron 覆盖 blob），渲染后确认 blob URL 生效
+
 ## v0.4.031.dev - 2026-06-25
 
 - 修复：HEIC/DNG 预览第六次修复 — Obsidian 不认识此格式不创建 DOM 也不调 PostProcessor，`_scanAllPdfImgs` 直接从笔记源码解析创建 img 渲染
