@@ -1,3 +1,7 @@
+## v0.4.034.dev - 2026-06-25
+
+- 诊断：HEIC/DNG 下载 buf 大小+首字节诊断（确认是否 HTML 替换了 HEIC 二进制）
+
 ## v0.4.033.dev - 2026-06-25
 
 - 修复：HEIC/DNG 渲染等 `onload` 后再设样式（`img.src = blobUrl` 异步加载未完成时尺寸为 0x0）

@@ -3632,6 +3632,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
       const resp = reqUrlFn ? await reqUrlFn({ url, method: "GET" }) : await fetch(url);
       const buf = resp.arrayBuffer || await resp.arrayBuffer();
+      const arr = new Uint8Array(buf);
+      console.log("[CloudAttach] HEIC/DNG buf size:", arr.length, "first bytes:", Array.from(arr.slice(0, 10)).map((b) => b.toString(16)).join(" "));
       const jpeg = this._extractEmbeddedJpeg(buf);
       if (!jpeg) {
         console.log("[CloudAttach] HEIC/DNG: no embedded JPEG");
