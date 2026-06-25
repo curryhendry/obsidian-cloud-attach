@@ -4847,7 +4847,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
           absolutePath = noteDir + localPath;
         }
       }
-      // 检查是否已存在
+      // 检查是否已存在，且过滤空路径
+      if (!absolutePath || !absolutePath.trim()) continue;
       if (!attachments.find(a => a.localPath === absolutePath)) {
         attachments.push({
           localPath: absolutePath,
@@ -4872,7 +4873,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
           absolutePath = noteDir + localPath;
         }
       }
-      // 检查是否已存在
+      // 检查是否已存在，且过滤空路径
+      if (!absolutePath || !absolutePath.trim()) continue;
       if (!attachments.find(a => a.localPath === absolutePath)) {
         attachments.push({
           localPath: absolutePath,
