@@ -3564,8 +3564,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
         'mp4','mov','avi','mkv','webm','flv',
         'mp3','wav','flac','aac','ogg','m4a'];
       if (!attachmentExts.includes(ext)) return;
-      // 延迟确保编辑器已更新
-      setTimeout(async () => {
+      // 延迟+重试确保编辑器已更新（gif/mov 写入较慢）
+      const tryUpload = async (retriesLeft) => {
         const view = this.activeMarkdownView || this.app.workspace.getActiveViewOfType(MarkdownView);
         if (!view?.editor || !view.file) return;
         const text = view.editor.getValue();
@@ -3575,11 +3575,17 @@ module.exports = class CloudAttachPlugin extends Plugin {
         const mdPattern = new RegExp(`!\\[[^\\]]*\\]\\((?:.*/)?${escapedName}\\)`);
         const wikiMatch = text.match(wikiPattern);
         const mdMatch = text.match(mdPattern);
-        if (!wikiMatch && !mdMatch) return;
+        if (!wikiMatch && !mdMatch) {
+          if (retriesLeft > 0) {
+            setTimeout(() => tryUpload(retriesLeft - 1), 1000);
+          }
+          return;
+        }
         const ctx = this.getDefaultUploadContext();
         if (!ctx || !ctx.ok) return;
         await this.doUpload([{ localPath: file.path, syntax: (wikiMatch || mdMatch)[0] }], ctx);
-      }, 500);
+      };
+      setTimeout(() => tryUpload(2), 500);
     }));
     console.log('CloudAttach loaded');
   }

@@ -3342,7 +3342,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       ];
       if (!attachmentExts.includes(ext))
         return;
-      setTimeout(async () => {
+      const tryUpload = async (retriesLeft) => {
         const view = this.activeMarkdownView || this.app.workspace.getActiveViewOfType(MarkdownView);
         if (!view?.editor || !view.file)
           return;
@@ -3353,13 +3353,18 @@ module.exports = class CloudAttachPlugin extends Plugin {
         const mdPattern = new RegExp(`!\\[[^\\]]*\\]\\((?:.*/)?${escapedName}\\)`);
         const wikiMatch = text.match(wikiPattern);
         const mdMatch = text.match(mdPattern);
-        if (!wikiMatch && !mdMatch)
+        if (!wikiMatch && !mdMatch) {
+          if (retriesLeft > 0) {
+            setTimeout(() => tryUpload(retriesLeft - 1), 1e3);
+          }
           return;
+        }
         const ctx = this.getDefaultUploadContext();
         if (!ctx || !ctx.ok)
           return;
         await this.doUpload([{ localPath: file.path, syntax: (wikiMatch || mdMatch)[0] }], ctx);
-      }, 500);
+      };
+      setTimeout(() => tryUpload(2), 500);
     }));
     console.log("CloudAttach loaded");
   }
