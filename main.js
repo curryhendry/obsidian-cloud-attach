@@ -137,8 +137,8 @@ Object.assign(I18n.translations.zh, {
   "settings.folder_required": "\u26A0\uFE0F \u8BF7\u9009\u62E9\u4E0A\u4F20\u5230\u7684\u6587\u4EF6\u5939\uFF0C\u4E0D\u80FD\u662F\u6839\u76EE\u5F55",
   "settings.auto_upload": "\u81EA\u52A8\u4E0A\u4F20",
   "settings.auto_upload_desc": "\u7C98\u8D34/\u62D6\u5165\u9644\u4EF6\u540E\u81EA\u52A8\u7528\u9ED8\u8BA4\u8D26\u53F7\u4E0A\u4F20\u5230\u9ED8\u8BA4\u8DEF\u5F84",
-  "settings.auto_upload_confirm_title": "\u{1F916} \u786E\u8BA4\u542F\u7528\u81EA\u52A8\u4E0A\u4F20",
-  "settings.auto_upload_confirm_msg": "\u5F00\u542F\u540E\uFF0C\u7B14\u8BB0\u4E2D\u7C98\u8D34/\u62D6\u5165\u7684\u9644\u4EF6\u5C06\u81EA\u52A8\u4E0A\u4F20\u5230:\n\n\u{1F4C2} {name}/{path}\n\n\u8BF7\u786E\u8BA4\u914D\u7F6E\u65E0\u8BEF",
+  "settings.auto_upload_confirm_title": "\u786E\u8BA4\u542F\u7528\u81EA\u52A8\u4E0A\u4F20",
+  "settings.auto_upload_confirm_msg": "\u5F00\u542F\u540E\u81EA\u52A8\u4E0A\u4F20\u9644\u4EF6\u5230\u9ED8\u8BA4\u670D\u52A1",
   "settings.auto_upload_need_default": "\u8BF7\u5148\u5728\u8BBE\u7F6E\u4E2D\u6307\u5B9A\u9ED8\u8BA4\u8D26\u53F7",
   // 视图界面
   "view.select_account": "\u9009\u62E9\u8D26\u6237",
@@ -383,8 +383,8 @@ Object.assign(I18n.translations.en, {
   "settings.default_account": "Default Account",
   "settings.auto_upload": "Auto Upload",
   "settings.auto_upload_desc": "Auto upload pasted/dropped attachments with default account",
-  "settings.auto_upload_confirm_title": "\u{1F916} Enable Auto Upload",
-  "settings.auto_upload_confirm_msg": "Pasted/dropped attachments will auto upload to:\n\n\u{1F4C2} {name}/{path}\n\nPlease confirm the configuration is correct.",
+  "settings.auto_upload_confirm_title": "Enable Auto Upload",
+  "settings.auto_upload_confirm_msg": "Auto upload attachments to default service when enabled",
   "settings.auto_upload_need_default": "Please set a default account in Settings first",
   "view.select_account": "Select Account",
   "view.no_account": "Please add an account in Settings first",
@@ -2931,84 +2931,61 @@ var AdvancedSettingModal = class extends Modal {
     autoUploadCard.style.borderRadius = "8px";
     autoUploadCard.style.padding = "20px";
     autoUploadCard.style.marginBottom = "16px";
-    const autoTitle = autoUploadCard.createEl("h3", { text: t("settings.auto_upload") });
-    autoTitle.style.marginTop = "0";
-    autoTitle.style.marginBottom = "12px";
-    autoTitle.style.fontSize = "14px";
-    autoTitle.style.fontWeight = "600";
-    autoTitle.style.color = "var(--text-normal)";
-    autoTitle.style.textTransform = "uppercase";
-    autoTitle.style.letterSpacing = "0.5px";
-    autoTitle.style.opacity = "0.7";
-    const autoToggleRow = autoUploadCard.createDiv();
-    autoToggleRow.style.display = "flex";
-    autoToggleRow.style.alignItems = "center";
-    autoToggleRow.style.justifyContent = "space-between";
-    autoToggleRow.style.gap = "12px";
-    const autoToggleLabel = autoToggleRow.createEl("span", { text: t("settings.auto_upload_desc") });
-    autoToggleLabel.style.fontSize = "13px";
-    autoToggleLabel.style.color = "var(--text-muted)";
-    autoToggleLabel.style.flex = "1";
-    const autoToggleBtn = autoToggleRow.createEl("button");
-    const updateAutoUploadToggleStyle = () => {
-      const on = this.plugin.settings.enableAutoUpload;
-      autoToggleBtn.textContent = on ? "\u{1F7E2} \u5F00" : "\u26AB \u5173";
-      autoToggleBtn.style.background = on ? "var(--interactive-accent)" : "var(--background-modifier-border)";
-      autoToggleBtn.style.color = on ? "var(--text-on-accent)" : "var(--text-muted)";
-      autoToggleBtn.style.border = "none";
-      autoToggleBtn.style.borderRadius = "6px";
-      autoToggleBtn.style.padding = "6px 16px";
-      autoToggleBtn.style.fontSize = "13px";
-      autoToggleBtn.style.cursor = "pointer";
-    };
-    updateAutoUploadToggleStyle();
-    autoToggleBtn.onclick = async () => {
-      const current = this.plugin.settings.enableAutoUpload;
-      if (!current) {
-        if (!this.plugin.defaultAccountId) {
-          new Notice("\u26A0\uFE0F " + t("settings.auto_upload_need_default"), 4e3);
-          return;
-        }
-        const defAccount = this.plugin.accounts.find((a) => a.id === this.plugin.defaultAccountId);
-        if (!defAccount) {
-          new Notice("\u26A0\uFE0F " + t("settings.auto_upload_need_default"), 4e3);
-          return;
-        }
-        const confirmText = t("settings.auto_upload_confirm_msg", { name: defAccount.name, path: defAccount.prefix || "/" });
-        const modal = new (require("obsidian")).Modal(this.app);
-        modal.titleEl.textContent = t("settings.auto_upload_confirm_title");
-        const modalContent = modal.contentEl;
-        modalContent.style.padding = "16px";
-        const msgEl = modalContent.createEl("p", { text: confirmText });
-        msgEl.style.fontSize = "14px";
-        msgEl.style.whiteSpace = "pre-line";
-        msgEl.style.marginBottom = "16px";
-        const btnRow2 = modalContent.createDiv();
-        btnRow2.style.display = "flex";
-        btnRow2.style.gap = "8px";
-        btnRow2.style.justifyContent = "flex-end";
-        const cancelBtn2 = btnRow2.createEl("button", { text: t("settings.cancel") });
-        cancelBtn2.onclick = () => modal.close();
-        const confirmBtn = btnRow2.createEl("button", { text: "\u2705 " + (t("settings.auto_upload") || "\u542F\u7528") });
-        confirmBtn.style.background = "var(--interactive-accent)";
-        confirmBtn.style.color = "var(--text-on-accent)";
-        confirmBtn.style.border = "none";
-        confirmBtn.style.borderRadius = "4px";
-        confirmBtn.style.padding = "8px 16px";
-        confirmBtn.style.cursor = "pointer";
-        confirmBtn.onclick = async () => {
-          this.plugin.settings.enableAutoUpload = true;
+    const Setting = require("obsidian").Setting;
+    new Setting(autoUploadCard).setName(t("settings.auto_upload")).setDesc(t("settings.auto_upload_desc")).addToggle((toggle) => {
+      toggle.setValue(this.plugin.settings.enableAutoUpload);
+      toggle.onChange(async (value) => {
+        if (value) {
+          if (!this.plugin.defaultAccountId) {
+            new Notice("\u26A0\uFE0F " + t("settings.auto_upload_need_default"), 4e3);
+            toggle.setValue(false);
+            return;
+          }
+          const defAccount = this.plugin.accounts.find((a) => a.id === this.plugin.defaultAccountId);
+          if (!defAccount) {
+            new Notice("\u26A0\uFE0F " + t("settings.auto_upload_need_default"), 4e3);
+            toggle.setValue(false);
+            return;
+          }
+          const confirmModal = new (require("obsidian")).Modal(this.app);
+          confirmModal.titleEl.textContent = t("settings.auto_upload_confirm_title");
+          const cContent = confirmModal.contentEl;
+          cContent.style.padding = "16px";
+          cContent.createEl("p", { text: t("settings.auto_upload_confirm_msg") }).style.marginBottom = "12px";
+          const pathBox = cContent.createDiv();
+          pathBox.style.marginBottom = "16px";
+          pathBox.style.padding = "10px 12px";
+          pathBox.style.background = "var(--background-secondary)";
+          pathBox.style.borderRadius = "4px";
+          pathBox.style.fontSize = "13px";
+          pathBox.textContent = "\u{1F4C2} " + defAccount.name + "/" + (defAccount.prefix || "/");
+          confirmModal.modalEl.querySelector(".modal-button-container")?.remove();
+          const btnContainer = document.createElement("div");
+          btnContainer.className = "modal-button-container";
+          const okBtn = document.createElement("button");
+          okBtn.className = "mod-cta";
+          okBtn.textContent = t("settings.auto_upload") || "\u81EA\u52A8\u4E0A\u4F20";
+          okBtn.onclick = async () => {
+            this.plugin.settings.enableAutoUpload = true;
+            await this.plugin.saveSettings();
+            confirmModal.close();
+          };
+          const cancelBtn2 = document.createElement("button");
+          cancelBtn2.textContent = t("settings.cancel");
+          cancelBtn2.onclick = () => {
+            confirmModal.close();
+            toggle.setValue(false);
+          };
+          btnContainer.appendChild(cancelBtn2);
+          btnContainer.appendChild(okBtn);
+          confirmModal.modalEl.appendChild(btnContainer);
+          confirmModal.open();
+        } else {
+          this.plugin.settings.enableAutoUpload = false;
           await this.plugin.saveSettings();
-          updateAutoUploadToggleStyle();
-          modal.close();
-        };
-        modal.open();
-      } else {
-        this.plugin.settings.enableAutoUpload = false;
-        await this.plugin.saveSettings();
-        updateAutoUploadToggleStyle();
-      }
-    };
+        }
+      });
+    });
     const card = contentEl.createDiv();
     card.className = "cloudattach-settings-card";
     card.style.background = "var(--background-secondary)";
