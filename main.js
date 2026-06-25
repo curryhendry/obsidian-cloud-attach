@@ -3306,13 +3306,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
     this.registerEvent(this.app.vault.on("create", (file) => {
       if (!this.settings.enableAutoUpload)
         return;
-      console.log("[CloudAttach] vault.create:", file.path, "ext:", ext);
       if (!this.defaultAccountId)
         return;
       const TFile = require("obsidian").TFile;
       if (!(file instanceof TFile))
         return;
       const ext = file.extension.toLowerCase();
+      console.log("[CloudAttach] vault.create:", file.path, "ext:", ext);
       const attachmentExts = [
         "jpg",
         "jpeg",
