@@ -3344,6 +3344,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
       })
     );
     // 左侧文件列表右键菜单（仅文件浏览器，排除编辑器内触发）
+    // 已移除：source 值在不同 Obsidian 版本不一致，且需文件与笔记关联才可用
+    // TODO: 如需重新启用，需先确认 source 枚举值并放宽 _findNotesWithFile 兜底逻辑
+    /*
     this.registerEvent(
       this.app.workspace.on('file-menu', (menu, file, source) => {
         if (!file || source !== 'file-explorer') return;
@@ -3401,6 +3404,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         });
       })
     );
+    */
     this.activeMarkdownView = null;
     this.registerEvent(this.app.workspace.on('active-leaf-change', (leaf) => {
       if (leaf?.view instanceof MarkdownView && leaf.view.editor) {
@@ -4898,11 +4902,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
           return row;
         };
         // 选项1：当前 CloudAttach 视图路径
-        const hasDefault = !!(this.defaultAccountId && this.accounts.find(a => a.id === this.defaultAccountId));
         targetGroup.appendChild(mkRadio(
           t('view.upload_to_current_path'),
           this.escapeHtml(remotePath),
-          !hasDefault,  // 有默认账号时默认不选中当前路径
+          true,   // 视图打开时默认选中当前路径（用户已主动浏览到此路径）
           () => { useDefault = false; }
         ));
         // 选项2：默认账号（如果已设置）
@@ -4912,7 +4915,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
             targetGroup.appendChild(mkRadio(
               t('view.upload_to_default_account'),
               defAccount.name,
-              hasDefault,  // 有默认账号时默认选中
+              false,
               () => { useDefault = true; }
             ));
           }
