@@ -3560,7 +3560,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const TFile = require('obsidian').TFile;
       if (!(file instanceof TFile)) return;
       const ext = file.extension.toLowerCase();
-      console.log("[CloudAttach] vault.create:", file.path, "ext:", ext);
       const attachmentExts = ['jpg','jpeg','png','gif','webp','svg','bmp','ico',
         'pdf','doc','docx','xls','xlsx','ppt','pptx',
         'mp4','mov','avi','mkv','webm','flv',
@@ -3573,12 +3572,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
         const text = view.editor.getValue();
         const fileName = file.path.split('/').pop();
         const escapedName = this._escapeRegex(fileName);
-        const wikiPattern = new RegExp(`!\\[\\[.*/${escapedName}(?:\\|[^\\]]*)?\\]\\]`);
-        const mdPattern = new RegExp(`!\\[[^\\]]*\\]\\(.*/${escapedName}\\)`);
+        const wikiPattern = new RegExp(`!\\[\\[(?:.*/)?${escapedName}(?:\\|[^\\]]*)?\\]\\]`);
+        const mdPattern = new RegExp(`!\\[[^\\]]*\\]\\((?:.*/)?${escapedName}\\)`);
         const wikiMatch = text.match(wikiPattern);
         const mdMatch = text.match(mdPattern);
-        console.log("[CloudAttach] auto-upload text sample:", text.substring(0, 500));
-        if (!wikiMatch && !mdMatch) { console.log("[CloudAttach] auto-upload: no match for", escapedName); return; }
+        if (!wikiMatch && !mdMatch) return;
         const ctx = this.getDefaultUploadContext();
         if (!ctx || !ctx.ok) return;
         await this.doUpload([{ localPath: file.path, syntax: (wikiMatch || mdMatch)[0] }], ctx);
