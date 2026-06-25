@@ -3615,6 +3615,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     return data.slice(soi, eoi + 1);
   }
   async _renderHeicDngAsImage(imgEl, url) {
+    console.log("[CloudAttach] _renderHeicDngAsImage ENTER:", url.substring(url.lastIndexOf("/") + 1).substring(0, 40));
     const modeKey = imgEl.closest(".markdown-reading-view") ? "reading" : "editing";
     if (!this._renderedHeicDngByMode)
       this._renderedHeicDngByMode = {};
