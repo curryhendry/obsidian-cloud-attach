@@ -85,6 +85,11 @@
 
 **在线PDF预览：**
 <img alt="插入PDF预览_缩小_压缩" src="https://github.com/user-attachments/assets/102e265a-c77c-4823-bdbd-1c9cba6fc9b0" />
+<br>
+
+**自动上传**
+<img alt="自动上传-720p" src="https://github.com/user-attachments/assets/ad1d2149-efdb-413b-8245-e200eaef77ea" />
+
 
 ---
 
