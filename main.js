@@ -140,6 +140,7 @@ Object.assign(I18n.translations.zh, {
   "settings.auto_upload_confirm_title": "\u786E\u8BA4\u542F\u7528\u81EA\u52A8\u4E0A\u4F20",
   "settings.auto_upload_confirm_msg": "\u5F00\u542F\u540E\u81EA\u52A8\u4E0A\u4F20\u9644\u4EF6\u5230\u9ED8\u8BA4\u670D\u52A1",
   "settings.auto_upload_need_default": "\u8BF7\u5148\u5728\u8BBE\u7F6E\u4E2D\u6307\u5B9A\u9ED8\u8BA4\u8D26\u53F7",
+  "settings.auto_upload_confirm_again": "\u8BF7\u518D\u6B21\u786E\u8BA4",
   // 视图界面
   "view.select_account": "\u9009\u62E9\u8D26\u6237",
   "view.no_account": "\u8BF7\u5148\u5728\u8BBE\u7F6E\u4E2D\u6DFB\u52A0\u8D26\u6237",
@@ -335,7 +336,6 @@ Object.assign(I18n.translations.en, {
   "settings.delete": "Delete",
   "settings.move_up": "Move Up",
   "settings.move_down": "Move Down",
-  "settings.cancel": "Cancel",
   "settings.server_address": "Server Address",
   "settings.endpoint": "Endpoint",
   "settings.bucket": "Bucket",
@@ -386,6 +386,7 @@ Object.assign(I18n.translations.en, {
   "settings.auto_upload_confirm_title": "Enable Auto Upload",
   "settings.auto_upload_confirm_msg": "Auto upload attachments to default service when enabled",
   "settings.auto_upload_need_default": "Please set a default account in Settings first",
+  "settings.auto_upload_confirm_again": "Please confirm again",
   "view.select_account": "Select Account",
   "view.no_account": "Please add an account in Settings first",
   "view.upload_to_current_path": "Upload to current CloudAttach path",
@@ -2096,7 +2097,6 @@ var CloudAttachView = class extends ItemView {
       await this.doRename(file, newName);
     };
     btnRow.appendChild(confirmBtn);
-    btnRow.appendChild(cancelBtn);
     content.appendChild(btnRow);
     modal.open();
     input.focus();
@@ -2636,10 +2636,6 @@ var AddAccountModal = class extends Modal {
     btnRow.style.gap = "8px";
     btnRow.style.justifyContent = "flex-end";
     btnRow.style.marginTop = "16px";
-    const cancelBtn = document.createElement("button");
-    cancelBtn.textContent = t("view.cancel");
-    cancelBtn.className = "cloud-attach-btn";
-    cancelBtn.onclick = () => this.close();
     const saveBtn = document.createElement("button");
     saveBtn.textContent = t("settings.save");
     saveBtn.className = "cloud-attach-btn mod-cta";
@@ -2698,7 +2694,6 @@ var AddAccountModal = class extends Modal {
       setTimeout(() => this.onSave?.(), 50);
     };
     btnRow.appendChild(saveBtn);
-    btnRow.appendChild(cancelBtn);
     this.contentEl.appendChild(btnRow);
   }
   createFieldDiv(label, placeholder) {
@@ -2950,6 +2945,9 @@ var AdvancedSettingModal = class extends Modal {
           const confirmModal = new (require("obsidian")).Modal(this.app);
           confirmModal.titleEl.textContent = t("settings.auto_upload_confirm_title");
           const cContent = confirmModal.contentEl;
+          confirmModal.onClose = () => {
+            toggle.setValue(false);
+          };
           cContent.style.padding = "16px";
           cContent.createEl("p", { text: t("settings.auto_upload_confirm_msg") }).style.marginBottom = "12px";
           const pathBox = cContent.createDiv();
@@ -2959,7 +2957,7 @@ var AdvancedSettingModal = class extends Modal {
           pathBox.style.borderRadius = "4px";
           pathBox.style.fontSize = "13px";
           pathBox.textContent = "\u{1F4C2} " + defAccount.name + "/" + (defAccount.prefix || "/");
-          cContent.createEl("p", { text: "\u8BF7\u518D\u6B21\u786E\u8BA4" }).style.marginBottom = "12px";
+          cContent.createEl("p", { text: t("settings.auto_upload_confirm_again") }).style.marginBottom = "12px";
           confirmModal.modalEl.querySelector(".modal-button-container")?.remove();
           const btnContainer = document.createElement("div");
           btnContainer.className = "modal-button-container";
@@ -2971,14 +2969,7 @@ var AdvancedSettingModal = class extends Modal {
             await this.plugin.saveSettings();
             confirmModal.close();
           };
-          const cancelBtn2 = document.createElement("button");
-          cancelBtn2.textContent = t("settings.cancel");
-          cancelBtn2.onclick = () => {
-            confirmModal.close();
-            toggle.setValue(false);
-          };
           btnContainer.appendChild(okBtn);
-          btnContainer.appendChild(cancelBtn2);
           confirmModal.modalEl.appendChild(btnContainer);
           confirmModal.open();
         } else {
@@ -4815,7 +4806,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
         resolve({ confirmed: true, useDefault });
       };
       btnRow.appendChild(uploadBtn);
-      btnRow.appendChild(cancelBtn);
       content.appendChild(btnRow);
       modal.open();
     });
