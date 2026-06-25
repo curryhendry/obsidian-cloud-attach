@@ -4825,14 +4825,16 @@ module.exports = class CloudAttachPlugin extends Plugin {
       return;
     }
     // 提取笔记中所有本地附件
-    const text = view.editor.getValue();
+    let text = view.editor.getValue();
+    // 剔除代码块内容（inline code 和 fenced code），避免误匹配
+    const codeFreeText = text.replace(/```[\s\S]*?```/g, '').replace(/`[^`]+`/g, '');
     const notePath = view.file?.path || '';
     const noteDir = notePath.substring(0, notePath.lastIndexOf('/') + 1);
     // 匹配所有本地附件（![] 格式，排除 http/https）
     const attachmentRegex = /!\[([^\]]*)\]\((?!http)([^)#\s?]+)/g;
     const attachments = [];
     let match;
-    while ((match = attachmentRegex.exec(text)) !== null) {
+    while ((match = attachmentRegex.exec(codeFreeText)) !== null) {
       const localPath = match[2];
       // 使用 metadataCache 正确解析（支持相对路径、绝对路径、../ 导航）
       const cacheResolved = this.app.metadataCache.getFirstLinkpathDest(localPath, notePath);
@@ -4858,7 +4860,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
     // 匹配 wiki-link 格式 ![[path]]
     const wikiRegex = /!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g;
-    while ((match = wikiRegex.exec(text)) !== null) {
+    while ((match = wikiRegex.exec(codeFreeText)) !== null) {
       const localPath = match[1];
       // 使用 metadataCache 正确解析（支持相对路径、绝对路径、../ 导航）
       const cacheResolved = this.app.metadataCache.getFirstLinkpathDest(localPath, notePath);
@@ -4884,7 +4886,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
     // 匹配普通 wiki-link 格式 [[path]]（无 ! 前缀）
     const plainWikiRegex = /\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g;
-    while ((match = plainWikiRegex.exec(text)) !== null) {
+    while ((match = plainWikiRegex.exec(codeFreeText)) !== null) {
       const localPath = match[1];
       const cacheResolved = this.app.metadataCache.getFirstLinkpathDest(localPath, notePath);
       let absolutePath;
