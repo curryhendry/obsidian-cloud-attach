@@ -3496,6 +3496,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     this._observePdfEmbeds();
     // PostProcessor：HEIC/DNG 预览（独立于 PDF 处理，Obsidian 不认得此格式可能渲染为 a/img/空节点）
     this.registerMarkdownPostProcessor(async (el, ctx) => {
+      console.log('[CloudAttach] HEIC PostProcessor called, el.children:', el.children.length);
       const walk = (node) => {
         if (node.nodeType === 1) {
           const tag = node.tagName;

@@ -3311,6 +3311,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
     this._observePdfEmbeds();
     this.registerMarkdownPostProcessor(async (el, ctx) => {
+      console.log("[CloudAttach] HEIC PostProcessor called, el.children:", el.children.length);
       const walk = (node) => {
         if (node.nodeType === 1) {
           const tag = node.tagName;
