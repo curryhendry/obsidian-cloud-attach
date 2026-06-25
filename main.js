@@ -86,7 +86,6 @@ Object.assign(I18n.translations.zh, {
   "settings.delete": "\u5220\u9664",
   "settings.move_up": "\u4E0A\u79FB",
   "settings.move_down": "\u4E0B\u79FB",
-  "settings.cancel": "\u53D6\u6D88",
   "settings.server_address": "\u670D\u52A1\u5668\u5730\u5740",
   "settings.endpoint": "\u7AEF\u70B9",
   "settings.bucket": "\u5B58\u50A8\u6876",
@@ -2958,7 +2957,7 @@ var AdvancedSettingModal = class extends Modal {
           btnContainer.className = "modal-button-container";
           const okBtn = document.createElement("button");
           okBtn.className = "mod-cta";
-          okBtn.textContent = t("settings.auto_upload") || "\u81EA\u52A8\u4E0A\u4F20";
+          okBtn.textContent = t("settings.auto_upload_confirm_title") || "\u786E\u8BA4\u542F\u7528";
           okBtn.onclick = async () => {
             confirmed = true;
             this.plugin.settings.enableAutoUpload = true;
@@ -3312,7 +3311,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (!(file instanceof TFile))
         return;
       const ext = file.extension.toLowerCase();
-      console.log("[CloudAttach] vault.create:", file.path, "ext:", ext);
       const attachmentExts = [
         "jpg",
         "jpeg",
@@ -3355,11 +3353,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
         const mdPattern = new RegExp(`!\\[[^\\]]*\\]\\((?:.*/)?${escapedName}\\)`);
         const wikiMatch = text.match(wikiPattern);
         const mdMatch = text.match(mdPattern);
-        console.log("[CloudAttach] auto-upload text sample:", text.substring(0, 300));
-        if (!wikiMatch && !mdMatch) {
-          console.log("[CloudAttach] auto-upload: no match for", fileName);
+        if (!wikiMatch && !mdMatch)
           return;
-        }
         const ctx = this.getDefaultUploadContext();
         if (!ctx || !ctx.ok)
           return;

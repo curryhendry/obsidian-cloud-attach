@@ -97,7 +97,6 @@ Object.assign(I18n.translations.zh, {
   'settings.delete': '删除',
   'settings.move_up': '上移',
   'settings.move_down': '下移',
-  'settings.cancel': '取消',
   'settings.server_address': '服务器地址',
   'settings.endpoint': '端点',
   'settings.bucket': '存储桶',
@@ -3110,7 +3109,7 @@ class AdvancedSettingModal extends Modal {
             btnContainer.className = 'modal-button-container';
             const okBtn = document.createElement('button');
             okBtn.className = 'mod-cta';
-            okBtn.textContent = t('settings.auto_upload') || '自动上传';
+            okBtn.textContent = t('settings.auto_upload_confirm_title') || '确认启用';
             okBtn.onclick = async () => {
               confirmed = true;
               this.plugin.settings.enableAutoUpload = true;
@@ -3560,7 +3559,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const TFile = require('obsidian').TFile;
       if (!(file instanceof TFile)) return;
       const ext = file.extension.toLowerCase();
-      console.log("[CloudAttach] vault.create:", file.path, "ext:", ext);
       const attachmentExts = ['jpg','jpeg','png','gif','webp','svg','bmp','ico',
         'pdf','doc','docx','xls','xlsx','ppt','pptx',
         'mp4','mov','avi','mkv','webm','flv',
@@ -3577,8 +3575,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         const mdPattern = new RegExp(`!\\[[^\\]]*\\]\\((?:.*/)?${escapedName}\\)`);
         const wikiMatch = text.match(wikiPattern);
         const mdMatch = text.match(mdPattern);
-        console.log("[CloudAttach] auto-upload text sample:", text.substring(0, 300));
-        if (!wikiMatch && !mdMatch) { console.log("[CloudAttach] auto-upload: no match for", fileName); return; }
+        if (!wikiMatch && !mdMatch) return;
         const ctx = this.getDefaultUploadContext();
         if (!ctx || !ctx.ok) return;
         await this.doUpload([{ localPath: file.path, syntax: (wikiMatch || mdMatch)[0] }], ctx);
