@@ -90,8 +90,10 @@ Object.assign(I18n.translations.zh, {
   'settings.account_name': '账户名称',
   'settings.add_account': '添加账户',
   'settings.save': '保存',
+  'settings.saved': '✅ 设置已保存',
   'settings.test': '测试',
   'settings.edit': '编辑',
+  'settings.edit_account': '编辑账户',
   'settings.delete': '删除',
   'settings.move_up': '上移',
   'settings.move_down': '下移',
@@ -268,6 +270,7 @@ Object.assign(I18n.translations.zh, {
   'view.upload_to': '上传到：<code style="background:var(--background-secondary);padding:2px 6px;border-radius:3px;">{path}</code>',
   'error.rebuild_failed': '重建失败: {error}',
   'error.sign_rebuild_failed': '补 sign 失败: {error}',
+  'error.cannot_extract_path': '无法提取路径或缺少 Token',
   'settings.check_account_settings': '请检查账户设置',
 });
 
@@ -328,6 +331,7 @@ Object.assign(I18n.translations.en, {
   // Error messages
   'error.rebuild_failed': 'Rebuild failed: {error}',
   'error.sign_rebuild_failed': 'Sign rebuild failed: {error}',
+  'error.cannot_extract_path': 'Cannot extract path or no Token',
 
   // Settings
   'settings.check_account_settings': 'Please check account settings',
@@ -339,8 +343,10 @@ Object.assign(I18n.translations.en, {
   'settings.account_name': 'Account Name',
   'settings.add_account': 'Add Account',
   'settings.save': 'Save',
+  'settings.saved': '✅ Settings saved',
   'settings.test': 'Test',
   'settings.edit': 'Edit',
+  'settings.edit_account': 'Edit Account',
   'settings.delete': 'Delete',
   'settings.move_up': 'Move Up',
   'settings.move_down': 'Move Down',
@@ -386,9 +392,16 @@ Object.assign(I18n.translations.en, {
   'settings.s3_desc': 'S3-compatible object storage',
   'settings.account_name_placeholder': 'e.g.: My COS Bucket',
   'settings.folder_required': '⚠️ Please select a folder to upload to, cannot be root',
+  'settings.set_as_default': '★ Set as Default',
+  'settings.unset_default': '☆ Unset Default',
+  'settings.is_default': 'Default',
+  'settings.default_account': 'Default Account',
 
   'view.select_account': 'Select Account',
   'view.no_account': 'Please add an account in Settings first',
+  'view.upload_to_current_path': 'Upload to current CloudAttach path',
+  'view.upload_to_default_account': 'Upload to default account',
+  'view.no_default_account_hint': 'Please set a default account in Settings first',
   'view.connect_failed': '❌ Connection failed: {error}',
   'view.error': '❌ Error: {error}',
   'view.root': '📁 Root',
@@ -3630,8 +3643,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
       // ownerDocument 确保 PDF.js 生成的 @font-face CSS 注入到正确的 document
       // （popout 窗口的 canvas 在其独立的 document 中，需要 font-face 也在同一 document）
       // disableAutoFetch: 阻止预加载所有页面，iOS 内存受限时避免加载失败
-      // fetch 探活: 确认 URL 可访问，获取 HTTP 状态/文件大小用于错误诊断
-      // HEAD 失败时回退到 Obsidian requestUrl 下载二进制（绕过 CORS）
+      // 统一通过 requestUrl 下载二进制传给 PDF.js 的 { data } 模式
+      // （Alist /p/ sign URL 对大文件返回 HTML 下载页而非原始二进制，{ url } 模式会解析失败）
       let fetchInfo = "";
       let pdfData = null;
       try {
@@ -3639,15 +3652,17 @@ module.exports = class CloudAttachPlugin extends Plugin {
         fetchInfo = "status=" + resp.status + " size=" + (resp.headers.get("content-length") || "?");
       } catch (fErr) {
         fetchInfo = "fetch_err:" + (fErr.message || fErr);
-        // CORS blocked: download via Obsidian requestUrl
-        let reqUrl = null;
-        try { reqUrl = require('obsidian').requestUrl; } catch(e) {}
-        if (reqUrl) {
-          try {
-            const resp = await reqUrl({ url, method: 'GET' });
-            pdfData = resp.arrayBuffer;
-            fetchInfo = "status=" + resp.status + " viaObsidian";
-          } catch(e) {}
+      }
+      // 总是通过 Obsidian requestUrl 下载原始二进制
+      let reqUrlFn = null;
+      try { reqUrlFn = require('obsidian').requestUrl; } catch(e) {}
+      if (reqUrlFn) {
+        try {
+          const resp = await reqUrlFn({ url, method: 'GET' });
+          pdfData = resp.arrayBuffer;
+          if (fetchInfo.indexOf('viaObsidian') === -1) fetchInfo += " viaObsidian";
+        } catch(e) {
+          if (!fetchInfo) fetchInfo = "download_err:" + (e.message || e);
         }
       }
       const loadingTask = pdfData
@@ -4205,7 +4220,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const urlObj = new URL(url);
       const host = urlObj.host; // 包含端口，如 "curryhendry.mycloudnas.com:5555"
       for (const account of this.accounts) {
-        if (account.type === 's3') continue; // S3 暂不处理
+        if (account.type === 's3') continue; // S3 用公共 URL 无 sign，无需刷新
         const accountUrl = account.url?.replace(/\/$/, '') || '';
         const accountHost = new URL(accountUrl).host;
         if (host === accountHost) {

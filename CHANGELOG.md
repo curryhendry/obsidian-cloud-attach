@@ -2,6 +2,8 @@
 
 - 修复：[[path]]（无 ! 前缀）上传后 doUpload 替换语法无效，增加 [[path]] 格式分支处理
 - 新增：左侧文件列表右键菜单「☁️ 上传到云端」（仅附件类型文件显示）
+- 修复：S3 删除/重命名 `_objectKey` 方法 this 上下文丢失，改为内联局部函数
+- 补充 i18n：默认账号功能英文翻译 + `settings.edit_account`/`settings.saved`/`error.cannot_extract_path` 中英文 key
 
 ## v0.3.331 - 2026-06-23
 
