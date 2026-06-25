@@ -3159,70 +3159,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
         });
       })
     );
-    this.registerEvent(
-      this.app.workspace.on("file-menu", (menu, file, source) => {
-        if (!file || source !== "file-explorer")
-          return;
-        const ext = file.extension?.toLowerCase() || "";
-        const attachExts = ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico", "mp4", "mov", "avi", "mkv", "webm", "flv", "mp3", "wav", "flac", "aac", "ogg", "m4a", "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx"];
-        if (!attachExts.includes(ext))
-          return;
-        menu.addSeparator();
-        menu.addItem((item) => {
-          item.setTitle("\u2601\uFE0F " + t("menu.upload_to_cloud"));
-          item.onClick(async () => {
-            try {
-              const linkedNotes = this._findNotesWithFile(file.path);
-              let targetNote = linkedNotes[0];
-              if (!targetNote) {
-                targetNote = this.app.workspace.getActiveFile();
-                if (!targetNote || targetNote.extension !== "md") {
-                  new Notice(t("notice.file_not_linked"), 3e3);
-                  return;
-                }
-              } else if (linkedNotes.length > 1) {
-                const activeFile = this.app.workspace.getActiveFile();
-                const found = linkedNotes.find((n) => n.path === activeFile?.path);
-                if (found)
-                  targetNote = found;
-              }
-              const noteContent = await this.app.vault.read(targetNote);
-              let syntax = null;
-              const patterns = [
-                new RegExp(`![([^]]*)](.*?${this._escapeRegex(file.name)})`),
-                new RegExp(`![[(${this._escapeRegex(file.name)})(?:|[^]]*)?]]`),
-                new RegExp(`[[(${this._escapeRegex(file.name)})(?:|[^]]*)?]]`)
-              ];
-              for (const p of patterns) {
-                const m = noteContent.match(p);
-                if (m) {
-                  syntax = m[0];
-                  break;
-                }
-              }
-              if (!syntax)
-                syntax = `![${file.name}](${file.path})`;
-              const viewOpen = !!this.app.workspace.getLeavesOfType(VIEW_TYPE_CLOUDATTACH).length;
-              let ctx = null;
-              if (viewOpen)
-                ctx = this.getUploadContext();
-              const confirmed = await this.showUploadConfirmModal([{ localPath: file.path, syntax }], ctx?.remotePath || "", viewOpen);
-              if (!confirmed)
-                return;
-              const uploadCtx = confirmed.useDefault || !viewOpen ? this.getDefaultUploadContext() : ctx;
-              if (!uploadCtx || !uploadCtx.ok) {
-                new Notice(`\u26A0\uFE0F ${uploadCtx?.error || t("error.no_account")}`, 4e3);
-                return;
-              }
-              await this.doUpload([{ localPath: file.path, syntax }], uploadCtx);
-            } catch (e) {
-              console.error("[CloudAttach] file-menu upload error:", e);
-              new Notice(`\u274C ${e.message}`, 4e3);
-            }
-          });
-        });
-      })
-    );
     this.activeMarkdownView = null;
     this.registerEvent(this.app.workspace.on("active-leaf-change", (leaf) => {
       if (leaf?.view instanceof MarkdownView && leaf.view.editor) {
@@ -4639,12 +4575,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
           }
           return row;
         };
-        const hasDefault = !!(this.defaultAccountId && this.accounts.find((a) => a.id === this.defaultAccountId));
         targetGroup.appendChild(mkRadio(
           t("view.upload_to_current_path"),
           this.escapeHtml(remotePath),
-          !hasDefault,
-          // 有默认账号时默认不选中当前路径
+          true,
+          // 视图打开时默认选中当前路径（用户已主动浏览到此路径）
           () => {
             useDefault = false;
           }
@@ -4655,8 +4590,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
             targetGroup.appendChild(mkRadio(
               t("view.upload_to_default_account"),
               defAccount.name,
-              hasDefault,
-              // 有默认账号时默认选中
+              false,
               () => {
                 useDefault = true;
               }
