@@ -149,9 +149,9 @@ Object.assign(I18n.translations.zh, {
   'settings.auto_upload': '自动上传',
   'settings.auto_upload_desc': '开启后自动上传附件到默认服务',
   'settings.auto_upload_confirm_title': '确认启用自动上传',
-  'settings.auto_upload_confirm_msg': '开启后自动上传附件到默认服务',
+  'settings.auto_upload_confirm_msg': '开启后自动上传附件到默认服务：',
   'settings.auto_upload_need_default': '请先在设置中指定默认账号',
-  'settings.auto_upload_confirm_again': '请再次确认',
+  'settings.auto_upload_confirm_again': '请再次确认！',
 
   // 视图界面
   'view.select_account': '选择账户',
@@ -404,9 +404,9 @@ Object.assign(I18n.translations.en, {
   'settings.auto_upload': 'Auto Upload',
   'settings.auto_upload_desc': 'Auto upload attachments to default service',
   'settings.auto_upload_confirm_title': 'Enable Auto Upload',
-  'settings.auto_upload_confirm_msg': 'Auto upload attachments to default service when enabled',
+  'settings.auto_upload_confirm_msg': 'Auto upload attachments to default service when enabled:',
   'settings.auto_upload_need_default': 'Please set a default account in Settings first',
-  'settings.auto_upload_confirm_again': 'Please confirm again',
+  'settings.auto_upload_confirm_again': 'Please confirm again!',
 
   'view.select_account': 'Select Account',
   'view.no_account': 'Please add an account in Settings first',
@@ -2191,11 +2191,6 @@ class CloudAttachView extends ItemView {
     btnRow.style.display = 'flex';
     btnRow.style.gap = '8px';
     btnRow.style.justifyContent = 'flex-end';
-    const cancelBtn = document.createElement('button');
-    cancelBtn.className = 'mod-secondary';
-    cancelBtn.textContent = t('view.cancel');
-    cancelBtn.style.padding = '8px 16px';
-    cancelBtn.onclick = () => modal.close();
     const confirmBtn = document.createElement('button');
     confirmBtn.style.background = 'var(--text-error)';
     confirmBtn.style.color = 'var(--background-primary)';
@@ -2206,7 +2201,6 @@ class CloudAttachView extends ItemView {
       await this.doDelete(selected);
     };
     btnRow.appendChild(confirmBtn);
-    btnRow.appendChild(cancelBtn);
     content.appendChild(btnRow);
     modal.open();
   }
@@ -2257,24 +2251,23 @@ class CloudAttachView extends ItemView {
     btnRow.style.display = 'flex';
     btnRow.style.gap = '8px';
     btnRow.style.justifyContent = 'flex-end';
-    const cancelBtn = document.createElement('button');
-    cancelBtn.className = 'mod-secondary';
-    cancelBtn.textContent = t('view.cancel');
-    cancelBtn.style.padding = '8px 16px';
-    cancelBtn.onclick = () => modal.close();
-    const confirmBtn = document.createElement('button');
-    confirmBtn.style.background = 'var(--interactive-accent)';
-    confirmBtn.style.color = 'var(--text-on-accent)';
-    confirmBtn.style.padding = '8px 16px';
-    confirmBtn.textContent = t('view.confirm_rename', { count: 1 });
-    confirmBtn.onclick = async () => {
+    const confirmBtn2 = document.createElement('button');
+    confirmBtn2.style.background = 'var(--interactive-accent)';
+    confirmBtn2.style.color = 'var(--text-on-accent)';
+    confirmBtn2.style.padding = '8px 16px';
+    confirmBtn2.textContent = t('view.confirm_rename', { count: 1 });
+    confirmBtn2.onclick = async () => {
       const newName = input.value.trim();
       if (!newName) { new Notice(t('notice.rename_failed', {error: 'Name cannot be empty'}), 3000); return; }
       if (newName.includes('/')) { new Notice(t('notice.rename_failed', {error: 'Name cannot contain /'}), 3000); return; }
       modal.close();
       await this.doRename(file, newName);
     };
-    btnRow.appendChild(confirmBtn);
+    btnRow.appendChild(confirmBtn2);
+    content.appendChild(btnRow);
+    modal.open();
+    input.focus();
+    input.select();
     content.appendChild(btnRow);
     modal.open();
     input.focus();
@@ -3097,8 +3090,10 @@ class AdvancedSettingModal extends Modal {
             const confirmModal = new (require('obsidian').Modal)(this.app);
             confirmModal.titleEl.textContent = t('settings.auto_upload_confirm_title');
             const cContent = confirmModal.contentEl;
-            // 关闭 X 时重置 toggle
-            confirmModal.onClose = () => { toggle.setValue(false); };
+            // 点 X 关闭时不启用（toggle 保持关闭）
+            confirmModal.onClose = () => {
+              if (!this.plugin.settings.enableAutoUpload) toggle.setValue(false);
+            };
             cContent.style.padding = '16px';
             cContent.createEl('p', { text: t('settings.auto_upload_confirm_msg') }).style.marginBottom = '12px';
             // 路径框
@@ -3305,8 +3300,6 @@ class AdvancedSettingModal extends Modal {
       this.close();
     };
     
-    const cancelBtn = btnRow.createEl('button', { text: t('settings.cancel') });
-    cancelBtn.onclick = () => this.close();
   }
   
   async downloadPdfjs(destDir) {
@@ -5087,11 +5080,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       btnRow.style.display = 'flex';
       btnRow.style.gap = '8px';
       btnRow.style.justifyContent = 'flex-end';
-      const cancelBtn = document.createElement('button');
-      cancelBtn.textContent = t('view.cancel');
-      cancelBtn.className = 'mod-cta';
-      cancelBtn.style.padding = '8px 16px';
-      cancelBtn.onclick = () => { modal.close(); resolve(null); };
       const uploadBtn = document.createElement('button');
       uploadBtn.textContent = t('view.upload_btn', {count: attachments.length});
       uploadBtn.className = 'mod-cta';
