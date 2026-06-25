@@ -4539,13 +4539,14 @@ module.exports = class CloudAttachPlugin extends Plugin {
       new Notice(t("notice.open_note_first"), 3e3);
       return;
     }
-    const text = view.editor.getValue();
+    let text = view.editor.getValue();
+    const codeFreeText = text.replace(/```[\s\S]*?```/g, "").replace(/`[^`]+`/g, "");
     const notePath = view.file?.path || "";
     const noteDir = notePath.substring(0, notePath.lastIndexOf("/") + 1);
     const attachmentRegex = /!\[([^\]]*)\]\((?!http)([^)#\s?]+)/g;
     const attachments = [];
     let match;
-    while ((match = attachmentRegex.exec(text)) !== null) {
+    while ((match = attachmentRegex.exec(codeFreeText)) !== null) {
       const localPath = match[2];
       const cacheResolved = this.app.metadataCache.getFirstLinkpathDest(localPath, notePath);
       let absolutePath;
@@ -4568,7 +4569,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
     }
     const wikiRegex = /!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g;
-    while ((match = wikiRegex.exec(text)) !== null) {
+    while ((match = wikiRegex.exec(codeFreeText)) !== null) {
       const localPath = match[1];
       const cacheResolved = this.app.metadataCache.getFirstLinkpathDest(localPath, notePath);
       let absolutePath;
@@ -4591,7 +4592,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
     }
     const plainWikiRegex = /\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g;
-    while ((match = plainWikiRegex.exec(text)) !== null) {
+    while ((match = plainWikiRegex.exec(codeFreeText)) !== null) {
       const localPath = match[1];
       const cacheResolved = this.app.metadataCache.getFirstLinkpathDest(localPath, notePath);
       let absolutePath;
