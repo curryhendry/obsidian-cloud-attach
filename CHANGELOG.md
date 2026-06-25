@@ -1,3 +1,7 @@
+## v0.4.027.dev - 2026-06-25
+
+- 修复：HEIC/DNG 渲染第三次修复 — 直链处理在 `blobImgs.length === 0` return 之后永远跑不到，移到 return 之前
+
 ## v0.4.026.dev - 2026-06-25
 
 - 修复：HEIC/DNG 渲染再次修复 — PostProcessor 只处理 blob URL img，macOS 上直链被跳过，新增直链 HEIC/DNG 直接触发渲染

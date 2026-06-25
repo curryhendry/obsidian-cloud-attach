@@ -3314,6 +3314,15 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const imgs = el.querySelectorAll("img");
       if (imgs.length === 0)
         return;
+      Array.from(imgs).forEach((img) => {
+        if (img.closest(".cloudattach-pdf-container"))
+          return;
+        const src = img.src || img.getAttribute("src") || "";
+        if (this._isHeicDngUrl(src) && !img.dataset.cloudattachHeicDngDone) {
+          img.dataset.cloudattachHeicDngDone = "1";
+          this._renderHeicDngAsImage(img, src);
+        }
+      });
       const blobImgs = Array.from(imgs).filter(
         (img) => !img.closest(".cloudattach-pdf-container") && (img.getAttribute("src") || "").startsWith("blob:")
       );
@@ -3362,15 +3371,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       } catch (e) {
         console.log("[CloudAttach] PostProcessor error:", e);
       }
-      Array.from(el.querySelectorAll("img")).forEach((img) => {
-        if (img.closest(".cloudattach-pdf-container"))
-          return;
-        const src = img.src || img.getAttribute("src") || "";
-        if (this._isHeicDngUrl(src) && !img.dataset.cloudattachHeicDngDone) {
-          img.dataset.cloudattachHeicDngDone = "1";
-          this._renderHeicDngAsImage(img, src);
-        }
-      });
     });
     try {
       this.registerView(VIEW_TYPE_CLOUDATTACH, (leaf) => new CloudAttachView(leaf, this));
