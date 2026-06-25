@@ -3310,6 +3310,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       this.activeMarkdownView = activeLeaf.view;
     }
     this._observePdfEmbeds();
+    console.log("[CloudAttach] registering HEIC/DNG PostProcessor");
     this.registerMarkdownPostProcessor(async (el, ctx) => {
       console.log("[CloudAttach] HEIC PostProcessor called, el.children:", el.children.length);
       const walk = (node) => {
