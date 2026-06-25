@@ -3572,8 +3572,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
         const text = view.editor.getValue();
         const fileName = file.path.split('/').pop();
         const escapedName = this._escapeRegex(fileName);
-        const wikiPattern = new RegExp(`!\\[\\[${escapedName}(?:\\|[^\\]]*)?\\]\\]`);
-        const mdPattern = new RegExp(`!\\[[^\\]]*\\]\\(${escapedName}\\)`);
+        const wikiPattern = new RegExp(`!\\[\\[.*/${escapedName}(?:\\|[^\\]]*)?\\]\\]`);
+        const mdPattern = new RegExp(`!\\[[^\\]]*\\]\\(.*/${escapedName}\\)`);
         const wikiMatch = text.match(wikiPattern);
         const mdMatch = text.match(mdPattern);
         if (!wikiMatch && !mdMatch) return;
