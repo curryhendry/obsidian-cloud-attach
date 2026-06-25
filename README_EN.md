@@ -29,7 +29,8 @@
 - 🔗 **Signed URLs** — Auto-generate URLs with sign tokens
 - 🖼️ **Media Preview** — Image preview, video/audio playback, document iframe preview
 - 📄 **PDF.js Preview** — Choose PDF.js as the preview tool in Advanced Settings; the plugin auto-downloads and applies it. PDFs inserted via `![]()` syntax render inline like images.
-- ⚙️ **Advanced Settings** — Configure preview methods for PDF and other formats (Office preview etc. planned for future releases).
+- 🎯 **Auto Upload** — Automatically upload attachments to your default server when inserting into notes
+- ⚙️ **Advanced Settings** — Configure preview methods for PDF and other formats (Office preview etc. planned for future releases)
 - 👤 **Multi-Account** — Manage multiple WebDAV/S3 accounts simultaneously
 
 *Note: Object storage may not support iframe preview due to provider restrictions. A workaround is to mount object storage via OpenList and use its iframe preview.*
@@ -113,6 +114,7 @@ To revert to iframe preview, simply change the setting back in Advanced Settings
 - [x] Publish to Obsidian Community Plugins
 - [x] File rename and delete support
 - [ ] PDF fullscreen view and more interactions
+- [x] Automatic attachment upload (default path)
 - [ ] Other file format support (e.g., Office preview, TBD)
 
 ---
