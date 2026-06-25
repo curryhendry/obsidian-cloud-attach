@@ -3312,6 +3312,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (!(file instanceof TFile))
         return;
       const ext = file.extension.toLowerCase();
+      console.log("[CloudAttach] vault.create:", file.path, "ext:", ext);
       const attachmentExts = [
         "jpg",
         "jpeg",
@@ -3354,8 +3355,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
         const mdPattern = new RegExp(`!\\[[^\\]]*\\]\\((?:.*/)?${escapedName}\\)`);
         const wikiMatch = text.match(wikiPattern);
         const mdMatch = text.match(mdPattern);
-        if (!wikiMatch && !mdMatch)
+        console.log("[CloudAttach] auto-upload text sample:", text.substring(0, 300));
+        if (!wikiMatch && !mdMatch) {
+          console.log("[CloudAttach] auto-upload: no match for", fileName);
           return;
+        }
         const ctx = this.getDefaultUploadContext();
         if (!ctx || !ctx.ok)
           return;
