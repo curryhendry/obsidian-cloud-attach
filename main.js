@@ -136,7 +136,7 @@ Object.assign(I18n.translations.zh, {
   "settings.account_name_placeholder": "\u4F8B\u5982\uFF1A\u6211\u7684COS\u6876",
   "settings.folder_required": "\u26A0\uFE0F \u8BF7\u9009\u62E9\u4E0A\u4F20\u5230\u7684\u6587\u4EF6\u5939\uFF0C\u4E0D\u80FD\u662F\u6839\u76EE\u5F55",
   "settings.auto_upload": "\u81EA\u52A8\u4E0A\u4F20",
-  "settings.auto_upload_desc": "\u7C98\u8D34/\u62D6\u5165\u9644\u4EF6\u540E\u81EA\u52A8\u7528\u9ED8\u8BA4\u8D26\u53F7\u4E0A\u4F20\u5230\u9ED8\u8BA4\u8DEF\u5F84",
+  "settings.auto_upload_desc": "\u5F00\u542F\u540E\u81EA\u52A8\u4E0A\u4F20\u9644\u4EF6\u5230\u9ED8\u8BA4\u670D\u52A1",
   "settings.auto_upload_confirm_title": "\u786E\u8BA4\u542F\u7528\u81EA\u52A8\u4E0A\u4F20",
   "settings.auto_upload_confirm_msg": "\u5F00\u542F\u540E\u81EA\u52A8\u4E0A\u4F20\u9644\u4EF6\u5230\u9ED8\u8BA4\u670D\u52A1",
   "settings.auto_upload_need_default": "\u8BF7\u5148\u5728\u8BBE\u7F6E\u4E2D\u6307\u5B9A\u9ED8\u8BA4\u8D26\u53F7",
@@ -382,7 +382,7 @@ Object.assign(I18n.translations.en, {
   "settings.is_default": "Default",
   "settings.default_account": "Default Account",
   "settings.auto_upload": "Auto Upload",
-  "settings.auto_upload_desc": "Auto upload pasted/dropped attachments with default account",
+  "settings.auto_upload_desc": "Auto upload attachments to default service",
   "settings.auto_upload_confirm_title": "Enable Auto Upload",
   "settings.auto_upload_confirm_msg": "Auto upload attachments to default service when enabled",
   "settings.auto_upload_need_default": "Please set a default account in Settings first",
@@ -2952,6 +2952,7 @@ var AdvancedSettingModal = class extends Modal {
           const cContent = confirmModal.contentEl;
           cContent.style.padding = "16px";
           cContent.createEl("p", { text: t("settings.auto_upload_confirm_msg") }).style.marginBottom = "12px";
+          cContent.createEl("p", { text: "\u8BF7\u786E\u8BA4" }).style.marginBottom = "12px";
           const pathBox = cContent.createDiv();
           pathBox.style.marginBottom = "16px";
           pathBox.style.padding = "10px 12px";
@@ -2976,8 +2977,8 @@ var AdvancedSettingModal = class extends Modal {
             confirmModal.close();
             toggle.setValue(false);
           };
-          btnContainer.appendChild(cancelBtn2);
           btnContainer.appendChild(okBtn);
+          btnContainer.appendChild(cancelBtn2);
           confirmModal.modalEl.appendChild(btnContainer);
           confirmModal.open();
         } else {
