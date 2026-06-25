@@ -3090,10 +3090,9 @@ class AdvancedSettingModal extends Modal {
             const confirmModal = new (require('obsidian').Modal)(this.app);
             confirmModal.titleEl.textContent = t('settings.auto_upload_confirm_title');
             const cContent = confirmModal.contentEl;
-            // 点 X 关闭时不启用（toggle 保持关闭）
-            confirmModal.onClose = () => {
-              if (!this.plugin.settings.enableAutoUpload) toggle.setValue(false);
-            };
+            // 标记用户是否确认，避免 X 关闭时 toggle 回弹
+            let confirmed = false;
+            confirmModal.onClose = () => { if (!confirmed) toggle.setValue(false); };
             cContent.style.padding = '16px';
             cContent.createEl('p', { text: t('settings.auto_upload_confirm_msg') }).style.marginBottom = '12px';
             // 路径框
@@ -3113,6 +3112,7 @@ class AdvancedSettingModal extends Modal {
             okBtn.className = 'mod-cta';
             okBtn.textContent = t('settings.auto_upload') || '自动上传';
             okBtn.onclick = async () => {
+              confirmed = true;
               this.plugin.settings.enableAutoUpload = true;
               await this.plugin.saveSettings();
               confirmModal.close();
