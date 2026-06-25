@@ -3500,7 +3500,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         if (node.nodeType === 1) {
           const tag = node.tagName;
           let url = '';
-          if (tag === 'IMG') url = node.src || node.getAttribute('src') || '';
+          if (tag === 'IMG') url = node.getAttribute('src') || node.src || '';
           else if (tag === 'A') url = node.getAttribute('href') || '';
           if (url && this._isHeicDngUrl(url) && !node.dataset.cloudattachHeicDngDone) {
             node.dataset.cloudattachHeicDngDone = '1';
@@ -3519,7 +3519,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       // 先处理直链 HEIC/DNG（macOS/桌面端非 blob URL）
       Array.from(imgs).forEach(img => {
         if (img.closest('.cloudattach-pdf-container')) return;
-        const src = img.src || img.getAttribute('src') || '';
+                const src = img.getAttribute('src') || img.src || '';
         if (this._isHeicDngUrl(src) && !img.dataset.cloudattachHeicDngDone) {
           img.dataset.cloudattachHeicDngDone = '1';
           this._renderHeicDngAsImage(img, src);
@@ -4256,7 +4256,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
           imgs.forEach(img => {
             // 避免重复处理已替换的容器
             if (img.closest('.cloudattach-pdf-container')) return;
-            const src = img.src || img.getAttribute('src') || '';
+            const src = img.getAttribute('src') || img.src || '';
             if (this._isPdfUrl(src)) {
               this._renderPdfAsCanvas(img, src);
             } else if (this._isHeicDngUrl(src)) {
@@ -4325,7 +4325,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
             const imgs = n.tagName === 'IMG' ? [n] : Array.from(n.querySelectorAll('img'));
             imgs.forEach(img => {
               if (img.closest('.cloudattach-pdf-container')) return;
-              const src = img.src || img.getAttribute('src') || '';
+              const src = img.getAttribute('src') || img.src || '';
               if (this._isPdfUrl(src)) {
                 this._renderPdfAsCanvas(img, src);
               } else if (this._isHeicDngUrl(src)) {
@@ -4360,7 +4360,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const allImgs = d.querySelectorAll('img');
     allImgs.forEach(img => {
       if (img.closest('.cloudattach-pdf-container')) return;
-      const src = img.src || img.getAttribute('src') || '';
+      const src = img.getAttribute('src') || img.src || '';
       if (this._isPdfUrl(src)) {
         this._renderPdfAsCanvas(img, src);
         return;
