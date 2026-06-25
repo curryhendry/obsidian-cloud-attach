@@ -3343,11 +3343,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
         });
       })
     );
-    // 左侧文件列表右键菜单
+    // 左侧文件列表右键菜单（仅文件浏览器，排除编辑器内触发）
     this.registerEvent(
       this.app.workspace.on('file-menu', (menu, file, source) => {
-        if (!file) return;
-        // 只对图片/文档/视频/音频等附件显示
+        if (!file || source !== 'file-explorer') return;
         const ext = file.extension?.toLowerCase() || '';
         const attachExts = ['jpg','jpeg','png','gif','webp','svg','bmp','ico','mp4','mov','avi','mkv','webm','flv','mp3','wav','flac','aac','ogg','m4a','pdf','doc','docx','xls','xlsx','ppt','pptx'];
         if (!attachExts.includes(ext)) return;
@@ -3356,48 +3355,48 @@ module.exports = class CloudAttachPlugin extends Plugin {
         menu.addItem(item => {
           item.setTitle('☁️ ' + t('menu.upload_to_cloud'));
           item.onClick(async () => {
-            // 查找包含此文件的笔记
-            const linkedNotes = this._findNotesWithFile(file.path);
-            if (linkedNotes.length === 0) {
-              new Notice(t('notice.file_not_linked'), 3000);
-              return;
-            }
-            // 如果只有一个笔记包含它，直接上传；否则让用户选
-            let targetNote = linkedNotes[0];
-            if (linkedNotes.length > 1) {
-              // 用第一个匹配的笔记（通常是当前打开的）
-              const activeFile = this.app.workspace.getActiveFile();
-              const found = linkedNotes.find(n => n.path === activeFile?.path);
-              if (found) targetNote = found;
-            }
-            // 构造语法：尝试从笔记内容中找到引用此文件的语法
-            const noteContent = await this.app.vault.read(targetNote);
-            let syntax = null;
-            // 按 ![]()、![[ ]]、[[ ]] 顺序查找
-            const patterns = [
-              new RegExp(`!\[([^\]]*)\]\(.*?${this._escapeRegex(file.name)})`),
-              new RegExp(`!\[\[(${this._escapeRegex(file.name)})(?:\|[^\]]*)?\]\]`),
-              new RegExp(`\[\[(${this._escapeRegex(file.name)})(?:\|[^\]]*)?\]\]`)
-            ];
-            for (const p of patterns) {
-              const m = noteContent.match(p);
-              if (m) { syntax = m[0]; break; }
-            }
-            if (!syntax) syntax = `![${file.name}](${file.path})`;
+            try {
+              const linkedNotes = this._findNotesWithFile(file.path);
+              let targetNote = linkedNotes[0];
+              if (!targetNote) {
+                targetNote = this.app.workspace.getActiveFile();
+                if (!targetNote || targetNote.extension !== 'md') {
+                  new Notice(t('notice.file_not_linked'), 3000);
+                  return;
+                }
+              } else if (linkedNotes.length > 1) {
+                const activeFile = this.app.workspace.getActiveFile();
+                const found = linkedNotes.find(n => n.path === activeFile?.path);
+                if (found) targetNote = found;
+              }
+              const noteContent = await this.app.vault.read(targetNote);
+              let syntax = null;
+              const patterns = [
+                new RegExp(`!\[([^\]]*)\]\(.*?${this._escapeRegex(file.name)})`),
+                new RegExp(`!\[\[(${this._escapeRegex(file.name)})(?:\|[^\]]*)?\]\]`),
+                new RegExp(`\[\[(${this._escapeRegex(file.name)})(?:\|[^\]]*)?\]\]`)
+              ];
+              for (const p of patterns) {
+                const m = noteContent.match(p);
+                if (m) { syntax = m[0]; break; }
+              }
+              if (!syntax) syntax = `![${file.name}](${file.path})`;
 
-            const viewOpen = !!this.app.workspace.getLeavesOfType(VIEW_TYPE_CLOUDATTACH).length;
-            let ctx = null;
-            if (viewOpen) {
-              ctx = this.getUploadContext();
+              const viewOpen = !!this.app.workspace.getLeavesOfType(VIEW_TYPE_CLOUDATTACH).length;
+              let ctx = null;
+              if (viewOpen) ctx = this.getUploadContext();
+              const confirmed = await this.showUploadConfirmModal([{ localPath: file.path, syntax }], ctx?.remotePath || '', viewOpen);
+              if (!confirmed) return;
+              const uploadCtx = (confirmed.useDefault || !viewOpen) ? this.getDefaultUploadContext() : ctx;
+              if (!uploadCtx || !uploadCtx.ok) {
+                new Notice(`⚠️ ${uploadCtx?.error || t('error.no_account')}`, 4000);
+                return;
+              }
+              await this.doUpload([{ localPath: file.path, syntax }], uploadCtx);
+            } catch (e) {
+              console.error('[CloudAttach] file-menu upload error:', e);
+              new Notice(`❌ ${e.message}`, 4000);
             }
-            const confirmed = await this.showUploadConfirmModal([{ localPath: file.path, syntax }], ctx?.remotePath || '', viewOpen);
-            if (!confirmed) return;
-            const uploadCtx = (confirmed.useDefault || !viewOpen) ? this.getDefaultUploadContext() : ctx;
-            if (!uploadCtx || !uploadCtx.ok) {
-              new Notice(`⚠️ ${uploadCtx?.error || t('error.no_account')}`, 4000);
-              return;
-            }
-            await this.doUpload([{ localPath: file.path, syntax }], uploadCtx);
           });
         });
       })
@@ -4899,10 +4898,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
           return row;
         };
         // 选项1：当前 CloudAttach 视图路径
+        const hasDefault = !!(this.defaultAccountId && this.accounts.find(a => a.id === this.defaultAccountId));
         targetGroup.appendChild(mkRadio(
           t('view.upload_to_current_path'),
           this.escapeHtml(remotePath),
-          true,
+          !hasDefault,  // 有默认账号时默认不选中当前路径
           () => { useDefault = false; }
         ));
         // 选项2：默认账号（如果已设置）
@@ -4912,7 +4912,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
             targetGroup.appendChild(mkRadio(
               t('view.upload_to_default_account'),
               defAccount.name,
-              false,
+              hasDefault,  // 有默认账号时默认选中
               () => { useDefault = true; }
             ));
           }
