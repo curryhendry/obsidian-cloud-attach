@@ -4,6 +4,8 @@
 - 新增：左侧文件列表右键菜单「☁️ 上传到云端」（仅附件类型文件显示）
 - 修复：S3 删除/重命名 `_objectKey` 方法 this 上下文丢失，改为内联局部函数
 - 补充 i18n：默认账号功能英文翻译 + `settings.edit_account`/`settings.saved`/`error.cannot_extract_path` 中英文 key
+- 修复：Alist /p/ sign URL 对大文件返回 HTML 下载页导致 PDF 解析失败，改为统一通过 requestUrl 下载二进制传给 PDF.js
+- 修复：大 PDF（页高不均）滚动页码偏移，改用 canvas offsetTop 定位当前页代替比例估算
 
 ## v0.3.331 - 2026-06-23
 
