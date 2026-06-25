@@ -1,3 +1,7 @@
+## v0.4.026.dev - 2026-06-25
+
+- 修复：HEIC/DNG 渲染再次修复 — PostProcessor 只处理 blob URL img，macOS 上直链被跳过，新增直链 HEIC/DNG 直接触发渲染
+
 ## v0.4.025.dev - 2026-06-25
 
 - 修复：HEIC/DNG 渲染 `getAttribute('src')` 取不到 src，改为 `img.src || img.getAttribute('src')`（三处统一：MutationObserver/popoutObserver/_scanAllPdfImgs）
