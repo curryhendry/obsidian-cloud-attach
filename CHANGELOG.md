@@ -1,3 +1,7 @@
+## v0.4.028.dev - 2026-06-25
+
+- 修复：HEIC/DNG 预览第四次修复 — Obsidian 阅读模式下不认识 HEIC/DNG 可能不创建 `<img>`，改用独立 PostProcessor 遍历 `<a>` / `<img>` 两种形式，匹配后创建 placeholder 渲染
+
 ## v0.4.027.dev - 2026-06-25
 
 - 修复：HEIC/DNG 渲染第三次修复 — 直链处理在 `blobImgs.length === 0` return 之后永远跑不到，移到 return 之前
