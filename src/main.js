@@ -206,6 +206,8 @@ Object.assign(I18n.translations.zh, {
   'menu.refresh_current_url_sign': '刷新当前 URL Sign',
   'menu.refresh_all_note_sign': '刷新笔记所有 Sign',
   'menu.upload_current_attach': '上传当前附件',
+  'menu.upload_to_cloud': '上传到云端',
+  'notice.file_not_linked': '未找到引用此文件的笔记',
   'menu.upload_all_attach': '上传笔记全部附件',
 
   // 工具栏
@@ -450,6 +452,8 @@ Object.assign(I18n.translations.en, {
   'menu.refresh_current_url_sign': 'Refresh Current URL Sign',
   'menu.refresh_all_note_sign': 'Refresh All Sign in Note',
   'menu.upload_current_attach': 'Upload Current Attachment',
+  'menu.upload_to_cloud': 'Upload to Cloud',
+  'notice.file_not_linked': 'No note found referencing this file',
   'menu.upload_all_attach': 'Upload All Attachments in Note',
 
   'toolbar.refresh_account': 'Refresh Account',
@@ -3339,7 +3343,65 @@ module.exports = class CloudAttachPlugin extends Plugin {
         });
       })
     );
-    // 监听活跃 leaf 变化，实时记录当前活跃的 markdown view
+    // 左侧文件列表右键菜单
+    this.registerEvent(
+      this.app.workspace.on('file-menu', (menu, file, source) => {
+        if (!file) return;
+        // 只对图片/文档/视频/音频等附件显示
+        const ext = file.extension?.toLowerCase() || '';
+        const attachExts = ['jpg','jpeg','png','gif','webp','svg','bmp','ico','mp4','mov','avi','mkv','webm','flv','mp3','wav','flac','aac','ogg','m4a','pdf','doc','docx','xls','xlsx','ppt','pptx'];
+        if (!attachExts.includes(ext)) return;
+
+        menu.addSeparator();
+        menu.addItem(item => {
+          item.setTitle('☁️ ' + t('menu.upload_to_cloud'));
+          item.onClick(async () => {
+            // 查找包含此文件的笔记
+            const linkedNotes = this._findNotesWithFile(file.path);
+            if (linkedNotes.length === 0) {
+              new Notice(t('notice.file_not_linked'), 3000);
+              return;
+            }
+            // 如果只有一个笔记包含它，直接上传；否则让用户选
+            let targetNote = linkedNotes[0];
+            if (linkedNotes.length > 1) {
+              // 用第一个匹配的笔记（通常是当前打开的）
+              const activeFile = this.app.workspace.getActiveFile();
+              const found = linkedNotes.find(n => n.path === activeFile?.path);
+              if (found) targetNote = found;
+            }
+            // 构造语法：尝试从笔记内容中找到引用此文件的语法
+            const noteContent = await this.app.vault.read(targetNote);
+            let syntax = null;
+            // 按 ![]()、![[ ]]、[[ ]] 顺序查找
+            const patterns = [
+              new RegExp(`!\[([^\]]*)\]\(.*?${this._escapeRegex(file.name)})`),
+              new RegExp(`!\[\[(${this._escapeRegex(file.name)})(?:\|[^\]]*)?\]\]`),
+              new RegExp(`\[\[(${this._escapeRegex(file.name)})(?:\|[^\]]*)?\]\]`)
+            ];
+            for (const p of patterns) {
+              const m = noteContent.match(p);
+              if (m) { syntax = m[0]; break; }
+            }
+            if (!syntax) syntax = `![${file.name}](${file.path})`;
+
+            const viewOpen = !!this.app.workspace.getLeavesOfType(VIEW_TYPE_CLOUDATTACH).length;
+            let ctx = null;
+            if (viewOpen) {
+              ctx = this.getUploadContext();
+            }
+            const confirmed = await this.showUploadConfirmModal([{ localPath: file.path, syntax }], ctx?.remotePath || '', viewOpen);
+            if (!confirmed) return;
+            const uploadCtx = (confirmed.useDefault || !viewOpen) ? this.getDefaultUploadContext() : ctx;
+            if (!uploadCtx || !uploadCtx.ok) {
+              new Notice(`⚠️ ${uploadCtx?.error || t('error.no_account')}`, 4000);
+              return;
+            }
+            await this.doUpload([{ localPath: file.path, syntax }], uploadCtx);
+          });
+        });
+      })
+    );
     this.activeMarkdownView = null;
     this.registerEvent(this.app.workspace.on('active-leaf-change', (leaf) => {
       if (leaf?.view instanceof MarkdownView && leaf.view.editor) {
@@ -4735,7 +4797,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         return;
       }
     }
-    // 确认上传
+// 确认上传
     const confirmed = await this.showUploadConfirmModal(attachments, ctx?.remotePath || '', viewOpen);
     if (!confirmed) return;
     // 执行上传
@@ -4746,6 +4808,31 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
     await this.doUpload(attachments, uploadCtx);
   }
+  /**
+   * 查找引用了指定文件的笔记列表（通过 metadataCache embeds/links）
+   */
+  _findNotesWithFile(filePath) {
+    const results = [];
+    const fileName = filePath.split('/').pop();
+    const mdFiles = this.app.vault.getMarkdownFiles();
+    for (const mf of mdFiles) {
+      const cache = this.app.metadataCache.getFileCache(mf);
+      if (!cache?.embeds && !cache?.links) continue;
+      const allRefs = [...(cache.embeds || []), ...(cache.links || [])];
+      if (allRefs.some(ref => (ref.link || '').toLowerCase() === fileName.toLowerCase() || (ref.link || '').toLowerCase() === filePath.toLowerCase())) {
+        results.push(mf);
+      }
+    }
+    if (results.length === 0) {
+      const activeFile = this.app.workspace.getActiveFile();
+      if (activeFile?.extension === 'md') results.push(activeFile);
+    }
+    return results;
+  }
+  _escapeRegex(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
   /**
    * 显示上传确认对话框
    * @param {Array} attachments - 要上传的附件列表
@@ -4994,6 +5081,23 @@ module.exports = class CloudAttachPlugin extends Plugin {
             newSyntax = `![${alt}](${url})`;
           } else {
             newSyntax = `[${alt}](${url})`;
+          }
+        } else if (rep.oldSyntax.startsWith('[[')) {
+          // 普通 wiki-link 格式: [[path]] 或 [[path|alias]]
+          const aliasMatch = rep.oldSyntax.match(/\[\[([^\]|]+)(?:\|([^\]]*))?\]\]/);
+          const alias = aliasMatch?.[2] || nameWithoutExt;
+          if (imageExts.includes(ext)) {
+            newSyntax = `![${alias}](${url})`;
+          } else if (videoExts.includes(ext)) {
+            newSyntax = `<video controls width="600" height="400">\n <source src="${url}" type="video/mp4">\n</video>`;
+          } else if (audioExts.includes(ext)) {
+            newSyntax = `<audio controls>\n <source src="${url}" type="audio/mpeg">\n</audio>`;
+          } else if (docExts.includes(ext) && !isPdfJsInsert) {
+            newSyntax = `<iframe src="${url}" width="100%" height="800px"></iframe>`;
+          } else if (isPdfJsInsert) {
+            newSyntax = `![${alias}](${url})`;
+          } else {
+            newSyntax = `[${alias}](${url})`;
           }
         } else {
           // 其他格式，保持原样替换 URL

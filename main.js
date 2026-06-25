@@ -192,6 +192,8 @@ Object.assign(I18n.translations.zh, {
   "menu.refresh_current_url_sign": "\u5237\u65B0\u5F53\u524D URL Sign",
   "menu.refresh_all_note_sign": "\u5237\u65B0\u7B14\u8BB0\u6240\u6709 Sign",
   "menu.upload_current_attach": "\u4E0A\u4F20\u5F53\u524D\u9644\u4EF6",
+  "menu.upload_to_cloud": "\u4E0A\u4F20\u5230\u4E91\u7AEF",
+  "notice.file_not_linked": "\u672A\u627E\u5230\u5F15\u7528\u6B64\u6587\u4EF6\u7684\u7B14\u8BB0",
   "menu.upload_all_attach": "\u4E0A\u4F20\u7B14\u8BB0\u5168\u90E8\u9644\u4EF6",
   // 工具栏
   "toolbar.refresh_account": "\u5237\u65B0\u8D26\u6237",
@@ -427,6 +429,8 @@ Object.assign(I18n.translations.en, {
   "menu.refresh_current_url_sign": "Refresh Current URL Sign",
   "menu.refresh_all_note_sign": "Refresh All Sign in Note",
   "menu.upload_current_attach": "Upload Current Attachment",
+  "menu.upload_to_cloud": "Upload to Cloud",
+  "notice.file_not_linked": "No note found referencing this file",
   "menu.upload_all_attach": "Upload All Attachments in Note",
   "toolbar.refresh_account": "Refresh Account",
   "settings.s3_type_label": "Object Storage (S3)",
@@ -3155,6 +3159,64 @@ module.exports = class CloudAttachPlugin extends Plugin {
         });
       })
     );
+    this.registerEvent(
+      this.app.workspace.on("file-menu", (menu, file, source) => {
+        if (!file)
+          return;
+        const ext = file.extension?.toLowerCase() || "";
+        const attachExts = ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico", "mp4", "mov", "avi", "mkv", "webm", "flv", "mp3", "wav", "flac", "aac", "ogg", "m4a", "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx"];
+        if (!attachExts.includes(ext))
+          return;
+        menu.addSeparator();
+        menu.addItem((item) => {
+          item.setTitle("\u2601\uFE0F " + t("menu.upload_to_cloud"));
+          item.onClick(async () => {
+            const linkedNotes = this._findNotesWithFile(file.path);
+            if (linkedNotes.length === 0) {
+              new Notice(t("notice.file_not_linked"), 3e3);
+              return;
+            }
+            let targetNote = linkedNotes[0];
+            if (linkedNotes.length > 1) {
+              const activeFile = this.app.workspace.getActiveFile();
+              const found = linkedNotes.find((n) => n.path === activeFile?.path);
+              if (found)
+                targetNote = found;
+            }
+            const noteContent = await this.app.vault.read(targetNote);
+            let syntax = null;
+            const patterns = [
+              new RegExp(`![([^]]*)](.*?${this._escapeRegex(file.name)})`),
+              new RegExp(`![[(${this._escapeRegex(file.name)})(?:|[^]]*)?]]`),
+              new RegExp(`[[(${this._escapeRegex(file.name)})(?:|[^]]*)?]]`)
+            ];
+            for (const p of patterns) {
+              const m = noteContent.match(p);
+              if (m) {
+                syntax = m[0];
+                break;
+              }
+            }
+            if (!syntax)
+              syntax = `![${file.name}](${file.path})`;
+            const viewOpen = !!this.app.workspace.getLeavesOfType(VIEW_TYPE_CLOUDATTACH).length;
+            let ctx = null;
+            if (viewOpen) {
+              ctx = this.getUploadContext();
+            }
+            const confirmed = await this.showUploadConfirmModal([{ localPath: file.path, syntax }], ctx?.remotePath || "", viewOpen);
+            if (!confirmed)
+              return;
+            const uploadCtx = confirmed.useDefault || !viewOpen ? this.getDefaultUploadContext() : ctx;
+            if (!uploadCtx || !uploadCtx.ok) {
+              new Notice(`\u26A0\uFE0F ${uploadCtx?.error || t("error.no_account")}`, 4e3);
+              return;
+            }
+            await this.doUpload([{ localPath: file.path, syntax }], uploadCtx);
+          });
+        });
+      })
+    );
     this.activeMarkdownView = null;
     this.registerEvent(this.app.workspace.on("active-leaf-change", (leaf) => {
       if (leaf?.view instanceof MarkdownView && leaf.view.editor) {
@@ -4482,6 +4544,32 @@ module.exports = class CloudAttachPlugin extends Plugin {
     await this.doUpload(attachments, uploadCtx);
   }
   /**
+   * 查找引用了指定文件的笔记列表（通过 metadataCache embeds/links）
+   */
+  _findNotesWithFile(filePath) {
+    const results = [];
+    const fileName = filePath.split("/").pop();
+    const mdFiles = this.app.vault.getMarkdownFiles();
+    for (const mf of mdFiles) {
+      const cache = this.app.metadataCache.getFileCache(mf);
+      if (!cache?.embeds && !cache?.links)
+        continue;
+      const allRefs = [...cache.embeds || [], ...cache.links || []];
+      if (allRefs.some((ref) => (ref.link || "").toLowerCase() === fileName.toLowerCase() || (ref.link || "").toLowerCase() === filePath.toLowerCase())) {
+        results.push(mf);
+      }
+    }
+    if (results.length === 0) {
+      const activeFile = this.app.workspace.getActiveFile();
+      if (activeFile?.extension === "md")
+        results.push(activeFile);
+    }
+    return results;
+  }
+  _escapeRegex(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+  /**
    * 显示上传确认对话框
    * @param {Array} attachments - 要上传的附件列表
    * @param {string} remotePath - 远程目录
@@ -4722,6 +4810,26 @@ module.exports = class CloudAttachPlugin extends Plugin {
             newSyntax = `![${alt}](${url})`;
           } else {
             newSyntax = `[${alt}](${url})`;
+          }
+        } else if (rep.oldSyntax.startsWith("[[")) {
+          const aliasMatch = rep.oldSyntax.match(/\[\[([^\]|]+)(?:\|([^\]]*))?\]\]/);
+          const alias = aliasMatch?.[2] || nameWithoutExt;
+          if (imageExts.includes(ext)) {
+            newSyntax = `![${alias}](${url})`;
+          } else if (videoExts.includes(ext)) {
+            newSyntax = `<video controls width="600" height="400">
+ <source src="${url}" type="video/mp4">
+</video>`;
+          } else if (audioExts.includes(ext)) {
+            newSyntax = `<audio controls>
+ <source src="${url}" type="audio/mpeg">
+</audio>`;
+          } else if (docExts.includes(ext) && !isPdfJsInsert) {
+            newSyntax = `<iframe src="${url}" width="100%" height="800px"></iframe>`;
+          } else if (isPdfJsInsert) {
+            newSyntax = `![${alias}](${url})`;
+          } else {
+            newSyntax = `[${alias}](${url})`;
           }
         } else {
           newSyntax = rep.oldSyntax.replace(/file:\S+/, url);
