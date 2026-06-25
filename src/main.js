@@ -147,7 +147,7 @@ Object.assign(I18n.translations.zh, {
   'settings.account_name_placeholder': '例如：我的COS桶',
   'settings.folder_required': '⚠️ 请选择上传到的文件夹，不能是根目录',
   'settings.auto_upload': '自动上传',
-  'settings.auto_upload_desc': '粘贴/拖入附件后自动用默认账号上传到默认路径',
+  'settings.auto_upload_desc': '开启后自动上传附件到默认服务',
   'settings.auto_upload_confirm_title': '确认启用自动上传',
   'settings.auto_upload_confirm_msg': '开启后自动上传附件到默认服务',
   'settings.auto_upload_need_default': '请先在设置中指定默认账号',
@@ -402,7 +402,7 @@ Object.assign(I18n.translations.en, {
   'settings.is_default': 'Default',
   'settings.default_account': 'Default Account',
   'settings.auto_upload': 'Auto Upload',
-  'settings.auto_upload_desc': 'Auto upload pasted/dropped attachments with default account',
+  'settings.auto_upload_desc': 'Auto upload attachments to default service',
   'settings.auto_upload_confirm_title': 'Enable Auto Upload',
   'settings.auto_upload_confirm_msg': 'Auto upload attachments to default service when enabled',
   'settings.auto_upload_need_default': 'Please set a default account in Settings first',
@@ -3103,6 +3103,7 @@ class AdvancedSettingModal extends Modal {
             const cContent = confirmModal.contentEl;
             cContent.style.padding = '16px';
             cContent.createEl('p', { text: t('settings.auto_upload_confirm_msg') }).style.marginBottom = '12px';
+            cContent.createEl('p', { text: '请确认' }).style.marginBottom = '12px';
             // 路径框
             const pathBox = cContent.createDiv();
             pathBox.style.marginBottom = '16px';
@@ -3126,8 +3127,8 @@ class AdvancedSettingModal extends Modal {
             const cancelBtn2 = document.createElement('button');
             cancelBtn2.textContent = t('settings.cancel');
             cancelBtn2.onclick = () => { confirmModal.close(); toggle.setValue(false); };
-            btnContainer.appendChild(cancelBtn2);
             btnContainer.appendChild(okBtn);
+            btnContainer.appendChild(cancelBtn2);
             confirmModal.modalEl.appendChild(btnContainer);
             confirmModal.open();
           } else {
