@@ -2938,8 +2938,9 @@ var AdvancedSettingModal = class extends Modal {
           const confirmModal = new (require("obsidian")).Modal(this.app);
           confirmModal.titleEl.textContent = t("settings.auto_upload_confirm_title");
           const cContent = confirmModal.contentEl;
+          let confirmed = false;
           confirmModal.onClose = () => {
-            if (!this.plugin.settings.enableAutoUpload)
+            if (!confirmed)
               toggle.setValue(false);
           };
           cContent.style.padding = "16px";
@@ -2959,6 +2960,7 @@ var AdvancedSettingModal = class extends Modal {
           okBtn.className = "mod-cta";
           okBtn.textContent = t("settings.auto_upload") || "\u81EA\u52A8\u4E0A\u4F20";
           okBtn.onclick = async () => {
+            confirmed = true;
             this.plugin.settings.enableAutoUpload = true;
             await this.plugin.saveSettings();
             confirmModal.close();
