@@ -1,3 +1,7 @@
+## v0.4.029.dev - 2026-06-25
+
+- 修复：HEIC/DNG 预览第五次修复 — `img.src` 长 URL 被浏览器截断丢失 `.HEIC` 后缀致 `_isHeicDngUrl` 永远 false，全部改为 `getAttribute('src')` 优先
+
 ## v0.4.028.dev - 2026-06-25
 
 - 修复：HEIC/DNG 预览第四次修复 — Obsidian 阅读模式下不认识 HEIC/DNG 可能不创建 `<img>`，改用独立 PostProcessor 遍历 `<a>` / `<img>` 两种形式，匹配后创建 placeholder 渲染

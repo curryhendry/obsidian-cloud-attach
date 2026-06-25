@@ -3316,7 +3316,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
           const tag = node.tagName;
           let url = "";
           if (tag === "IMG")
-            url = node.src || node.getAttribute("src") || "";
+            url = node.getAttribute("src") || node.src || "";
           else if (tag === "A")
             url = node.getAttribute("href") || "";
           if (url && this._isHeicDngUrl(url) && !node.dataset.cloudattachHeicDngDone) {
@@ -3342,7 +3342,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       Array.from(imgs).forEach((img) => {
         if (img.closest(".cloudattach-pdf-container"))
           return;
-        const src = img.src || img.getAttribute("src") || "";
+        const src = img.getAttribute("src") || img.src || "";
         if (this._isHeicDngUrl(src) && !img.dataset.cloudattachHeicDngDone) {
           img.dataset.cloudattachHeicDngDone = "1";
           this._renderHeicDngAsImage(img, src);
@@ -4101,7 +4101,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
           imgs.forEach((img) => {
             if (img.closest(".cloudattach-pdf-container"))
               return;
-            const src = img.src || img.getAttribute("src") || "";
+            const src = img.getAttribute("src") || img.src || "";
             if (this._isPdfUrl(src)) {
               this._renderPdfAsCanvas(img, src);
             } else if (this._isHeicDngUrl(src)) {
@@ -4160,7 +4160,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
             imgs.forEach((img) => {
               if (img.closest(".cloudattach-pdf-container"))
                 return;
-              const src = img.src || img.getAttribute("src") || "";
+              const src = img.getAttribute("src") || img.src || "";
               if (this._isPdfUrl(src)) {
                 this._renderPdfAsCanvas(img, src);
               } else if (this._isHeicDngUrl(src)) {
@@ -4194,7 +4194,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     allImgs.forEach((img) => {
       if (img.closest(".cloudattach-pdf-container"))
         return;
-      const src = img.src || img.getAttribute("src") || "";
+      const src = img.getAttribute("src") || img.src || "";
       if (this._isPdfUrl(src)) {
         this._renderPdfAsCanvas(img, src);
         return;
