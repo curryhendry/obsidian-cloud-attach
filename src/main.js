@@ -146,6 +146,11 @@ Object.assign(I18n.translations.zh, {
   'settings.s3_desc': '支持 S3 协议的对象存储',
   'settings.account_name_placeholder': '例如：我的COS桶',
   'settings.folder_required': '⚠️ 请选择上传到的文件夹，不能是根目录',
+  'settings.auto_upload': '自动上传',
+  'settings.auto_upload_desc': '粘贴/拖入附件后自动用默认账号上传到默认路径',
+  'settings.auto_upload_confirm_title': '🤖 确认启用自动上传',
+  'settings.auto_upload_confirm_msg': '开启后，笔记中粘贴/拖入的附件将自动上传到:\n\n📂 {name}/{path}\n\n请确认配置无误',
+  'settings.auto_upload_need_default': '请先在设置中指定默认账号',
 
   // 视图界面
   'view.select_account': '选择账户',
@@ -396,6 +401,11 @@ Object.assign(I18n.translations.en, {
   'settings.unset_default': '☆ Unset Default',
   'settings.is_default': 'Default',
   'settings.default_account': 'Default Account',
+  'settings.auto_upload': 'Auto Upload',
+  'settings.auto_upload_desc': 'Auto upload pasted/dropped attachments with default account',
+  'settings.auto_upload_confirm_title': '🤖 Enable Auto Upload',
+  'settings.auto_upload_confirm_msg': 'Pasted/dropped attachments will auto upload to:\n\n📂 {name}/{path}\n\nPlease confirm the configuration is correct.',
+  'settings.auto_upload_need_default': 'Please set a default account in Settings first',
 
   'view.select_account': 'Select Account',
   'view.no_account': 'Please add an account in Settings first',
@@ -3060,6 +3070,98 @@ class AdvancedSettingModal extends Modal {
     title.style.marginTop = '0';
     title.style.marginBottom = '20px';
     
+    // === 自动上传（卡片容器）===
+    const autoUploadCard = contentEl.createDiv();
+    autoUploadCard.className = 'cloudattach-settings-card';
+    autoUploadCard.style.background = 'var(--background-secondary)';
+    autoUploadCard.style.borderRadius = '8px';
+    autoUploadCard.style.padding = '20px';
+    autoUploadCard.style.marginBottom = '16px';
+
+    const autoTitle = autoUploadCard.createEl('h3', { text: t('settings.auto_upload') });
+    autoTitle.style.marginTop = '0';
+    autoTitle.style.marginBottom = '12px';
+    autoTitle.style.fontSize = '14px';
+    autoTitle.style.fontWeight = '600';
+    autoTitle.style.color = 'var(--text-normal)';
+    autoTitle.style.textTransform = 'uppercase';
+    autoTitle.style.letterSpacing = '0.5px';
+    autoTitle.style.opacity = '0.7';
+
+    const autoToggleRow = autoUploadCard.createDiv();
+    autoToggleRow.style.display = 'flex';
+    autoToggleRow.style.alignItems = 'center';
+    autoToggleRow.style.justifyContent = 'space-between';
+    autoToggleRow.style.gap = '12px';
+
+    const autoToggleLabel = autoToggleRow.createEl('span', { text: t('settings.auto_upload_desc') });
+    autoToggleLabel.style.fontSize = '13px';
+    autoToggleLabel.style.color = 'var(--text-muted)';
+    autoToggleLabel.style.flex = '1';
+
+    const autoToggleBtn = autoToggleRow.createEl('button');
+    const updateAutoUploadToggleStyle = () => {
+      const on = this.plugin.settings.enableAutoUpload;
+      autoToggleBtn.textContent = on ? '🟢 开' : '⚫ 关';
+      autoToggleBtn.style.background = on ? 'var(--interactive-accent)' : 'var(--background-modifier-border)';
+      autoToggleBtn.style.color = on ? 'var(--text-on-accent)' : 'var(--text-muted)';
+      autoToggleBtn.style.border = 'none';
+      autoToggleBtn.style.borderRadius = '6px';
+      autoToggleBtn.style.padding = '6px 16px';
+      autoToggleBtn.style.fontSize = '13px';
+      autoToggleBtn.style.cursor = 'pointer';
+    };
+    updateAutoUploadToggleStyle();
+    autoToggleBtn.onclick = async () => {
+      const current = this.plugin.settings.enableAutoUpload;
+      if (!current) {
+        // 开 → 检查默认账号
+        if (!this.plugin.defaultAccountId) {
+          new Notice('⚠️ ' + t('settings.auto_upload_need_default'), 4000);
+          return;
+        }
+        const defAccount = this.plugin.accounts.find(a => a.id === this.plugin.defaultAccountId);
+        if (!defAccount) {
+          new Notice('⚠️ ' + t('settings.auto_upload_need_default'), 4000);
+          return;
+        }
+        const confirmText = t('settings.auto_upload_confirm_msg', { name: defAccount.name, path: defAccount.prefix || '/' });
+        const modal = new (require('obsidian').Modal)(this.app);
+        modal.titleEl.textContent = t('settings.auto_upload_confirm_title');
+        const modalContent = modal.contentEl;
+        modalContent.style.padding = '16px';
+        const msgEl = modalContent.createEl('p', { text: confirmText });
+        msgEl.style.fontSize = '14px';
+        msgEl.style.whiteSpace = 'pre-line';
+        msgEl.style.marginBottom = '16px';
+        const btnRow = modalContent.createDiv();
+        btnRow.style.display = 'flex';
+        btnRow.style.gap = '8px';
+        btnRow.style.justifyContent = 'flex-end';
+        const cancelBtn = btnRow.createEl('button', { text: t('settings.cancel') });
+        cancelBtn.onclick = () => modal.close();
+        const confirmBtn = btnRow.createEl('button', { text: '✅ ' + (t('settings.auto_upload') || '启用') });
+        confirmBtn.style.background = 'var(--interactive-accent)';
+        confirmBtn.style.color = 'var(--text-on-accent)';
+        confirmBtn.style.border = 'none';
+        confirmBtn.style.borderRadius = '4px';
+        confirmBtn.style.padding = '8px 16px';
+        confirmBtn.style.cursor = 'pointer';
+        confirmBtn.onclick = async () => {
+          this.plugin.settings.enableAutoUpload = true;
+          await this.plugin.saveSettings();
+          updateAutoUploadToggleStyle();
+          modal.close();
+        };
+        modal.open();
+      } else {
+        // 关 → 直接关
+        this.plugin.settings.enableAutoUpload = false;
+        await this.plugin.saveSettings();
+        updateAutoUploadToggleStyle();
+      }
+    };
+
     // === 文件预览（卡片容器）===
     const card = contentEl.createDiv();
     card.className = 'cloudattach-settings-card';
@@ -3488,6 +3590,35 @@ module.exports = class CloudAttachPlugin extends Plugin {
         throw e;
       }
     }
+    // Auto-upload: 监听粘贴/拖入创建的新文件
+    this.registerEvent(this.app.vault.on('create', (file) => {
+      if (!this.settings.enableAutoUpload) return;
+      if (!this.defaultAccountId) return;
+      const TFile = require('obsidian').TFile;
+      if (!(file instanceof TFile)) return;
+      const ext = file.extension.toLowerCase();
+      const attachmentExts = ['jpg','jpeg','png','gif','webp','svg','bmp','ico',
+        'pdf','doc','docx','xls','xlsx','ppt','pptx',
+        'mp4','mov','avi','mkv','webm','flv',
+        'mp3','wav','flac','aac','ogg','m4a'];
+      if (!attachmentExts.includes(ext)) return;
+      // 延迟确保编辑器已更新
+      setTimeout(async () => {
+        const view = this.activeMarkdownView || this.app.workspace.getActiveViewOfType(MarkdownView);
+        if (!view?.editor || !view.file) return;
+        const text = view.editor.getValue();
+        const fileName = file.path.split('/').pop();
+        const escapedName = this._escapeRegex(fileName);
+        const wikiPattern = new RegExp(`!\\[\\[${escapedName}(?:\\|[^\\]]*)?\\]\\]`);
+        const mdPattern = new RegExp(`!\\[[^\\]]*\\]\\(${escapedName}\\)`);
+        const wikiMatch = text.match(wikiPattern);
+        const mdMatch = text.match(mdPattern);
+        if (!wikiMatch && !mdMatch) return;
+        const ctx = this.getDefaultUploadContext();
+        if (!ctx || !ctx.ok) return;
+        await this.doUpload([{ localPath: file.path, syntax: (wikiMatch || mdMatch)[0] }], ctx);
+      }, 500);
+    }));
     console.log('CloudAttach loaded');
   }
   addStyles() {
@@ -4519,9 +4650,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
   async loadSettings() {
     const data = await this.loadData();
-    this.settings = { accounts: [], pdfPreview: 'iframe', ...data };
+    this.settings = { accounts: [], pdfPreview: 'iframe', enableAutoUpload: false, ...data };
     this.accounts = this.settings.accounts || [];
     this.settings.pdfPreview = this.settings.pdfPreview || 'iframe';
+    this.settings.enableAutoUpload = this.settings.enableAutoUpload || false;
     this.defaultAccountId = this.settings.defaultAccountId || null;
   }
   async saveSettings() {
