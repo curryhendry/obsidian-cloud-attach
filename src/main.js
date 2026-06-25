@@ -3454,8 +3454,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
               let syntax = null;
               const patterns = [
                 new RegExp(`!\\[([^\\]]*)\\]\\(.*?${this._escapeRegex(file.name)}\\)`),
-                new RegExp(`!\[\[(${this._escapeRegex(file.name)})(?:\|[^\]]*)?\]\]`),
-                new RegExp(`\[\[(${this._escapeRegex(file.name)})(?:\|[^\]]*)?\]\]`)
+                new RegExp(`!\\[\\[(${this._escapeRegex(file.name)})(?:\\|[^\\]]*)?\\]\\]`),
+                new RegExp(`\\[\\[(${this._escapeRegex(file.name)})(?:\\|[^\\]]*)?\\]\\]`)
               ];
               for (const p of patterns) {
                 const m = noteContent.match(p);
