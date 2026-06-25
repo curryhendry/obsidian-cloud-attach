@@ -4558,6 +4558,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
           absolutePath = noteDir + localPath;
         }
       }
+      if (!absolutePath || !absolutePath.trim())
+        continue;
       if (!attachments.find((a) => a.localPath === absolutePath)) {
         attachments.push({
           localPath: absolutePath,
@@ -4579,6 +4581,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
           absolutePath = noteDir + localPath;
         }
       }
+      if (!absolutePath || !absolutePath.trim())
+        continue;
       if (!attachments.find((a) => a.localPath === absolutePath)) {
         attachments.push({
           localPath: absolutePath,
