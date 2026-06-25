@@ -79,8 +79,10 @@ Object.assign(I18n.translations.zh, {
   "settings.account_name": "\u8D26\u6237\u540D\u79F0",
   "settings.add_account": "\u6DFB\u52A0\u8D26\u6237",
   "settings.save": "\u4FDD\u5B58",
+  "settings.saved": "\u2705 \u8BBE\u7F6E\u5DF2\u4FDD\u5B58",
   "settings.test": "\u6D4B\u8BD5",
   "settings.edit": "\u7F16\u8F91",
+  "settings.edit_account": "\u7F16\u8F91\u8D26\u6237",
   "settings.delete": "\u5220\u9664",
   "settings.move_up": "\u4E0A\u79FB",
   "settings.move_down": "\u4E0B\u79FB",
@@ -253,6 +255,7 @@ Object.assign(I18n.translations.zh, {
   "view.upload_to": '\u4E0A\u4F20\u5230\uFF1A<code style="background:var(--background-secondary);padding:2px 6px;border-radius:3px;">{path}</code>',
   "error.rebuild_failed": "\u91CD\u5EFA\u5931\u8D25: {error}",
   "error.sign_rebuild_failed": "\u8865 sign \u5931\u8D25: {error}",
+  "error.cannot_extract_path": "\u65E0\u6CD5\u63D0\u53D6\u8DEF\u5F84\u6216\u7F3A\u5C11 Token",
   "settings.check_account_settings": "\u8BF7\u68C0\u67E5\u8D26\u6237\u8BBE\u7F6E"
 });
 Object.assign(I18n.translations.en, {
@@ -311,6 +314,7 @@ Object.assign(I18n.translations.en, {
   // Error messages
   "error.rebuild_failed": "Rebuild failed: {error}",
   "error.sign_rebuild_failed": "Sign rebuild failed: {error}",
+  "error.cannot_extract_path": "Cannot extract path or no Token",
   // Settings
   "settings.check_account_settings": "Please check account settings",
   // View
@@ -319,8 +323,10 @@ Object.assign(I18n.translations.en, {
   "settings.account_name": "Account Name",
   "settings.add_account": "Add Account",
   "settings.save": "Save",
+  "settings.saved": "\u2705 Settings saved",
   "settings.test": "Test",
   "settings.edit": "Edit",
+  "settings.edit_account": "Edit Account",
   "settings.delete": "Delete",
   "settings.move_up": "Move Up",
   "settings.move_down": "Move Down",
@@ -366,8 +372,15 @@ Object.assign(I18n.translations.en, {
   "settings.s3_desc": "S3-compatible object storage",
   "settings.account_name_placeholder": "e.g.: My COS Bucket",
   "settings.folder_required": "\u26A0\uFE0F Please select a folder to upload to, cannot be root",
+  "settings.set_as_default": "\u2605 Set as Default",
+  "settings.unset_default": "\u2606 Unset Default",
+  "settings.is_default": "Default",
+  "settings.default_account": "Default Account",
   "view.select_account": "Select Account",
   "view.no_account": "Please add an account in Settings first",
+  "view.upload_to_current_path": "Upload to current CloudAttach path",
+  "view.upload_to_default_account": "Upload to default account",
+  "view.no_default_account_hint": "Please set a default account in Settings first",
   "view.connect_failed": "\u274C Connection failed: {error}",
   "view.error": "\u274C Error: {error}",
   "view.root": "\u{1F4C1} Root",
@@ -3387,18 +3400,21 @@ module.exports = class CloudAttachPlugin extends Plugin {
           fetchInfo = "status=" + resp.status + " size=" + (resp.headers.get("content-length") || "?");
         } catch (fErr) {
           fetchInfo = "fetch_err:" + (fErr.message || fErr);
-          let reqUrl = null;
+        }
+        let reqUrlFn = null;
+        try {
+          reqUrlFn = require("obsidian").requestUrl;
+        } catch (e) {
+        }
+        if (reqUrlFn) {
           try {
-            reqUrl = require("obsidian").requestUrl;
+            const resp = await reqUrlFn({ url, method: "GET" });
+            pdfData = resp.arrayBuffer;
+            if (fetchInfo.indexOf("viaObsidian") === -1)
+              fetchInfo += " viaObsidian";
           } catch (e) {
-          }
-          if (reqUrl) {
-            try {
-              const resp = await reqUrl({ url, method: "GET" });
-              pdfData = resp.arrayBuffer;
-              fetchInfo = "status=" + resp.status + " viaObsidian";
-            } catch (e) {
-            }
+            if (!fetchInfo)
+              fetchInfo = "download_err:" + (e.message || e);
           }
         }
         const loadingTask = pdfData ? pdfjsLib.getDocument({ data: pdfData, ownerDocument: imgEl.ownerDocument }) : pdfjsLib.getDocument({ url, ownerDocument: imgEl.ownerDocument, disableAutoFetch: true });
