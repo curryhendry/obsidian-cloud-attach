@@ -4228,7 +4228,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
           imgs.forEach(img => {
             // 避免重复处理已替换的容器
             if (img.closest('.cloudattach-pdf-container')) return;
-            const src = img.getAttribute('src') || '';
+            const src = img.src || img.getAttribute('src') || '';
             if (this._isPdfUrl(src)) {
               this._renderPdfAsCanvas(img, src);
             } else if (this._isHeicDngUrl(src)) {
@@ -4297,7 +4297,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
             const imgs = n.tagName === 'IMG' ? [n] : Array.from(n.querySelectorAll('img'));
             imgs.forEach(img => {
               if (img.closest('.cloudattach-pdf-container')) return;
-              const src = img.getAttribute('src') || '';
+              const src = img.src || img.getAttribute('src') || '';
               if (this._isPdfUrl(src)) {
                 this._renderPdfAsCanvas(img, src);
               } else if (this._isHeicDngUrl(src)) {
@@ -4332,7 +4332,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const allImgs = d.querySelectorAll('img');
     allImgs.forEach(img => {
       if (img.closest('.cloudattach-pdf-container')) return;
-      const src = img.getAttribute('src') || '';
+      const src = img.src || img.getAttribute('src') || '';
       if (this._isPdfUrl(src)) {
         this._renderPdfAsCanvas(img, src);
         return;
