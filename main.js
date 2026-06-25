@@ -1604,14 +1604,18 @@ var S3Client = class {
      */
   async delete(paths) {
     const results = { success: [], failed: [] };
+    const objKey = (filePath) => {
+      const clean = filePath.replace(/^\/+/, "");
+      return this.prefix ? this.prefix.replace(/\/$/, "") + "/" + clean : clean;
+    };
     for (const fullPath of paths) {
       try {
-        const objectKey = this._objectKey(fullPath);
+        const objectKey = objKey(fullPath);
         const isDir = fullPath.endsWith("/");
         if (isDir) {
           const dirContents = await this.listDirectory(fullPath);
           for (const item of dirContents) {
-            const itemKey = this._objectKey(item.path);
+            const itemKey = objKey(item.path);
             const itemSignedQuery = await this.signQuery(new URLSearchParams({ "X-Amz-Expires": "3600" }), itemKey, "DELETE", {});
             const itemEncodedKey = encodeURIComponent(itemKey);
             const itemDeleteUrl = `${this.endpoint}/${this.bucket}/${itemEncodedKey}?${itemSignedQuery}`;
@@ -1645,15 +1649,19 @@ var S3Client = class {
    */
   async rename(path, newName) {
     const isDir = path.endsWith("/");
+    const objKey = (filePath) => {
+      const clean = filePath.replace(/^\/+/, "");
+      return this.prefix ? this.prefix.replace(/\/$/, "") + "/" + clean : clean;
+    };
     if (isDir) {
       const cleanPath = path.replace(/\/$/, "");
       const dstDir = cleanPath.substring(0, cleanPath.lastIndexOf("/"));
       const dstBase = dstDir + "/" + newName;
       const dirContents = await this.listDirectory(path);
       for (const item of dirContents) {
-        const srcKey2 = this._objectKey(item.path);
+        const srcKey2 = objKey(item.path);
         const relativeName = item.path.slice(path.length);
-        const dstKey2 = this._objectKey(dstBase + "/" + relativeName.replace(/^\//, ""));
+        const dstKey2 = objKey(dstBase + "/" + relativeName.replace(/^\//, ""));
         const copySource2 = encodeURIComponent("/" + this.bucket + "/" + srcKey2).replace(/%2F/g, "/");
         const copyParams2 = new URLSearchParams({ "X-Amz-Expires": "3600" });
         const copyQuery2 = await this.signQuery(copyParams2, dstKey2, "PUT", { "x-amz-copy-source": copySource2 });
@@ -1675,9 +1683,9 @@ var S3Client = class {
       }
       return;
     }
-    const srcKey = this._objectKey(path);
+    const srcKey = objKey(path);
     const dstPath = path.substring(0, path.lastIndexOf("/") + 1) + newName;
-    const dstKey = this._objectKey(dstPath);
+    const dstKey = objKey(dstPath);
     const copySource = encodeURIComponent("/" + this.bucket + "/" + srcKey).replace(/%2F/g, "/");
     const copyParams = new URLSearchParams({ "X-Amz-Expires": "3600" });
     const copyQuery = await this.signQuery(copyParams, dstKey, "PUT", { "x-amz-copy-source": copySource });
