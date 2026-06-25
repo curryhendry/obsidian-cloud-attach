@@ -1,3 +1,7 @@
+## v0.4.031.dev - 2026-06-25
+
+- 修复：HEIC/DNG 预览第六次修复 — Obsidian 不认识此格式不创建 DOM 也不调 PostProcessor，`_scanAllPdfImgs` 直接从笔记源码解析创建 img 渲染
+
 ## v0.4.030.dev - 2026-06-25
 
 - 诊断：HEIC PostProcessor 加调试日志确认回调是否被触发

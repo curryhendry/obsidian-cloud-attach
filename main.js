@@ -4177,7 +4177,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       this._scanAllPdfImgs(doc);
     });
   }
-  _scanAllPdfImgs(doc) {
+  async _scanAllPdfImgs(doc) {
     const d = doc || document;
     const pendingImgs = d.querySelectorAll('img[data-cloudattach-processed="pending"]');
     pendingImgs.forEach((img) => {
@@ -4211,6 +4211,29 @@ module.exports = class CloudAttachPlugin extends Plugin {
         this._renderPdfAsCanvas(img, src);
       }
     });
+    if (!doc) {
+      const view = this.app.workspace.getActiveViewOfType(require("obsidian").MarkdownView);
+      if (view && view.file) {
+        const content = await this.app.vault.cachedRead(view.file);
+        const re = /!?\[([^\]]*)\]\(([^)]+)\)/gi;
+        let m;
+        while ((m = re.exec(content)) !== null) {
+          const url = m[2];
+          if (this._isHeicDngUrl(url) && !this._renderedHeicDngByMode?.reading?.has(url)) {
+            const container = d.querySelector(".markdown-preview-section") || d.querySelector(".markdown-reading-view > div");
+            if (!container) {
+              console.log("[CloudAttach] HEIC/DNG: no preview container found");
+              break;
+            }
+            const img = d.createElement("img");
+            img.src = url;
+            img.style.maxWidth = "100%";
+            container.appendChild(img);
+            this._renderHeicDngAsImage(img, url);
+          }
+        }
+      }
+    }
   }
   // Sign 检查与刷新
   // ============================================================
