@@ -3494,6 +3494,24 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
     // PDF.js 内联预览（v0.3.026）
     this._observePdfEmbeds();
+    // PostProcessor：HEIC/DNG 预览（独立于 PDF 处理，Obsidian 不认得此格式可能渲染为 a/img/空节点）
+    this.registerMarkdownPostProcessor(async (el, ctx) => {
+      const walk = (node) => {
+        if (node.nodeType === 1) {
+          const tag = node.tagName;
+          let url = '';
+          if (tag === 'IMG') url = node.src || node.getAttribute('src') || '';
+          else if (tag === 'A') url = node.getAttribute('href') || '';
+          if (url && this._isHeicDngUrl(url) && !node.dataset.cloudattachHeicDngDone) {
+            node.dataset.cloudattachHeicDngDone = '1';
+            const img = tag === 'IMG' ? node : (() => { const i = el.ownerDocument.createElement('img'); i.src = url; i.style.maxWidth = '100%'; node.replaceWith(i); return i; })();
+            this._renderHeicDngAsImage(img, url);
+          }
+          Array.from(node.children).forEach(walk);
+        }
+      };
+      Array.from(el.children).forEach(walk);
+    });
     // PostProcessor：阅读模式下标记 iOS blob URL img 为 PDF，由 _scanAllPdfImgs 统一处理
     this.registerMarkdownPostProcessor(async (el, ctx) => {
       const imgs = el.querySelectorAll('img');

@@ -3311,6 +3311,31 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
     this._observePdfEmbeds();
     this.registerMarkdownPostProcessor(async (el, ctx) => {
+      const walk = (node) => {
+        if (node.nodeType === 1) {
+          const tag = node.tagName;
+          let url = "";
+          if (tag === "IMG")
+            url = node.src || node.getAttribute("src") || "";
+          else if (tag === "A")
+            url = node.getAttribute("href") || "";
+          if (url && this._isHeicDngUrl(url) && !node.dataset.cloudattachHeicDngDone) {
+            node.dataset.cloudattachHeicDngDone = "1";
+            const img = tag === "IMG" ? node : (() => {
+              const i = el.ownerDocument.createElement("img");
+              i.src = url;
+              i.style.maxWidth = "100%";
+              node.replaceWith(i);
+              return i;
+            })();
+            this._renderHeicDngAsImage(img, url);
+          }
+          Array.from(node.children).forEach(walk);
+        }
+      };
+      Array.from(el.children).forEach(walk);
+    });
+    this.registerMarkdownPostProcessor(async (el, ctx) => {
       const imgs = el.querySelectorAll("img");
       if (imgs.length === 0)
         return;
