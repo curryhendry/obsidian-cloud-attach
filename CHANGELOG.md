@@ -1,3 +1,8 @@
+## v0.4.038.dev - 2026-06-26
+
+- 修复：HEIC 中文路径 URL 编码（encodeURI）避免 requestUrl Invalid URL
+  - 根因：照片/玩具/变形金刚 等路径含未编码中文，requestUrl 内部 new URL() 报错
+
 ## v0.4.037.dev - 2026-06-26
 
 - 新增：HEIC/HEIF 在线预览（heic2any WASM 解码为 PNG）
