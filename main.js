@@ -1717,17 +1717,8 @@ var OpenListClient = class {
       const proto2 = base.match(/^https?:/) ? "" : this.serverUrl.match(/^https?:/)?.[0] || "http:";
       if (!base.startsWith("http"))
         base = `${proto2}//${base}`;
-      let hasOwnPath = false;
-      try {
-        hasOwnPath = new URL(base).pathname.replace(/\/+$/, "") !== "";
-      } catch {
-      }
-      if (hasOwnPath) {
-        const encodedPath3 = remotePath.replace(/[\s#?&<>"'\\|{}]/g, (c) => encodeURIComponent(c));
-        return `${base.replace(/\/+$/, "")}${encodedPath3}`;
-      }
-      const fullPath2 = (this.webdavPath || "") + remotePath;
-      const encodedPath2 = fullPath2.replace(/[\s#?&<>"'\\|{}]/g, (c) => encodeURIComponent(c));
+      base = base.replace(/\/+$/, "");
+      const encodedPath2 = remotePath.replace(/[\s#?&<>"'\\|{}]/g, (c) => encodeURIComponent(c));
       return `${base}${encodedPath2}`;
     }
     const webdavPath = this.webdavPath || "";
@@ -1749,15 +1740,8 @@ var OpenListClient = class {
       const proto2 = base.match(/^https?:/) ? "" : this.serverUrl.match(/^https?:/)?.[0] || "http:";
       if (!base.startsWith("http"))
         base = `${proto2}//${base}`;
-      let hasOwnPath = false;
-      try {
-        hasOwnPath = new URL(base).pathname.replace(/\/+$/, "") !== "";
-      } catch {
-      }
-      if (hasOwnPath) {
-        return `${base.replace(/\/+$/, "")}${remotePath}`;
-      }
-      return `${base}${virtualPath}`;
+      base = base.replace(/\/+$/, "");
+      return `${base}${remotePath}`;
     }
     const proto = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, "$1");
     const host = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, "$3");
