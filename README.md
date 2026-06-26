@@ -89,7 +89,10 @@
 
 **自动上传**
 <img alt="自动上传-720p" src="https://github.com/user-attachments/assets/ad1d2149-efdb-413b-8245-e200eaef77ea" />
+<br>
 
+**快速插入附件**
+<img alt="快捷插入附件-720p_compressed" src="https://github.com/user-attachments/assets/db32f99c-48c1-4262-8252-26586e618bed" />
 
 ---
 
