@@ -839,10 +839,9 @@ class OpenListClient {
 
   // 获取文件的 WebDAV URL（用于插入到笔记）
   getFileUrl(remotePath) {
-    // 公开域名：直接用 publicUrl 拼接，跳过认证
+    // 公开域名：publicUrl 已含路径前缀，直接拼 remotePath
     if (this.publicUrl) {
-      const cleanPath = (this.webdavPath + remotePath).replace(/\/+/g, '/');
-      const encodedPath = cleanPath.replace(/[\s#?&<>"'\\|{}]/g, c => encodeURIComponent(c));
+      const encodedPath = remotePath.replace(/[\s#?&<>"'\\|{}]/g, c => encodeURIComponent(c));
       return `${this.publicUrl}${encodedPath}`;
     }
     const webdavPath = this.webdavPath || '';
@@ -863,9 +862,9 @@ class OpenListClient {
       const pathSuffix = this.webdavPath.slice('/dav'.length);
       virtualPath = pathSuffix + (remotePath.startsWith('/') ? remotePath : '/' + remotePath);
     }
-    // 公开域名：直接用 publicUrl 拼接
+    // 公开域名：publicUrl 已含路径前缀，直接拼 remotePath
     if (this.publicUrl) {
-      return `${this.publicUrl}${virtualPath}`;
+      return `${this.publicUrl}${remotePath}`;
     }
     // 保留原协议、保留中文原文
     const proto = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, '$1');

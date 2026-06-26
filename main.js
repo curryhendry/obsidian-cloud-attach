@@ -1713,8 +1713,7 @@ var OpenListClient = class {
   // 获取文件的 WebDAV URL（用于插入到笔记）
   getFileUrl(remotePath) {
     if (this.publicUrl) {
-      const cleanPath = (this.webdavPath + remotePath).replace(/\/+/g, "/");
-      const encodedPath2 = cleanPath.replace(/[\s#?&<>"'\\|{}]/g, (c) => encodeURIComponent(c));
+      const encodedPath2 = remotePath.replace(/[\s#?&<>"'\\|{}]/g, (c) => encodeURIComponent(c));
       return `${this.publicUrl}${encodedPath2}`;
     }
     const webdavPath = this.webdavPath || "";
@@ -1732,7 +1731,7 @@ var OpenListClient = class {
       virtualPath = pathSuffix + (remotePath.startsWith("/") ? remotePath : "/" + remotePath);
     }
     if (this.publicUrl) {
-      return `${this.publicUrl}${virtualPath}`;
+      return `${this.publicUrl}${remotePath}`;
     }
     const proto = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, "$1");
     const host = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, "$3");
