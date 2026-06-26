@@ -6,6 +6,7 @@
 'use strict';
 
 const { Plugin, Notice, Menu, Modal, PluginSettingTab, MarkdownView, ItemView } = require('obsidian');
+const heic2any = require('heic2any');
 
 const VIEW_TYPE_CLOUDATTACH = 'cloud-attach-view';
 
@@ -3708,6 +3709,37 @@ module.exports = class CloudAttachPlugin extends Plugin {
     return /\.pdf(\?|#|$)/i.test(url);
   }
 
+  _isHeicUrl(url) {
+    return /\.(heic|heif)(\?|#|$)/i.test(url);
+  }
+
+  async _renderHeicAsImage(imgEl, url) {
+    if (imgEl.closest('.cloudattach-heic-container')) return;
+    const modeKey = imgEl.closest('.markdown-reading-view') ? 'reading' : 'editing';
+    if (!this._renderedHeic) this._renderedHeic = {};
+    if (!this._renderedHeic[modeKey]) this._renderedHeic[modeKey] = new Set();
+    const renderedSet = this._renderedHeic[modeKey];
+    if (renderedSet.has(url)) return;
+    try {
+      let reqUrlFn = null;
+      try { reqUrlFn = require('obsidian').requestUrl; } catch (e) {}
+      const resp = reqUrlFn
+        ? await reqUrlFn({ url, method: 'GET' })
+        : await fetch(url);
+      const buf = resp.arrayBuffer || (await resp.arrayBuffer());
+      const blob = new Blob([buf]);
+      const result = await heic2any({ blob, toType: 'image/png' });
+      const pngBlob = Array.isArray(result) ? result[0] : result;
+      const blobUrl = URL.createObjectURL(pngBlob);
+      imgEl.src = blobUrl;
+      imgEl.style.maxWidth = '100%';
+      imgEl.style.height = 'auto';
+      renderedSet.add(url);
+    } catch (e) {
+      console.log('[CloudAttach] HEIC render failed:', e);
+    }
+  }
+
   async _renderPdfAsCanvas(imgEl, url) {
     // 去重：编辑/阅读模式使用独立的 Set，避免模式切换互相影响
     const modeKey = imgEl.closest('.markdown-reading-view') ? 'reading' : 'editing';
@@ -4279,6 +4311,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const alt = img.getAttribute('alt') || '';
       if (alt && /\.pdf\s*$/i.test(alt.trim())) {
         this._renderPdfAsCanvas(img, src);
+      }
+      // HEIC/HEIF 预览
+      if (this._isHeicUrl(src) || this._isHeicUrl(alt)) {
+        this._renderHeicAsImage(img, src);
       }
     });
   }

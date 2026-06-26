@@ -11,6 +11,7 @@
     "esbuild": "^0.20.2"
   },
   "dependencies": {
+    "heic2any": "^0.0.4",
     "pdfjs-dist": "^6.0.227"
   }
 }
