@@ -1,58 +1,16 @@
-## v0.4.035.dev - 2026-06-26
+## v0.4.036.dev - 2026-06-26
 
-- 修复：`_extractEmbeddedJpeg` 改为遍历所有 SOI-EOI 片段，逐个尝试 `onload` 找到有效内嵌 JPEG
-
-## v0.4.034.dev - 2026-06-25
-
-- 诊断：HEIC/DNG 下载 buf 大小+首字节诊断（确认是否 HTML 替换了 HEIC 二进制）
-
-## v0.4.033.dev - 2026-06-25
-
-- 修复：HEIC/DNG 渲染等 `onload` 后再设样式（`img.src = blobUrl` 异步加载未完成时尺寸为 0x0）
-
-## v0.4.032.dev - 2026-06-25
-
-- 修复：HEIC/DNG 创建 img 时不预设 src（避免 Electron 覆盖 blob），渲染后确认 blob URL 生效
-
-## v0.4.031.dev - 2026-06-25
-
-- 修复：HEIC/DNG 预览第六次修复 — Obsidian 不认识此格式不创建 DOM 也不调 PostProcessor，`_scanAllPdfImgs` 直接从笔记源码解析创建 img 渲染
-
-## v0.4.030.dev - 2026-06-25
-
-- 诊断：HEIC PostProcessor 加调试日志确认回调是否被触发
-
-## v0.4.029.dev - 2026-06-25
-
-- 修复：HEIC/DNG 预览第五次修复 — `img.src` 长 URL 被浏览器截断丢失 `.HEIC` 后缀致 `_isHeicDngUrl` 永远 false，全部改为 `getAttribute('src')` 优先
-
-## v0.4.028.dev - 2026-06-25
-
-- 修复：HEIC/DNG 预览第四次修复 — Obsidian 阅读模式下不认识 HEIC/DNG 可能不创建 `<img>`，改用独立 PostProcessor 遍历 `<a>` / `<img>` 两种形式，匹配后创建 placeholder 渲染
-
-## v0.4.027.dev - 2026-06-25
-
-- 修复：HEIC/DNG 渲染第三次修复 — 直链处理在 `blobImgs.length === 0` return 之后永远跑不到，移到 return 之前
-
-## v0.4.026.dev - 2026-06-25
-
-- 修复：HEIC/DNG 渲染再次修复 — PostProcessor 只处理 blob URL img，macOS 上直链被跳过，新增直链 HEIC/DNG 直接触发渲染
-
-## v0.4.025.dev - 2026-06-25
-
-- 修复：HEIC/DNG 渲染 `getAttribute('src')` 取不到 src，改为 `img.src || img.getAttribute('src')`（三处统一：MutationObserver/popoutObserver/_scanAllPdfImgs）
-
-## v0.4.024.dev - 2026-06-25
-
-- 新增：HEIC/DNG 图片预览支持（提取内嵌 JPEG，零外部依赖）
-  - `_extractEmbeddedJpeg()` — 扫描二进制 SOI/EOI 标记提取 JPEG
-  - `_isHeicDngUrl()` — 判断 .heic/.dng 后缀
-  - `_renderHeicDngAsImage()` — 下载 → 提取 JPEG → blob URL 渲染
-  - PostProcessor/扫描链路统一标记 HEIC/DNG 同 PDF 处理模式
+- 回退：撤销 HEIC/DNG 预览实验代码，回到 v0.4.023.dev 干净基线
 
 ## v0.4.023.dev - 2026-06-25
 
 - 优化：右键菜文件类型过滤从白名单改为排除 .md（DNG 等非标格式也能上传）
+
+## v0.4.022.dev - 2026-06-25
+
+- 修复：右键菜单正则表达式括号不匹配导致 Invalid regular expression 报错
+
+## v0.4.021.dev - 2026-06-25
 
 - 恢复：左侧文件列表右键菜单「☁️ 上传到云端」（仅 source=file-explorer，不影响编辑器右键）
 

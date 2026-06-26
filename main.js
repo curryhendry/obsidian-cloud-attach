@@ -3310,46 +3310,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
       this.activeMarkdownView = activeLeaf.view;
     }
     this._observePdfEmbeds();
-    console.log("[CloudAttach] registering HEIC/DNG PostProcessor");
-    this.registerMarkdownPostProcessor(async (el, ctx) => {
-      console.log("[CloudAttach] HEIC PostProcessor called, el.children:", el.children.length);
-      const walk = (node) => {
-        if (node.nodeType === 1) {
-          const tag = node.tagName;
-          let url = "";
-          if (tag === "IMG")
-            url = node.getAttribute("src") || node.src || "";
-          else if (tag === "A")
-            url = node.getAttribute("href") || "";
-          if (url && this._isHeicDngUrl(url) && !node.dataset.cloudattachHeicDngDone) {
-            node.dataset.cloudattachHeicDngDone = "1";
-            const img = tag === "IMG" ? node : (() => {
-              const i = el.ownerDocument.createElement("img");
-              i.src = url;
-              i.style.maxWidth = "100%";
-              node.replaceWith(i);
-              return i;
-            })();
-            this._renderHeicDngAsImage(img, url);
-          }
-          Array.from(node.children).forEach(walk);
-        }
-      };
-      Array.from(el.children).forEach(walk);
-    });
     this.registerMarkdownPostProcessor(async (el, ctx) => {
       const imgs = el.querySelectorAll("img");
       if (imgs.length === 0)
         return;
-      Array.from(imgs).forEach((img) => {
-        if (img.closest(".cloudattach-pdf-container"))
-          return;
-        const src = img.getAttribute("src") || img.src || "";
-        if (this._isHeicDngUrl(src) && !img.dataset.cloudattachHeicDngDone) {
-          img.dataset.cloudattachHeicDngDone = "1";
-          this._renderHeicDngAsImage(img, src);
-        }
-      });
       const blobImgs = Array.from(imgs).filter(
         (img) => !img.closest(".cloudattach-pdf-container") && (img.getAttribute("src") || "").startsWith("blob:")
       );
@@ -3362,13 +3326,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
         return;
       try {
         const content = await this.app.vault.cachedRead(file);
-        const nonNativePatterns = [];
+        const pdfPatterns = [];
         const re = /!?\[([^\]]*)\]\(([^)]*)\)/gi;
         let m;
         while ((m = re.exec(content)) !== null) {
           const url = m[2];
-          const urlLower = url.toLowerCase();
-          if (urlLower.includes(".pdf")) {
+          if (url.toLowerCase().includes(".pdf")) {
             const label = m[1];
             let width = "";
             const barIdx = label.lastIndexOf("|");
@@ -3377,21 +3340,15 @@ module.exports = class CloudAttachPlugin extends Plugin {
               if (/^\d+$/.test(afterBar))
                 width = afterBar;
             }
-            nonNativePatterns.push({ type: "pdf", url, width });
-          } else if (/\.(heic|dng)(\?|#|$)/i.test(urlLower)) {
-            nonNativePatterns.push({ type: "heicDng", url });
+            pdfPatterns.push({ url, width });
           }
         }
         blobImgs.forEach((img, idx) => {
-          if (idx < nonNativePatterns.length) {
-            const pat = nonNativePatterns[idx];
-            if (pat.type === "pdf") {
-              img.dataset.cloudattachPdfUrl = pat.url;
-              if (pat.width)
-                img.dataset.cloudattachWidth = pat.width;
-            } else {
-              img.dataset.cloudattachHeicDngUrl = pat.url;
-            }
+          if (idx < pdfPatterns.length) {
+            const pat = pdfPatterns[idx];
+            img.dataset.cloudattachPdfUrl = pat.url;
+            if (pat.width)
+              img.dataset.cloudattachWidth = pat.width;
             img.dataset.cloudattachProcessed = "pending";
           }
         });
@@ -3589,90 +3546,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
   _isPdfUrl(url) {
     return /\.pdf(\?|#|$)/i.test(url);
-  }
-  _isHeicDngUrl(url) {
-    return /\.(heic|dng)(\?|#|$)/i.test(url);
-  }
-  _extractEmbeddedJpeg(buffer) {
-    const data = new Uint8Array(buffer);
-    const segments = [];
-    let soi = -1;
-    for (let i = 0; i < data.length - 1; i++) {
-      if (data[i] === 255 && data[i + 1] === 216) {
-        soi = i;
-      } else if (data[i] === 255 && data[i + 1] === 217 && soi >= 0) {
-        segments.push(data.slice(soi, i + 2));
-        soi = -1;
-      }
-    }
-    return segments;
-  }
-  async _renderHeicDngAsImage(imgEl, url) {
-    console.log("[CloudAttach] _renderHeicDngAsImage ENTER:", url.substring(url.lastIndexOf("/") + 1).substring(0, 40));
-    const modeKey = imgEl.closest(".markdown-reading-view") ? "reading" : "editing";
-    if (!this._renderedHeicDngByMode)
-      this._renderedHeicDngByMode = {};
-    if (!this._renderedHeicDngByMode[modeKey])
-      this._renderedHeicDngByMode[modeKey] = /* @__PURE__ */ new Set();
-    const renderedSet = this._renderedHeicDngByMode[modeKey];
-    if (renderedSet.has(url))
-      return;
-    try {
-      let reqUrlFn = null;
-      try {
-        reqUrlFn = require("obsidian").requestUrl;
-      } catch (e) {
-      }
-      const resp = reqUrlFn ? await reqUrlFn({ url, method: "GET" }) : await fetch(url);
-      const buf = resp.arrayBuffer || await resp.arrayBuffer();
-      const arr = new Uint8Array(buf);
-      console.log("[CloudAttach] HEIC/DNG buf size:", arr.length, "first bytes:", Array.from(arr.slice(0, 10)).map((b) => b.toString(16)).join(" "));
-      const segments = this._extractEmbeddedJpeg(buf);
-      if (!segments.length) {
-        console.log("[CloudAttach] HEIC/DNG: no embedded JPEG");
-        return;
-      }
-      console.log("[CloudAttach] HEIC/DNG found", segments.length, "JPEG candidates");
-      let blobUrl = null;
-      let bestSize = 0;
-      for (let s = 0; s < segments.length; s++) {
-        const blob = new Blob([segments[s]], { type: "image/jpeg" });
-        const tryUrl = URL.createObjectURL(blob);
-        try {
-          await new Promise((resolve, reject) => {
-            imgEl.onload = () => resolve(true);
-            imgEl.onerror = () => resolve(false);
-            imgEl.src = tryUrl;
-          });
-          if (imgEl.naturalWidth > 0) {
-            console.log("[CloudAttach] HEIC/DNG segment", s, "valid:", imgEl.naturalWidth + "x" + imgEl.naturalHeight, "size:", segments[s].length);
-            blobUrl = tryUrl;
-            break;
-          }
-          URL.revokeObjectURL(tryUrl);
-        } catch (e) {
-          URL.revokeObjectURL(tryUrl);
-        }
-      }
-      if (!blobUrl) {
-        console.log("[CloudAttach] HEIC/DNG no valid segment, using biggest in hopes it renders later");
-        let biggest = segments[0];
-        for (let s = 1; s < segments.length; s++) {
-          if (segments[s].length > biggest.length)
-            biggest = segments[s];
-        }
-        const blob = new Blob([biggest], { type: "image/jpeg" });
-        blobUrl = URL.createObjectURL(blob);
-        imgEl.src = blobUrl;
-      }
-      imgEl.style.maxWidth = "100%";
-      imgEl.style.height = "auto";
-      imgEl.style.display = "block";
-      console.log("[CloudAttach] HEIC/DNG rendered:", imgEl.naturalWidth, "element:", imgEl.offsetWidth + "x" + imgEl.offsetHeight, "inDoc:", !!imgEl.closest("body"));
-      renderedSet.add(url);
-    } catch (e) {
-      console.log("[CloudAttach] _renderHeicDngAsImage failed:", e);
-    }
   }
   async _renderPdfAsCanvas(imgEl, url) {
     const modeKey = imgEl.closest(".markdown-reading-view") ? "reading" : "editing";
@@ -4121,8 +3994,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       return;
     if (!this._renderedPdfUrlsByMode)
       this._renderedPdfUrlsByMode = { editing: /* @__PURE__ */ new Set(), reading: /* @__PURE__ */ new Set() };
-    if (!this._renderedHeicDngByMode)
-      this._renderedHeicDngByMode = { editing: /* @__PURE__ */ new Set(), reading: /* @__PURE__ */ new Set() };
     this._pdfObserver = new MutationObserver((mutations) => {
       mutations.forEach((m) => {
         m.addedNodes.forEach((n) => {
@@ -4132,11 +4003,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
           imgs.forEach((img) => {
             if (img.closest(".cloudattach-pdf-container"))
               return;
-            const src = img.getAttribute("src") || img.src || "";
+            const src = img.getAttribute("src") || "";
             if (this._isPdfUrl(src)) {
               this._renderPdfAsCanvas(img, src);
-            } else if (this._isHeicDngUrl(src)) {
-              this._renderHeicDngAsImage(img, src);
             }
           });
         });
@@ -4149,7 +4018,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     setTimeout(() => this._scanAllPdfImgs(), 3e3);
     const rescanPdfImgs = () => {
       this._renderedPdfUrlsByMode = { editing: /* @__PURE__ */ new Set(), reading: /* @__PURE__ */ new Set() };
-      this._renderedHeicDngByMode = { editing: /* @__PURE__ */ new Set(), reading: /* @__PURE__ */ new Set() };
       if (this._pdfLazyObservers) {
         this._pdfLazyObservers.forEach((obs) => obs.disconnect());
         this._pdfLazyObservers.clear();
@@ -4168,7 +4036,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     this.registerEvent(this.app.workspace.on("active-leaf-change", rescanPdfImgs));
     this.registerEvent(this.app.workspace.on("layout-change", () => {
       this._renderedPdfUrlsByMode = { editing: /* @__PURE__ */ new Set(), reading: /* @__PURE__ */ new Set() };
-      this._renderedHeicDngByMode = { editing: /* @__PURE__ */ new Set(), reading: /* @__PURE__ */ new Set() };
       this._scanAllPdfImgs();
       setTimeout(() => this._scanAllPdfImgs(), 500);
       setTimeout(() => this._scanAllPdfImgs(), 3e3);
@@ -4191,11 +4058,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
             imgs.forEach((img) => {
               if (img.closest(".cloudattach-pdf-container"))
                 return;
-              const src = img.getAttribute("src") || img.src || "";
+              const src = img.getAttribute("src") || "";
               if (this._isPdfUrl(src)) {
                 this._renderPdfAsCanvas(img, src);
-              } else if (this._isHeicDngUrl(src)) {
-                this._renderHeicDngAsImage(img, src);
               }
             });
           });
@@ -4206,33 +4071,25 @@ module.exports = class CloudAttachPlugin extends Plugin {
       this._scanAllPdfImgs(doc);
     });
   }
-  async _scanAllPdfImgs(doc) {
+  _scanAllPdfImgs(doc) {
     const d = doc || document;
     const pendingImgs = d.querySelectorAll('img[data-cloudattach-processed="pending"]');
     pendingImgs.forEach((img) => {
       if (img.closest(".cloudattach-pdf-container"))
         return;
       const pdfUrl = img.dataset.cloudattachPdfUrl;
-      const heicDngUrl = img.dataset.cloudattachHeicDngUrl;
-      img.dataset.cloudattachProcessed = "done";
       if (pdfUrl) {
+        img.dataset.cloudattachProcessed = "done";
         this._renderPdfAsCanvas(img, pdfUrl);
-      } else if (heicDngUrl) {
-        this._renderHeicDngAsImage(img, heicDngUrl);
       }
     });
     const allImgs = d.querySelectorAll("img");
     allImgs.forEach((img) => {
       if (img.closest(".cloudattach-pdf-container"))
         return;
-      const src = img.getAttribute("src") || img.src || "";
+      const src = img.getAttribute("src") || "";
       if (this._isPdfUrl(src)) {
         this._renderPdfAsCanvas(img, src);
-        return;
-      }
-      if (this._isHeicDngUrl(src)) {
-        console.log("[CloudAttach] _scanAllPdfImgs calling _renderHeicDngAsImage for:", src.substring(0, 60));
-        this._renderHeicDngAsImage(img, src);
         return;
       }
       const alt = img.getAttribute("alt") || "";
@@ -4240,30 +4097,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
         this._renderPdfAsCanvas(img, src);
       }
     });
-    if (!doc) {
-      const view = this.app.workspace.getActiveViewOfType(require("obsidian").MarkdownView);
-      if (view && view.file) {
-        const content = await this.app.vault.cachedRead(view.file);
-        const re = /!?\[([^\]]*)\]\(([^)]+)\)/gi;
-        let m;
-        while ((m = re.exec(content)) !== null) {
-          const url = m[2];
-          if (this._isHeicDngUrl(url) && !this._renderedHeicDngByMode?.reading?.has(url)) {
-            const container = d.querySelector(".markdown-preview-section") || d.querySelector(".markdown-reading-view > div");
-            if (!container) {
-              console.log("[CloudAttach] HEIC/DNG: no preview container found");
-              break;
-            }
-            const img = d.createElement("img");
-            img.style.maxWidth = "100%";
-            container.appendChild(img);
-            this._renderHeicDngAsImage(img, url).then(() => {
-              console.log("[CloudAttach] HEIC/DNG img.src after render:", img.src.substring(0, 50), "offset:", img.offsetWidth + "x" + img.offsetHeight);
-            });
-          }
-        }
-      }
-    }
   }
   // Sign 检查与刷新
   // ============================================================
