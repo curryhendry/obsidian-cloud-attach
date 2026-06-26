@@ -3494,40 +3494,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
     // PDF.js 内联预览（v0.3.026）
     this._observePdfEmbeds();
-    // PostProcessor：HEIC/DNG 预览（独立于 PDF 处理，Obsidian 不认得此格式可能渲染为 a/img/空节点）
-    console.log('[CloudAttach] registering HEIC/DNG PostProcessor');
-    this.registerMarkdownPostProcessor(async (el, ctx) => {
-      console.log('[CloudAttach] HEIC PostProcessor called, el.children:', el.children.length);
-      const walk = (node) => {
-        if (node.nodeType === 1) {
-          const tag = node.tagName;
-          let url = '';
-          if (tag === 'IMG') url = node.getAttribute('src') || node.src || '';
-          else if (tag === 'A') url = node.getAttribute('href') || '';
-          if (url && this._isHeicDngUrl(url) && !node.dataset.cloudattachHeicDngDone) {
-            node.dataset.cloudattachHeicDngDone = '1';
-            const img = tag === 'IMG' ? node : (() => { const i = el.ownerDocument.createElement('img'); i.src = url; i.style.maxWidth = '100%'; node.replaceWith(i); return i; })();
-            this._renderHeicDngAsImage(img, url);
-          }
-          Array.from(node.children).forEach(walk);
-        }
-      };
-      Array.from(el.children).forEach(walk);
-    });
     // PostProcessor：阅读模式下标记 iOS blob URL img 为 PDF，由 _scanAllPdfImgs 统一处理
     this.registerMarkdownPostProcessor(async (el, ctx) => {
       const imgs = el.querySelectorAll('img');
       if (imgs.length === 0) return;
-      // 先处理直链 HEIC/DNG（macOS/桌面端非 blob URL）
-      Array.from(imgs).forEach(img => {
-        if (img.closest('.cloudattach-pdf-container')) return;
-                const src = img.getAttribute('src') || img.src || '';
-        if (this._isHeicDngUrl(src) && !img.dataset.cloudattachHeicDngDone) {
-          img.dataset.cloudattachHeicDngDone = '1';
-          this._renderHeicDngAsImage(img, src);
-        }
-      });
-      // 再处理 iOS blob URL（PDF/HEIC/DNG）
       const blobImgs = Array.from(imgs).filter(
         img => !img.closest('.cloudattach-pdf-container') &&
                (img.getAttribute('src') || '').startsWith('blob:')
@@ -3538,14 +3508,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (!file || !file.extension) return;
       try {
         const content = await this.app.vault.cachedRead(file);
-        // 提取所有非原生图片 URL（PDF、HEIC、DNG），按 DOM 顺序打标记
-        const nonNativePatterns = [];
+        // 提取所有含 .pdf 的 URL 和宽度
+        const pdfPatterns = [];
         const re = /!?\[([^\]]*)\]\(([^)]*)\)/gi;
         let m;
         while ((m = re.exec(content)) !== null) {
           const url = m[2];
-          const urlLower = url.toLowerCase();
-          if (urlLower.includes('.pdf')) {
+          if (url.toLowerCase().includes('.pdf')) {
             const label = m[1];
             let width = '';
             const barIdx = label.lastIndexOf('|');
@@ -3553,21 +3522,15 @@ module.exports = class CloudAttachPlugin extends Plugin {
               const afterBar = label.substring(barIdx + 1).trim();
               if (/^\d+$/.test(afterBar)) width = afterBar;
             }
-            nonNativePatterns.push({ type: 'pdf', url, width });
-          } else if (/\.(heic|dng)(\?|#|$)/i.test(urlLower)) {
-            nonNativePatterns.push({ type: 'heicDng', url });
+            pdfPatterns.push({ url, width });
           }
         }
-        // 按 DOM 顺序给 blob img 打标记，由 _scanAllPdfImgs 统一处理
+        // 按 DOM 顺序给 blob img 打标记，不直接渲染
         blobImgs.forEach((img, idx) => {
-          if (idx < nonNativePatterns.length) {
-            const pat = nonNativePatterns[idx];
-            if (pat.type === 'pdf') {
-              img.dataset.cloudattachPdfUrl = pat.url;
-              if (pat.width) img.dataset.cloudattachWidth = pat.width;
-            } else {
-              img.dataset.cloudattachHeicDngUrl = pat.url;
-            }
+          if (idx < pdfPatterns.length) {
+            const pat = pdfPatterns[idx];
+            img.dataset.cloudattachPdfUrl = pat.url;
+            if (pat.width) img.dataset.cloudattachWidth = pat.width;
             img.dataset.cloudattachProcessed = 'pending';
           }
         });
@@ -3743,85 +3706,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
 
   _isPdfUrl(url) {
     return /\.pdf(\?|#|$)/i.test(url);
-  }
-
-  _isHeicDngUrl(url) {
-    return /\.(heic|dng)(\?|#|$)/i.test(url);
-  }
-
-  _extractEmbeddedJpeg(buffer) {
-    const data = new Uint8Array(buffer);
-    const segments = [];
-    let soi = -1;
-    for (let i = 0; i < data.length - 1; i++) {
-      if (data[i] === 0xFF && data[i + 1] === 0xD8) { soi = i; }
-      else if (data[i] === 0xFF && data[i + 1] === 0xD9 && soi >= 0) {
-        segments.push(data.slice(soi, i + 2));
-        soi = -1;
-      }
-    }
-    return segments;
-  }
-
-  async _renderHeicDngAsImage(imgEl, url) {
-    console.log('[CloudAttach] _renderHeicDngAsImage ENTER:', url.substring(url.lastIndexOf('/')+1).substring(0,40));
-    const modeKey = imgEl.closest('.markdown-reading-view') ? 'reading' : 'editing';
-    if (!this._renderedHeicDngByMode) this._renderedHeicDngByMode = {};
-    if (!this._renderedHeicDngByMode[modeKey]) this._renderedHeicDngByMode[modeKey] = new Set();
-    const renderedSet = this._renderedHeicDngByMode[modeKey];
-    if (renderedSet.has(url)) return;
-    try {
-      let reqUrlFn = null;
-      try { reqUrlFn = require('obsidian').requestUrl; } catch (e) {}
-      const resp = reqUrlFn
-        ? await reqUrlFn({ url, method: 'GET' })
-        : await fetch(url);
-      const buf = resp.arrayBuffer || (await resp.arrayBuffer());
-      const arr = new Uint8Array(buf);
-      console.log('[CloudAttach] HEIC/DNG buf size:', arr.length, 'first bytes:', Array.from(arr.slice(0,10)).map(b=>b.toString(16)).join(' '));
-      const segments = this._extractEmbeddedJpeg(buf);
-      if (!segments.length) { console.log('[CloudAttach] HEIC/DNG: no embedded JPEG'); return; }
-      console.log('[CloudAttach] HEIC/DNG found', segments.length, 'JPEG candidates');
-      let blobUrl = null;
-      let bestSize = 0;
-      for (let s = 0; s < segments.length; s++) {
-        const blob = new Blob([segments[s]], { type: 'image/jpeg' });
-        const tryUrl = URL.createObjectURL(blob);
-        try {
-          await new Promise((resolve, reject) => {
-            imgEl.onload = () => resolve(true);
-            imgEl.onerror = () => resolve(false);
-            imgEl.src = tryUrl;
-          });
-          if (imgEl.naturalWidth > 0) {
-            console.log('[CloudAttach] HEIC/DNG segment', s, 'valid:', imgEl.naturalWidth + 'x' + imgEl.naturalHeight, 'size:', segments[s].length);
-            blobUrl = tryUrl;
-            break;
-          }
-          URL.revokeObjectURL(tryUrl);
-        } catch (e) {
-          URL.revokeObjectURL(tryUrl);
-        }
-      }
-      if (!blobUrl) {
-        // brute force keep the biggest segment as fallback
-        console.log('[CloudAttach] HEIC/DNG no valid segment, using biggest in hopes it renders later');
-        let biggest = segments[0];
-        for (let s = 1; s < segments.length; s++) {
-          if (segments[s].length > biggest.length) biggest = segments[s];
-        }
-        const blob = new Blob([biggest], { type: 'image/jpeg' });
-        blobUrl = URL.createObjectURL(blob);
-        imgEl.src = blobUrl;
-      }
-      imgEl.style.maxWidth = '100%';
-      imgEl.style.height = 'auto';
-      imgEl.style.display = 'block';
-      console.log('[CloudAttach] HEIC/DNG rendered:', imgEl.naturalWidth, 'element:', imgEl.offsetWidth + 'x' + imgEl.offsetHeight, 'inDoc:', !!imgEl.closest('body'));
-      renderedSet.add(url);
-    } catch (e) {
-      console.log('[CloudAttach] _renderHeicDngAsImage failed:', e);
-    }
   }
 
   async _renderPdfAsCanvas(imgEl, url) {
@@ -4283,7 +4167,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (this._pdfObserver) return;
     // 去重：编辑/阅读模式使用独立的 Set
     if (!this._renderedPdfUrlsByMode) this._renderedPdfUrlsByMode = { editing: new Set(), reading: new Set() };
-    if (!this._renderedHeicDngByMode) this._renderedHeicDngByMode = { editing: new Set(), reading: new Set() };
     this._pdfObserver = new MutationObserver((mutations) => {
       mutations.forEach(m => {
         m.addedNodes.forEach(n => {
@@ -4293,11 +4176,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
           imgs.forEach(img => {
             // 避免重复处理已替换的容器
             if (img.closest('.cloudattach-pdf-container')) return;
-            const src = img.getAttribute('src') || img.src || '';
+            const src = img.getAttribute('src') || '';
             if (this._isPdfUrl(src)) {
               this._renderPdfAsCanvas(img, src);
-            } else if (this._isHeicDngUrl(src)) {
-              this._renderHeicDngAsImage(img, src);
             }
           });
         });
@@ -4316,7 +4197,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const rescanPdfImgs = () => {
       // 清空已渲染记录，确保切换笔记后重新渲染（编辑/阅读模式独立）
       this._renderedPdfUrlsByMode = { editing: new Set(), reading: new Set() };
-      this._renderedHeicDngByMode = { editing: new Set(), reading: new Set() };
       // 销毁懒加载 observer 释放资源
       if (this._pdfLazyObservers) {
         this._pdfLazyObservers.forEach(obs => obs.disconnect());
@@ -4341,7 +4221,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     this.registerEvent(this.app.workspace.on('layout-change', () => {
       // 重新扫描主窗口（编辑/阅读模式独立）
       this._renderedPdfUrlsByMode = { editing: new Set(), reading: new Set() };
-      this._renderedHeicDngByMode = { editing: new Set(), reading: new Set() };
       this._scanAllPdfImgs();
       setTimeout(() => this._scanAllPdfImgs(), 500);
       setTimeout(() => this._scanAllPdfImgs(), 3000);
@@ -4362,11 +4241,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
             const imgs = n.tagName === 'IMG' ? [n] : Array.from(n.querySelectorAll('img'));
             imgs.forEach(img => {
               if (img.closest('.cloudattach-pdf-container')) return;
-              const src = img.getAttribute('src') || img.src || '';
+              const src = img.getAttribute('src') || '';
               if (this._isPdfUrl(src)) {
                 this._renderPdfAsCanvas(img, src);
-              } else if (this._isHeicDngUrl(src)) {
-                this._renderHeicDngAsImage(img, src);
               }
             });
           });
@@ -4378,33 +4255,25 @@ module.exports = class CloudAttachPlugin extends Plugin {
     });
   }
 
-  async _scanAllPdfImgs(doc) {
+  _scanAllPdfImgs(doc) {
     const d = doc || document;
     // 优先处理 PostProcessor 标记的 pending img（阅读模式 iOS blob URL）
     const pendingImgs = d.querySelectorAll('img[data-cloudattach-processed="pending"]');
     pendingImgs.forEach(img => {
       if (img.closest('.cloudattach-pdf-container')) return;
       const pdfUrl = img.dataset.cloudattachPdfUrl;
-      const heicDngUrl = img.dataset.cloudattachHeicDngUrl;
-      img.dataset.cloudattachProcessed = 'done';
       if (pdfUrl) {
+        img.dataset.cloudattachProcessed = 'done';
         this._renderPdfAsCanvas(img, pdfUrl);
-      } else if (heicDngUrl) {
-        this._renderHeicDngAsImage(img, heicDngUrl);
       }
     });
     // 再处理普通 PDF URL
     const allImgs = d.querySelectorAll('img');
     allImgs.forEach(img => {
       if (img.closest('.cloudattach-pdf-container')) return;
-      const src = img.getAttribute('src') || img.src || '';
+      const src = img.getAttribute('src') || '';
       if (this._isPdfUrl(src)) {
         this._renderPdfAsCanvas(img, src);
-        return;
-      }
-      if (this._isHeicDngUrl(src)) {
-        console.log('[CloudAttach] _scanAllPdfImgs calling _renderHeicDngAsImage for:', src.substring(0,60));
-        this._renderHeicDngAsImage(img, src);
         return;
       }
       const alt = img.getAttribute('alt') || '';
@@ -4412,29 +4281,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
         this._renderPdfAsCanvas(img, src);
       }
     });
-    // Obsidian 不认识 HEIC/DNG 可能不创建 img 也不调用 PostProcessor
-    // ——从笔记原始内容解析 HEIC/DNG 语法并手动创建 img 渲染
-    if (!doc) {
-      const view = this.app.workspace.getActiveViewOfType(require('obsidian').MarkdownView);
-      if (view && view.file) {
-        const content = await this.app.vault.cachedRead(view.file);
-        const re = /!?\[([^\]]*)\]\(([^)]+)\)/gi;
-        let m;
-        while ((m = re.exec(content)) !== null) {
-          const url = m[2];
-          if (this._isHeicDngUrl(url) && !this._renderedHeicDngByMode?.reading?.has(url)) {
-            const container = d.querySelector('.markdown-preview-section') || d.querySelector('.markdown-reading-view > div');
-            if (!container) { console.log('[CloudAttach] HEIC/DNG: no preview container found'); break; }
-            const img = d.createElement('img');
-            img.style.maxWidth = '100%';
-            container.appendChild(img);
-            this._renderHeicDngAsImage(img, url).then(() => {
-              console.log('[CloudAttach] HEIC/DNG img.src after render:', img.src.substring(0,50), 'offset:', img.offsetWidth+'x'+img.offsetHeight);
-            });
-          }
-        }
-      }
-    }
   }
 
   // Sign 检查与刷新
