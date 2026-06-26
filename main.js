@@ -4180,13 +4180,40 @@ var CloudAttachSuggest = class extends EditorSuggest {
     if (!ctx || !ctx.ok)
       return;
     try {
-      let url;
-      const signedUrl = await (ctx.client.getSignedUrl ? ctx.client.getSignedUrl(suggestion.path) : null);
-      url = signedUrl || ctx.client.getFileUrl(suggestion.path);
       const ext = (suggestion.name.split(".").pop() || "").toLowerCase();
       const nameWithoutExt = suggestion.name.replace(/\.[^.]+$/, "");
-      const imageExts = ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "heic", "heif"];
-      const syntax = imageExts.includes(ext) ? `![${nameWithoutExt}](${url})` : `[${nameWithoutExt}](${url})`;
+      const imageExts = ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico", "heic", "heif"];
+      const videoExts = ["mp4", "mov", "avi", "mkv", "webm", "flv"];
+      const audioExts = ["mp3", "wav", "flac", "aac", "ogg", "m4a"];
+      const docExts = ["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx"];
+      const isPdfJsInsert = ext === "pdf" && this.plugin.settings.pdfPreview === "pdfjs";
+      let url;
+      if (docExts.includes(ext) && !isPdfJsInsert) {
+        url = ctx.client.getRawUrl ? ctx.client.getRawUrl(suggestion.path) : ctx.client.getFileUrl(suggestion.path);
+      } else {
+        const signedUrl = await (ctx.client.getSignedUrl ? ctx.client.getSignedUrl(suggestion.path) : null);
+        url = signedUrl || ctx.client.getFileUrl(suggestion.path);
+      }
+      let syntax;
+      if (imageExts.includes(ext)) {
+        syntax = `![${nameWithoutExt}](${url})`;
+      } else if (videoExts.includes(ext)) {
+        const videoType = ext === "webm" ? "video/webm" : ext === "mov" ? "video/quicktime" : "video/mp4";
+        syntax = `<video controls width="600" height="400">
+ <source src="${url}" type="${videoType}">
+</video>`;
+      } else if (audioExts.includes(ext)) {
+        const audioType = ext === "ogg" ? "audio/ogg" : ext === "wav" ? "audio/wav" : "audio/mpeg";
+        syntax = `<audio controls>
+ <source src="${url}" type="${audioType}">
+</audio>`;
+      } else if (docExts.includes(ext) && !isPdfJsInsert) {
+        syntax = `<iframe src="${url}" width="100%" height="800px"></iframe>`;
+      } else if (isPdfJsInsert) {
+        syntax = `![${nameWithoutExt}](${url})`;
+      } else {
+        syntax = `[${nameWithoutExt}](${url})`;
+      }
       editor.replaceRange(syntax, start, end);
     } catch (e) {
       console.error("[CloudAttach] EditorSuggest select error:", e);
