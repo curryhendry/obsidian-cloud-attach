@@ -4286,13 +4286,20 @@ module.exports = class CloudAttachPlugin extends Plugin {
             }
             pdfPatterns.push({ url, width });
           }
+          if (this._isHeicUrl(url)) {
+            pdfPatterns.push({ url, width: "", heic: true });
+          }
         }
         blobImgs.forEach((img, idx) => {
           if (idx < pdfPatterns.length) {
             const pat = pdfPatterns[idx];
-            img.dataset.cloudattachPdfUrl = pat.url;
-            if (pat.width)
-              img.dataset.cloudattachWidth = pat.width;
+            if (pat.heic) {
+              img.dataset.cloudattachHeicUrl = pat.url;
+            } else {
+              img.dataset.cloudattachPdfUrl = pat.url;
+              if (pat.width)
+                img.dataset.cloudattachWidth = pat.width;
+            }
             img.dataset.cloudattachProcessed = "pending";
           }
         });
@@ -5056,9 +5063,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (img.closest(".cloudattach-pdf-container"))
         return;
       const pdfUrl = img.dataset.cloudattachPdfUrl;
+      const heicUrl = img.dataset.cloudattachHeicUrl;
       if (pdfUrl) {
         img.dataset.cloudattachProcessed = "done";
         this._renderPdfAsCanvas(img, pdfUrl);
+      } else if (heicUrl) {
+        img.dataset.cloudattachProcessed = "done";
+        this._renderHeicAsImage(img, heicUrl);
       }
     });
     const allImgs = d.querySelectorAll("img");
@@ -5070,12 +5081,16 @@ module.exports = class CloudAttachPlugin extends Plugin {
         this._renderPdfAsCanvas(img, src);
         return;
       }
+      if (this._isHeicUrl(src)) {
+        this._renderHeicAsImage(img, src);
+        return;
+      }
       const alt = img.getAttribute("alt") || "";
       if (alt && /\.pdf\s*$/i.test(alt.trim())) {
         this._renderPdfAsCanvas(img, src);
       }
-      if (this._isHeicUrl(src) || this._isHeicUrl(alt)) {
-        this._renderHeicAsImage(img, src);
+      if (this._isHeicUrl(alt)) {
+        this._renderHeicAsImage(img, alt);
       }
     });
   }

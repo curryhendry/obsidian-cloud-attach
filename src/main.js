@@ -3525,13 +3525,21 @@ module.exports = class CloudAttachPlugin extends Plugin {
             }
             pdfPatterns.push({ url, width });
           }
+          // HEIC/HEIF 也做标记（iOS blob URL 场景）
+          if (this._isHeicUrl(url)) {
+            pdfPatterns.push({ url, width: '', heic: true });
+          }
         }
         // 按 DOM 顺序给 blob img 打标记，不直接渲染
         blobImgs.forEach((img, idx) => {
           if (idx < pdfPatterns.length) {
             const pat = pdfPatterns[idx];
-            img.dataset.cloudattachPdfUrl = pat.url;
-            if (pat.width) img.dataset.cloudattachWidth = pat.width;
+            if (pat.heic) {
+              img.dataset.cloudattachHeicUrl = pat.url;
+            } else {
+              img.dataset.cloudattachPdfUrl = pat.url;
+              if (pat.width) img.dataset.cloudattachWidth = pat.width;
+            }
             img.dataset.cloudattachProcessed = 'pending';
           }
         });
@@ -4294,12 +4302,16 @@ module.exports = class CloudAttachPlugin extends Plugin {
     pendingImgs.forEach(img => {
       if (img.closest('.cloudattach-pdf-container')) return;
       const pdfUrl = img.dataset.cloudattachPdfUrl;
+      const heicUrl = img.dataset.cloudattachHeicUrl;
       if (pdfUrl) {
         img.dataset.cloudattachProcessed = 'done';
         this._renderPdfAsCanvas(img, pdfUrl);
+      } else if (heicUrl) {
+        img.dataset.cloudattachProcessed = 'done';
+        this._renderHeicAsImage(img, heicUrl);
       }
     });
-    // 再处理普通 PDF URL
+    // 再处理普通 PDF/HEIC URL
     const allImgs = d.querySelectorAll('img');
     allImgs.forEach(img => {
       if (img.closest('.cloudattach-pdf-container')) return;
@@ -4308,13 +4320,16 @@ module.exports = class CloudAttachPlugin extends Plugin {
         this._renderPdfAsCanvas(img, src);
         return;
       }
+      if (this._isHeicUrl(src)) {
+        this._renderHeicAsImage(img, src);
+        return;
+      }
       const alt = img.getAttribute('alt') || '';
       if (alt && /\.pdf\s*$/i.test(alt.trim())) {
         this._renderPdfAsCanvas(img, src);
       }
-      // HEIC/HEIF 预览
-      if (this._isHeicUrl(src) || this._isHeicUrl(alt)) {
-        this._renderHeicAsImage(img, src);
+      if (this._isHeicUrl(alt)) {
+        this._renderHeicAsImage(img, alt);
       }
     });
   }
