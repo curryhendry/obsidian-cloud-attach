@@ -2390,7 +2390,7 @@ class CloudAttachView extends ItemView {
   async getInsertMarkdown(file, width) {
     const ext = file.name.split('.').pop()?.toLowerCase() || '';
     const nameWithoutExt = file.name.replace(/\.[^.]+$/, '');
-    const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'];
+    const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'heic', 'heif'];
     const videoExts = ['mp4', 'mov', 'avi', 'mkv', 'webm', 'flv'];
     const audioExts = ['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a'];
     const docExts = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'];
@@ -5198,7 +5198,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (replacements.length > 0 && view?.editor) {
       let text = view.editor.getValue();
       // 文件类型分类（与插入逻辑一致）
-      const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico'];
+      const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico', 'heic', 'heif'];
       const videoExts = ['mp4', 'mov', 'avi', 'mkv', 'webm', 'flv'];
       const audioExts = ['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a'];
       const docExts = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'];
