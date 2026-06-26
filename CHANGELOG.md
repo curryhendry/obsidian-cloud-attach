@@ -1,3 +1,10 @@
+## v0.4.040.dev - 2026-06-26
+
+- 修复：alt 属性纯文件名被当作 URL 传给 requestUrl 导致 Invalid URL
+  - 增加协议前缀检查（^https?://），纯文件名/本地路径不再走远程请求
+- 修复：多附件并发拖入时 doUpload 相互覆盖编辑器内容
+  - 改为 Promise 链串行化（_autoUploadChain），上一上传完成后再处理下一个
+
 ## v0.4.039.dev - 2026-06-26
 
 - 修复：自动上传白名单排除 HEIC/HEIF 等格式

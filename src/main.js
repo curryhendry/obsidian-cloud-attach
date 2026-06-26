@@ -3559,6 +3559,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
     }
     // Auto-upload: 监听粘贴/拖入创建的新文件
+    if (!this._autoUploadChain) this._autoUploadChain = Promise.resolve();
     this.registerEvent(this.app.vault.on('create', (file) => {
       if (!this.settings.enableAutoUpload) return;
       if (!this.defaultAccountId) return;
@@ -3566,28 +3567,33 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (!(file instanceof TFile)) return;
       // 排除 .md 笔记文件，其他附件一律上传
       if (file.extension.toLowerCase() === 'md') return;
-      // 延迟+重试确保编辑器已更新（gif/mov 写入较慢）
-      const tryUpload = async (retriesLeft) => {
-        const view = this.activeMarkdownView || this.app.workspace.getActiveViewOfType(MarkdownView);
-        if (!view?.editor || !view.file) return;
-        const text = view.editor.getValue();
-        const fileName = file.path.split('/').pop();
-        const escapedName = this._escapeRegex(fileName);
-        const wikiPattern = new RegExp(`!\\[\\[(?:.*/)?${escapedName}(?:\\|[^\\]]*)?\\]\\]`);
-        const mdPattern = new RegExp(`!\\[[^\\]]*\\]\\((?:.*/)?${escapedName}\\)`);
-        const wikiMatch = text.match(wikiPattern);
-        const mdMatch = text.match(mdPattern);
-        if (!wikiMatch && !mdMatch) {
-          if (retriesLeft > 0) {
-            setTimeout(() => tryUpload(retriesLeft - 1), 1000);
+      // Promise 链串行化：避免并发 doUpload 读写编辑器相互覆盖
+      this._autoUploadChain = this._autoUploadChain.then(() => new Promise(resolve => {
+        const tryUpload = async (retriesLeft) => {
+          const view = this.activeMarkdownView || this.app.workspace.getActiveViewOfType(MarkdownView);
+          if (!view?.editor || !view.file) { resolve(); return; }
+          const text = view.editor.getValue();
+          const fileName = file.path.split('/').pop();
+          const escapedName = this._escapeRegex(fileName);
+          const wikiPattern = new RegExp(`!\[\[(?:.*/)?${escapedName}(?:\|[^\]]*)?\]\]`);
+          const mdPattern = new RegExp(`!\[[^\]]*\]\((?:.*/)?${escapedName}\)`);
+          const wikiMatch = text.match(wikiPattern);
+          const mdMatch = text.match(mdPattern);
+          if (!wikiMatch && !mdMatch) {
+            if (retriesLeft > 0) {
+              setTimeout(() => tryUpload(retriesLeft - 1), 1000);
+            } else {
+              resolve();
+            }
+            return;
           }
-          return;
-        }
-        const ctx = this.getDefaultUploadContext();
-        if (!ctx || !ctx.ok) return;
-        await this.doUpload([{ localPath: file.path, syntax: (wikiMatch || mdMatch)[0] }], ctx);
-      };
-      setTimeout(() => tryUpload(2), 500);
+          const ctx = this.getDefaultUploadContext();
+          if (!ctx || !ctx.ok) { resolve(); return; }
+          await this.doUpload([{ localPath: file.path, syntax: (wikiMatch || mdMatch)[0] }], ctx);
+          resolve();
+        };
+        setTimeout(() => tryUpload(2), 500);
+      }));
     }));
     console.log('CloudAttach loaded');
   }
@@ -4322,10 +4328,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
         return;
       }
       const alt = img.getAttribute('alt') || '';
-      if (alt && /\.pdf\s*$/i.test(alt.trim())) {
-        this._renderPdfAsCanvas(img, src);
+      if (alt && /^https?:\/\//i.test(alt) && /\.pdf\s*$/i.test(alt.trim())) {
+        this._renderPdfAsCanvas(img, alt);
       }
-      if (this._isHeicUrl(alt)) {
+      if (this._isHeicUrl(alt) && /^https?:\/\//i.test(alt)) {
         this._renderHeicAsImage(img, alt);
       }
     });
