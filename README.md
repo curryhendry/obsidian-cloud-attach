@@ -91,9 +91,7 @@
 <img alt="自动上传-720p" src="https://github.com/user-attachments/assets/ad1d2149-efdb-413b-8245-e200eaef77ea" />
 <br>
 
-**快速插入：** 在编辑器中输入 `cloud-` 即可唤出云端文件选单，输入关键词过滤，选中后按图片/视频/音频/文档类型自动插入对应语法。
-
-**快速插入附件**
+**快速插入附件**<br>
 <img alt="快捷插入附件-720p_compressed" src="https://github.com/user-attachments/assets/db32f99c-48c1-4262-8252-26586e618bed" />
 
 ---
