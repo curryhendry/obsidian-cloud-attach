@@ -5,7 +5,7 @@
 
 'use strict';
 
-const { Plugin, Notice, Menu, Modal, PluginSettingTab, MarkdownView, ItemView } = require('obsidian');
+const { Plugin, Notice, Menu, Modal, PluginSettingTab, MarkdownView, ItemView, EditorSuggest } = require('obsidian');
 const heic2any = require('heic2any');
 
 const VIEW_TYPE_CLOUDATTACH = 'cloud-attach-view';
@@ -3325,6 +3325,112 @@ class AdvancedSettingModal extends Modal {
 }
 
 
+// === EditorSuggest: cloud- 快速插入 ===
+class CloudAttachSuggest extends EditorSuggest {
+  constructor(app, plugin) {
+    super(app);
+    this.plugin = plugin;
+    this.limit = 50;
+  }
+
+  onTrigger(cursor, editor, file) {
+    if (!file) return null;
+    const line = editor.getLine(cursor.line);
+    const sub = line.substring(0, cursor.ch);
+    const idx = sub.lastIndexOf('cloud-');
+    if (idx === -1) return null;
+    // cloud- 前面不能是字母/数字/-（避免匹配 abccloud- 这种）
+    if (idx > 0 && /[\w-]/.test(sub[idx - 1])) return null;
+    const query = sub.substring(idx + 6);
+    return { start: { line: cursor.line, ch: idx }, end: { line: cursor.line, ch: cursor.ch }, query };
+  }
+
+  async getSuggestions(context) {
+    const ctx = this.plugin.getDefaultUploadContext();
+    if (!ctx || !ctx.ok) return [];
+    const query = context.query || '';
+    let dirPath = '/';
+    let filter = '';
+    if (query) {
+      const lastSlash = query.lastIndexOf('/');
+      if (lastSlash >= 0) {
+        const pathParts = query.substring(0, lastSlash).split('/').filter(p => p);
+        dirPath = '/' + pathParts.join('/');
+        if (dirPath !== '/') dirPath += '/';
+        filter = query.substring(lastSlash + 1);
+      } else {
+        filter = query;
+      }
+    }
+    try {
+      const files = await ctx.client.listDirectory(dirPath);
+      if (!filter) return files;
+      const q = filter.toLowerCase();
+      return files.filter(f => {
+        if (f.name.toLowerCase().includes(q)) return true;
+        if (f.isDirectory) return f.name.toLowerCase().startsWith(q);
+        return false;
+      });
+    } catch (e) {
+      console.error('[CloudAttach] EditorSuggest list error:', e);
+      return [];
+    }
+  }
+
+  renderSuggestion(suggestion, el) {
+    const icon = suggestion.isDirectory ? '📁 ' : '📄 ';
+    el.createSpan({ text: icon });
+    // 文件名中匹配部分高亮
+    const nameEl = el.createSpan({ text: suggestion.name });
+    nameEl.style.color = 'var(--text-normal)';
+    if (!suggestion.isDirectory && suggestion.size) {
+      const sizeStr = suggestion.size < 1024 * 1024
+        ? ` ${(suggestion.size / 1024).toFixed(0)}KB`
+        : ` ${(suggestion.size / 1024 / 1024).toFixed(1)}MB`;
+      const sizeEl = el.createSpan({ text: sizeStr });
+      sizeEl.style.color = 'var(--text-faint)';
+      sizeEl.style.fontSize = '12px';
+    }
+  }
+
+  async selectSuggestion(suggestion, evt) {
+    const context = this.context;
+    if (!context) return;
+    const { editor, start, end, query } = context;
+
+    if (suggestion.isDirectory) {
+      // 解析当前路径，构建完整子目录路径
+      const q = query || '';
+      let basePath = '';
+      if (q.includes('/')) {
+        const lastSlash = q.lastIndexOf('/');
+        basePath = q.substring(0, lastSlash + 1);
+      }
+      const nextPath = `cloud-${basePath}${suggestion.name}/`;
+      editor.replaceRange(nextPath, start, end);
+      return;
+    }
+
+    const ctx = this.plugin.getDefaultUploadContext();
+    if (!ctx || !ctx.ok) return;
+    try {
+      let url;
+      const signedUrl = await (ctx.client.getSignedUrl ? ctx.client.getSignedUrl(suggestion.path) : null);
+      url = signedUrl || ctx.client.getFileUrl(suggestion.path);
+      const ext = (suggestion.name.split('.').pop() || '').toLowerCase();
+      const nameWithoutExt = suggestion.name.replace(/\.[^.]+$/, '');
+      const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'heic', 'heif'];
+      const syntax = imageExts.includes(ext)
+        ? `![${nameWithoutExt}](${url})`
+        : `[${nameWithoutExt}](${url})`;
+      editor.replaceRange(syntax, start, end);
+    } catch (e) {
+      console.error('[CloudAttach] EditorSuggest select error:', e);
+      new Notice('❌ ' + e.message, 4000);
+    }
+  }
+}
+
 // === PDF.js View ===
 
 module.exports = class CloudAttachPlugin extends Plugin {
@@ -3360,6 +3466,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
     this.addStyles();
     this.addRibbonIcon('folder-open', t('cmd.open_browser'), () => this.activateView());
     this.addSettingTab(new CloudAttachSettingTab(this));
+    // EditorSuggest: cloud- 快速插入云端文件
+    this.registerEditorSuggest(new CloudAttachSuggest(this.app, this));
     this.addCommand({ id: 'open-browser', name: t('cmd.open_cloud_attach'), callback: () => this.activateView() });
     this.addCommand({
       id: 'reload-plugin',
