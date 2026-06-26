@@ -91,9 +91,7 @@ S3 object storage configuration:
 <img alt="Auto Upload" src="https://github.com/user-attachments/assets/ad1d2149-efdb-413b-8245-e200eaef77ea" />
 <br>
 
-**Quick Insert:** Type `cloud-` in the editor to bring up a cloud file picker. Filter by keyword, and the plugin inserts the correct syntax (image, video, audio, document, or PDF.js) automatically.
-
-**Quick Insert**
+**Quick Insert**<br>
 <img alt="Quick Insert" src="https://github.com/user-attachments/assets/db32f99c-48c1-4262-8252-26586e618bed" />
 
 ---
