@@ -4502,6 +4502,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     return /\.(heic|heif)(\?|#|$)/i.test(url);
   }
   async _renderHeicAsImage(imgEl, url) {
+    url = encodeURI(url);
     if (imgEl.closest(".cloudattach-heic-container"))
       return;
     const modeKey = imgEl.closest(".markdown-reading-view") ? "reading" : "editing";
