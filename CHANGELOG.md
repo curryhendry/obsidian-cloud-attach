@@ -1,4 +1,4 @@
-## v0.4.042.dev - 2026-06-26
+## v0.4.042 - 2026-06-26
 
 - 新增：EditorSuggest cloud- 快速插入云端文件（输入 cloud- 弹出默认账户文件列表，选中插入 ![]() 或 []() 语法）
 - 修复：EditorSuggest 视频/音频/PDF/文档分别走对应的 video/audio/iframe 语法（与 doUpload 一致）
