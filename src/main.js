@@ -839,21 +839,13 @@ class OpenListClient {
 
   // 获取文件的 WebDAV URL（用于插入到笔记）
   getFileUrl(remotePath) {
-    // 公开域名：有路径 → 全量替换；纯域名 → 只换域名保留路径
+    // 公开域名：完整替换 域名+路径+remotePath
     if (this.publicUrl) {
       let base = this.publicUrl;
       const proto = base.match(/^https?:/) ? '' : (this.serverUrl.match(/^https?:/)?.[0] || 'http:');
       if (!base.startsWith('http')) base = `${proto}//${base}`;
-      let hasOwnPath = false;
-      try { hasOwnPath = new URL(base).pathname.replace(/\/+$/, '') !== ''; } catch {}
-      if (hasOwnPath) {
-        // 完整路径：直接拼 remotePath
-        const encodedPath = remotePath.replace(/[\s#?&<>"'\\|{}]/g, c => encodeURIComponent(c));
-        return `${base.replace(/\/+$/, '')}${encodedPath}`;
-      }
-      // 纯域名：换域名，保留 webdavPath + remotePath
-      const fullPath = (this.webdavPath || '') + remotePath;
-      const encodedPath = fullPath.replace(/[\s#?&<>"'\\|{}]/g, c => encodeURIComponent(c));
+      base = base.replace(/\/+$/, '');
+      const encodedPath = remotePath.replace(/[\s#?&<>"'\\|{}]/g, c => encodeURIComponent(c));
       return `${base}${encodedPath}`;
     }
     const webdavPath = this.webdavPath || '';
@@ -874,17 +866,13 @@ class OpenListClient {
       const pathSuffix = this.webdavPath.slice('/dav'.length);
       virtualPath = pathSuffix + (remotePath.startsWith('/') ? remotePath : '/' + remotePath);
     }
-    // 公开域名：有路径 → 全量替换；纯域名 → 只换域名
+    // 公开域名：完整替换 域名+路径+remotePath
     if (this.publicUrl) {
       let base = this.publicUrl;
       const proto = base.match(/^https?:/) ? '' : (this.serverUrl.match(/^https?:/)?.[0] || 'http:');
       if (!base.startsWith('http')) base = `${proto}//${base}`;
-      let hasOwnPath = false;
-      try { hasOwnPath = new URL(base).pathname.replace(/\/+$/, '') !== ''; } catch {}
-      if (hasOwnPath) {
-        return `${base.replace(/\/+$/, '')}${remotePath}`;
-      }
-      return `${base}${virtualPath}`;
+      base = base.replace(/\/+$/, '');
+      return `${base}${remotePath}`;
     }
     // 保留原协议、保留中文原文
     const proto = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, '$1');
