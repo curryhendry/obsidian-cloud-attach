@@ -4324,37 +4324,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const TFile = require("obsidian").TFile;
       if (!(file instanceof TFile))
         return;
-      const ext = file.extension.toLowerCase();
-      const attachmentExts = [
-        "jpg",
-        "jpeg",
-        "png",
-        "gif",
-        "webp",
-        "svg",
-        "bmp",
-        "ico",
-        "pdf",
-        "doc",
-        "docx",
-        "xls",
-        "xlsx",
-        "ppt",
-        "pptx",
-        "mp4",
-        "mov",
-        "avi",
-        "mkv",
-        "webm",
-        "flv",
-        "mp3",
-        "wav",
-        "flac",
-        "aac",
-        "ogg",
-        "m4a"
-      ];
-      if (!attachmentExts.includes(ext))
+      if (file.extension.toLowerCase() === "md")
         return;
       const tryUpload = async (retriesLeft) => {
         const view = this.activeMarkdownView || this.app.workspace.getActiveViewOfType(MarkdownView);

@@ -1,3 +1,8 @@
+## v0.4.039.dev - 2026-06-26
+
+- 修复：自动上传白名单排除 HEIC/HEIF 等格式
+  - 改为排除 .md 而非白名单，所有附件一视同仁上传
+
 ## v0.4.038.dev - 2026-06-26
 
 - 修复：HEIC 中文路径 URL 编码（encodeURI）避免 requestUrl Invalid URL
