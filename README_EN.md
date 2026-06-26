@@ -15,7 +15,7 @@
 - A firm believer in the 'Zero-Attachment' workflow in Obsidian.
 - Heavy OpenList user
 - Former e-commerce practitioner, zero coding background
-- Built entirely with 🦞 (AI-assisted), token consumption: ~530M and counting
+- Built entirely with 🦞 (AI-assisted)
 
 ---
 
@@ -85,6 +85,10 @@ S3 object storage configuration:
 
 **Inline PDF preview:**
 <img alt="PDF Preview" src="https://github.com/user-attachments/assets/102e265a-c77c-4823-bdbd-1c9cba6fc9b0" />
+<br>
+
+**Auto Upload**
+<img alt="Auto Upload" src="https://github.com/user-attachments/assets/ad1d2149-efdb-413b-8245-e200eaef77ea" />
 
 ---
 
@@ -100,22 +104,20 @@ CloudAttach supports inline PDF preview using PDF.js. To enable:
 
 To revert to iframe preview, simply change the setting back in Advanced Settings.
 
-*Note: Manual size specification (e.g., `![|500](file.pdf)`) is not yet supported — coming in a future update.*
-
 ---
 
 ## Roadmap
 
 - [x] Object storage support (primarily Cloudflare R2)
-- [ ] Search server files within notes and insert (on hold — no good approach yet)
+~~- [ ] Search server files within notes and insert (on hold — no good approach yet)~~
 - [x] Manual trigger to detect and refresh expired sign tokens
 - [x] Semi-automatic note attachment upload
 - [x] Command palette support (Cmd/Ctrl+P)
 - [x] Publish to Obsidian Community Plugins
 - [x] File rename and delete support
 - [ ] PDF fullscreen view and more interactions
-- [x] Automatic attachment upload (default path)
 - [ ] Other file format support (e.g., Office preview, TBD)
+- [x] Automatic attachment upload (default path)
 
 ---
 
