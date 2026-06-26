@@ -3564,12 +3564,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (!this.defaultAccountId) return;
       const TFile = require('obsidian').TFile;
       if (!(file instanceof TFile)) return;
-      const ext = file.extension.toLowerCase();
-      const attachmentExts = ['jpg','jpeg','png','gif','webp','svg','bmp','ico',
-        'pdf','doc','docx','xls','xlsx','ppt','pptx',
-        'mp4','mov','avi','mkv','webm','flv',
-        'mp3','wav','flac','aac','ogg','m4a'];
-      if (!attachmentExts.includes(ext)) return;
+      // 排除 .md 笔记文件，其他附件一律上传
+      if (file.extension.toLowerCase() === 'md') return;
       // 延迟+重试确保编辑器已更新（gif/mov 写入较慢）
       const tryUpload = async (retriesLeft) => {
         const view = this.activeMarkdownView || this.app.workspace.getActiveViewOfType(MarkdownView);
