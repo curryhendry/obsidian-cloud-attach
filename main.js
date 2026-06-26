@@ -1713,8 +1713,22 @@ var OpenListClient = class {
   // 获取文件的 WebDAV URL（用于插入到笔记）
   getFileUrl(remotePath) {
     if (this.publicUrl) {
-      const encodedPath2 = remotePath.replace(/[\s#?&<>"'\\|{}]/g, (c) => encodeURIComponent(c));
-      return `${this.publicUrl}${encodedPath2}`;
+      let base = this.publicUrl;
+      const proto2 = base.match(/^https?:/) ? "" : this.serverUrl.match(/^https?:/)?.[0] || "http:";
+      if (!base.startsWith("http"))
+        base = `${proto2}//${base}`;
+      let hasOwnPath = false;
+      try {
+        hasOwnPath = new URL(base).pathname.replace(/\/+$/, "") !== "";
+      } catch {
+      }
+      if (hasOwnPath) {
+        const encodedPath3 = remotePath.replace(/[\s#?&<>"'\\|{}]/g, (c) => encodeURIComponent(c));
+        return `${base.replace(/\/+$/, "")}${encodedPath3}`;
+      }
+      const fullPath2 = (this.webdavPath || "") + remotePath;
+      const encodedPath2 = fullPath2.replace(/[\s#?&<>"'\\|{}]/g, (c) => encodeURIComponent(c));
+      return `${base}${encodedPath2}`;
     }
     const webdavPath = this.webdavPath || "";
     const proto = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, "$1");
@@ -1731,7 +1745,19 @@ var OpenListClient = class {
       virtualPath = pathSuffix + (remotePath.startsWith("/") ? remotePath : "/" + remotePath);
     }
     if (this.publicUrl) {
-      return `${this.publicUrl}${remotePath}`;
+      let base = this.publicUrl;
+      const proto2 = base.match(/^https?:/) ? "" : this.serverUrl.match(/^https?:/)?.[0] || "http:";
+      if (!base.startsWith("http"))
+        base = `${proto2}//${base}`;
+      let hasOwnPath = false;
+      try {
+        hasOwnPath = new URL(base).pathname.replace(/\/+$/, "") !== "";
+      } catch {
+      }
+      if (hasOwnPath) {
+        return `${base.replace(/\/+$/, "")}${remotePath}`;
+      }
+      return `${base}${virtualPath}`;
     }
     const proto = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, "$1");
     const host = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, "$3");
@@ -3628,11 +3654,21 @@ var AddAccountModal = class extends Modal {
           new Notice(t("settings.please_fill_server"), 3e3);
           return;
         }
+        let autoWebdavPath = "";
+        try {
+          const urlObj = new URL(url);
+          if (urlObj.pathname && urlObj.pathname !== "/") {
+            autoWebdavPath = decodeURIComponent(urlObj.pathname.replace(/\/$/, ""));
+            url = url.split(urlObj.pathname)[0].replace(/\/$/, "");
+          }
+        } catch {
+        }
+        const finalWebdavPath = autoWebdavPath || fields.webdavPath.value.trim() || "";
         accountData = {
           type: "openlist",
           name: fields.name.value.trim() || t("settings.account_label", { n: this.plugin.accounts.length + 1 }),
           url,
-          webdavPath: fields.webdavPath.value.trim() || "",
+          webdavPath: finalWebdavPath,
           username: fields.username.value.trim(),
           password: fields.password.value,
           token: fields.token.value,

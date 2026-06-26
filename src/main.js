@@ -839,10 +839,22 @@ class OpenListClient {
 
   // 获取文件的 WebDAV URL（用于插入到笔记）
   getFileUrl(remotePath) {
-    // 公开域名：publicUrl 已含路径前缀，直接拼 remotePath
+    // 公开域名：有路径 → 全量替换；纯域名 → 只换域名保留路径
     if (this.publicUrl) {
-      const encodedPath = remotePath.replace(/[\s#?&<>"'\\|{}]/g, c => encodeURIComponent(c));
-      return `${this.publicUrl}${encodedPath}`;
+      let base = this.publicUrl;
+      const proto = base.match(/^https?:/) ? '' : (this.serverUrl.match(/^https?:/)?.[0] || 'http:');
+      if (!base.startsWith('http')) base = `${proto}//${base}`;
+      let hasOwnPath = false;
+      try { hasOwnPath = new URL(base).pathname.replace(/\/+$/, '') !== ''; } catch {}
+      if (hasOwnPath) {
+        // 完整路径：直接拼 remotePath
+        const encodedPath = remotePath.replace(/[\s#?&<>"'\\|{}]/g, c => encodeURIComponent(c));
+        return `${base.replace(/\/+$/, '')}${encodedPath}`;
+      }
+      // 纯域名：换域名，保留 webdavPath + remotePath
+      const fullPath = (this.webdavPath || '') + remotePath;
+      const encodedPath = fullPath.replace(/[\s#?&<>"'\\|{}]/g, c => encodeURIComponent(c));
+      return `${base}${encodedPath}`;
     }
     const webdavPath = this.webdavPath || '';
     // 保留原协议，不要写死 https
@@ -862,9 +874,17 @@ class OpenListClient {
       const pathSuffix = this.webdavPath.slice('/dav'.length);
       virtualPath = pathSuffix + (remotePath.startsWith('/') ? remotePath : '/' + remotePath);
     }
-    // 公开域名：publicUrl 已含路径前缀，直接拼 remotePath
+    // 公开域名：有路径 → 全量替换；纯域名 → 只换域名
     if (this.publicUrl) {
-      return `${this.publicUrl}${remotePath}`;
+      let base = this.publicUrl;
+      const proto = base.match(/^https?:/) ? '' : (this.serverUrl.match(/^https?:/)?.[0] || 'http:');
+      if (!base.startsWith('http')) base = `${proto}//${base}`;
+      let hasOwnPath = false;
+      try { hasOwnPath = new URL(base).pathname.replace(/\/+$/, '') !== ''; } catch {}
+      if (hasOwnPath) {
+        return `${base.replace(/\/+$/, '')}${remotePath}`;
+      }
+      return `${base}${virtualPath}`;
     }
     // 保留原协议、保留中文原文
     const proto = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, '$1');
@@ -2831,11 +2851,21 @@ class AddAccountModal extends Modal {
         let url = fields.url.value.trim().replace(/\/$/, '');
         if (url && !/^https?:\/\//i.test(url)) url = 'http://' + url;
         if (!url) { new Notice(t('settings.please_fill_server'), 3000); return; }
+        // 自动分离：URL 带路径 → 域名归 url，路径追加到 webdavPath
+        let autoWebdavPath = '';
+        try {
+          const urlObj = new URL(url);
+          if (urlObj.pathname && urlObj.pathname !== '/') {
+            autoWebdavPath = decodeURIComponent(urlObj.pathname.replace(/\/$/, ''));
+            url = url.split(urlObj.pathname)[0].replace(/\/$/, '');
+          }
+        } catch {}
+        const finalWebdavPath = autoWebdavPath || fields.webdavPath.value.trim() || '';
         accountData = {
           type: 'openlist',
           name: fields.name.value.trim() || t('settings.account_label', {n: this.plugin.accounts.length + 1}),
           url,
-          webdavPath: fields.webdavPath.value.trim() || '',
+          webdavPath: finalWebdavPath,
           username: fields.username.value.trim(),
           password: fields.password.value,
           token: fields.token.value,
