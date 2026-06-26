@@ -1,3 +1,13 @@
+## v0.4.021 - 2026-06-26
+
+- 新增：HEIC/HEIF 在线预览（heic2any 解码为 PNG）
+- 修复：自动上传白名单改为排除 .md，所有附件格式一视同仁上传
+- 修复：HEIC 中文路径 URL 编码（encodeURI/decodeURI 双保险）
+- 修复：alt 属性纯文件名被当作 URL 传给 requestUrl 导致 Invalid URL
+- 修复：多附件并发拖入时 doUpload 相互覆盖编辑器内容（Promise 链串行化）
+- 修复：imageExts 补充 heic/heif，拖入生成 ![]() 图片语法
+- 优化：401 sign 过期静默跳过，不刷控制台
+
 ## v0.4.040.dev - 2026-06-26
 
 - 修复：alt 属性纯文件名被当作 URL 传给 requestUrl 导致 Invalid URL

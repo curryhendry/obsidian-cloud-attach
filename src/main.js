@@ -3725,7 +3725,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
 
   async _renderHeicAsImage(imgEl, url) {
     url = encodeURI(decodeURI(url));
-    console.log('[CloudAttach] HEIC decode start:', url.substring(0, 80));
     if (imgEl.closest('.cloudattach-heic-container')) return;
     const modeKey = imgEl.closest('.markdown-reading-view') ? 'reading' : 'editing';
     if (!this._renderedHeic) this._renderedHeic = {};
@@ -3747,9 +3746,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
       imgEl.style.maxWidth = '100%';
       imgEl.style.height = 'auto';
       renderedSet.add(url);
-      console.log('[CloudAttach] HEIC decode done, png size:', Math.round(pngBlob.size/1024), 'KB');
     } catch (e) {
-      console.log('[CloudAttach] HEIC decode failed:', e.message || e);
+      if (e.message && e.message.includes('401')) return;
+      console.log('[CloudAttach] HEIC render failed:', e.message || e);
     }
   }
 
