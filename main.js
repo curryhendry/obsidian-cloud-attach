@@ -4483,7 +4483,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     return /\.(heic|heif)(\?|#|$)/i.test(url);
   }
   async _renderHeicAsImage(imgEl, url) {
-    url = encodeURI(url);
+    url = encodeURI(decodeURI(url));
     console.log("[CloudAttach] HEIC decode start:", url.substring(0, 80));
     if (imgEl.closest(".cloudattach-heic-container"))
       return;
