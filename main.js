@@ -1462,6 +1462,7 @@ var OpenListClient = class {
     this.token = account.token || "";
     this.username = account.username;
     this.password = account.password;
+    this.publicUrl = account.publicUrl?.replace(/\/$/, "") || "";
     this.app = app;
   }
   /**
@@ -1711,6 +1712,11 @@ var OpenListClient = class {
   }
   // 获取文件的 WebDAV URL（用于插入到笔记）
   getFileUrl(remotePath) {
+    if (this.publicUrl) {
+      const cleanPath = (this.webdavPath + remotePath).replace(/\/+/g, "/");
+      const encodedPath2 = cleanPath.replace(/[\s#?&<>"'\\|{}]/g, (c) => encodeURIComponent(c));
+      return `${this.publicUrl}${encodedPath2}`;
+    }
     const webdavPath = this.webdavPath || "";
     const proto = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, "$1");
     const host = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, "$3");
@@ -1724,6 +1730,9 @@ var OpenListClient = class {
     if (this.webdavPath && this.webdavPath !== "/dav" && this.webdavPath.startsWith("/dav")) {
       const pathSuffix = this.webdavPath.slice("/dav".length);
       virtualPath = pathSuffix + (remotePath.startsWith("/") ? remotePath : "/" + remotePath);
+    }
+    if (this.publicUrl) {
+      return `${this.publicUrl}${virtualPath}`;
     }
     const proto = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, "$1");
     const host = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, "$3");
@@ -3474,6 +3483,15 @@ var AddAccountModal = class extends Modal {
     tokenDiv.appendChild(tokenWrapper);
     fields.token = tokenInput;
     openlistFields.appendChild(tokenDiv);
+    const olPublicUrlDiv = this.createFieldDiv(t("settings.public_url"), t("settings.cdn_url_placeholder"));
+    const olPublicUrlInput = document.createElement("input");
+    olPublicUrlInput.type = "text";
+    olPublicUrlInput.placeholder = "https://public.example.com";
+    olPublicUrlInput.value = this.account?.publicUrl || "";
+    olPublicUrlInput.className = "cloud-attach-input";
+    olPublicUrlDiv.appendChild(olPublicUrlInput);
+    fields.olPublicUrl = olPublicUrlInput;
+    openlistFields.appendChild(olPublicUrlDiv);
     this.contentEl.appendChild(openlistFields);
     const s3Fields = document.createElement("div");
     s3Fields.id = "s3-fields";
@@ -3619,6 +3637,7 @@ var AddAccountModal = class extends Modal {
           username: fields.username.value.trim(),
           password: fields.password.value,
           token: fields.token.value,
+          publicUrl: fields.olPublicUrl.value.trim() || "",
           isActive: true
         };
       }
