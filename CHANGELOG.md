@@ -1,3 +1,7 @@
+## v0.4.068.dev - 2026-06-27
+
+- 添加 loadDir 诊断日志（定位浏览器空白问题）
+
 ## v0.4.066.dev - 2026-06-27
 
 - 添加 HEIC 渲染诊断日志（_scanAllPdfImgs 计数、_renderHeicAsImage 入口）

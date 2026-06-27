@@ -2167,21 +2167,27 @@ var CloudAttachView = class extends ItemView {
     });
   }
   async loadDir() {
+    console.log("[CloudAttach] loadDir start, currentPath:", this.currentPath, "accountId:", this.accountId);
     if (!this.accountId)
       return;
     this.renderBreadcrumb();
-    if (!this.fileListEl)
+    if (!this.fileListEl) {
+      console.log("[CloudAttach] loadDir abort: fileListEl null");
       return;
+    }
     this.fileListEl.innerHTML = '<p class="cloud-attach-loading">' + t("view.loading") + "</p>";
     if (!this.client) {
       this.client = this.plugin.createClient(this.accountId);
     }
     if (!this.client) {
+      console.log("[CloudAttach] loadDir abort: client null");
       this.fileListEl.innerHTML = '<p class="cloud-attach-error">' + t("view.no_account_selected") + "</p>";
       return;
     }
     try {
+      console.log("[CloudAttach] loadDir calling listDirectory...");
       this.files = await this.client.listDirectory(this.currentPath);
+      console.log("[CloudAttach] loadDir done, files count:", this.files?.length);
       this.selectedFiles.clear();
       this.renderFiles();
     } catch (e) {
