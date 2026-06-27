@@ -1,3 +1,7 @@
+## v0.4.045 - 2026-06-27
+
+- 修复：publicUrl 路径替换 — `listDirectoryWebDAV` 中 `webdavPath` 与 `decodedHref` 编码不一致（%20 vs 空格），`startsWith` 永远不匹配导致 `f.path` 未剥除 webdavPath
+
 ## v0.4.044 - 2026-06-27
 
 - 修复：PDF `opacity:0` 设于 `container.clientWidth` 读取之前导致宽度读到约束值，`displayH` 算错、容器高度溢出
