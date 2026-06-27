@@ -1,3 +1,7 @@
+## v0.4.053 - 2026-06-27
+
+- 修复：HEIC 用间接 eval 执行 CJS UMD bundle，替代 new Function 导致的语法报错
+
 ## v0.4.052 - 2026-06-27
 
 - 修复：HEIC new Function 执行 exports 未定义，去掉 bundle 开头 ! 并传 exports/module 使 UMD 路径走通
