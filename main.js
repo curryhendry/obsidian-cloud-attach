@@ -775,10 +775,10 @@ var OpenListClient = class {
         base = `${proto2}//${base}`;
       base = base.replace(/\/+$/, "");
       let path = remotePath;
-      const decodedWebdavPath = decodeURIComponent(this.webdavPath || "");
-      console.log("[CloudAttach] getFileUrl decode - webdavPath:", JSON.stringify(this.webdavPath), "decoded:", JSON.stringify(decodedWebdavPath), "remotePath:", JSON.stringify(remotePath));
-      if (path.startsWith(decodedWebdavPath)) {
-        path = path.slice(decodedWebdavPath.length) || "/";
+      const decodedWebdavPath2 = decodeURIComponent(this.webdavPath || "");
+      console.log("[CloudAttach] getFileUrl decode - webdavPath:", JSON.stringify(this.webdavPath), "decoded:", JSON.stringify(decodedWebdavPath2), "remotePath:", JSON.stringify(remotePath));
+      if (path.startsWith(decodedWebdavPath2)) {
+        path = path.slice(decodedWebdavPath2.length) || "/";
         console.log("[CloudAttach] getFileUrl stripped, result:", JSON.stringify(path));
       } else {
         console.log("[CloudAttach] getFileUrl path NOT start with decodedWebdavPath");
@@ -1218,8 +1218,6 @@ var OpenListClient = class {
         name = parts.length > 0 ? parts[parts.length - 1] : decodedHref;
       }
       let relativePath = decodedHref;
-      const decodedWebdavPath = decodeURIComponent(this.webdavPath || "");
-      console.log("[CloudAttach] listDirectory decode - webdavPath:", JSON.stringify(this.webdavPath), "decoded:", JSON.stringify(decodedWebdavPath), "decodedHref:", JSON.stringify(decodedHref));
       if (relativePath.startsWith(decodedWebdavPath)) {
         relativePath = relativePath.slice(decodedWebdavPath.length) || "/";
       }
@@ -2167,27 +2165,22 @@ var CloudAttachView = class extends ItemView {
     });
   }
   async loadDir() {
-    console.log("[CloudAttach] loadDir start, currentPath:", this.currentPath, "accountId:", this.accountId);
     if (!this.accountId)
       return;
     this.renderBreadcrumb();
-    if (!this.fileListEl) {
-      console.log("[CloudAttach] loadDir abort: fileListEl null");
+    if (!this.fileListEl)
       return;
-    }
     this.fileListEl.innerHTML = '<p class="cloud-attach-loading">' + t("view.loading") + "</p>";
     if (!this.client) {
       this.client = this.plugin.createClient(this.accountId);
     }
     if (!this.client) {
-      console.log("[CloudAttach] loadDir abort: client null");
       this.fileListEl.innerHTML = '<p class="cloud-attach-error">' + t("view.no_account_selected") + "</p>";
       return;
     }
     try {
-      console.log("[CloudAttach] loadDir calling listDirectory...");
       this.files = await this.client.listDirectory(this.currentPath);
-      console.log("[CloudAttach] loadDir done, files count:", this.files?.length);
+      this.selectedFiles.clear();
       this.selectedFiles.clear();
       this.renderFiles();
     } catch (e) {
@@ -3741,7 +3734,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
   async _renderHeicAsImage(imgEl, url) {
     url = encodeURI(decodeURI(url));
-    console.log("[CloudAttach] HEIC _renderHeicAsImage enter:", url.substring(url.length - 50));
     if (imgEl.closest(".cloudattach-heic-container"))
       return;
     const modeKey = imgEl.closest(".markdown-reading-view") ? "reading" : "editing";
@@ -4323,7 +4315,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
   _scanAllPdfImgs(doc) {
     const d = doc || document;
-    let totalImgs = 0, heicImgs = 0;
     const pendingImgs = d.querySelectorAll('img[data-cloudattach-processed="pending"]');
     pendingImgs.forEach((img) => {
       if (img.closest(".cloudattach-pdf-container"))
@@ -4343,14 +4334,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (img.closest(".cloudattach-pdf-container"))
         return;
       const src = img.getAttribute("src") || "";
-      if (/\.(heic|heif)(\?|#|$)/i.test(src))
-        heicImgs++;
       if (this._isPdfUrl(src)) {
         this._renderPdfAsCanvas(img, src);
         return;
       }
       if (this._isHeicUrl(src)) {
-        console.log("[CloudAttach] HEIC _scanAllPdfImgs -> _renderHeicAsImage:", src.substring(src.length - 60));
         this._renderHeicAsImage(img, src);
         return;
       }
@@ -4362,9 +4350,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
         this._renderHeicAsImage(img, alt);
       }
     });
-    totalImgs = d.querySelectorAll("img").length;
-    if (totalImgs > 0)
-      console.log("[CloudAttach] HEIC scan: total imgs=" + totalImgs + " heic imgs=" + heicImgs + " pending=" + pendingImgs.length);
   }
   // Sign 检查与刷新
   // ============================================================
