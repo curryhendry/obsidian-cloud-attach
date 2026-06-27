@@ -1,3 +1,7 @@
+## v0.4.046 - 2026-06-27
+
+- 修复：`getFileUrl` publicUrl 模式未剥除 webdavPath，导致插入链接含完整服务端路径
+
 ## v0.4.045 - 2026-06-27
 
 - 修复：publicUrl 路径替换 — `listDirectoryWebDAV` 中 `webdavPath` 与 `decodedHref` 编码不一致（%20 vs 空格），`startsWith` 永远不匹配导致 `f.path` 未剥除 webdavPath
