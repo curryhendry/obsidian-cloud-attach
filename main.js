@@ -123,13 +123,8 @@ Object.assign(I18n.translations.zh, {
   "settings.pdfjs_installing": "\u6B63\u5728\u5B89\u88C5 PDF.js...",
   "settings.pdfjs_downloaded": "PDF.js\uFF08\u5DF2\u5B89\u88C5\uFF09",
   "settings.pdfjs_uninstall": "\u5378\u8F7D",
-  "settings.excel_preview": "Excel \u9884\u89C8\u65B9\u5F0F",
-  "settings.excel_preview_iframe": "iframe\uFF08\u9ED8\u8BA4\uFF09",
-  "settings.excel_preview_sheetjs": "SheetJS",
-  "settings.word_preview": "Word \u9884\u89C8\u65B9\u5F0F",
-  "settings.word_preview_iframe": "iframe\uFF08\u9ED8\u8BA4\uFF09",
-  "settings.word_preview_mammoth": "mammoth.js",
-  "settings.preview_coming_soon": "\u656C\u8BF7\u671F\u5F85...",
+  "settings.heic_preview": "HEIC \u9884\u89C8\u65B9\u5F0F",
+  "settings.heic_supported": "\uFF08\u5DF2\u652F\u6301\uFF09",
   "settings.s3": "\u5BF9\u8C61\u5B58\u50A8 (S3)",
   "settings.s3_desc": "\u652F\u6301 S3 \u534F\u8BAE\u7684\u5BF9\u8C61\u5B58\u50A8",
   "settings.account_name_placeholder": "\u4F8B\u5982\uFF1A\u6211\u7684COS\u6876",
@@ -365,13 +360,8 @@ Object.assign(I18n.translations.en, {
   "settings.pdfjs_installing": "Installing PDF.js...",
   "settings.pdfjs_downloaded": "PDF.js (installed)",
   "settings.pdfjs_uninstall": "Uninstall",
-  "settings.excel_preview": "Excel Preview Method",
-  "settings.excel_preview_iframe": "iframe (default)",
-  "settings.excel_preview_sheetjs": "SheetJS",
-  "settings.word_preview": "Word Preview Method",
-  "settings.word_preview_iframe": "iframe (default)",
-  "settings.word_preview_mammoth": "mammoth.js",
-  "settings.preview_coming_soon": "Coming soon...",
+  "settings.heic_preview": "HEIC Preview Method",
+  "settings.heic_supported": "(supported)",
   "settings.s3": "Object Storage (S3)",
   "settings.s3_desc": "S3-compatible object storage",
   "settings.account_name_placeholder": "e.g.: My COS Bucket",
@@ -3114,47 +3104,23 @@ var AdvancedSettingModal = class extends Modal {
     pdfNote.style.fontSize = "12px";
     pdfNote.style.color = "var(--text-muted)";
     pdfNote.textContent = "\u9009\u5B9A PDF.js \u540E\u4F7F\u7528 `![]()` \u8BED\u6CD5\u63D2\u5165\u9884\u89C8";
-    const excelGroup = card.createDiv();
-    excelGroup.style.marginBottom = "16px";
-    const excelLabelRow = excelGroup.createDiv();
-    excelLabelRow.style.display = "flex";
-    excelLabelRow.style.alignItems = "center";
-    excelLabelRow.style.gap = "6px";
-    excelLabelRow.style.marginBottom = "6px";
-    const excelIndent = excelLabelRow.createSpan();
-    excelIndent.textContent = "\u25B8";
-    excelIndent.style.color = "var(--text-muted)";
-    excelIndent.style.fontWeight = "700";
-    excelIndent.style.fontSize = "11px";
-    const excelLabel = excelLabelRow.createEl("span", { text: t("settings.excel_preview") });
-    excelLabel.style.fontWeight = "600";
-    excelLabel.style.fontSize = "13px";
-    excelLabel.style.color = "var(--text-muted)";
-    const excelNote = excelGroup.createDiv();
-    excelNote.style.marginLeft = "18px";
-    excelNote.style.fontSize = "12px";
-    excelNote.style.color = "var(--text-faint)";
-    excelNote.textContent = t("settings.preview_coming_soon");
-    const wordGroup = card.createDiv();
-    const wordLabelRow = wordGroup.createDiv();
-    wordLabelRow.style.display = "flex";
-    wordLabelRow.style.alignItems = "center";
-    wordLabelRow.style.gap = "6px";
-    wordLabelRow.style.marginBottom = "6px";
-    const wordIndent = wordLabelRow.createSpan();
-    wordIndent.textContent = "\u25B8";
-    wordIndent.style.color = "var(--text-muted)";
-    wordIndent.style.fontWeight = "700";
-    wordIndent.style.fontSize = "11px";
-    const wordLabel = wordLabelRow.createEl("span", { text: t("settings.word_preview") });
-    wordLabel.style.fontWeight = "600";
-    wordLabel.style.fontSize = "13px";
-    wordLabel.style.color = "var(--text-muted)";
-    const wordNote = wordGroup.createDiv();
-    wordNote.style.marginLeft = "18px";
-    wordNote.style.fontSize = "12px";
-    wordNote.style.color = "var(--text-faint)";
-    wordNote.textContent = t("settings.preview_coming_soon");
+    const heicGroup = card.createDiv();
+    heicGroup.style.marginBottom = "16px";
+    const heicLabelRow = heicGroup.createDiv();
+    heicLabelRow.style.display = "flex";
+    heicLabelRow.style.alignItems = "center";
+    heicLabelRow.style.gap = "6px";
+    heicLabelRow.style.marginBottom = "6px";
+    const heicIndent = heicLabelRow.createSpan();
+    heicIndent.textContent = "\u25B8";
+    heicIndent.style.color = "var(--text-accent)";
+    heicIndent.style.fontWeight = "700";
+    heicIndent.style.fontSize = "11px";
+    const heicLabel = heicLabelRow.createEl("span", {
+      text: t("settings.heic_preview") + " " + t("settings.heic_supported")
+    });
+    heicLabel.style.fontWeight = "600";
+    heicLabel.style.fontSize = "13px";
     const btnRow = contentEl.createDiv();
     btnRow.style.marginTop = "20px";
     btnRow.style.display = "flex";

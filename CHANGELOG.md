@@ -1,3 +1,7 @@
+## v0.4.072.dev - 2026-06-27
+
+- 高级设置：新增 HEIC 预览方式（已支持），移除 Excel/Word 预览（Office 支持无计划）
+
 ## v0.4.070.dev - 2026-06-27
 
 - 清理 HEIC 渲染诊断日志（_renderHeicAsImage、_scanAllPdfImgs、loadDir）
