@@ -1,3 +1,7 @@
+## v0.4.052 - 2026-06-27
+
+- 修复：HEIC new Function 执行 exports 未定义，去掉 bundle 开头 ! 并传 exports/module 使 UMD 路径走通
+
 ## v0.4.051 - 2026-06-27
 
 - 修复：HEIC require('./') 在 Electron 渲染进程解析到 Obsidian.app 资源目录，改用 adapter.read() + new Function() 加载
