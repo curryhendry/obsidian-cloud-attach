@@ -3735,7 +3735,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
   async _renderHeicAsImage(imgEl, url) {
     url = encodeURI(decodeURI(url));
-    console.log("[CloudAttach] _renderHeicAsImage entering:", url.substring(url.length - 60));
     if (imgEl.closest(".cloudattach-heic-container"))
       return;
     const modeKey = imgEl.closest(".markdown-reading-view") ? "reading" : "editing";
@@ -3746,6 +3745,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const renderedSet = this._renderedHeic[modeKey];
     if (renderedSet.has(url))
       return;
+    renderedSet.add(url);
     try {
       let reqUrlFn = null;
       try {
@@ -3755,14 +3755,16 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const resp = reqUrlFn ? await reqUrlFn({ url, method: "GET" }) : await fetch(url);
       const buf = resp.arrayBuffer || await resp.arrayBuffer();
       const blob = new Blob([buf]);
+      console.log("[CloudAttach] _renderHeicAsImage fetch ok, size:", buf.byteLength);
       const heic2any = await this._loadHeic2any();
+      console.log("[CloudAttach] _renderHeicAsImage heic2any loaded:", typeof heic2any);
       const result = await heic2any({ blob, toType: "image/png" });
+      console.log("[CloudAttach] _renderHeicAsImage heic2any result:", Array.isArray(result) ? "array[" + result.length + "]" : typeof result);
       const pngBlob = Array.isArray(result) ? result[0] : result;
       const blobUrl = URL.createObjectURL(pngBlob);
       imgEl.src = blobUrl;
       imgEl.style.maxWidth = "100%";
       imgEl.style.height = "auto";
-      renderedSet.add(url);
     } catch (e) {
       if (e.message && e.message.includes("401"))
         return;
