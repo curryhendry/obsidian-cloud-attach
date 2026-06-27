@@ -765,10 +765,10 @@ var OpenListClient = class {
         base = `${proto2}//${base}`;
       base = base.replace(/\/+$/, "");
       let path = remotePath;
-      const decodedWebdavPath2 = decodeURIComponent(this.webdavPath || "");
-      console.log("[CloudAttach] getFileUrl decode - webdavPath:", JSON.stringify(this.webdavPath), "decoded:", JSON.stringify(decodedWebdavPath2), "remotePath:", JSON.stringify(remotePath));
-      if (path.startsWith(decodedWebdavPath2)) {
-        path = path.slice(decodedWebdavPath2.length) || "/";
+      const decodedWebdavPath = decodeURIComponent(this.webdavPath || "");
+      console.log("[CloudAttach] getFileUrl decode - webdavPath:", JSON.stringify(this.webdavPath), "decoded:", JSON.stringify(decodedWebdavPath), "remotePath:", JSON.stringify(remotePath));
+      if (path.startsWith(decodedWebdavPath)) {
+        path = path.slice(decodedWebdavPath.length) || "/";
         console.log("[CloudAttach] getFileUrl stripped, result:", JSON.stringify(path));
       } else {
         console.log("[CloudAttach] getFileUrl path NOT start with decodedWebdavPath");
@@ -1208,6 +1208,7 @@ var OpenListClient = class {
         name = parts.length > 0 ? parts[parts.length - 1] : decodedHref;
       }
       let relativePath = decodedHref;
+      const decodedWebdavPath = decodeURIComponent(this.webdavPath || "");
       if (relativePath.startsWith(decodedWebdavPath)) {
         relativePath = relativePath.slice(decodedWebdavPath.length) || "/";
       }

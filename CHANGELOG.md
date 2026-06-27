@@ -1,3 +1,7 @@
+## v0.4.074.dev - 2026-06-27
+
+- 修复：WebDAV **listDirectory** 报错 `decodedWebdavPath is not defined`（publicUrl 重构时变量声明遗漏）
+
 ## v0.4.072.dev - 2026-06-27
 
 - 高级设置：新增 HEIC 预览方式（已支持），移除 Excel/Word 预览（Office 支持无计划）
