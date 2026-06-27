@@ -1,3 +1,7 @@
+## v0.4.047 - 2026-06-27
+
+- 修复：WebDAV 文件夹 displayName 为空时，从 decodedHref 正确提取文件夹/文件名（处理末尾斜杠）
+
 ## v0.4.046 - 2026-06-27
 
 - 修复：`getFileUrl` publicUrl 模式未剥除 webdavPath，导致插入链接含完整服务端路径

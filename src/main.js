@@ -848,8 +848,12 @@ class OpenListClient {
       // 剥除 webdavPath（与 listDirectoryWebDAV 一致）
       let path = remotePath;
       const decodedWebdavPath = decodeURIComponent(this.webdavPath || '');
+      console.log('[CloudAttach] getFileUrl decode - webdavPath:', JSON.stringify(this.webdavPath), 'decoded:', JSON.stringify(decodedWebdavPath), 'remotePath:', JSON.stringify(remotePath));
       if (path.startsWith(decodedWebdavPath)) {
         path = path.slice(decodedWebdavPath.length) || '/';
+        console.log('[CloudAttach] getFileUrl stripped, result:', JSON.stringify(path));
+      } else {
+        console.log('[CloudAttach] getFileUrl path NOT start with decodedWebdavPath');
       }
       const encodedPath = path.replace(/[\s#?&<>"'\\|{}]/g, c => encodeURIComponent(c));
       return `${base}${encodedPath}`;
@@ -1334,10 +1338,16 @@ class OpenListClient {
         }
       }
       
-      const name = displayName || decodedHref.split('/').pop();
+      // displayName 为空时，从路径取文件名/文件夹名（处理末尾斜杠）
+      let name = displayName;
+      if (!name) {
+        const parts = decodedHref.split('/').filter(p => p);
+        name = parts.length > 0 ? parts[parts.length - 1] : decodedHref;
+      }
       
       let relativePath = decodedHref;
       const decodedWebdavPath = decodeURIComponent(this.webdavPath || '');
+      console.log('[CloudAttach] listDirectory decode - webdavPath:', JSON.stringify(this.webdavPath), 'decoded:', JSON.stringify(decodedWebdavPath), 'decodedHref:', JSON.stringify(decodedHref));
       if (relativePath.startsWith(decodedWebdavPath)) {
         relativePath = relativePath.slice(decodedWebdavPath.length) || '/';
       }
@@ -1345,6 +1355,7 @@ class OpenListClient {
       if (relativePath === remotePath || relativePath === remotePath + '/') continue;
       
       files.push({ name, path: relativePath, isDirectory, size: contentLength });
+      if (files.length <= 3) console.log('[CloudAttach] listDir path:', JSON.stringify(relativePath));
     }
 
     // XML 有条目但全部被过滤，可能是路径匹配问题
@@ -2413,6 +2424,7 @@ class CloudAttachView extends ItemView {
   // 获取要插入的 Markdown 格式（异步）
   // width: 可选数字宽度（px），支持图片和 PDF（pdfjs 模式）
   async getInsertMarkdown(file, width) {
+    console.log('[CloudAttach] getInsertMarkdown file.path:', JSON.stringify(file.path));
     const ext = file.name.split('.').pop()?.toLowerCase() || '';
     const nameWithoutExt = file.name.replace(/\.[^.]+$/, '');
     const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'heic', 'heif'];
