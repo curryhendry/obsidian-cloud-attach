@@ -1720,8 +1720,12 @@ var OpenListClient = class {
       base = base.replace(/\/+$/, "");
       let path = remotePath;
       const decodedWebdavPath = decodeURIComponent(this.webdavPath || "");
+      console.log("[CloudAttach] getFileUrl decode - webdavPath:", JSON.stringify(this.webdavPath), "decoded:", JSON.stringify(decodedWebdavPath), "remotePath:", JSON.stringify(remotePath));
       if (path.startsWith(decodedWebdavPath)) {
         path = path.slice(decodedWebdavPath.length) || "/";
+        console.log("[CloudAttach] getFileUrl stripped, result:", JSON.stringify(path));
+      } else {
+        console.log("[CloudAttach] getFileUrl path NOT start with decodedWebdavPath");
       }
       const encodedPath2 = path.replace(/[\s#?&<>"'\\|{}]/g, (c) => encodeURIComponent(c));
       return `${base}${encodedPath2}`;
@@ -2152,15 +2156,22 @@ var OpenListClient = class {
           console.warn("[CloudAttach] WebDAV: \u89E3\u6790 href URL \u5931\u8D25:", decodedHref);
         }
       }
-      const name = displayName || decodedHref.split("/").pop();
+      let name = displayName;
+      if (!name) {
+        const parts = decodedHref.split("/").filter((p) => p);
+        name = parts.length > 0 ? parts[parts.length - 1] : decodedHref;
+      }
       let relativePath = decodedHref;
       const decodedWebdavPath = decodeURIComponent(this.webdavPath || "");
+      console.log("[CloudAttach] listDirectory decode - webdavPath:", JSON.stringify(this.webdavPath), "decoded:", JSON.stringify(decodedWebdavPath), "decodedHref:", JSON.stringify(decodedHref));
       if (relativePath.startsWith(decodedWebdavPath)) {
         relativePath = relativePath.slice(decodedWebdavPath.length) || "/";
       }
       if (relativePath === remotePath || relativePath === remotePath + "/")
         continue;
       files.push({ name, path: relativePath, isDirectory, size: contentLength });
+      if (files.length <= 3)
+        console.log("[CloudAttach] listDir path:", JSON.stringify(relativePath));
     }
     if (responses.length > 0 && files.length === 0) {
       console.warn("[CloudAttach] WebDAV: XML\u89E3\u6790\u5230", responses.length, "\u6761\u76EE\u4F46\u5168\u90E8\u88AB\u8FC7\u6EE4\uFF0CremotePath=", remotePath, "webdavPath=", this.webdavPath);
@@ -3211,6 +3222,7 @@ var CloudAttachView = class extends ItemView {
   // 获取要插入的 Markdown 格式（异步）
   // width: 可选数字宽度（px），支持图片和 PDF（pdfjs 模式）
   async getInsertMarkdown(file, width) {
+    console.log("[CloudAttach] getInsertMarkdown file.path:", JSON.stringify(file.path));
     const ext = file.name.split(".").pop()?.toLowerCase() || "";
     const nameWithoutExt = file.name.replace(/\.[^.]+$/, "");
     const imageExts = ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "heic", "heif"];
