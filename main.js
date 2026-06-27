@@ -3209,7 +3209,7 @@ var CloudAttachSuggest = class extends EditorSuggest {
   constructor(app, plugin) {
     super(app);
     this.plugin = plugin;
-    this.limit = 50;
+    this.limit = 500;
   }
   onTrigger(cursor, editor, file) {
     if (!file)
