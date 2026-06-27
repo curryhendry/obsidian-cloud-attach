@@ -1,3 +1,7 @@
+## v0.4.049 - 2026-06-27
+
+- 修复：cloud- 弹出菜单滚动不全，limit 50 → 500
+
 ## v0.4.048 - 2026-06-27
 
 - 优化：heic2any 拆分到独立 heic2any.bundle.js，main.js 从 1.5MB 瘦身到 221KB
