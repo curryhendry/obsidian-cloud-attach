@@ -872,7 +872,7 @@ class OpenListClient {
       const proto = base.match(/^https?:/) ? '' : (this.serverUrl.match(/^https?:/)?.[0] || 'http:');
       if (!base.startsWith('http')) base = `${proto}//${base}`;
       base = base.replace(/\/+$/, '');
-      return `${base}${remotePath}`;
+      return `${base}${virtualPath}`;
     }
     // 保留原协议、保留中文原文
     const proto = this.serverUrl.replace(/^((https?|http):\/\/)(.*)/, '$1');
@@ -4031,7 +4031,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const TOOLBAR_HEIGHT = 28;
       container.style.setProperty("display", "block", "important");
       container.style.setProperty("overflow", "hidden", "important");
-      container.style.setProperty("opacity", "0", "important");
+      // opacity:0 推迟到 container.clientWidth 读取之后
+      // 否则 opacity:0 下 clientWidth 返回父容器约束宽度而非实际显示宽度
       const scrollArea = document.createElement("div");
       scrollArea.className = "cloudattach-pdf-scrollarea";
       let touchDevice = false; // 已在上面定义
@@ -4040,6 +4041,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
       scrollArea.style.position = "relative";
       container.appendChild(scrollArea);
       imgEl.replaceWith(container);
+      // 此时 layout 完整，clientWidth 读到的才是真实显示宽度
+      const containerW = container.clientWidth || 800;
+      container.style.setProperty("opacity", "0", "important");
       const firstPage = await pdf.getPage(1);
       const firstViewport = firstPage.getViewport({ scale: FIXED_SCALE });
       const canvasW = firstViewport.width;
@@ -4051,8 +4055,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       firstCanvas.style.userSelect = 'none';
       firstCanvas.draggable = false;
       scrollArea.appendChild(firstCanvas);
-      await this._renderPdfPage(firstCanvas, pdf, 1, FIXED_SCALE);
-      const containerW = container.clientWidth || 800;
+      await this._renderPdfPage(firstCanvas, pdf, 1, FIXED_SCALE, containerW);
       const displayH = canvasH * (containerW / canvasW);
       console.log("[CloudAttach] canvas WxH:", canvasW, "x", canvasH, "containerW:", containerW, "displayH:", displayH);
       let finalContainerHeight;
@@ -4099,7 +4102,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
           const ph = lazyQueue.shift();
           const pageNum = parseInt(ph.dataset.pageNum);
           try {
-            await this._renderLazyPage(ph, pdf, pageNum, FIXED_SCALE);
+            await this._renderLazyPage(ph, pdf, pageNum, FIXED_SCALE, containerW);
           } catch (e) {
             console.error("[CloudAttach] lazy page render failed:", e);
           }
@@ -4173,23 +4176,29 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
 
   // 渲染指定页码的 PDF 页面到指定 canvas
-  async _renderPdfPage(canvas, pdf, pageNum, scale) {
+  // containerW: 容器实际显示宽度，用于计算 canvas CSS 高度以维护宽高比
+  async _renderPdfPage(canvas, pdf, pageNum, scale, containerW) {
     const page = await pdf.getPage(pageNum);
     const viewport = page.getViewport({ scale });
     canvas.width = viewport.width;
     canvas.height = viewport.height;
+    canvas.style.width = '100%';
+    // <canvas> 的 height:auto 不维护宽高比，用数学计算正确 CSS 高度
+    if (containerW) {
+      canvas.style.height = Math.round(viewport.height * (containerW / viewport.width)) + 'px';
+    }
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     await page.render({ canvasContext: ctx, viewport }).promise;
   }
 
   // 懒加载：渲染单页并替换占位符
-  async _renderLazyPage(placeholder, pdf, pageNum, scale) {
+  async _renderLazyPage(placeholder, pdf, pageNum, scale, containerW) {
     const canvas = document.createElement("canvas");
     canvas.className = "cloudattach-pdf-page";
     canvas.dataset.pageNum = String(pageNum);
     canvas.style.userSelect = 'none';
     canvas.draggable = false;
-    await this._renderPdfPage(canvas, pdf, pageNum, scale);
+    await this._renderPdfPage(canvas, pdf, pageNum, scale, containerW);
     placeholder.replaceWith(canvas);
     console.log("[CloudAttach] lazy page", pageNum, "rendered");
   }
