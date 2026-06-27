@@ -1718,7 +1718,12 @@ var OpenListClient = class {
       if (!base.startsWith("http"))
         base = `${proto2}//${base}`;
       base = base.replace(/\/+$/, "");
-      const encodedPath2 = remotePath.replace(/[\s#?&<>"'\\|{}]/g, (c) => encodeURIComponent(c));
+      let path = remotePath;
+      const decodedWebdavPath = decodeURIComponent(this.webdavPath || "");
+      if (path.startsWith(decodedWebdavPath)) {
+        path = path.slice(decodedWebdavPath.length) || "/";
+      }
+      const encodedPath2 = path.replace(/[\s#?&<>"'\\|{}]/g, (c) => encodeURIComponent(c));
       return `${base}${encodedPath2}`;
     }
     const webdavPath = this.webdavPath || "";

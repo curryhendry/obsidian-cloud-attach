@@ -845,7 +845,13 @@ class OpenListClient {
       const proto = base.match(/^https?:/) ? '' : (this.serverUrl.match(/^https?:/)?.[0] || 'http:');
       if (!base.startsWith('http')) base = `${proto}//${base}`;
       base = base.replace(/\/+$/, '');
-      const encodedPath = remotePath.replace(/[\s#?&<>"'\\|{}]/g, c => encodeURIComponent(c));
+      // 剥除 webdavPath（与 listDirectoryWebDAV 一致）
+      let path = remotePath;
+      const decodedWebdavPath = decodeURIComponent(this.webdavPath || '');
+      if (path.startsWith(decodedWebdavPath)) {
+        path = path.slice(decodedWebdavPath.length) || '/';
+      }
+      const encodedPath = path.replace(/[\s#?&<>"'\\|{}]/g, c => encodeURIComponent(c));
       return `${base}${encodedPath}`;
     }
     const webdavPath = this.webdavPath || '';
