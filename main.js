@@ -3728,10 +3728,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
       return window._cloudAttachHeic2any;
     const path = (this.app.vault.configDir || ".obsidian") + "/plugins/cloud-attach/heic2any.bundle.js";
     const code = await this.app.vault.adapter.read(path);
-    const wrapped = code.replace("return heic2any;", "window._cloudAttachHeic2any = heic2any; return heic2any;");
-    const fn = new Function("window", wrapped);
-    fn(window);
-    return window._cloudAttachHeic2any;
+    const m = { exports: {} };
+    const fn = new Function("exports", "module", "window", code);
+    fn(m.exports, m, window);
+    return window._cloudAttachHeic2any || m.exports;
   }
   async _renderHeicAsImage(imgEl, url) {
     url = encodeURI(decodeURI(url));
@@ -3745,6 +3745,25 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const renderedSet = this._renderedHeic[modeKey];
     if (renderedSet.has(url))
       return;
+    renderedSet.add(url);
+    try {
+      await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error("timeout")), 8e3);
+        imgEl.onload = () => {
+          clearTimeout(timer);
+          resolve();
+        };
+        imgEl.onerror = () => {
+          clearTimeout(timer);
+          reject(new Error("native fail"));
+        };
+        imgEl.src = url;
+        imgEl.style.maxWidth = "100%";
+        imgEl.style.height = "auto";
+      });
+      return;
+    } catch (_nativeErr) {
+    }
     try {
       let reqUrlFn = null;
       try {
@@ -3754,17 +3773,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const resp = reqUrlFn ? await reqUrlFn({ url, method: "GET" }) : await fetch(url);
       const buf = resp.arrayBuffer || await resp.arrayBuffer();
       const blob = new Blob([buf]);
-      console.log("[CloudAttach] HEIC fetch ok, size:", buf.byteLength);
       const heic2any = await this._loadHeic2any();
-      console.log("[CloudAttach] HEIC heic2any loaded:", typeof heic2any);
       const result = await heic2any({ blob, toType: "image/png" });
-      console.log("[CloudAttach] HEIC heic2any done:", Array.isArray(result) ? "[" + result.length + "]" : typeof result);
       const pngBlob = Array.isArray(result) ? result[0] : result;
-      const blobUrl = URL.createObjectURL(pngBlob);
-      imgEl.src = blobUrl;
+      imgEl.src = URL.createObjectURL(pngBlob);
       imgEl.style.maxWidth = "100%";
       imgEl.style.height = "auto";
-      renderedSet.add(url);
     } catch (e) {
       if (e.message && e.message.includes("401"))
         return;
