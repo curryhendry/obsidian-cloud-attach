@@ -1,3 +1,7 @@
+## v0.4.051 - 2026-06-27
+
+- 修复：HEIC require('./') 在 Electron 渲染进程解析到 Obsidian.app 资源目录，改用 adapter.read() + new Function() 加载
+
 ## v0.4.050 - 2026-06-27
 
 - 修复：HEIC 不渲染，__dirname 在 Obsidian 中为 undefined，改 ./ 相对路径
