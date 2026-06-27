@@ -6,7 +6,7 @@
 'use strict';
 
 const { Plugin, Notice, Menu, Modal, PluginSettingTab, MarkdownView, ItemView, EditorSuggest } = require('obsidian');
-const heic2any = require('heic2any');
+// heic2any 动态加载，遇 HEIC 图时才 require('./heic2any.bundle.js')
 
 const VIEW_TYPE_CLOUDATTACH = 'cloud-attach-view';
 
@@ -3928,6 +3928,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         : await fetch(url);
       const buf = resp.arrayBuffer || (await resp.arrayBuffer());
       const blob = new Blob([buf]);
+      const heic2any = require(__dirname + '/heic2any.bundle.js');
       const result = await heic2any({ blob, toType: 'image/png' });
       const pngBlob = Array.isArray(result) ? result[0] : result;
       const blobUrl = URL.createObjectURL(pngBlob);
