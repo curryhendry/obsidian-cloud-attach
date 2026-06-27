@@ -3728,7 +3728,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       return window._cloudAttachHeic2any;
     const path = (this.app.vault.configDir || ".obsidian") + "/plugins/cloud-attach/heic2any.bundle.js";
     const code = await this.app.vault.adapter.read(path);
-    const wrapped = code.replace("}).call(this)", "window._cloudAttachHeic2any = heic2any;}).call(this)");
+    const wrapped = code.replace("return heic2any;", "window._cloudAttachHeic2any = heic2any; return heic2any;");
     const fn = new Function("window", wrapped);
     fn(window);
     return window._cloudAttachHeic2any;
