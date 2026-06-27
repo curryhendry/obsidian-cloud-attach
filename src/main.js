@@ -135,13 +135,8 @@ Object.assign(I18n.translations.zh, {
   'settings.pdfjs_installing': '正在安装 PDF.js...',
   'settings.pdfjs_downloaded': 'PDF.js（已安装）',
   'settings.pdfjs_uninstall': '卸载',
-  'settings.excel_preview': 'Excel 预览方式',
-  'settings.excel_preview_iframe': 'iframe（默认）',
-  'settings.excel_preview_sheetjs': 'SheetJS',
-  'settings.word_preview': 'Word 预览方式',
-  'settings.word_preview_iframe': 'iframe（默认）',
-  'settings.word_preview_mammoth': 'mammoth.js',
-  'settings.preview_coming_soon': '敬请期待...',
+  'settings.heic_preview': 'HEIC 预览方式',
+  'settings.heic_supported': '（已支持）',
   'settings.s3': '对象存储 (S3)',
   'settings.s3_desc': '支持 S3 协议的对象存储',
   'settings.account_name_placeholder': '例如：我的COS桶',
@@ -386,13 +381,8 @@ Object.assign(I18n.translations.en, {
   'settings.pdfjs_installing': 'Installing PDF.js...',
   'settings.pdfjs_downloaded': 'PDF.js (installed)',
   'settings.pdfjs_uninstall': 'Uninstall',
-  'settings.excel_preview': 'Excel Preview Method',
-  'settings.excel_preview_iframe': 'iframe (default)',
-  'settings.excel_preview_sheetjs': 'SheetJS',
-  'settings.word_preview': 'Word Preview Method',
-  'settings.word_preview_iframe': 'iframe (default)',
-  'settings.word_preview_mammoth': 'mammoth.js',
-  'settings.preview_coming_soon': 'Coming soon...',
+  'settings.heic_preview': 'HEIC Preview Method',
+  'settings.heic_supported': '(supported)',
   'settings.s3': 'Object Storage (S3)',
   'settings.s3_desc': 'S3-compatible object storage',
   'settings.account_name_placeholder': 'e.g.: My COS Bucket',
@@ -3284,52 +3274,26 @@ class AdvancedSettingModal extends Modal {
     pdfNote.style.fontSize = '12px';
     pdfNote.style.color = 'var(--text-muted)';
     pdfNote.textContent = '选定 PDF.js 后使用 `![]()` 语法插入预览';
-    
-    // --- Excel 预览（带缩进层级）---
-    const excelGroup = card.createDiv();
-    excelGroup.style.marginBottom = '16px';
-    const excelLabelRow = excelGroup.createDiv();
-    excelLabelRow.style.display = 'flex';
-    excelLabelRow.style.alignItems = 'center';
-    excelLabelRow.style.gap = '6px';
-    excelLabelRow.style.marginBottom = '6px';
-    const excelIndent = excelLabelRow.createSpan();
-    excelIndent.textContent = '▸';
-    excelIndent.style.color = 'var(--text-muted)';
-    excelIndent.style.fontWeight = '700';
-    excelIndent.style.fontSize = '11px';
-    const excelLabel = excelLabelRow.createEl('span', { text: t('settings.excel_preview') });
-    excelLabel.style.fontWeight = '600';
-    excelLabel.style.fontSize = '13px';
-    excelLabel.style.color = 'var(--text-muted)';
-    const excelNote = excelGroup.createDiv();
-    excelNote.style.marginLeft = '18px';
-    excelNote.style.fontSize = '12px';
-    excelNote.style.color = 'var(--text-faint)';
-    excelNote.textContent = t('settings.preview_coming_soon');
-    
-    // --- Word 预览（带缩进层级）---
-    const wordGroup = card.createDiv();
-    const wordLabelRow = wordGroup.createDiv();
-    wordLabelRow.style.display = 'flex';
-    wordLabelRow.style.alignItems = 'center';
-    wordLabelRow.style.gap = '6px';
-    wordLabelRow.style.marginBottom = '6px';
-    const wordIndent = wordLabelRow.createSpan();
-    wordIndent.textContent = '▸';
-    wordIndent.style.color = 'var(--text-muted)';
-    wordIndent.style.fontWeight = '700';
-    wordIndent.style.fontSize = '11px';
-    const wordLabel = wordLabelRow.createEl('span', { text: t('settings.word_preview') });
-    wordLabel.style.fontWeight = '600';
-    wordLabel.style.fontSize = '13px';
-    wordLabel.style.color = 'var(--text-muted)';
-    const wordNote = wordGroup.createDiv();
-    wordNote.style.marginLeft = '18px';
-    wordNote.style.fontSize = '12px';
-    wordNote.style.color = 'var(--text-faint)';
-    wordNote.textContent = t('settings.preview_coming_soon');
-    
+
+    // --- HEIC 预览（带缩进层级）---
+    const heicGroup = card.createDiv();
+    heicGroup.style.marginBottom = '16px';
+    const heicLabelRow = heicGroup.createDiv();
+    heicLabelRow.style.display = 'flex';
+    heicLabelRow.style.alignItems = 'center';
+    heicLabelRow.style.gap = '6px';
+    heicLabelRow.style.marginBottom = '6px';
+    const heicIndent = heicLabelRow.createSpan();
+    heicIndent.textContent = '▸';
+    heicIndent.style.color = 'var(--text-accent)';
+    heicIndent.style.fontWeight = '700';
+    heicIndent.style.fontSize = '11px';
+    const heicLabel = heicLabelRow.createEl('span', {
+      text: t('settings.heic_preview') + ' ' + t('settings.heic_supported')
+    });
+    heicLabel.style.fontWeight = '600';
+    heicLabel.style.fontSize = '13px';
+
     // 底部按钮行
     const btnRow = contentEl.createDiv();
     btnRow.style.marginTop = '20px';
