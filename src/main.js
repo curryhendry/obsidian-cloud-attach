@@ -1331,8 +1331,9 @@ class OpenListClient {
       const name = displayName || decodedHref.split('/').pop();
       
       let relativePath = decodedHref;
-      if (relativePath.startsWith(this.webdavPath)) {
-        relativePath = relativePath.slice(this.webdavPath.length) || '/';
+      const decodedWebdavPath = decodeURIComponent(this.webdavPath || '');
+      if (relativePath.startsWith(decodedWebdavPath)) {
+        relativePath = relativePath.slice(decodedWebdavPath.length) || '/';
       }
       
       if (relativePath === remotePath || relativePath === remotePath + '/') continue;
