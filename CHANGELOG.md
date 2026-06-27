@@ -1,4 +1,4 @@
-## v0.4.074.dev - 2026-06-27
+## v0.4.075 - 2026-06-27
 
 - 修复：WebDAV **listDirectory** 报错 `decodedWebdavPath is not defined`（publicUrl 重构时变量声明遗漏）
 
