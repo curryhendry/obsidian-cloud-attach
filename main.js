@@ -3745,7 +3745,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const renderedSet = this._renderedHeic[modeKey];
     if (renderedSet.has(url))
       return;
-    renderedSet.add(url);
     try {
       let reqUrlFn = null;
       try {
@@ -3755,16 +3754,14 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const resp = reqUrlFn ? await reqUrlFn({ url, method: "GET" }) : await fetch(url);
       const buf = resp.arrayBuffer || await resp.arrayBuffer();
       const blob = new Blob([buf]);
-      console.log("[CloudAttach] _renderHeicAsImage fetch ok, size:", buf.byteLength);
       const heic2any = await this._loadHeic2any();
-      console.log("[CloudAttach] _renderHeicAsImage heic2any loaded:", typeof heic2any);
       const result = await heic2any({ blob, toType: "image/png" });
-      console.log("[CloudAttach] _renderHeicAsImage heic2any result:", Array.isArray(result) ? "array[" + result.length + "]" : typeof result);
       const pngBlob = Array.isArray(result) ? result[0] : result;
       const blobUrl = URL.createObjectURL(pngBlob);
       imgEl.src = blobUrl;
       imgEl.style.maxWidth = "100%";
       imgEl.style.height = "auto";
+      renderedSet.add(url);
     } catch (e) {
       if (e.message && e.message.includes("401"))
         return;
@@ -4302,17 +4299,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
   _scanAllPdfImgs(doc) {
     const d = doc || document;
-    let heicCount = 0;
-    d.querySelectorAll("img").forEach((img) => {
-      const src = img.getAttribute("src") || "";
-      if (/\.(heic|heif)(\?|#|$)/i.test(src)) {
-        heicCount++;
-        console.log("[CloudAttach] HEIC img found:", src.substring(src.length - 60));
-      }
-    });
-    if (heicCount === 0) {
-      console.log("[CloudAttach] HEIC scan: no HEIC img found in document, total imgs:", d.querySelectorAll("img").length);
-    }
     const pendingImgs = d.querySelectorAll('img[data-cloudattach-processed="pending"]');
     pendingImgs.forEach((img) => {
       if (img.closest(".cloudattach-pdf-container"))
