@@ -1,4 +1,4 @@
-## v0.4.063.dev - 2026-06-27
+## v0.4.064.dev - 2026-06-27
 
 - 修复：HEIC 用间接 eval 执行 CJS UMD bundle，替代 new Function 导致的语法报错
 
