@@ -3916,13 +3916,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (window._cloudAttachHeic2any) return window._cloudAttachHeic2any;
     const path = (this.app.vault.configDir || '.obsidian') + '/plugins/cloud-attach/heic2any.bundle.js';
     const code = await this.app.vault.adapter.read(path);
-    // heic2any.bundle.js: !function(e,t,r,i){"use strict";... return heic2any;}).call(this)
-    // ! 使 function 成为表达式，UMD 路径把结果写到 module.exports，直接执行即可
+    // bundle: !function(...){... UMD sets module.exports=zr(libheif); return heic2any; })
+    // 传入 exports/module 走 UMD 路径，捕获 IIFE 返回值即 heic2any
     const m = { exports: {} };
     const fn = new Function('exports', 'module', code);
-    fn(m.exports, m);
-    window._cloudAttachHeic2any = m.exports;
-    return m.exports;
+    window._cloudAttachHeic2any = fn(m.exports, m);
+    return window._cloudAttachHeic2any;
   }
 
   async _renderHeicAsImage(imgEl, url) {

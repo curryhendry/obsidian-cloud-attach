@@ -3730,9 +3730,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const code = await this.app.vault.adapter.read(path);
     const m = { exports: {} };
     const fn = new Function("exports", "module", code);
-    fn(m.exports, m);
-    window._cloudAttachHeic2any = m.exports;
-    return m.exports;
+    window._cloudAttachHeic2any = fn(m.exports, m);
+    return window._cloudAttachHeic2any;
   }
   async _renderHeicAsImage(imgEl, url) {
     url = encodeURI(decodeURI(url));
