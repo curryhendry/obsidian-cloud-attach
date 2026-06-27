@@ -3916,13 +3916,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (window._cloudAttachHeic2any) return window._cloudAttachHeic2any;
     const path = (this.app.vault.configDir || '.obsidian') + '/plugins/cloud-attach/heic2any.bundle.js';
     const code = await this.app.vault.adapter.read(path);
-    // heic2any.bundle.js 是 CJS UMD IIFE（!function(){... return heic2any;}).call(this)）
-    // 去掉开头 ! 后用 new Function 传 exports/module 模拟 CJS require 环境
-    const clean = code.replace(/^!\s*/, '');
+    // heic2any.bundle.js: !function(e,t,r,i){"use strict";... return heic2any;}).call(this)
+    // ! 使 function 成为表达式，UMD 路径把结果写到 module.exports，直接执行即可
     const m = { exports: {} };
-    const fn = new Function('exports', 'require', 'module', '__filename', '__dirname', 'return (' + clean + ')');
-    window._cloudAttachHeic2any = fn(m.exports, undefined, m, '', '');
-    return window._cloudAttachHeic2any;
+    const fn = new Function('exports', 'module', code);
+    fn(m.exports, m);
+    window._cloudAttachHeic2any = m.exports;
+    return m.exports;
   }
 
   async _renderHeicAsImage(imgEl, url) {

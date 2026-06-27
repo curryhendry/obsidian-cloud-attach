@@ -3728,11 +3728,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
       return window._cloudAttachHeic2any;
     const path = (this.app.vault.configDir || ".obsidian") + "/plugins/cloud-attach/heic2any.bundle.js";
     const code = await this.app.vault.adapter.read(path);
-    const clean = code.replace(/^!\s*/, "");
     const m = { exports: {} };
-    const fn = new Function("exports", "require", "module", "__filename", "__dirname", "return (" + clean + ")");
-    window._cloudAttachHeic2any = fn(m.exports, void 0, m, "", "");
-    return window._cloudAttachHeic2any;
+    const fn = new Function("exports", "module", code);
+    fn(m.exports, m);
+    window._cloudAttachHeic2any = m.exports;
+    return m.exports;
   }
   async _renderHeicAsImage(imgEl, url) {
     url = encodeURI(decodeURI(url));
