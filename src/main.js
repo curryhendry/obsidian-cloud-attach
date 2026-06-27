@@ -3916,11 +3916,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (window._cloudAttachHeic2any) return window._cloudAttachHeic2any;
     const path = (this.app.vault.configDir || '.obsidian') + '/plugins/cloud-attach/heic2any.bundle.js';
     const code = await this.app.vault.adapter.read(path);
-    // bundle: !function(...){... UMD sets module.exports=zr(libheif); return heic2any; })
-    // 传入 exports/module 走 UMD 路径，捕获 IIFE 返回值即 heic2any
-    const m = { exports: {} };
-    const fn = new Function('exports', 'module', code);
-    window._cloudAttachHeic2any = fn(m.exports, m);
+    // 末尾是 return heic2any;}).call(this) → 改赋 window 再立即调用
+    const wrapped = code.replace('}).call(this)', 'window._cloudAttachHeic2any = heic2any;}).call(this)');
+    const fn = new Function('window', wrapped);
+    fn(window);
     return window._cloudAttachHeic2any;
   }
 
