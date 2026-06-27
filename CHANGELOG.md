@@ -1,3 +1,8 @@
+## v0.4.050 - 2026-06-27
+
+- 修复：HEIC 不渲染，__dirname 在 Obsidian 中为 undefined，改 ./ 相对路径
+- 回调：cloud- 弹出菜单 limit 500 → 100
+
 ## v0.4.049 - 2026-06-27
 
 - 修复：cloud- 弹出菜单滚动不全，limit 50 → 500

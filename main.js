@@ -3209,7 +3209,7 @@ var CloudAttachSuggest = class extends EditorSuggest {
   constructor(app, plugin) {
     super(app);
     this.plugin = plugin;
-    this.limit = 500;
+    this.limit = 100;
   }
   onTrigger(cursor, editor, file) {
     if (!file)
@@ -3744,7 +3744,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const resp = reqUrlFn ? await reqUrlFn({ url, method: "GET" }) : await fetch(url);
       const buf = resp.arrayBuffer || await resp.arrayBuffer();
       const blob = new Blob([buf]);
-      const heic2any = require(__dirname + "/heic2any.bundle.js");
+      const heic2any = require("./heic2any.bundle.js");
       const result = await heic2any({ blob, toType: "image/png" });
       const pngBlob = Array.isArray(result) ? result[0] : result;
       const blobUrl = URL.createObjectURL(pngBlob);
