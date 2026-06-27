@@ -3912,6 +3912,15 @@ module.exports = class CloudAttachPlugin extends Plugin {
     return /\.(heic|heif)(\?|#|$)/i.test(url);
   }
 
+  async _loadHeic2any() {
+    if (window._cloudAttachHeic2any) return window._cloudAttachHeic2any;
+    const path = (this.app.vault.configDir || '.obsidian') + '/plugins/cloud-attach/heic2any.bundle.js';
+    const code = await this.app.vault.adapter.read(path);
+    const fn = new Function(code + '\nreturn heic2any;');
+    window._cloudAttachHeic2any = fn();
+    return window._cloudAttachHeic2any;
+  }
+
   async _renderHeicAsImage(imgEl, url) {
     url = encodeURI(decodeURI(url));
     if (imgEl.closest('.cloudattach-heic-container')) return;
@@ -3928,7 +3937,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         : await fetch(url);
       const buf = resp.arrayBuffer || (await resp.arrayBuffer());
       const blob = new Blob([buf]);
-      const heic2any = require('./heic2any.bundle.js');
+      const heic2any = await this._loadHeic2any();
       const result = await heic2any({ blob, toType: 'image/png' });
       const pngBlob = Array.isArray(result) ? result[0] : result;
       const blobUrl = URL.createObjectURL(pngBlob);
