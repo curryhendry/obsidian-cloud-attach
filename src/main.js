@@ -3926,6 +3926,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
 
   async _renderHeicAsImage(imgEl, url) {
     url = encodeURI(decodeURI(url));
+    console.log('[CloudAttach] HEIC _renderHeicAsImage enter:', url.substring(url.length - 50));
     if (imgEl.closest('.cloudattach-heic-container')) return;
     const modeKey = imgEl.closest('.markdown-reading-view') ? 'reading' : 'editing';
     if (!this._renderedHeic) this._renderedHeic = {};
@@ -4525,6 +4526,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
 
   _scanAllPdfImgs(doc) {
     const d = doc || document;
+    let totalImgs = 0, heicImgs = 0;
     // 优先处理 PostProcessor 标记的 pending img（阅读模式 iOS blob URL）
     const pendingImgs = d.querySelectorAll('img[data-cloudattach-processed="pending"]');
     pendingImgs.forEach(img => {
@@ -4544,11 +4546,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
     allImgs.forEach(img => {
       if (img.closest('.cloudattach-pdf-container')) return;
       const src = img.getAttribute('src') || '';
+      if (/\.(heic|heif)(\?|#|$)/i.test(src)) heicImgs++;
       if (this._isPdfUrl(src)) {
         this._renderPdfAsCanvas(img, src);
         return;
       }
       if (this._isHeicUrl(src)) {
+        console.log('[CloudAttach] HEIC _scanAllPdfImgs -> _renderHeicAsImage:', src.substring(src.length - 60));
         this._renderHeicAsImage(img, src);
         return;
       }
@@ -4560,6 +4564,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
         this._renderHeicAsImage(img, alt);
       }
     });
+    totalImgs = d.querySelectorAll('img').length;
+    if (totalImgs > 0) console.log('[CloudAttach] HEIC scan: total imgs=' + totalImgs + ' heic imgs=' + heicImgs + ' pending=' + pendingImgs.length);
   }
 
   // Sign 检查与刷新

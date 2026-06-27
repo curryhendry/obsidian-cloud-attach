@@ -1,6 +1,11 @@
+## v0.4.066.dev - 2026-06-27
+
+- 添加 HEIC 渲染诊断日志（_scanAllPdfImgs 计数、_renderHeicAsImage 入口）
+
 ## v0.4.065.dev - 2026-06-27
 
-- 修复：HEIC 用间接 eval 执行 CJS UMD bundle，替代 new Function 导致的语法报错
+- 修复：_loadHeic2any 传 exports/module/window 三参数，修复 Windows exports is not defined
+- 优化：HEIC 先尝试原生解码（Chromium 119+），8s 失败再 fallback heic2any，修复 Mac 速度
 
 ## v0.4.052 - 2026-06-27
 
