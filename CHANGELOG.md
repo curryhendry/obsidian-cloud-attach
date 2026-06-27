@@ -1,3 +1,7 @@
+## v0.4.048 - 2026-06-27
+
+- 优化：heic2any 拆分到独立 heic2any.bundle.js，main.js 从 1.5MB 瘦身到 221KB
+
 ## v0.4.047 - 2026-06-27
 
 - 修复：WebDAV 文件夹 displayName 为空时，从 decodedHref 正确提取文件夹/文件名（处理末尾斜杠）
