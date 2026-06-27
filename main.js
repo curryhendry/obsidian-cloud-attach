@@ -3735,6 +3735,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
   async _renderHeicAsImage(imgEl, url) {
     url = encodeURI(decodeURI(url));
+    console.log("[CloudAttach] _renderHeicAsImage entering:", url.substring(url.length - 60));
     if (imgEl.closest(".cloudattach-heic-container"))
       return;
     const modeKey = imgEl.closest(".markdown-reading-view") ? "reading" : "editing";
@@ -4299,6 +4300,17 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
   _scanAllPdfImgs(doc) {
     const d = doc || document;
+    let heicCount = 0;
+    d.querySelectorAll("img").forEach((img) => {
+      const src = img.getAttribute("src") || "";
+      if (/\.(heic|heif)(\?|#|$)/i.test(src)) {
+        heicCount++;
+        console.log("[CloudAttach] HEIC img found:", src.substring(src.length - 60));
+      }
+    });
+    if (heicCount === 0) {
+      console.log("[CloudAttach] HEIC scan: no HEIC img found in document, total imgs:", d.querySelectorAll("img").length);
+    }
     const pendingImgs = d.querySelectorAll('img[data-cloudattach-processed="pending"]');
     pendingImgs.forEach((img) => {
       if (img.closest(".cloudattach-pdf-container"))
