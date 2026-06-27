@@ -1,3 +1,10 @@
+## v0.4.044 - 2026-06-27
+
+- 修复：PDF `opacity:0` 设于 `container.clientWidth` 读取之前导致宽度读到约束值，`displayH` 算错、容器高度溢出
+- 修复：`_renderPdfPage` 未设 canvas CSS 尺寸，加 `containerW` 参数数学计算 canvas 高度维护宽高比
+- 修复：懒加载 `_renderLazyPage` 同步追加 `containerW` 参数
+- 修复：`getRawUrl` 公开域名时未使用校正后的 `virtualPath`（`/dav` 矫正被跳过）
+
 ## v0.4.042 - 2026-06-26
 
 - 新增：OpenList/WebDAV 账号支持「公开访问域名」（填写后插入笔记的 URL 使用公开域名而非认证域名，适用于群晖 WebStation + Cloudflare Tunnel 等场景）
