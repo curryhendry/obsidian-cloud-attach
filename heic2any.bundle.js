@@ -930,5 +930,5 @@ onmessage = (message) => {
     });
   }
   ;
-  return heic2any;
+  window._cloudAttachHeic2any = heic2any; return heic2any;
 });
