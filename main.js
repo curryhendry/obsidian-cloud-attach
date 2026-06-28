@@ -3401,30 +3401,26 @@ module.exports = class CloudAttachPlugin extends Plugin {
             try {
               const linkedNotes = this._findNotesWithFile(file.path);
               let targetNote = linkedNotes[0];
-              if (!targetNote) {
-                targetNote = this.app.workspace.getActiveFile();
-                if (!targetNote || targetNote.extension !== "md") {
-                  new Notice(t("notice.file_not_linked"), 3e3);
-                  return;
-                }
-              } else if (linkedNotes.length > 1) {
+              if (linkedNotes.length > 1) {
                 const activeFile = this.app.workspace.getActiveFile();
                 const found = linkedNotes.find((n) => n.path === activeFile?.path);
                 if (found)
                   targetNote = found;
               }
-              const noteContent = await this.app.vault.read(targetNote);
               let syntax = null;
-              const patterns = [
-                new RegExp(`!\\[([^\\]]*)\\]\\(.*?${this._escapeRegex(file.name)}\\)`),
-                new RegExp(`!\\[\\[(${this._escapeRegex(file.name)})(?:\\|[^\\]]*)?\\]\\]`),
-                new RegExp(`\\[\\[(${this._escapeRegex(file.name)})(?:\\|[^\\]]*)?\\]\\]`)
-              ];
-              for (const p of patterns) {
-                const m = noteContent.match(p);
-                if (m) {
-                  syntax = m[0];
-                  break;
+              if (targetNote && targetNote.extension === "md") {
+                const noteContent = await this.app.vault.read(targetNote);
+                const patterns = [
+                  new RegExp(`!\\[([^\\]]*)\\]\\(.*?${this._escapeRegex(file.name)}\\)`),
+                  new RegExp(`!\\[\\[(${this._escapeRegex(file.name)})(?:\\|[^\\]]*)?\\]\\]`),
+                  new RegExp(`\\[\\[(${this._escapeRegex(file.name)})(?:\\|[^\\]]*)?\\]\\]`)
+                ];
+                for (const p of patterns) {
+                  const m = noteContent.match(p);
+                  if (m) {
+                    syntax = m[0];
+                    break;
+                  }
                 }
               }
               if (!syntax)
@@ -3441,7 +3437,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
                 new Notice(`\u26A0\uFE0F ${uploadCtx?.error || t("error.no_account")}`, 4e3);
                 return;
               }
-              await this.doUpload([{ localPath: file.path, syntax }], uploadCtx);
+              await this.doUpload([{ localPath: file.path, syntax }], uploadCtx, targetNote ? { targetFile: targetNote } : {});
             } catch (e) {
               console.error("[CloudAttach] file-menu upload error:", e);
               new Notice(`\u274C ${e.message}`, 4e3);
@@ -4706,7 +4702,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const remotePath = isWebDAV ? view.client.webdavPath + view.currentPath : view.currentPath;
     return {
       ok: true,
-      client: view.client,
+      client: this.createClient(view.accountId),
       remotePath: view.currentPath,
       account: this.getAccount(view.accountId)
     };
@@ -5098,8 +5094,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
    * @param {Array} attachments - 要上传的附件列表
    * @param {Object} ctx - 上下文 {client, remotePath, account}
    */
-  async doUpload(attachments, ctx) {
+  async doUpload(attachments, ctx, opts = {}) {
     const { client, remotePath } = ctx;
+    const targetFile = opts.targetFile || null;
     const view = this.activeMarkdownView || this.app.workspace.getActiveViewOfType(MarkdownView);
     new Notice(t("notice.upload_start", { count: attachments.length }), 3e3);
     const results = { success: 0, failed: 0, skipped: 0 };
@@ -5125,8 +5122,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
         results.failed++;
       }
     }
-    if (replacements.length > 0 && view?.editor) {
-      let text = view.editor.getValue();
+    const canEdit = view?.editor || targetFile;
+    if (replacements.length > 0 && canEdit) {
+      const isActiveNote = !!(view?.editor && (!targetFile || view.file?.path === targetFile.path));
+      let text = isActiveNote ? view.editor.getValue() : await this.app.vault.read(targetFile);
       const imageExts = ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico", "heic", "heif"];
       const videoExts = ["mp4", "mov", "avi", "mkv", "webm", "flv"];
       const audioExts = ["mp3", "wav", "flac", "aac", "ogg", "m4a"];
@@ -5206,7 +5205,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         } else {
           newSyntax = rep.oldSyntax.replace(/file:\S+/, url);
         }
-        text = text.replace(rep.oldSyntax, newSyntax);
+        text = text.split(rep.oldSyntax).join(newSyntax);
         try {
           await this.app.vault.delete(this.app.vault.getAbstractFileByPath(rep.localPath));
           console.log("[CloudAttach] \u5DF2\u5220\u9664\u672C\u5730\u6587\u4EF6:", rep.localPath);
@@ -5214,11 +5213,15 @@ module.exports = class CloudAttachPlugin extends Plugin {
           console.log("[CloudAttach] \u5220\u9664\u672C\u5730\u6587\u4EF6\u5931\u8D25:", e.message);
         }
       }
-      const finalCursor = view.editor.getCursor();
-      view.editor.setValue(text);
-      view.editor.setCursor(finalCursor);
-      view.editor.setSelection(finalCursor, finalCursor);
-      view.editor.setSelection(finalCursor);
+      if (isActiveNote) {
+        const finalCursor = view.editor.getCursor();
+        view.editor.setValue(text);
+        view.editor.setCursor(finalCursor);
+        view.editor.setSelection(finalCursor, finalCursor);
+        view.editor.setSelection(finalCursor);
+      } else {
+        await this.app.vault.modify(targetFile, text);
+      }
     }
     const parts = [];
     if (results.success > 0)

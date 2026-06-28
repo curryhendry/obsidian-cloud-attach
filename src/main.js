@@ -3592,27 +3592,24 @@ module.exports = class CloudAttachPlugin extends Plugin {
             try {
               const linkedNotes = this._findNotesWithFile(file.path);
               let targetNote = linkedNotes[0];
-              if (!targetNote) {
-                targetNote = this.app.workspace.getActiveFile();
-                if (!targetNote || targetNote.extension !== 'md') {
-                  new Notice(t('notice.file_not_linked'), 3000);
-                  return;
-                }
-              } else if (linkedNotes.length > 1) {
+              if (linkedNotes.length > 1) {
                 const activeFile = this.app.workspace.getActiveFile();
                 const found = linkedNotes.find(n => n.path === activeFile?.path);
                 if (found) targetNote = found;
               }
-              const noteContent = await this.app.vault.read(targetNote);
+              // 提取 syntax（有笔记从笔记提取，无笔记兜底）
               let syntax = null;
-              const patterns = [
-                new RegExp(`!\\[([^\\]]*)\\]\\(.*?${this._escapeRegex(file.name)}\\)`),
-                new RegExp(`!\\[\\[(${this._escapeRegex(file.name)})(?:\\|[^\\]]*)?\\]\\]`),
-                new RegExp(`\\[\\[(${this._escapeRegex(file.name)})(?:\\|[^\\]]*)?\\]\\]`)
-              ];
-              for (const p of patterns) {
-                const m = noteContent.match(p);
-                if (m) { syntax = m[0]; break; }
+              if (targetNote && targetNote.extension === 'md') {
+                const noteContent = await this.app.vault.read(targetNote);
+                const patterns = [
+                  new RegExp(`!\\[([^\\]]*)\\]\\(.*?${this._escapeRegex(file.name)}\\)`),
+                  new RegExp(`!\\[\\[(${this._escapeRegex(file.name)})(?:\\|[^\\]]*)?\\]\\]`),
+                  new RegExp(`\\[\\[(${this._escapeRegex(file.name)})(?:\\|[^\\]]*)?\\]\\]`)
+                ];
+                for (const p of patterns) {
+                  const m = noteContent.match(p);
+                  if (m) { syntax = m[0]; break; }
+                }
               }
               if (!syntax) syntax = `![${file.name}](${file.path})`;
 
@@ -3626,7 +3623,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
                 new Notice(`⚠️ ${uploadCtx?.error || t('error.no_account')}`, 4000);
                 return;
               }
-              await this.doUpload([{ localPath: file.path, syntax }], uploadCtx);
+              // 有引用笔记就传 targetFile，上传后自动替换
+              await this.doUpload([{ localPath: file.path, syntax }], uploadCtx, targetNote ? { targetFile: targetNote } : {});
             } catch (e) {
               console.error('[CloudAttach] file-menu upload error:', e);
               new Notice(`❌ ${e.message}`, 4000);
@@ -4931,7 +4929,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       : view.currentPath;
     return {
       ok: true,
-      client: view.client,
+      client: this.createClient(view.accountId),
       remotePath: view.currentPath,
       account: this.getAccount(view.accountId)
     };
@@ -5351,8 +5349,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
    * @param {Array} attachments - 要上传的附件列表
    * @param {Object} ctx - 上下文 {client, remotePath, account}
    */
-  async doUpload(attachments, ctx) {
+  async doUpload(attachments, ctx, opts = {}) {
     const { client, remotePath } = ctx;
+    const targetFile = opts.targetFile || null;
     const view = this.activeMarkdownView || this.app.workspace.getActiveViewOfType(MarkdownView);
     new Notice(t('notice.upload_start', {count: attachments.length}), 3000);
     const results = { success: 0, failed: 0, skipped: 0 };
@@ -5383,9 +5382,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
         // Upload failed
       }
     }
-    // 更新笔记内容
-    if (replacements.length > 0 && view?.editor) {
-      let text = view.editor.getValue();
+    // 更新笔记内容（当前打开笔记用 editor，指定目标文件用 vault.modify）
+    const canEdit = (view?.editor) || targetFile;
+    if (replacements.length > 0 && canEdit) {
+      const isActiveNote = !!(view?.editor && (!targetFile || view.file?.path === targetFile.path));
+      let text = isActiveNote ? view.editor.getValue() : await this.app.vault.read(targetFile);
       // 文件类型分类（与插入逻辑一致）
       const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico', 'heic', 'heif'];
       const videoExts = ['mp4', 'mov', 'avi', 'mkv', 'webm', 'flv'];
@@ -5466,7 +5467,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
           // 其他格式，保持原样替换 URL
           newSyntax = rep.oldSyntax.replace(/file:\S+/, url);
         }
-        text = text.replace(rep.oldSyntax, newSyntax);
+        // 全部替换（支持同一文件被多次引用）
+        text = text.split(rep.oldSyntax).join(newSyntax);
         // 删除本地文件
         try {
           await this.app.vault.delete(this.app.vault.getAbstractFileByPath(rep.localPath));
@@ -5475,11 +5477,15 @@ module.exports = class CloudAttachPlugin extends Plugin {
           console.log('[CloudAttach] 删除本地文件失败:', e.message);
         }
       }
-      const finalCursor = view.editor.getCursor();
-      view.editor.setValue(text);
-      view.editor.setCursor(finalCursor);
-      view.editor.setSelection(finalCursor, finalCursor);
-      view.editor.setSelection(finalCursor);
+      if (isActiveNote) {
+        const finalCursor = view.editor.getCursor();
+        view.editor.setValue(text);
+        view.editor.setCursor(finalCursor);
+        view.editor.setSelection(finalCursor, finalCursor);
+        view.editor.setSelection(finalCursor);
+      } else {
+        await this.app.vault.modify(targetFile, text);
+      }
     }
     // 显示结果
     const parts = [];
