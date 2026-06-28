@@ -2722,6 +2722,7 @@ var PdfFullscreenView = class extends ItemView {
       const totalPages = this._pdf.numPages;
       this.pageIndicator.textContent = `1 / ${totalPages}`;
       this.scrollEl.empty();
+      await new Promise((r) => requestAnimationFrame(r));
       this._renderAllPages();
     } catch (e) {
       console.error("[CloudAttach] PdfFullscreenView load error:", e);
@@ -2757,7 +2758,9 @@ var PdfFullscreenView = class extends ItemView {
     }
   }
   _fitWidthScale() {
-    const w = this.scrollEl.clientWidth - 16;
+    const w = this.containerEl.clientWidth;
+    if (w <= 0)
+      return 1;
     return w / 612;
   }
   _reRender() {

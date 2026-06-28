@@ -2896,6 +2896,8 @@ class PdfFullscreenView extends ItemView {
       this.pageIndicator.textContent = `1 / ${totalPages}`;
 
       this.scrollEl.empty();
+      // 等 layout 后再计算 fit width scale（否则 clientWidth 为 0）
+      await new Promise(r => requestAnimationFrame(r));
       this._renderAllPages();
     } catch (e) {
       console.error('[CloudAttach] PdfFullscreenView load error:', e);
@@ -2935,7 +2937,9 @@ class PdfFullscreenView extends ItemView {
   }
 
   _fitWidthScale() {
-    const w = this.scrollEl.clientWidth - 16; // padding 补偿
+    // 用父容器宽度（popout 窗口宽度），不依赖 scrollEl
+    const w = this.containerEl.clientWidth;
+    if (w <= 0) return 1; // 还未 layout，fallback 1
     return w / 612; // PDF 标准 A4 宽度 612pt
   }
 
