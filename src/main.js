@@ -3614,6 +3614,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
               if (!syntax) syntax = `![${file.name}](${file.path})`;
 
               const viewOpen = !!this.app.workspace.getLeavesOfType(VIEW_TYPE_CLOUDATTACH).length;
+              // 场景 d：无视图 + 无默认账号 → 直接 notice 报错，不弹窗
+              if (!viewOpen && !this.defaultAccountId) {
+                new Notice(`⚠️ ${t('error.no_default_account_set')}`, 4000);
+                return;
+              }
               let ctx = null;
               if (viewOpen) ctx = this.getUploadContext();
               const confirmed = await this.showUploadConfirmModal([{ localPath: file.path, syntax }], ctx?.remotePath || '', viewOpen);
