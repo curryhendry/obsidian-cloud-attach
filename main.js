@@ -3426,6 +3426,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
               if (!syntax)
                 syntax = `![${file.name}](${file.path})`;
               const viewOpen = !!this.app.workspace.getLeavesOfType(VIEW_TYPE_CLOUDATTACH).length;
+              if (!viewOpen && !this.defaultAccountId) {
+                new Notice(`\u26A0\uFE0F ${t("error.no_default_account_set")}`, 4e3);
+                return;
+              }
               let ctx = null;
               if (viewOpen)
                 ctx = this.getUploadContext();
