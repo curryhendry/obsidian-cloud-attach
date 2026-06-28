@@ -2678,29 +2678,29 @@ class CloudAttachView extends ItemView {
   }
   // 插入单个文件到笔记（异步）
   async insertFile(file) {
-    const md = await this.getInsertMarkdown(file);
     const view = this.findMostRecentMarkdownView();
-    if (view?.editor) {
-      const cursor = view.editor.getCursor();
-      view.editor.replaceRange(md + '\n', cursor);
-      new Notice(t('notice.inserted', {name: file.name}));
-    } else {
+    if (!view?.editor) {
       new Notice(t('notice.open_note_first'));
+      return;
     }
+    const md = await this.getInsertMarkdown(file);
+    const cursor = view.editor.getCursor();
+    view.editor.replaceRange(md + '\n', cursor);
+    new Notice(t('notice.inserted', {name: file.name}));
   }
   // 批量插入（异步）
   async insertSelectedFiles() {
     if (!this.client || this.selectedFiles.size === 0) return;
+    const view = this.findMostRecentMarkdownView();
+    if (!view?.editor) {
+      new Notice(t('notice.open_note_first'));
+      return;
+    }
     const selected = this.files.filter(f => this.selectedFiles.has(f.path));
     const mds = await Promise.all(selected.map(file => this.getInsertMarkdown(file)));
-    const view = this.findMostRecentMarkdownView();
-    if (view?.editor) {
-      const cursor = view.editor.getCursor();
-      view.editor.replaceRange(mds.map(md => md + '\n').join('\n') + '\n', cursor);
-      new Notice(t('notice.inserted_count', {count: selected.length}));
-    } else {
-      new Notice(t('notice.open_note_first'));
-    }
+    const cursor = view.editor.getCursor();
+    view.editor.replaceRange(mds.map(md => md + '\n').join('\n') + '\n', cursor);
+    new Notice(t('notice.inserted_count', {count: selected.length}));
     this.selectedFiles.clear();
     this.renderFiles();
     this.renderBatchBar();
