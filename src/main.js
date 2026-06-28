@@ -1367,8 +1367,8 @@ class OpenListClient {
       if (files.length <= 3) console.log('[CloudAttach] listDir path:', JSON.stringify(relativePath));
     }
 
-    // XML 有条目但全部被过滤，可能是路径匹配问题
-    if (responses.length > 0 && files.length === 0) {
+    // XML 有条目但全部被过滤（排除目录自身引用后），可能是路径匹配问题
+    if (responses.length > 1 && files.length === 0) {
       console.warn('[CloudAttach] WebDAV: XML解析到', responses.length, '条目但全部被过滤，remotePath=', remotePath, 'webdavPath=', this.webdavPath);
     }
 
@@ -3783,6 +3783,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
     this.registerEvent(
       this.app.workspace.on('file-menu', (menu, file, source) => {
         if (!file || !source.startsWith('file-explorer')) return;
+        // 文件夹不上传（保持克制）
+        if (file.children !== undefined) return;
         const ext = file.extension?.toLowerCase() || '';
         if (ext === 'md') return;
 
