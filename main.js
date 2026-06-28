@@ -68,6 +68,8 @@ Object.assign(I18n.translations.zh, {
   "notice.delete_success": "\u2705 \u5DF2\u5220\u9664 {count} \u9879",
   "notice.delete_partial": "\u26A0\uFE0F \u5220\u9664\u6210\u529F {success} \u9879\uFF0C\u5931\u8D25 {failed} \u9879",
   "notice.delete_failed": "\u274C \u5220\u9664\u5931\u8D25\uFF1A{error}",
+  "notice.delete_webdav_forbidden": "\u26A0\uFE0F \u6B64\u670D\u52A1\u5668\u4E0D\u652F\u6301\u901A\u8FC7 WebDAV \u5220\u9664\uFF08\u53EF\u5220\u9664\u6587\u4EF6\uFF0C\u6587\u4EF6\u5939\u9700\u5230\u7F51\u9875\u7AEF\u64CD\u4F5C\uFF09",
+  "notice.delete_s3_forbidden": "\u26A0\uFE0F \u5220\u9664\u5931\u8D25\uFF08\u8D26\u53F7\u65E0\u5220\u9664\u6743\u9650\u6216\u5B58\u50A8\u6876\u7B56\u7565\u7981\u6B62\uFF09",
   "notice.rename_conflict": "\u274C \u91CD\u547D\u540D\u5931\u8D25\uFF1A\u76EE\u6807\u6587\u4EF6\u540D\u5DF2\u5B58\u5728",
   "notice.rename_failed": "\u274C \u91CD\u547D\u540D\u5931\u8D25\uFF1A{error}",
   "notice.rename_success": "\u2705 \u91CD\u547D\u540D\u6210\u529F",
@@ -313,6 +315,8 @@ Object.assign(I18n.translations.en, {
   "notice.delete_success": "\u2705 Deleted {count} item(s)",
   "notice.delete_partial": "\u26A0\uFE0F Deleted {success}, failed {failed}",
   "notice.delete_failed": "\u274C Delete failed: {error}",
+  "notice.delete_webdav_forbidden": "\u26A0\uFE0F This server forbids WebDAV deletion (files ok, folders require web UI)",
+  "notice.delete_s3_forbidden": "\u26A0\uFE0F Delete failed (no delete permission or bucket policy denied)",
   "notice.rename_conflict": "\u274C Rename failed: filename already exists",
   "notice.rename_failed": "\u274C Rename failed: {error}",
   "notice.rename_success": "\u2705 Renamed successfully",
@@ -983,7 +987,7 @@ var OpenListClient = class {
           if (response2.ok || response2.status === 204) {
             results.success.push(fullPath);
           } else {
-            results.failed.push({ path: fullPath, error: response2.text || `HTTP ${response2.status}` });
+            results.failed.push({ path: fullPath, error: response2.text || `HTTP ${response2.status}`, status: response2.status });
           }
           continue;
         }
@@ -1729,7 +1733,7 @@ var S3Client = class {
             const itemDeleteUrl = `${this.endpoint}/${this.bucket}/${itemEncodedKey}?${itemSignedQuery}`;
             const r = await this.requestViaObsidian(itemDeleteUrl, { method: "DELETE" });
             if (!r.ok)
-              results.failed.push({ path: item.path, error: `HTTP ${r.status}` });
+              results.failed.push({ path: item.path, error: `HTTP ${r.status}`, status: r.status });
             else
               results.success.push(item.path);
           }
@@ -1741,7 +1745,7 @@ var S3Client = class {
           if (r.ok)
             results.success.push(fullPath);
           else
-            results.failed.push({ path: fullPath, error: `HTTP ${r.status}` });
+            results.failed.push({ path: fullPath, error: `HTTP ${r.status}`, status: r.status });
         }
       } catch (e) {
         results.failed.push({ path: fullPath, error: e.message });
@@ -2229,10 +2233,17 @@ var CloudAttachView = class extends ItemView {
       return;
     const paths = files.map((f) => f.path);
     const result = await this.client.delete(paths);
+    const is403 = (failed) => failed.status === 403;
+    const isS3 = this.client.constructor.name === "S3Client";
     if (result.failed.length === 0) {
       new Notice(t("notice.delete_success", { count: result.success.length }));
     } else if (result.success.length === 0) {
-      new Notice(t("notice.delete_failed", { error: result.failed[0].error }), 5e3);
+      const first = result.failed[0];
+      if (is403(first)) {
+        new Notice(t(isS3 ? "notice.delete_s3_forbidden" : "notice.delete_webdav_forbidden"), 5e3);
+      } else {
+        new Notice(t("notice.delete_failed", { error: first.error }), 5e3);
+      }
     } else {
       new Notice(t("notice.delete_partial", { success: result.success.length, failed: result.failed.length }), 5e3);
     }

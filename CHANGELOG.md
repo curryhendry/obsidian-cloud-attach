@@ -1,8 +1,6 @@
-## v0.4.083.dev - 2026-06-28
+## v0.4.085.dev - 2026-06-28
 
-- 修复：无打开笔记时点击文件不再调用签名 API，直接提示"打开笔记"
-- 新增：视图顶部栏新建文件夹按钮 📁+，支持在 OpenList 和 S3 远程目录创建子文件夹
-- OpenListClient.createDirectory：优先调用 /api/fs/mkdir API，失败降级 WebDAV MKCOL
+- 修复：WebDAV/S3 删除 403 错误提示分开处理（WebDAV 提示服务器不支持、S3 提示无权限）
 - S3Client.createDirectory：Upload 0 字节 .keep 占位对象创建目录
 - UI：新建文件夹弹窗只保留创建按钮，取消靠右上角 X
 - 去除：S3 创建成功后不向用户展示 .keep 占位提示
