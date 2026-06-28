@@ -173,12 +173,10 @@ Object.assign(I18n.translations.zh, {
   'view.new_folder_title': '📁 新建文件夹',
   'view.new_folder_placeholder': '请输入文件夹名称',
   'view.new_folder_confirm': '创建',
-  'view.new_folder_cancel': '取消',
   'view.new_folder_creating': '⏳ 正在创建文件夹...',
   'view.new_folder_success': '✅ 文件夹已创建: {name}',
   'view.new_folder_failed': '❌ 创建失败: {error}',
   'view.new_folder_name_empty': '⚠️ 文件夹名称不能为空',
-  'view.new_folder_keep_notice': 'ℹ️ S3 端创建了 .keep 占位文件（标记目录）',
   'view.file_count': '{count}/{total} 项已选',
   'view.select_all': '全选',
   'view.select_invert': '反选',
@@ -435,12 +433,10 @@ Object.assign(I18n.translations.en, {
   'view.new_folder_title': '📁 New Folder',
   'view.new_folder_placeholder': 'Enter folder name',
   'view.new_folder_confirm': 'Create',
-  'view.new_folder_cancel': 'Cancel',
   'view.new_folder_creating': '⏳ Creating folder...',
   'view.new_folder_success': '✅ Folder created: {name}',
   'view.new_folder_failed': '❌ Failed: {error}',
   'view.new_folder_name_empty': '⚠️ Folder name cannot be empty',
-  'view.new_folder_keep_notice': 'ℹ️ Created .keep placeholder for S3 (to mark the directory)',
   'view.file_count': '{count}/{total} selected',
   'view.select_all': 'Select All',
   'view.select_invert': 'Invert',
@@ -2170,17 +2166,20 @@ class CloudAttachView extends ItemView {
     this.breadcrumbEl.appendChild(root);
     if (this.currentPath === '/') {
       // 根目录也需要刷新按钮
+      const actions = document.createElement('div');
+      actions.className = 'cloud-attach-breadcrumb-actions';
       const newFolderBtn = document.createElement('button');
       newFolderBtn.className = 'cloud-attach-refresh';
       newFolderBtn.textContent = t('view.new_folder_btn');
       newFolderBtn.title = t('view.new_folder_title');
       newFolderBtn.onclick = () => this.showNewFolderDialog();
-      this.breadcrumbEl.appendChild(newFolderBtn);
+      actions.appendChild(newFolderBtn);
       const refresh = document.createElement('button');
       refresh.className = 'cloud-attach-refresh';
       refresh.textContent = t('view.refresh');
-           refresh.onclick = () => this.loadDir();
-      this.breadcrumbEl.appendChild(refresh);
+      refresh.onclick = () => this.loadDir();
+      actions.appendChild(refresh);
+      this.breadcrumbEl.appendChild(actions);
       this.renderBatchBar();
       return;
     }
@@ -2198,17 +2197,20 @@ class CloudAttachView extends ItemView {
       btn.onclick = () => { this.navigateTo(targetPath); };
       this.breadcrumbEl.appendChild(btn);
     }
+    const actions = document.createElement('div');
+    actions.className = 'cloud-attach-breadcrumb-actions';
     const newFolderBtn = document.createElement('button');
     newFolderBtn.className = 'cloud-attach-refresh';
     newFolderBtn.textContent = t('view.new_folder_btn');
     newFolderBtn.title = t('view.new_folder_title');
     newFolderBtn.onclick = () => this.showNewFolderDialog();
-    this.breadcrumbEl.appendChild(newFolderBtn);
+    actions.appendChild(newFolderBtn);
     const refresh = document.createElement('button');
     refresh.className = 'cloud-attach-refresh';
     refresh.textContent = t('view.refresh');
     refresh.onclick = () => this.loadDir();
-    this.breadcrumbEl.appendChild(refresh);
+    actions.appendChild(refresh);
+    this.breadcrumbEl.appendChild(actions);
     this.renderBatchBar();
   }
   // 统一的导航方法
@@ -2252,10 +2254,6 @@ class CloudAttachView extends ItemView {
     btnRow.style.display = 'flex';
     btnRow.style.gap = '8px';
     btnRow.style.justifyContent = 'flex-end';
-    const cancelBtn = document.createElement('button');
-    cancelBtn.textContent = t('view.new_folder_cancel');
-    cancelBtn.onclick = () => modal.close();
-    btnRow.appendChild(cancelBtn);
     const confirmBtn = document.createElement('button');
     confirmBtn.textContent = t('view.new_folder_confirm');
     confirmBtn.className = 'mod-cta';
@@ -2275,9 +2273,6 @@ class CloudAttachView extends ItemView {
         const result = await this.client.createDirectory(this.currentPath, name);
         if (result.ok) {
           new Notice(t('view.new_folder_success', {name}), 3000);
-          if (result.usedPlaceholder) {
-            new Notice(t('view.new_folder_keep_notice'), 5000);
-          }
           modal.close();
           await this.loadDir();
         } else {
@@ -3954,12 +3949,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
       .cloud-attach-title { font-size: 14px; margin: 8px 0; }
       .cloud-attach-select-area { padding: 0 8px 8px; }
       .cloud-attach-select { width: 100%; padding: 6px 8px; font-size: 13px; border-radius: 4px; border: 1px solid var(--background-modifier-border); background: var(--background-primary); }
-      .cloud-attach-breadcrumb { padding: 6px 8px; font-size: 12px; border-bottom: 1px solid var(--background-modifier-border); display: flex; align-items: center; gap: 2px; flex-wrap: wrap; }
+      .cloud-attach-breadcrumb { padding: 6px 8px; font-size: 12px; border-bottom: 1px solid var(--background-modifier-border); display: flex; align-items: center; gap: 2px; flex-wrap: wrap; justify-content: space-between; }
+      .cloud-attach-breadcrumb-actions { display: flex; align-items: center; gap: 4px; margin-left: auto; }
       .cloud-attach-breadcrumb-btn { background: transparent; border: none; color: var(--text-accent); cursor: pointer; padding: 3px 6px; border-radius: 3px; font-size: 12px; }
       .cloud-attach-breadcrumb-btn:hover { background: var(--background-modifier-hover); }
       .cloud-attach-breadcrumb-sep { color: var(--text-muted); }
       .cloud-attach-breadcrumb-current { color: var(--text-muted); padding: 3px 6px; font-size: 12px; }
-      .cloud-attach-refresh { margin-left: auto; background: transparent; border: 1px solid var(--background-modifier-border); color: var(--text-muted); cursor: pointer; padding: 3px 8px; border-radius: 3px; font-size: 11px; }
+      .cloud-attach-refresh { background: transparent; border: 1px solid var(--background-modifier-border); color: var(--text-muted); cursor: pointer; padding: 3px 8px; border-radius: 3px; font-size: 11px; }
       .cloud-attach-refresh:hover { background: var(--background-modifier-hover); }
       .cloud-attach-batch-bar { padding: 6px 8px; background: var(--background-secondary); border-bottom: 1px solid var(--background-modifier-border); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
       .cloud-attach-batch-count { font-size: 12px; color: var(--text-muted); }
