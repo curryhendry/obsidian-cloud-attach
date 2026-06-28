@@ -1,4 +1,8 @@
-## v0.4.091.dev - 2026-06-29
+## v0.4.092.dev - 2026-06-29
+
+- 修复：PDF 全屏预览 Fit Width 不生效（修复后用 popout 窗口宽度计算）
+  - 容器 clientWidth 时机问题加 requestAnimationFrame
+  - scrollEl padding 补偿错误，已取消
 
 - 新增：PDF 全屏预览视图（右下角 ⛶ 按钮打开新窗口）
   - 顶部只显示文件名（不含 query/sign）
