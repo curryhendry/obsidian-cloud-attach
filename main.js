@@ -156,6 +156,16 @@ Object.assign(I18n.translations.zh, {
   "view.rename_placeholder": "\u8BF7\u8F93\u5165\u65B0\u6587\u4EF6\u540D",
   "view.confirm_rename": "\u786E\u8BA4\u91CD\u547D\u540D",
   "view.refresh": "\u{1F504}",
+  "view.new_folder_btn": "\u{1F4C1}+",
+  "view.new_folder_title": "\u{1F4C1} \u65B0\u5EFA\u6587\u4EF6\u5939",
+  "view.new_folder_placeholder": "\u8BF7\u8F93\u5165\u6587\u4EF6\u5939\u540D\u79F0",
+  "view.new_folder_confirm": "\u521B\u5EFA",
+  "view.new_folder_cancel": "\u53D6\u6D88",
+  "view.new_folder_creating": "\u23F3 \u6B63\u5728\u521B\u5EFA\u6587\u4EF6\u5939...",
+  "view.new_folder_success": "\u2705 \u6587\u4EF6\u5939\u5DF2\u521B\u5EFA: {name}",
+  "view.new_folder_failed": "\u274C \u521B\u5EFA\u5931\u8D25: {error}",
+  "view.new_folder_name_empty": "\u26A0\uFE0F \u6587\u4EF6\u5939\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A",
+  "view.new_folder_keep_notice": "\u2139\uFE0F S3 \u7AEF\u521B\u5EFA\u4E86 .keep \u5360\u4F4D\u6587\u4EF6\uFF08\u6807\u8BB0\u76EE\u5F55\uFF09",
   "view.file_count": "{count}/{total} \u9879\u5DF2\u9009",
   "view.select_all": "\u5168\u9009",
   "view.select_invert": "\u53CD\u9009",
@@ -399,6 +409,16 @@ Object.assign(I18n.translations.en, {
   "view.rename_placeholder": "Enter new filename",
   "view.confirm_rename": "Rename",
   "view.refresh": "\u{1F504}",
+  "view.new_folder_btn": "\u{1F4C1}+",
+  "view.new_folder_title": "\u{1F4C1} New Folder",
+  "view.new_folder_placeholder": "Enter folder name",
+  "view.new_folder_confirm": "Create",
+  "view.new_folder_cancel": "Cancel",
+  "view.new_folder_creating": "\u23F3 Creating folder...",
+  "view.new_folder_success": "\u2705 Folder created: {name}",
+  "view.new_folder_failed": "\u274C Failed: {error}",
+  "view.new_folder_name_empty": "\u26A0\uFE0F Folder name cannot be empty",
+  "view.new_folder_keep_notice": "\u2139\uFE0F Created .keep placeholder for S3 (to mark the directory)",
   "view.file_count": "{count}/{total} selected",
   "view.select_all": "Select All",
   "view.select_invert": "Invert",
@@ -1264,6 +1284,51 @@ var OpenListClient = class {
       return a.name.localeCompare(b.name);
     });
   }
+  /**
+   * 在指定远程目录下创建子文件夹
+   * 优先调用 OpenList 原生 /api/fs/mkdir API，失败时降级为 WebDAV MKCOL
+   * @param {string} parentDir - 父目录（以 / 开头，以 / 结尾）
+   * @param {string} folderName - 新文件夹名（不含 /）
+   * @returns {Promise<{ok: boolean, remotePath?: string, error?: string}>}
+   */
+  async createDirectory(parentDir, folderName) {
+    const normalizedParent = parentDir.endsWith("/") ? parentDir : parentDir + "/";
+    const remotePath = normalizedParent + folderName;
+    try {
+      const apiUrl = `${this.serverUrl}/api/fs/mkdir`;
+      const response = await this.authFetch("/api/fs/mkdir", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: remotePath })
+      });
+      if (response.status === 200 || response.status === 201) {
+        try {
+          const json = JSON.parse(response.text);
+          if (json.code === 200 || json.code === 201) {
+            return { ok: true, remotePath };
+          }
+        } catch (e) {
+          return { ok: true, remotePath };
+        }
+      }
+    } catch (e) {
+      console.log("[CloudAttach] createDirectory API failed, fallback to WebDAV:", e.message);
+    }
+    try {
+      const encodedPath = this.encodePath ? this.encodePath(remotePath) : encodeURIComponent(remotePath);
+      const url = `${this.serverUrl}${this.webdavPath}${encodedPath}`;
+      const response = await this.requestViaObsidian(url, {
+        method: "MKCOL",
+        headers: { "Authorization": "Basic " + btoa(`${this.username}:${this.password}`) }
+      });
+      if (response.ok || response.status === 201) {
+        return { ok: true, remotePath };
+      }
+      return { ok: false, error: `HTTP ${response.status} ${response.text || ""}`.trim() };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  }
 };
 var S3Client = class {
   constructor(account, app) {
@@ -1753,6 +1818,36 @@ var S3Client = class {
       throw new Error(`Delete original failed: HTTP ${delResp.status}`);
     }
   }
+  /**
+   * 在指定远程目录下创建子文件夹
+   * S3 实际不是有真正的目录，这里上传一个 0 字节的 .keep 占位对象来让目录在 listDirectory 中可见
+   * @param {string} parentDir - 父目录（以 / 开头，以 / 结尾）
+   * @param {string} folderName - 新文件夹名（不含 /）
+   * @returns {Promise<{ok: boolean, remotePath?: string, usedPlaceholder?: boolean, error?: string}>}
+   */
+  async createDirectory(parentDir, folderName) {
+    const normalizedParent = parentDir.endsWith("/") ? parentDir : parentDir + "/";
+    const remotePath = normalizedParent + folderName;
+    const basePrefix = this.prefix ? this.prefix.replace(/\/$/, "") : "";
+    const dirClean = normalizedParent.replace(/^\/+/, "");
+    const objectKey = basePrefix ? `${basePrefix}/${dirClean}${folderName}/.keep` : `${dirClean}${folderName}/.keep`;
+    try {
+      const params = new URLSearchParams({ "X-Amz-Expires": "3600" });
+      const signedQuery = await this.signQuery(params, objectKey, "PUT", { "content-type": "application/octet-stream" });
+      const uploadUrl = `${this.endpoint}/${this.bucket}/${encodeURIComponent(objectKey)}?${signedQuery}`;
+      const response = await this.requestViaObsidian(uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": "application/octet-stream" },
+        body: new ArrayBuffer(0)
+      });
+      if (response.ok) {
+        return { ok: true, remotePath, usedPlaceholder: true };
+      }
+      return { ok: false, error: `HTTP ${response.status} ${response.text || ""}`.trim() };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  }
 };
 var CloudAttachView = class extends ItemView {
   constructor(leaf, plugin) {
@@ -1874,6 +1969,12 @@ var CloudAttachView = class extends ItemView {
     };
     this.breadcrumbEl.appendChild(root);
     if (this.currentPath === "/") {
+      const newFolderBtn2 = document.createElement("button");
+      newFolderBtn2.className = "cloud-attach-refresh";
+      newFolderBtn2.textContent = t("view.new_folder_btn");
+      newFolderBtn2.title = t("view.new_folder_title");
+      newFolderBtn2.onclick = () => this.showNewFolderDialog();
+      this.breadcrumbEl.appendChild(newFolderBtn2);
       const refresh2 = document.createElement("button");
       refresh2.className = "cloud-attach-refresh";
       refresh2.textContent = t("view.refresh");
@@ -1897,6 +1998,12 @@ var CloudAttachView = class extends ItemView {
       };
       this.breadcrumbEl.appendChild(btn);
     }
+    const newFolderBtn = document.createElement("button");
+    newFolderBtn.className = "cloud-attach-refresh";
+    newFolderBtn.textContent = t("view.new_folder_btn");
+    newFolderBtn.title = t("view.new_folder_title");
+    newFolderBtn.onclick = () => this.showNewFolderDialog();
+    this.breadcrumbEl.appendChild(newFolderBtn);
     const refresh = document.createElement("button");
     refresh.className = "cloud-attach-refresh";
     refresh.textContent = t("view.refresh");
@@ -1912,6 +2019,85 @@ var CloudAttachView = class extends ItemView {
       this.selectedFiles.clear();
       this.loadDir();
     }
+  }
+  /**
+   * 弹出新建文件夹对话框
+   * 输入名称 → 调用 client.createDirectory() → 刷新当前目录
+   */
+  showNewFolderDialog() {
+    if (!this.client) {
+      new Notice(t("view.no_account"), 3e3);
+      return;
+    }
+    const modal = new (require("obsidian")).Modal(this.app);
+    modal.titleEl.textContent = t("view.new_folder_title");
+    const content = modal.contentEl;
+    content.style.padding = "16px";
+    const label = document.createElement("div");
+    label.style.fontSize = "13px";
+    label.style.marginBottom = "8px";
+    label.textContent = t("view.new_folder_placeholder") + ":";
+    content.appendChild(label);
+    const input = document.createElement("input");
+    input.type = "text";
+    input.placeholder = t("view.new_folder_placeholder");
+    input.style.width = "100%";
+    input.style.padding = "6px 8px";
+    input.style.fontSize = "13px";
+    input.style.marginBottom = "16px";
+    input.style.boxSizing = "border-box";
+    content.appendChild(input);
+    const btnRow = document.createElement("div");
+    btnRow.style.display = "flex";
+    btnRow.style.gap = "8px";
+    btnRow.style.justifyContent = "flex-end";
+    const cancelBtn = document.createElement("button");
+    cancelBtn.textContent = t("view.new_folder_cancel");
+    cancelBtn.onclick = () => modal.close();
+    btnRow.appendChild(cancelBtn);
+    const confirmBtn2 = document.createElement("button");
+    confirmBtn2.textContent = t("view.new_folder_confirm");
+    confirmBtn2.className = "mod-cta";
+    confirmBtn2.onclick = async () => {
+      const name = input.value.trim();
+      if (!name) {
+        new Notice(t("view.new_folder_name_empty"), 3e3);
+        return;
+      }
+      if (name.includes("/")) {
+        new Notice("\u26A0\uFE0F " + t("view.new_folder_failed", { error: "\u540D\u79F0\u4E0D\u80FD\u542B /" }), 4e3);
+        return;
+      }
+      confirmBtn2.disabled = true;
+      new Notice(t("view.new_folder_creating"), 2e3);
+      try {
+        const result = await this.client.createDirectory(this.currentPath, name);
+        if (result.ok) {
+          new Notice(t("view.new_folder_success", { name }), 3e3);
+          if (result.usedPlaceholder) {
+            new Notice(t("view.new_folder_keep_notice"), 5e3);
+          }
+          modal.close();
+          await this.loadDir();
+        } else {
+          new Notice(t("view.new_folder_failed", { error: result.error || "unknown" }), 5e3);
+          confirmBtn2.disabled = false;
+        }
+      } catch (e) {
+        new Notice(t("view.new_folder_failed", { error: e.message }), 5e3);
+        confirmBtn2.disabled = false;
+      }
+    };
+    btnRow.appendChild(confirmBtn2);
+    content.appendChild(btnRow);
+    modal.open();
+    setTimeout(() => input.focus(), 50);
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter")
+        confirmBtn2.click();
+      else if (e.key === "Escape")
+        modal.close();
+    });
   }
   renderBatchBar() {
     if (!this.batchBarEl)

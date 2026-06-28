@@ -1,3 +1,11 @@
+## v0.4.081.dev - 2026-06-28
+
+- 新增：视图顶部栏新建文件夹按钮 📁+，支持在 OpenList 和 S3 远程目录创建子文件夹
+- OpenListClient.createDirectory：优先调用 /api/fs/mkdir API，失败降级 WebDAV MKCOL
+- S3Client.createDirectory：Upload 0 字节 .keep 占位对象创建目录
+- UI：输入文件夹名 Modal → 回车确认 → 自动刷新目录列表
+- i18n：view.new_folder_* 共 10 个中英双份 key
+
 ## v0.4.079 - 2026-06-28
 
 - 修复：右键上传附件，即使没有引用此文件的笔记也不报错，继续走默认账号上传
