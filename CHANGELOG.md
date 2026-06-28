@@ -1,4 +1,9 @@
-## v0.4.092.dev - 2026-06-29
+## v0.4.093.dev - 2026-06-29
+
+- 修复：PDF 全屏预览 Fit Width 真正生效
+  - 改为 canvas `width: 100%` + 2x 高清渲染，CSS 撑满容器（不再依赖 clientWidth 计算）
+  - 取消缩放下拉，简化顶栏
+  - 页码指示+关闭按钮保留
 
 - 修复：PDF 全屏预览 Fit Width 不生效（修复后用 popout 窗口宽度计算）
   - 容器 clientWidth 时机问题加 requestAnimationFrame
