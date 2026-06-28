@@ -2619,12 +2619,23 @@ var CloudAttachView = class extends ItemView {
     menu.showAtPosition({ x: event.clientX, y: event.clientY });
   }
 };
+function cleanFileNameFromUrl(url) {
+  if (!url)
+    return "PDF";
+  const noQuery = url.split("?")[0].split("#")[0];
+  const last = noQuery.split("/").pop() || "PDF";
+  try {
+    return decodeURIComponent(last);
+  } catch {
+    return last;
+  }
+}
 var PdfFullscreenView = class extends ItemView {
   constructor(leaf, plugin, pdfUrl, pdfName) {
     super(leaf);
     this.plugin = plugin;
     this.pdfUrl = pdfUrl;
-    this.pdfName = pdfName || "PDF";
+    this.pdfName = pdfName || cleanFileNameFromUrl(pdfUrl);
   }
   getViewType() {
     return VIEW_TYPE_PDF_FULLSCREEN;
@@ -2640,7 +2651,7 @@ var PdfFullscreenView = class extends ItemView {
     container.empty();
     if (!this.pdfUrl && this.plugin._pendingPdfUrl) {
       this.pdfUrl = this.plugin._pendingPdfUrl;
-      this.pdfName = this.plugin._pendingPdfName || "PDF";
+      this.pdfName = cleanFileNameFromUrl(this.pdfUrl);
     }
     container.style.padding = "0";
     container.style.overflow = "hidden";
@@ -2658,7 +2669,7 @@ var PdfFullscreenView = class extends ItemView {
     left.style.display = "flex";
     left.style.alignItems = "center";
     left.style.gap = "8px";
-    left.createEl("span", { text: "\u{1F4C4} " + this.pdfName });
+    left.createEl("span", { text: "\u{1F4C4} " + cleanFileNameFromUrl(this.pdfUrl) });
     const right = toolbar.createEl("div");
     right.style.display = "flex";
     right.style.alignItems = "center";
@@ -2667,18 +2678,19 @@ var PdfFullscreenView = class extends ItemView {
     this.pageIndicator.style.fontSize = "13px";
     this.pageIndicator.style.cursor = "pointer";
     this.pageIndicator.textContent = "1 / 1";
-    this._zoomLevel = 100;
+    this._zoomLevel = -1;
+    const fitLabel = t("view.fullscreen_fit_width");
     const zoomSelect = right.createEl("select");
     zoomSelect.style.fontSize = "12px";
     zoomSelect.style.padding = "2px 4px";
-    ["50%", "75%", "100%", "125%", "150%", "200%", t("view.fullscreen_fit_width")].forEach((v) => {
+    ["50%", "75%", "100%", "125%", "150%", "200%", fitLabel].forEach((v) => {
       const opt = zoomSelect.createEl("option", { text: v });
-      if (v === "100%")
+      if (v === fitLabel)
         opt.selected = true;
     });
     zoomSelect.onchange = () => {
       const val = zoomSelect.value;
-      if (val === t("view.fullscreen_fit_width")) {
+      if (val === fitLabel) {
         this._zoomLevel = -1;
       } else {
         this._zoomLevel = parseInt(val);
@@ -4051,12 +4063,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
     return resp.arrayBuffer();
   }
   /**
-   * 打开 PDF 全屏预览（新 Tab/Leaf）
+   * 打开 PDF 全屏预览（新窗口 Popout Leaf）
    */
   async openPdfFullscreen(url, name) {
     const { workspace } = this.app;
     if (!name)
-      name = decodeURIComponent(url.split("/").pop() || "PDF");
+      name = cleanFileNameFromUrl(url);
     const existing = workspace.getLeavesOfType(VIEW_TYPE_PDF_FULLSCREEN);
     if (existing.length > 0) {
       workspace.revealLeaf(existing[0]);
@@ -4070,7 +4082,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
     this._pendingPdfUrl = url;
     this._pendingPdfName = name;
-    const leaf = workspace.getLeaf("split", "vertical");
+    let leaf;
+    try {
+      leaf = workspace.openPopoutLeaf();
+    } catch (e) {
+      console.log("[CloudAttach] openPopoutLeaf failed, fallback to split:", e);
+      leaf = workspace.getLeaf("split", "vertical");
+    }
     await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true });
     workspace.revealLeaf(leaf);
     delete this._pendingPdfUrl;
@@ -4527,8 +4545,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     fullscreenBtn.onclick = (e) => {
       e.stopPropagation();
       const url = container.dataset.pdfUrl;
-      const name = decodeURIComponent(url.split("/").pop() || "PDF");
-      this.openPdfFullscreen(url, name);
+      this.openPdfFullscreen(url, cleanFileNameFromUrl(url));
     };
     const scrollArea = container.querySelector(".cloudattach-pdf-scrollarea");
     const scrollToPage = (pageNum) => {
