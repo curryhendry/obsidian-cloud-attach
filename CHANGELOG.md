@@ -1,3 +1,10 @@
+## v0.4.077.dev - 2026-06-28
+
+- 修复：右键上传附件，即使没有引用此文件的笔记也不报错，继续走默认账号上传
+- 修复：右键上传附件，场景 a（有笔记引用）上传后自动替换笔记里所有引用链接
+- 修复：doUpload 中 .replace → split/join 全部替换（同一文件被引用多次时）
+- 修复：getUploadContext 每次重建 client 实例，修改配置后无需重启
+
 ## v0.4.075 - 2026-06-27
 
 - 修复：WebDAV **listDirectory** 报错 `decodedWebdavPath is not defined`（publicUrl 重构时变量声明遗漏）
