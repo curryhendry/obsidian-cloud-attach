@@ -79,6 +79,8 @@ Object.assign(I18n.translations.zh, {
   'notice.delete_success': '✅ 已删除 {count} 项',
   'notice.delete_partial': '⚠️ 删除成功 {success} 项，失败 {failed} 项',
   'notice.delete_failed': '❌ 删除失败：{error}',
+  'notice.delete_webdav_forbidden': '⚠️ 此服务器不支持通过 WebDAV 删除（可删除文件，文件夹需到网页端操作）',
+  'notice.delete_s3_forbidden': '⚠️ 删除失败（账号无删除权限或存储桶策略禁止）',
   'notice.rename_conflict': '❌ 重命名失败：目标文件名已存在',
   'notice.rename_failed': '❌ 重命名失败：{error}',
   'notice.rename_success': '✅ 重命名成功',
@@ -330,6 +332,8 @@ Object.assign(I18n.translations.en, {
   'notice.delete_success': '✅ Deleted {count} item(s)',
   'notice.delete_partial': '⚠️ Deleted {success}, failed {failed}',
   'notice.delete_failed': '❌ Delete failed: {error}',
+  'notice.delete_webdav_forbidden': '⚠️ This server forbids WebDAV deletion (files ok, folders require web UI)',
+  'notice.delete_s3_forbidden': '⚠️ Delete failed (no delete permission or bucket policy denied)',
   'notice.rename_conflict': '❌ Rename failed: filename already exists',
   'notice.rename_failed': '❌ Rename failed: {error}',
   'notice.rename_success': '✅ Renamed successfully',
@@ -1083,7 +1087,7 @@ class OpenListClient {
           if (response.ok || response.status === 204) {
             results.success.push(fullPath);
           } else {
-            results.failed.push({ path: fullPath, error: response.text || `HTTP ${response.status}` });
+            results.failed.push({ path: fullPath, error: response.text || `HTTP ${response.status}`, status: response.status });
           }
           continue;
         }
@@ -1930,7 +1934,7 @@ class S3Client {
             const itemEncodedKey = encodeURIComponent(itemKey);
             const itemDeleteUrl = `${this.endpoint}/${this.bucket}/${itemEncodedKey}?${itemSignedQuery}`;
             const r = await this.requestViaObsidian(itemDeleteUrl, { method: 'DELETE' });
-            if (!r.ok) results.failed.push({ path: item.path, error: `HTTP ${r.status}` });
+            if (!r.ok) results.failed.push({ path: item.path, error: `HTTP ${r.status}`, status: r.status });
             else results.success.push(item.path);
           }
         } else {
@@ -1939,7 +1943,7 @@ class S3Client {
           const deleteUrl = `${this.endpoint}/${this.bucket}/${encodedKey}?${signedQuery}`;
           const r = await this.requestViaObsidian(deleteUrl, { method: 'DELETE' });
           if (r.ok) results.success.push(fullPath);
-          else results.failed.push({ path: fullPath, error: `HTTP ${r.status}` });
+          else results.failed.push({ path: fullPath, error: `HTTP ${r.status}`, status: r.status });
         }
       } catch (e) {
         results.failed.push({ path: fullPath, error: e.message });
@@ -2427,10 +2431,17 @@ class CloudAttachView extends ItemView {
     if (!this.client) return;
     const paths = files.map(f => f.path);
     const result = await this.client.delete(paths);
+    const is403 = (failed) => failed.status === 403;
+    const isS3 = this.client.constructor.name === 'S3Client';
     if (result.failed.length === 0) {
       new Notice(t('notice.delete_success', { count: result.success.length }));
     } else if (result.success.length === 0) {
-      new Notice(t('notice.delete_failed', { error: result.failed[0].error }), 5000);
+      const first = result.failed[0];
+      if (is403(first)) {
+        new Notice(t(isS3 ? 'notice.delete_s3_forbidden' : 'notice.delete_webdav_forbidden'), 5000);
+      } else {
+        new Notice(t('notice.delete_failed', { error: first.error }), 5000);
+      }
     } else {
       new Notice(t('notice.delete_partial', { success: result.success.length, failed: result.failed.length }), 5000);
     }
