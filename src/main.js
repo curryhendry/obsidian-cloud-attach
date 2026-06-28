@@ -2779,12 +2779,20 @@ class CloudAttachView extends ItemView {
 }
 
 // === PDF 全屏预览视图 ===
+function cleanFileNameFromUrl(url) {
+  if (!url) return 'PDF';
+  // 去掉 query (?sign=...&token=...) 和 hash
+  const noQuery = url.split('?')[0].split('#')[0];
+  const last = noQuery.split('/').pop() || 'PDF';
+  try { return decodeURIComponent(last); } catch { return last; }
+}
+
 class PdfFullscreenView extends ItemView {
   constructor(leaf, plugin, pdfUrl, pdfName) {
     super(leaf);
     this.plugin = plugin;
     this.pdfUrl = pdfUrl;
-    this.pdfName = pdfName || 'PDF';
+    this.pdfName = pdfName || cleanFileNameFromUrl(pdfUrl);
   }
 
   getViewType() { return VIEW_TYPE_PDF_FULLSCREEN; }
@@ -2798,7 +2806,7 @@ class PdfFullscreenView extends ItemView {
     // 新创建的视图，从 plugin 取 pending URL
     if (!this.pdfUrl && this.plugin._pendingPdfUrl) {
       this.pdfUrl = this.plugin._pendingPdfUrl;
-      this.pdfName = this.plugin._pendingPdfName || 'PDF';
+      this.pdfName = cleanFileNameFromUrl(this.pdfUrl);
     }
 
     container.style.padding = '0';
@@ -2820,7 +2828,8 @@ class PdfFullscreenView extends ItemView {
     left.style.display = 'flex';
     left.style.alignItems = 'center';
     left.style.gap = '8px';
-    left.createEl('span', { text: '📄 ' + this.pdfName });
+    // 顶部只显示文件名（不含 query/sign）
+    left.createEl('span', { text: '📄 ' + cleanFileNameFromUrl(this.pdfUrl) });
 
     const right = toolbar.createEl('div');
     right.style.display = 'flex';
@@ -2833,18 +2842,19 @@ class PdfFullscreenView extends ItemView {
     this.pageIndicator.style.cursor = 'pointer';
     this.pageIndicator.textContent = '1 / 1';
 
-    // 缩放
-    this._zoomLevel = 100;
+    // 缩放：默认 Fit Width（-1 表示自适应宽度）
+    this._zoomLevel = -1;
+    const fitLabel = t('view.fullscreen_fit_width');
     const zoomSelect = right.createEl('select');
     zoomSelect.style.fontSize = '12px';
     zoomSelect.style.padding = '2px 4px';
-    ['50%', '75%', '100%', '125%', '150%', '200%', t('view.fullscreen_fit_width')].forEach(v => {
+    ['50%', '75%', '100%', '125%', '150%', '200%', fitLabel].forEach(v => {
       const opt = zoomSelect.createEl('option', { text: v });
-      if (v === '100%') opt.selected = true;
+      if (v === fitLabel) opt.selected = true;
     });
     zoomSelect.onchange = () => {
       const val = zoomSelect.value;
-      if (val === t('view.fullscreen_fit_width')) {
+      if (val === fitLabel) {
         this._zoomLevel = -1;
       } else {
         this._zoomLevel = parseInt(val);
@@ -4266,11 +4276,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
 
   /**
-   * 打开 PDF 全屏预览（新 Tab/Leaf）
+   * 打开 PDF 全屏预览（新窗口 Popout Leaf）
    */
   async openPdfFullscreen(url, name) {
     const { workspace } = this.app;
-    if (!name) name = decodeURIComponent(url.split('/').pop() || 'PDF');
+    if (!name) name = cleanFileNameFromUrl(url);
     // 检查是否已存在
     const existing = workspace.getLeavesOfType(VIEW_TYPE_PDF_FULLSCREEN);
     if (existing.length > 0) {
@@ -4286,7 +4296,14 @@ module.exports = class CloudAttachPlugin extends Plugin {
     // store 到实例上，onOpen 会读取
     this._pendingPdfUrl = url;
     this._pendingPdfName = name;
-    const leaf = workspace.getLeaf('split', 'vertical');
+    // 优先 popout 窗口（真·全屏），fallback 到 split
+    let leaf;
+    try {
+      leaf = workspace.openPopoutLeaf();
+    } catch (e) {
+      console.log('[CloudAttach] openPopoutLeaf failed, fallback to split:', e);
+      leaf = workspace.getLeaf('split', 'vertical');
+    }
     await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true });
     workspace.revealLeaf(leaf);
     delete this._pendingPdfUrl;
@@ -4756,8 +4773,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     fullscreenBtn.onclick = (e) => {
       e.stopPropagation();
       const url = container.dataset.pdfUrl;
-      const name = decodeURIComponent(url.split('/').pop() || 'PDF');
-      this.openPdfFullscreen(url, name);
+      this.openPdfFullscreen(url, cleanFileNameFromUrl(url));
     };
     const scrollArea = container.querySelector(".cloudattach-pdf-scrollarea");
     const scrollToPage = (pageNum) => {
