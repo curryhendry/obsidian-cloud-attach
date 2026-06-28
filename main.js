@@ -1238,7 +1238,7 @@ var OpenListClient = class {
       if (files.length <= 3)
         console.log("[CloudAttach] listDir path:", JSON.stringify(relativePath));
     }
-    if (responses.length > 0 && files.length === 0) {
+    if (responses.length > 1 && files.length === 0) {
       console.warn("[CloudAttach] WebDAV: XML\u89E3\u6790\u5230", responses.length, "\u6761\u76EE\u4F46\u5168\u90E8\u88AB\u8FC7\u6EE4\uFF0CremotePath=", remotePath, "webdavPath=", this.webdavPath);
     }
     return files.sort((a, b) => {
@@ -3582,6 +3582,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
     this.registerEvent(
       this.app.workspace.on("file-menu", (menu, file, source) => {
         if (!file || !source.startsWith("file-explorer"))
+          return;
+        if (file.children !== void 0)
           return;
         const ext = file.extension?.toLowerCase() || "";
         if (ext === "md")
