@@ -2839,31 +2839,10 @@ class PdfFullscreenView extends ItemView {
     // 页码指示器
     this.pageIndicator = right.createEl('span');
     this.pageIndicator.style.fontSize = '13px';
-    this.pageIndicator.style.cursor = 'pointer';
+    this.pageIndicator.style.color = 'var(--text-muted)';
     this.pageIndicator.textContent = '1 / 1';
 
-    // 缩放：默认 Fit Width（-1 表示自适应宽度）
-    this._zoomLevel = -1;
-    const fitLabel = t('view.fullscreen_fit_width');
-    const zoomSelect = right.createEl('select');
-    zoomSelect.style.fontSize = '12px';
-    zoomSelect.style.padding = '2px 4px';
-    ['50%', '75%', '100%', '125%', '150%', '200%', fitLabel].forEach(v => {
-      const opt = zoomSelect.createEl('option', { text: v });
-      if (v === fitLabel) opt.selected = true;
-    });
-    zoomSelect.onchange = () => {
-      const val = zoomSelect.value;
-      if (val === fitLabel) {
-        this._zoomLevel = -1;
-      } else {
-        this._zoomLevel = parseInt(val);
-      }
-      this._reRender();
-    };
-    this._zoomSelect = zoomSelect;
-
-    // 关闭
+    // 关闭按钮
     const closeBtn = right.createEl('span', { text: '✕' });
     closeBtn.style.cursor = 'pointer';
     closeBtn.style.fontSize = '16px';
@@ -2896,8 +2875,6 @@ class PdfFullscreenView extends ItemView {
       this.pageIndicator.textContent = `1 / ${totalPages}`;
 
       this.scrollEl.empty();
-      // 等 layout 后再计算 fit width scale（否则 clientWidth 为 0）
-      await new Promise(r => requestAnimationFrame(r));
       this._renderAllPages();
     } catch (e) {
       console.error('[CloudAttach] PdfFullscreenView load error:', e);
@@ -2912,13 +2889,17 @@ class PdfFullscreenView extends ItemView {
   async _renderAllPages() {
     if (!this._pdf) return;
     const totalPages = this._pdf.numPages;
-    const scale = this._zoomLevel === -1 ? this._fitWidthScale() : (this._zoomLevel / 100);
+    // 固定使用 2x 高清渲染（避免模糊），CSS 强制 canvas width: 100% 自适应容器
+    const renderScale = 2;
 
     for (let i = 1; i <= totalPages; i++) {
       const page = await this._pdf.getPage(i);
-      const viewport = page.getViewport({ scale });
+      const viewport = page.getViewport({ scale: renderScale });
       const canvas = document.createElement('canvas');
+      canvas.className = 'cloud-attach-pdf-fullscreen-page';
       canvas.style.display = 'block';
+      canvas.style.width = '100%';
+      canvas.style.height = 'auto';
       canvas.style.margin = '0 auto 8px';
       canvas.style.boxShadow = '0 1px 4px rgba(0,0,0,0.15)';
       canvas.width = viewport.width;
@@ -2931,16 +2912,15 @@ class PdfFullscreenView extends ItemView {
         viewport
       }).promise;
 
-      // 更新页码（滚动时更新）
       if (i === 1) this._bindScroll();
     }
   }
 
+  // 保留以备后续手动计算缩放时使用
   _fitWidthScale() {
-    // 用父容器宽度（popout 窗口宽度），不依赖 scrollEl
     const w = this.containerEl.clientWidth;
-    if (w <= 0) return 1; // 还未 layout，fallback 1
-    return w / 612; // PDF 标准 A4 宽度 612pt
+    if (w <= 0) return 1;
+    return w / 612;
   }
 
   _reRender() {

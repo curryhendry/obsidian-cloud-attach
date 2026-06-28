@@ -2676,28 +2676,8 @@ var PdfFullscreenView = class extends ItemView {
     right.style.gap = "8px";
     this.pageIndicator = right.createEl("span");
     this.pageIndicator.style.fontSize = "13px";
-    this.pageIndicator.style.cursor = "pointer";
+    this.pageIndicator.style.color = "var(--text-muted)";
     this.pageIndicator.textContent = "1 / 1";
-    this._zoomLevel = -1;
-    const fitLabel = t("view.fullscreen_fit_width");
-    const zoomSelect = right.createEl("select");
-    zoomSelect.style.fontSize = "12px";
-    zoomSelect.style.padding = "2px 4px";
-    ["50%", "75%", "100%", "125%", "150%", "200%", fitLabel].forEach((v) => {
-      const opt = zoomSelect.createEl("option", { text: v });
-      if (v === fitLabel)
-        opt.selected = true;
-    });
-    zoomSelect.onchange = () => {
-      const val = zoomSelect.value;
-      if (val === fitLabel) {
-        this._zoomLevel = -1;
-      } else {
-        this._zoomLevel = parseInt(val);
-      }
-      this._reRender();
-    };
-    this._zoomSelect = zoomSelect;
     const closeBtn = right.createEl("span", { text: "\u2715" });
     closeBtn.style.cursor = "pointer";
     closeBtn.style.fontSize = "16px";
@@ -2722,7 +2702,6 @@ var PdfFullscreenView = class extends ItemView {
       const totalPages = this._pdf.numPages;
       this.pageIndicator.textContent = `1 / ${totalPages}`;
       this.scrollEl.empty();
-      await new Promise((r) => requestAnimationFrame(r));
       this._renderAllPages();
     } catch (e) {
       console.error("[CloudAttach] PdfFullscreenView load error:", e);
@@ -2737,12 +2716,15 @@ var PdfFullscreenView = class extends ItemView {
     if (!this._pdf)
       return;
     const totalPages = this._pdf.numPages;
-    const scale = this._zoomLevel === -1 ? this._fitWidthScale() : this._zoomLevel / 100;
+    const renderScale = 2;
     for (let i = 1; i <= totalPages; i++) {
       const page = await this._pdf.getPage(i);
-      const viewport = page.getViewport({ scale });
+      const viewport = page.getViewport({ scale: renderScale });
       const canvas = document.createElement("canvas");
+      canvas.className = "cloud-attach-pdf-fullscreen-page";
       canvas.style.display = "block";
+      canvas.style.width = "100%";
+      canvas.style.height = "auto";
       canvas.style.margin = "0 auto 8px";
       canvas.style.boxShadow = "0 1px 4px rgba(0,0,0,0.15)";
       canvas.width = viewport.width;
@@ -2757,6 +2739,7 @@ var PdfFullscreenView = class extends ItemView {
         this._bindScroll();
     }
   }
+  // 保留以备后续手动计算缩放时使用
   _fitWidthScale() {
     const w = this.containerEl.clientWidth;
     if (w <= 0)
