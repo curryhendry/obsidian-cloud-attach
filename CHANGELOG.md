@@ -1,10 +1,13 @@
-## v0.4.081.dev - 2026-06-28
+## v0.4.082.dev - 2026-06-28
 
 - 新增：视图顶部栏新建文件夹按钮 📁+，支持在 OpenList 和 S3 远程目录创建子文件夹
 - OpenListClient.createDirectory：优先调用 /api/fs/mkdir API，失败降级 WebDAV MKCOL
 - S3Client.createDirectory：Upload 0 字节 .keep 占位对象创建目录
 - UI：输入文件夹名 Modal → 回车确认 → 自动刷新目录列表
-- i18n：view.new_folder_* 共 10 个中英双份 key
+- 调整：新建文件夹与刷新按钮统一靠右侧，紧挨在一起
+- 调整：新建文件夹弹窗只保留创建按钮，取消靠右上角 X
+- 去除：S3 创建成功后不向用户展示 .keep 占位提示
+- i18n：view.new_folder_* 共 8 个中英双份 key（去除 cancel、keep_notice）
 
 ## v0.4.079 - 2026-06-28
 
