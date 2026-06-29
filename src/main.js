@@ -3105,11 +3105,17 @@ class PdfFullscreenView extends ItemView {
       c.className = 'cloud-attach-pdf-fullscreen-page';
     });
     
-    // Reset scrollEl styles
-    this.scrollEl.style.cssText = '';
-    this.scrollEl.style.flex = '1';
-    this.scrollEl.style.minHeight = '0';
-    this.scrollEl.style.background = 'var(--background-secondary)';
+    // Reset scrollEl mode-specific styles (keep flex:1 min-height:0 base layout)
+    this.scrollEl.style.position = '';
+    this.scrollEl.style.display = '';
+    this.scrollEl.style.flexDirection = '';
+    this.scrollEl.style.flexWrap = '';
+    this.scrollEl.style.justifyContent = '';
+    this.scrollEl.style.alignItems = '';
+    this.scrollEl.style.gap = '';
+    this.scrollEl.style.overflow = '';
+    this.scrollEl.style.height = '';
+    this.scrollEl.style.background = '';
     
     if (this._viewMode === 'single') {
       // 单页模式：relative 容器 + absolute canvas，transform 滑动
