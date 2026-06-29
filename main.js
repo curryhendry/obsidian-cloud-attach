@@ -2741,22 +2741,6 @@ var PdfFullscreenView = class extends ItemView {
       });
       menu.showAtMouseEvent(e);
     };
-    let ver = "0";
-    try {
-      const { readFileSync } = require("fs");
-      const { join } = require("path");
-      const changelog = readFileSync(join(this.plugin.manifest.dir || ".", "CHANGELOG.md"), "utf8");
-      const match = changelog.split("\n")[0].match(/v([\d.]+)(?:\.dev)?/);
-      if (match)
-        ver = match[1].split(".").pop() || "0";
-    } catch {
-    }
-    const verBadge = left.createEl("span", { text: ver });
-    verBadge.style.fontSize = "10px";
-    verBadge.style.color = "var(--text-muted)";
-    verBadge.style.background = "var(--background-modifier-hover)";
-    verBadge.style.padding = "1px 4px";
-    verBadge.style.borderRadius = "3px";
     const right = toolbar.createEl("div");
     right.style.display = "flex";
     right.style.alignItems = "center";

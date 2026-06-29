@@ -2919,22 +2919,6 @@ class PdfFullscreenView extends ItemView {
 
 
 
-    // 版本角标：从 CHANGELOG 首行读取（兼容 .dev 后缀）
-    let ver = '0';
-    try {
-      const { readFileSync } = require('fs');
-      const { join } = require('path');
-      const changelog = readFileSync(join(this.plugin.manifest.dir || '.', 'CHANGELOG.md'), 'utf8');
-      const match = changelog.split('\n')[0].match(/v([\d.]+)(?:\.dev)?/);
-      if (match) ver = match[1].split('.').pop() || '0';
-    } catch {}
-    const verBadge = left.createEl('span', { text: ver });
-    verBadge.style.fontSize = '10px';
-    verBadge.style.color = 'var(--text-muted)';
-    verBadge.style.background = 'var(--background-modifier-hover)';
-    verBadge.style.padding = '1px 4px';
-    verBadge.style.borderRadius = '3px';
-
     // 右侧：功能按钮
     const right = toolbar.createEl('div');
     right.style.display = 'flex';
