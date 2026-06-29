@@ -2894,10 +2894,16 @@ var PdfFullscreenView = class extends ItemView {
       c.style.cssText = "";
       c.className = "cloud-attach-pdf-fullscreen-page";
     });
-    this.scrollEl.style.cssText = "";
-    this.scrollEl.style.flex = "1";
-    this.scrollEl.style.minHeight = "0";
-    this.scrollEl.style.background = "var(--background-secondary)";
+    this.scrollEl.style.position = "";
+    this.scrollEl.style.display = "";
+    this.scrollEl.style.flexDirection = "";
+    this.scrollEl.style.flexWrap = "";
+    this.scrollEl.style.justifyContent = "";
+    this.scrollEl.style.alignItems = "";
+    this.scrollEl.style.gap = "";
+    this.scrollEl.style.overflow = "";
+    this.scrollEl.style.height = "";
+    this.scrollEl.style.background = "";
     if (this._viewMode === "single") {
       this.scrollEl.style.position = "relative";
       this.scrollEl.style.overflow = "hidden";
