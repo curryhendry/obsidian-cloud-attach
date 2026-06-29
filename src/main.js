@@ -2796,7 +2796,17 @@ class PdfFullscreenView extends ItemView {
   }
 
   getViewType() { return VIEW_TYPE_PDF_FULLSCREEN; }
-  getDisplayText() { return this.pdfName || 'PDF'; }
+  getDisplayText() {
+    if (this.pdfName) return this.pdfName;
+    try {
+      const state = this.leaf?.getViewState()?.state;
+      if (state?.pdfName) return state.pdfName;
+      if (state?.pdfUrl) return cleanFileNameFromUrl(state.pdfUrl);
+    } catch {}
+    if (this.plugin?._pendingPdfName) return this.plugin._pendingPdfName;
+    if (this.plugin?._pendingPdfUrl) return cleanFileNameFromUrl(this.plugin._pendingPdfUrl);
+    return 'PDF';
+  }
   getIcon() { return 'file-text'; }
 
   async onOpen() {

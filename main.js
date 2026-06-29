@@ -2641,7 +2641,21 @@ var PdfFullscreenView = class extends ItemView {
     return VIEW_TYPE_PDF_FULLSCREEN;
   }
   getDisplayText() {
-    return this.pdfName || "PDF";
+    if (this.pdfName)
+      return this.pdfName;
+    try {
+      const state = this.leaf?.getViewState()?.state;
+      if (state?.pdfName)
+        return state.pdfName;
+      if (state?.pdfUrl)
+        return cleanFileNameFromUrl(state.pdfUrl);
+    } catch {
+    }
+    if (this.plugin?._pendingPdfName)
+      return this.plugin._pendingPdfName;
+    if (this.plugin?._pendingPdfUrl)
+      return cleanFileNameFromUrl(this.plugin._pendingPdfUrl);
+    return "PDF";
   }
   getIcon() {
     return "file-text";
