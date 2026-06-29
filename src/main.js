@@ -4716,10 +4716,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const { workspace } = this.app;
     if (!name) name = cleanFileNameFromUrl(url);
     // 检查是否已存在
-    const existing = workspace.getLeavesOfType(VIEW_TYPE_PDF_FULLSCREEN);
-    if (existing.length > 0) {
-      existing[0].detach();
-    }
+    // 每次创建新 leaf，不关闭旧的
     // store 到实例上，onOpen 会读取
     this._pendingPdfUrl = url;
     this._pendingPdfName = name;

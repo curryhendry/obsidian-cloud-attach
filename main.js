@@ -4438,10 +4438,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const { workspace } = this.app;
     if (!name)
       name = cleanFileNameFromUrl(url);
-    const existing = workspace.getLeavesOfType(VIEW_TYPE_PDF_FULLSCREEN);
-    if (existing.length > 0) {
-      existing[0].detach();
-    }
     this._pendingPdfUrl = url;
     this._pendingPdfName = name;
     let leaf;
