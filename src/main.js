@@ -2993,14 +2993,16 @@ class PdfFullscreenView extends ItemView {
     this._contentWrap.style.flex = '1';
     this._contentWrap.style.display = 'flex';
     this._contentWrap.style.overflow = 'hidden';
+    this._contentWrap.style.minHeight = '0'; // flex 子元素必须设 min-height:0 才会收缩
 
     // 内容区
     this.scrollEl = this._contentWrap.createEl('div');
     this.scrollEl.style.flex = '1';
+    this.scrollEl.style.minHeight = '0';
     this.scrollEl.style.overflowY = 'auto';
     this.scrollEl.style.overflowX = 'hidden';
     this.scrollEl.style.background = 'var(--background-secondary)';
-    this.scrollEl.style.padding = '8px 0';
+    this.scrollEl.style.padding = '0';
 
     this._loadPdf();
   }
@@ -3036,19 +3038,25 @@ class PdfFullscreenView extends ItemView {
   async _renderAllPages() {
     if (!this._pdf) return;
     const totalPages = this._pdf.numPages;
-    // 计算 scale
+    
+    // Wait for layout before reading dimensions
+    await new Promise(r => requestAnimationFrame(r));
+    
+    const containerW = this.scrollEl.clientWidth;
+    const containerH = this.scrollEl.clientHeight;
+    
+    // Get first page size to compute proper scale
+    const firstPage = await this._pdf.getPage(1);
+    const firstViewport = firstPage.getViewport({ scale: 1 });
+    const pageW = firstViewport.width;
+    const pageH = firstViewport.height;
+    
+    // Compute scale
     let scale = 1;
     if (this._zoomMode === 'fit-width') {
-      scale = this._fitWidthScale();
+      scale = containerW > 0 ? containerW / pageW : 1;
     } else if (this._zoomMode === 'fit-height') {
-      const h = this.scrollEl.clientHeight - 32;
-      scale = h > 0 ? h / 792 : 1; // A4 高度 792pt
-    } else if (this._zoomMode === '100%') {
-      scale = 1;
-    } else if (this._zoomMode === '150%') {
-      scale = 1.5;
-    } else if (this._zoomMode === '200%') {
-      scale = 2;
+      scale = containerH > 0 ? containerH / pageH : 1;
     }
 
     for (let i = 1; i <= totalPages; i++) {
@@ -3057,15 +3065,7 @@ class PdfFullscreenView extends ItemView {
       const canvas = document.createElement('canvas');
       canvas.className = 'cloud-attach-pdf-fullscreen-page';
       canvas.style.display = 'block';
-      // 适应宽度模式：CSS width:100% 撑满
-      if (this._zoomMode === 'fit-width') {
-        canvas.style.width = '100%';
-        canvas.style.height = 'auto';
-      } else if (this._zoomMode === 'fit-height') {
-        canvas.style.height = '100%';
-        canvas.style.width = 'auto';
-      }
-      canvas.style.margin = '0 auto 8px';
+      canvas.style.margin = '0 auto';
       canvas.style.boxShadow = '0 1px 4px rgba(0,0,0,0.15)';
       canvas.width = viewport.width;
       canvas.height = viewport.height;
@@ -3076,122 +3076,136 @@ class PdfFullscreenView extends ItemView {
         canvasContext: canvas.getContext('2d'),
         viewport
       }).promise;
-
-      if (i === 1) this._bindScroll();
     }
+    
+    // Apply view mode after rendering
+    this._applyViewMode();
+    this._bindScroll();
   }
 
-  // 保留以备后续手动计算缩放时使用
   _fitWidthScale() {
-    const w = this.containerEl.clientWidth;
+    const w = this.scrollEl.clientWidth;
     if (w <= 0) return 1;
     return w / 612;
   }
 
   _reRender() {
     if (!this._pdf) return;
-    const curScroll = this.scrollEl.scrollTop;
     this.scrollEl.empty();
-    this._renderAllPages().then(() => {
-      this.scrollEl.scrollTop = curScroll;
-      this._applyViewMode();
-    });
+    this._renderAllPages();
   }
 
   _applyViewMode() {
     const canvases = this.scrollEl.querySelectorAll('canvas.cloud-attach-pdf-fullscreen-page');
     const cur = this._currentPage || 1;
-    const containerW = this.scrollEl.clientWidth;
-    const containerH = this.scrollEl.clientHeight;
     
-    // 重置容器样式
-    this.scrollEl.style.display = 'block';
-    this.scrollEl.style.flexDirection = '';
-    this.scrollEl.style.flexWrap = '';
-    this.scrollEl.style.justifyContent = '';
+    // Reset all canvas styles first
+    canvases.forEach(c => {
+      c.style.cssText = '';
+      c.className = 'cloud-attach-pdf-fullscreen-page';
+    });
+    
+    // Reset scrollEl styles
+    this.scrollEl.style.cssText = '';
+    this.scrollEl.style.flex = '1';
+    this.scrollEl.style.minHeight = '0';
+    this.scrollEl.style.background = 'var(--background-secondary)';
     
     if (this._viewMode === 'single') {
-      // 单页模式：用 transform 实现整页滑动
+      // 单页模式：relative 容器 + absolute canvas，transform 滑动
+      this.scrollEl.style.position = 'relative';
+      this.scrollEl.style.overflow = 'hidden';
+      this.scrollEl.style.display = 'block';
+      
+      const scrollW = this.scrollEl.clientWidth;
+      const scrollH = this.scrollEl.clientHeight;
+      
       canvases.forEach(c => {
         const pn = parseInt(c.dataset.pageNum, 10);
         c.style.display = 'block';
         c.style.position = 'absolute';
         c.style.top = '0';
         c.style.left = '0';
-        c.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
-        // 根据 zoomMode 设置尺寸
-        if (this._zoomMode === 'fit-width') {
-          c.style.width = '100%';
-          c.style.height = 'auto';
-        } else if (this._zoomMode === 'fit-height') {
-          c.style.width = 'auto';
-          c.style.height = '100%';
-          c.style.left = '50%';
-          c.style.transform = 'translateX(-50%)';
-        } else {
-          c.style.width = '100%';
+        c.style.margin = '0';
+        c.style.transition = 'transform 0.35s ease-out';
+        
+        // Fit within container
+        const cw = c.width;
+        const ch = c.height;
+        if (scrollW && cw > scrollW) {
+          c.style.width = scrollW + 'px';
           c.style.height = 'auto';
         }
-        // 当前页在位置 0，其他页在下方
+        if (scrollH && ch > scrollH) {
+          c.style.maxWidth = '100%';
+          c.style.maxHeight = scrollH + 'px';
+        }
+        
+        // Position: translateY based on page offset
         const offset = pn - cur;
-        if (this._zoomMode === 'fit-height') {
-          c.style.transform = `translateX(-50%) translateY(${offset * 100}%)`;
-        } else {
-          c.style.transform = `translateY(${offset * 100}%)`;
-        }
+        c.style.transform = `translateY(${offset * 100}vh)`;
       });
+      
+      this._highlightThumbnail(cur);
+    } else if (this._viewMode === 'double') {
+      // 双页模式：flex row, two pages side by side
       this.scrollEl.style.position = 'relative';
       this.scrollEl.style.overflow = 'hidden';
-    } else if (this._viewMode === 'double') {
-      // 双页模式：flex 水平布局，适配宽度/高度
       this.scrollEl.style.display = 'flex';
       this.scrollEl.style.flexDirection = 'row';
       this.scrollEl.style.flexWrap = 'nowrap';
       this.scrollEl.style.justifyContent = 'center';
       this.scrollEl.style.alignItems = 'center';
-      this.scrollEl.style.position = '';
-      this.scrollEl.style.overflow = 'hidden';
+      this.scrollEl.style.gap = '4px';
       
       const startPage = cur % 2 === 1 ? cur : cur - 1;
+      const scrollW = this.scrollEl.clientWidth;
+      const scrollH = this.scrollEl.clientHeight;
+      const halfW = scrollW / 2 - 8;
+      
       canvases.forEach(c => {
         const pn = parseInt(c.dataset.pageNum, 10);
         const pairIndex = Math.floor((pn - 1) / 2);
         const currentPairIndex = Math.floor((cur - 1) / 2);
-        const isVisible = pairIndex === currentPairIndex;
         
-        c.style.display = isVisible ? 'block' : 'none';
-        c.style.position = '';
-        c.style.margin = '0 4px';
-        c.style.transform = '';
-        c.style.transition = '';
+        c.style.display = (pairIndex === currentPairIndex) ? 'block' : 'none';
+        c.style.position = 'static';
+        c.style.transition = 'opacity 0.2s';
+        c.style.margin = '0';
         
-        // 双页适配：两页总宽度适配容器，保持宽高比
-        if (this._zoomMode === 'fit-width') {
-          c.style.width = `calc(50% - 8px)`;
-          c.style.height = 'auto';
-        } else if (this._zoomMode === 'fit-height') {
-          // 高度填满，宽度自动按比例，maxWidth 防止溢出
-          c.style.maxHeight = '100%';
-          c.style.maxWidth = `calc(50% - 8px)`;
-          c.style.width = 'auto';
-          c.style.height = 'auto';
-        } else {
-          c.style.width = `calc(50% - 8px)`;
-          c.style.height = 'auto';
+        // Resize to fit half width while preserving aspect ratio
+        if (scrollW > 0) {
+          const cw = c.width;
+          const ch = c.height;
+          const ratio = cw / (ch || 1);
+          const targetW = Math.min(halfW, cw);
+          const targetH = targetW / ratio;
+          if (targetH > scrollH && scrollH > 0) {
+            c.style.height = scrollH + 'px';
+            c.style.width = (scrollH * ratio) + 'px';
+          } else {
+            c.style.width = targetW + 'px';
+            c.style.height = targetH + 'px';
+          }
         }
       });
+      
+      this._highlightThumbnail(cur);
     } else {
       // 连续模式
-      this.scrollEl.style.position = '';
-      this.scrollEl.style.overflow = 'auto';
+      this.scrollEl.style.overflowY = 'auto';
+      this.scrollEl.style.overflowX = 'hidden';
+      
+      const scrollW = this.scrollEl.clientWidth;
       canvases.forEach(c => {
         c.style.display = 'block';
-        c.style.position = '';
-        c.style.width = '';
-        c.style.height = '';
+        c.style.position = 'static';
         c.style.margin = '0 auto 8px';
-        c.style.transform = '';
         c.style.transition = '';
+        if (this._zoomMode === 'fit-width' && scrollW > 0) {
+          c.style.width = scrollW + 'px';
+          c.style.height = 'auto';
+        }
       });
     }
   }
@@ -3246,30 +3260,38 @@ class PdfFullscreenView extends ItemView {
         resizeHandle.style.background = 'var(--background-modifier-border)'; 
         gripLine.style.background = 'var(--text-muted)'; 
       };
-      resizeHandle.onmousedown = (e) => {
+      resizeHandle.onpointerdown = (e) => {
         e.preventDefault();
         e.stopPropagation();
+        resizeHandle.setPointerCapture(e.pointerId);
         gripLine.style.background = 'var(--interactive-accent)';
         document.body.style.cursor = 'col-resize';
         document.body.style.userSelect = 'none';
         const startX = e.clientX;
         const startW = parseInt(this._thumbnailPanel.style.width || '150', 10);
-        const onMove = (ev) => {
-          ev.preventDefault();
+        
+        resizeHandle.onpointermove = (ev) => {
           const newW = startW + (ev.clientX - startX);
           if (newW >= 100 && newW <= 500) {
             this._thumbnailPanel.style.width = newW + 'px';
           }
         };
-        const onUp = () => {
+        
+        resizeHandle.onpointerup = () => {
           gripLine.style.background = 'var(--text-muted)';
           document.body.style.cursor = '';
           document.body.style.userSelect = '';
-          document.removeEventListener('mousemove', onMove);
-          document.removeEventListener('mouseup', onUp);
+          resizeHandle.onpointermove = null;
+          resizeHandle.onpointerup = null;
         };
-        document.addEventListener('mousemove', onMove);
-        document.addEventListener('mouseup', onUp);
+        
+        resizeHandle.onlostpointercapture = () => {
+          gripLine.style.background = 'var(--text-muted)';
+          document.body.style.cursor = '';
+          document.body.style.userSelect = '';
+          resizeHandle.onpointermove = null;
+          resizeHandle.onpointerup = null;
+        };
       };
     }
     this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? 'flex' : 'none';
@@ -3371,12 +3393,12 @@ class PdfFullscreenView extends ItemView {
     this._highlightThumbnail(pageNum);
 
     if (this._viewMode === 'single') {
-      // 单页模式：用 CSS transform 实现整页滑动
+      // 单页：update all canvas transforms
       const canvases = this.scrollEl.querySelectorAll('canvas.cloud-attach-pdf-fullscreen-page');
       canvases.forEach(c => {
         const pn = parseInt(c.dataset.pageNum, 10);
         const offset = pn - pageNum;
-        c.style.transform = `translateY(${offset * 100}%)`;
+        c.style.transform = `translateY(${offset * 100}vh)`;
       });
     } else if (this._viewMode === 'double') {
       this._applyViewMode();
