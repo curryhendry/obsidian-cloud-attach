@@ -2672,8 +2672,51 @@ var PdfFullscreenView = class extends ItemView {
     left.style.fontSize = "13px";
     left.style.color = "var(--text-normal)";
     left.createEl("span", { text: cleanFileNameFromUrl(this.pdfUrl) });
-    const verParts = (this.plugin?.manifest?.version || "0.0.0").split(".");
-    const ver = String(verParts[2] || "0");
+    this._viewMode = "continuous";
+    const viewSelect = left.createEl("select");
+    viewSelect.style.fontSize = "12px";
+    viewSelect.style.border = "1px solid var(--background-modifier-border)";
+    viewSelect.style.borderRadius = "4px";
+    viewSelect.style.background = "var(--background-primary)";
+    viewSelect.style.color = "var(--text-normal)";
+    viewSelect.style.padding = "2px 4px";
+    ["continuous", "single"].forEach((mode) => {
+      const opt = viewSelect.createEl("option", { text: mode === "continuous" ? "\u8FDE\u7EED" : "\u5355\u9875", value: mode });
+      if (mode === this._viewMode)
+        opt.selected = true;
+    });
+    viewSelect.onchange = () => {
+      this._viewMode = viewSelect.value;
+      this._applyViewMode();
+    };
+    this._zoomLevel = -1;
+    const zoomSelect = left.createEl("select");
+    zoomSelect.style.fontSize = "12px";
+    zoomSelect.style.border = "1px solid var(--background-modifier-border)";
+    zoomSelect.style.borderRadius = "4px";
+    zoomSelect.style.background = "var(--background-primary)";
+    zoomSelect.style.color = "var(--text-normal)";
+    zoomSelect.style.padding = "2px 4px";
+    const zoomOpts = [{ label: "\u9002\u5E94\u5BBD\u5EA6", value: "-1" }, { label: "100%", value: "1" }, { label: "150%", value: "1.5" }, { label: "200%", value: "2" }];
+    zoomOpts.forEach((z) => {
+      const opt = zoomSelect.createEl("option", { text: z.label, value: z.value });
+      if (Number(z.value) === this._zoomLevel)
+        opt.selected = true;
+    });
+    zoomSelect.onchange = () => {
+      this._zoomLevel = Number(zoomSelect.value);
+      this._reRender();
+    };
+    let ver = "0";
+    try {
+      const { readFileSync } = require("fs");
+      const { join } = require("path");
+      const changelog = readFileSync(join(this.plugin.manifest.dir || ".", "CHANGELOG.md"), "utf8");
+      const match = changelog.split("\n")[0].match(/v([\d.]+)/);
+      if (match)
+        ver = match[1].split(".").pop() || "0";
+    } catch {
+    }
     const verBadge = left.createEl("span", { text: ver });
     verBadge.style.fontSize = "10px";
     verBadge.style.color = "var(--text-muted)";
@@ -2759,15 +2802,17 @@ var PdfFullscreenView = class extends ItemView {
     if (!this._pdf)
       return;
     const totalPages = this._pdf.numPages;
-    const renderScale = 2;
+    const scale = this._zoomLevel === -1 ? this._fitWidthScale() : this._zoomLevel;
     for (let i = 1; i <= totalPages; i++) {
       const page = await this._pdf.getPage(i);
-      const viewport = page.getViewport({ scale: renderScale });
+      const viewport = page.getViewport({ scale });
       const canvas = document.createElement("canvas");
       canvas.className = "cloud-attach-pdf-fullscreen-page";
       canvas.style.display = "block";
-      canvas.style.width = "100%";
-      canvas.style.height = "auto";
+      if (this._zoomLevel === -1) {
+        canvas.style.width = "100%";
+        canvas.style.height = "auto";
+      }
       canvas.style.margin = "0 auto 8px";
       canvas.style.boxShadow = "0 1px 4px rgba(0,0,0,0.15)";
       canvas.width = viewport.width;
@@ -2796,7 +2841,23 @@ var PdfFullscreenView = class extends ItemView {
     this.scrollEl.empty();
     this._renderAllPages().then(() => {
       this.scrollEl.scrollTop = curScroll;
+      this._applyViewMode();
     });
+  }
+  _applyViewMode() {
+    const canvases = this.scrollEl.querySelectorAll("canvas.cloud-attach-pdf-fullscreen-page");
+    if (this._viewMode === "single") {
+      const cur = this._currentPage || 1;
+      canvases.forEach((c) => {
+        const pn = parseInt(c.dataset.pageNum, 10);
+        c.style.display = pn === cur ? "block" : "none";
+      });
+      const target = this.scrollEl.querySelector(`canvas[data-page-num="${cur}"]`);
+      if (target)
+        target.scrollIntoView({ block: "start" });
+    } else {
+      canvases.forEach((c) => c.style.display = "block");
+    }
   }
   _bindScroll() {
     this.scrollEl.onscroll = () => {
@@ -2824,11 +2885,14 @@ var PdfFullscreenView = class extends ItemView {
   _scrollToPage(pageNum) {
     if (!this._pdf || pageNum < 1 || pageNum > this._pdf.numPages)
       return;
-    const canvas = this.scrollEl.querySelector(`canvas[data-page-num="${pageNum}"]`);
-    if (canvas) {
-      canvas.scrollIntoView({ behavior: "smooth", block: "start" });
-      this.pageInput.value = String(pageNum);
-      this._currentPage = pageNum;
+    this.pageInput.value = String(pageNum);
+    this._currentPage = pageNum;
+    if (this._viewMode === "single") {
+      this._applyViewMode();
+    } else {
+      const canvas = this.scrollEl.querySelector(`canvas[data-page-num="${pageNum}"]`);
+      if (canvas)
+        canvas.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }
 };
