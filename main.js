@@ -2960,6 +2960,17 @@ var PdfFullscreenView = class extends ItemView {
         }
       });
       this._highlightThumbnail(cur);
+    } else {
+      const scrollW = this.scrollEl.clientWidth;
+      canvases.forEach((c) => {
+        c.style.display = "block";
+        c.style.position = "static";
+        c.style.margin = "0 auto 8px";
+        if (this._zoomMode === "fit-width" && scrollW > 0) {
+          c.style.width = scrollW + "px";
+          c.style.height = "auto";
+        }
+      });
     }
   }
   _applyZoom() {

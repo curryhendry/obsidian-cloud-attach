@@ -3179,8 +3179,19 @@ class PdfFullscreenView extends ItemView {
       });
       
       this._highlightThumbnail(cur);
+    } else {
+      // 连续模式也要做宽度适应
+      const scrollW = this.scrollEl.clientWidth;
+      canvases.forEach(c => {
+        c.style.display = 'block';
+        c.style.position = 'static';
+        c.style.margin = '0 auto 8px';
+        if (this._zoomMode === 'fit-width' && scrollW > 0) {
+          c.style.width = scrollW + 'px';
+          c.style.height = 'auto';
+        }
+      });
     }
-    // continuous mode = defaults (already reset above)
   }
 
   _applyZoom() {
