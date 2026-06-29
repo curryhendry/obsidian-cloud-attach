@@ -1,8 +1,26 @@
-## v0.4.101.dev - 2026-06-29
+## v0.4.102.dev - 2026-06-29
 
-- 修复：PDF 全屏预览页码随滚动同步
-  - 改用 IntersectionObserver 监听当前可见页
-- 优化：翻页按钮样式（改用 Obsidian clickable-icon + SVG 图标）
+- 修复：标签页标题显示文件名（viewState 传递 pdfUrl/pdfName）
+- 修复：页码滚动同步改用 scroll 事件（IntersectionObserver 在 Obsidian 中不稳定）
+
+## v0.4.100.dev - 2026-06-29
+
+- 修复：标签页标题隐藏"PDF"
+- 修复：页码滚动 sync
+
+## v0.4.099.dev - 2026-06-29
+
+- 调试：顶栏加版本角标 099
+
+## v0.4.098.dev - 2026-06-29
+
+- 修复：getDisplayText() 实时计算文件名
+- 修复：IntersectionObserver threshold 0.5 → 0.1
+
+## v0.4.097.dev - 2026-06-29
+
+- 修复：翻页按钮改用 Obsidian clickable-icon + SVG 图标
+- 修复：页码滚动同步改用 IntersectionObserver
 
 ## v0.4.095.dev - 2026-06-29
 
