@@ -2832,15 +2832,39 @@ class PdfFullscreenView extends ItemView {
     left.style.fontSize = '13px';
     left.style.color = 'var(--text-normal)';
 
-    // 缩略图/目录按钮
+    // 缩略图/目录按钮（带下拉菜单）
     this._thumbnailVisible = false;
-    const thumbBtn = left.createEl('button');
+    this._panelMode = 'thumbnail'; // 'thumbnail' | 'outline'
+    const thumbBtnWrap = left.createEl('div');
+    thumbBtnWrap.style.display = 'flex';
+    thumbBtnWrap.style.alignItems = 'center';
+    const thumbBtn = thumbBtnWrap.createEl('button');
     thumbBtn.className = 'clickable-icon';
-    thumbBtn.setAttribute('aria-label', '缩略图');
-    thumbBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>';
+    thumbBtn.setAttribute('aria-label', '面板');
+    // 参考 Obsidian 样式：三条横线 + 下箭头
+    thumbBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>';
     thumbBtn.onclick = () => {
       this._thumbnailVisible = !this._thumbnailVisible;
       this._toggleThumbnailPanel();
+    };
+    const arrowBtn = thumbBtnWrap.createEl('button');
+    arrowBtn.className = 'clickable-icon';
+    arrowBtn.style.padding = '2px';
+    arrowBtn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+    arrowBtn.onclick = (e) => {
+      const menu = new Menu();
+      menu.addItem(item => item.setTitle('缩略图').onClick(() => {
+        this._panelMode = 'thumbnail';
+        this._thumbnailVisible = true;
+        this._toggleThumbnailPanel();
+      }));
+      menu.addItem(item => item.setTitle('目录').onClick(() => {
+        this._panelMode = 'outline';
+        this._thumbnailVisible = true;
+        // TODO: 目录模式
+        new Notice('目录功能开发中');
+      }));
+      menu.showAtMouseEvent(e);
     };
 
     // 视图模式按钮 + 菜单
@@ -3092,23 +3116,32 @@ class PdfFullscreenView extends ItemView {
     for (let i = 1; i <= total; i++) {
       const page = await this._pdf.getPage(i);
       const viewport = page.getViewport({ scale: 0.2 }); // 缩略图小尺寸
-      const canvas = this._thumbnailPanel.createEl('canvas');
-      canvas.style.width = '100%';
-      canvas.style.height = 'auto';
-      canvas.style.marginBottom = '8px';
-      canvas.style.cursor = 'pointer';
-      canvas.style.border = '2px solid transparent';
-      canvas.style.borderRadius = '4px';
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      canvas.dataset.pageNum = String(i);
-      canvas.onclick = () => {
+      const wrap = this._thumbnailPanel.createEl('div');
+      wrap.style.marginBottom = '8px';
+      wrap.style.cursor = 'pointer';
+      wrap.style.border = '2px solid transparent';
+      wrap.style.borderRadius = '4px';
+      wrap.style.padding = '4px';
+      wrap.dataset.pageNum = String(i);
+      wrap.onclick = () => {
         this._scrollToPage(i);
         // 高亮当前缩略图
-        this._thumbnailPanel.querySelectorAll('canvas').forEach(c => c.style.borderColor = 'transparent');
-        canvas.style.borderColor = 'var(--interactive-accent)';
+        this._thumbnailPanel.querySelectorAll('div[data-page-num]').forEach(d => d.style.borderColor = 'transparent');
+        wrap.style.borderColor = 'var(--interactive-accent)';
       };
+      const canvas = wrap.createEl('canvas');
+      canvas.style.width = '100%';
+      canvas.style.height = 'auto';
+      canvas.style.display = 'block';
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
       await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+      // 页码
+      const pageNumEl = wrap.createEl('div', { text: String(i) });
+      pageNumEl.style.textAlign = 'center';
+      pageNumEl.style.fontSize = '11px';
+      pageNumEl.style.color = 'var(--text-muted)';
+      pageNumEl.style.marginTop = '4px';
     }
   }
 
