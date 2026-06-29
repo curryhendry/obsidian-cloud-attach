@@ -2854,6 +2854,7 @@ var PdfFullscreenView = class extends ItemView {
       const h = this.scrollEl.clientHeight || this.containerEl.clientHeight;
       scale = h > 0 ? h / pageH : 1;
     }
+    console.log("[CloudAttach] _renderAllPages zoomMode=", this._zoomMode, "pageW=", pageW, "pageH=", pageH, "scrollW=", this.scrollEl.clientWidth, "scrollH=", this.scrollEl.clientHeight, "containerW=", this.containerEl.clientWidth, "containerH=", this.containerEl.clientHeight, "scale=", scale);
     for (let i = 1; i <= totalPages; i++) {
       const page = await this._pdf.getPage(i);
       const viewport = page.getViewport({ scale });
@@ -2880,6 +2881,8 @@ var PdfFullscreenView = class extends ItemView {
     requestAnimationFrame(() => {
       this._renderAllPages().then(() => {
         this._applyViewMode();
+      }).catch((e) => {
+        console.error("[CloudAttach] _reRender _renderAllPages error:", e);
       });
     });
   }
