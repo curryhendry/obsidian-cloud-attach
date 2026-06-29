@@ -2796,7 +2796,7 @@ class PdfFullscreenView extends ItemView {
   }
 
   getViewType() { return VIEW_TYPE_PDF_FULLSCREEN; }
-  getDisplayText() { return this.pdfName || cleanFileNameFromUrl(this.pdfUrl) || 'PDF'; }
+  getDisplayText() { return ' '; }
   getIcon() { return 'file-text'; }
 
   async onOpen() {
@@ -2978,22 +2978,30 @@ class PdfFullscreenView extends ItemView {
   }
 
   _bindScroll() {
-    // 用 IntersectionObserver 监听每个 canvas 的可见性
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting && entry.intersectionRatio > 0.5) {
-          const pageNum = parseInt(entry.target.dataset.pageNum, 10);
-          this.pageInput.value = String(pageNum);
-          this._currentPage = pageNum;
+    // 用 scroll 事件计算当前页（IntersectionObserver 在 Obsidian 中不稳定）
+    this.scrollEl.onscroll = () => {
+      if (!this._pdf) return;
+      const canvases = this.scrollEl.querySelectorAll('canvas[data-page-num]');
+      const scrollTop = this.scrollEl.scrollTop;
+      const containerHeight = this.scrollEl.clientHeight;
+      
+      for (const c of canvases) {
+        const rect = c.getBoundingClientRect();
+        const containerRect = this.scrollEl.getBoundingClientRect();
+        const top = rect.top - containerRect.top;
+        const bottom = top + rect.height;
+        
+        // 页面顶部在视口上半部分即认为是当前页
+        if (top >= 0 && top < containerHeight * 0.6) {
+          const pageNum = parseInt(c.dataset.pageNum, 10);
+          if (this.pageInput.value !== String(pageNum)) {
+            this.pageInput.value = String(pageNum);
+            this._currentPage = pageNum;
+          }
+          break;
         }
-      });
-    }, {
-      root: this.scrollEl,
-      threshold: 0.1
-    });
-
-    const canvases = this.scrollEl.querySelectorAll('canvas[data-page-num]');
-    canvases.forEach(c => observer.observe(c));
+      }
+    };
   }
 
   _scrollToPage(pageNum) {

@@ -2641,7 +2641,7 @@ var PdfFullscreenView = class extends ItemView {
     return VIEW_TYPE_PDF_FULLSCREEN;
   }
   getDisplayText() {
-    return this.pdfName || cleanFileNameFromUrl(this.pdfUrl) || "PDF";
+    return " ";
   }
   getIcon() {
     return "file-text";
@@ -2797,20 +2797,27 @@ var PdfFullscreenView = class extends ItemView {
     });
   }
   _bindScroll() {
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting && entry.intersectionRatio > 0.5) {
-          const pageNum = parseInt(entry.target.dataset.pageNum, 10);
-          this.pageInput.value = String(pageNum);
-          this._currentPage = pageNum;
+    this.scrollEl.onscroll = () => {
+      if (!this._pdf)
+        return;
+      const canvases = this.scrollEl.querySelectorAll("canvas[data-page-num]");
+      const scrollTop = this.scrollEl.scrollTop;
+      const containerHeight = this.scrollEl.clientHeight;
+      for (const c of canvases) {
+        const rect = c.getBoundingClientRect();
+        const containerRect = this.scrollEl.getBoundingClientRect();
+        const top = rect.top - containerRect.top;
+        const bottom = top + rect.height;
+        if (top >= 0 && top < containerHeight * 0.6) {
+          const pageNum = parseInt(c.dataset.pageNum, 10);
+          if (this.pageInput.value !== String(pageNum)) {
+            this.pageInput.value = String(pageNum);
+            this._currentPage = pageNum;
+          }
+          break;
         }
-      });
-    }, {
-      root: this.scrollEl,
-      threshold: 0.1
-    });
-    const canvases = this.scrollEl.querySelectorAll("canvas[data-page-num]");
-    canvases.forEach((c) => observer.observe(c));
+      }
+    };
   }
   _scrollToPage(pageNum) {
     if (!this._pdf || pageNum < 1 || pageNum > this._pdf.numPages)
