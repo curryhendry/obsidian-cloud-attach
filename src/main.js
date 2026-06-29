@@ -3078,13 +3078,15 @@ class PdfFullscreenView extends ItemView {
 
   _reRender() {
     if (!this._pdf) return;
+    this.scrollEl.style.opacity = '0.4';
     this.scrollEl.empty();
-    // 等 layout 完成再渲染（侧边栏开关/模式切换后 clientWidth 才更新）
     requestAnimationFrame(() => {
       this._renderAllPages().then(() => {
         this._applyViewMode();
+        this.scrollEl.style.opacity = '';
       }).catch(e => {
         console.error('[CloudAttach] _reRender _renderAllPages error:', e);
+        this.scrollEl.style.opacity = '';
       });
     });
   }
