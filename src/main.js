@@ -3050,10 +3050,10 @@ class PdfFullscreenView extends ItemView {
       const w = this.scrollEl.clientWidth || this.containerEl.clientWidth;
       scale = w > 0 ? w / pageW : 1;
     } else if (this._zoomMode === 'fit-height') {
-      // scrollEl 空内容时 clientHeight 可能为 0，fallback 到父容器
       const h = this.scrollEl.clientHeight || this.containerEl.clientHeight;
       scale = h > 0 ? h / pageH : 1;
     }
+    console.log('[CloudAttach] _renderAllPages zoomMode=', this._zoomMode, 'pageW=', pageW, 'pageH=', pageH, 'scrollW=', this.scrollEl.clientWidth, 'scrollH=', this.scrollEl.clientHeight, 'containerW=', this.containerEl.clientWidth, 'containerH=', this.containerEl.clientHeight, 'scale=', scale);
 
     for (let i = 1; i <= totalPages; i++) {
       const page = await this._pdf.getPage(i);
@@ -3084,6 +3084,8 @@ class PdfFullscreenView extends ItemView {
     requestAnimationFrame(() => {
       this._renderAllPages().then(() => {
         this._applyViewMode();
+      }).catch(e => {
+        console.error('[CloudAttach] _reRender _renderAllPages error:', e);
       });
     });
   }
