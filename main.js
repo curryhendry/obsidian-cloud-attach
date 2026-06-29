@@ -2957,11 +2957,11 @@ var PdfFullscreenView = class extends ItemView {
         if (this._zoomMode === "fit-width") {
           c.style.width = `calc(50% - 8px)`;
           c.style.height = "auto";
-          c.style.maxHeight = "100%";
         } else if (this._zoomMode === "fit-height") {
-          c.style.height = "100%";
-          c.style.width = "auto";
+          c.style.maxHeight = "100%";
           c.style.maxWidth = `calc(50% - 8px)`;
+          c.style.width = "auto";
+          c.style.height = "auto";
         } else {
           c.style.width = `calc(50% - 8px)`;
           c.style.height = "auto";
@@ -2998,22 +2998,37 @@ var PdfFullscreenView = class extends ItemView {
       this._thumbnailPanel.style.padding = "8px";
       this._renderThumbnails();
       const resizeHandle = this._thumbnailPanelWrap.createEl("div");
-      resizeHandle.style.width = "8px";
+      resizeHandle.style.width = "10px";
+      resizeHandle.style.minWidth = "10px";
       resizeHandle.style.cursor = "col-resize";
       resizeHandle.style.background = "var(--background-modifier-border)";
       resizeHandle.style.flexShrink = "0";
+      resizeHandle.style.alignSelf = "stretch";
+      resizeHandle.style.userSelect = "none";
       resizeHandle.style.position = "relative";
-      resizeHandle.style.zIndex = "10";
+      resizeHandle.style.zIndex = "100";
+      resizeHandle.style.display = "flex";
+      resizeHandle.style.alignItems = "center";
+      resizeHandle.style.justifyContent = "center";
+      const gripLine = resizeHandle.createEl("div");
+      gripLine.style.width = "3px";
+      gripLine.style.height = "30px";
+      gripLine.style.borderRadius = "2px";
+      gripLine.style.background = "var(--text-muted)";
       resizeHandle.onmouseenter = () => {
-        resizeHandle.style.background = "var(--interactive-accent)";
+        resizeHandle.style.background = "var(--background-modifier-border)";
+        gripLine.style.background = "var(--interactive-accent)";
       };
       resizeHandle.onmouseleave = () => {
         resizeHandle.style.background = "var(--background-modifier-border)";
+        gripLine.style.background = "var(--text-muted)";
       };
       resizeHandle.onmousedown = (e) => {
         e.preventDefault();
         e.stopPropagation();
-        resizeHandle.style.background = "var(--interactive-accent)";
+        gripLine.style.background = "var(--interactive-accent)";
+        document.body.style.cursor = "col-resize";
+        document.body.style.userSelect = "none";
         const startX = e.clientX;
         const startW = parseInt(this._thumbnailPanel.style.width || "150", 10);
         const onMove = (ev) => {
@@ -3024,7 +3039,9 @@ var PdfFullscreenView = class extends ItemView {
           }
         };
         const onUp = () => {
-          resizeHandle.style.background = "var(--background-modifier-border)";
+          gripLine.style.background = "var(--text-muted)";
+          document.body.style.cursor = "";
+          document.body.style.userSelect = "";
           document.removeEventListener("mousemove", onMove);
           document.removeEventListener("mouseup", onUp);
         };
