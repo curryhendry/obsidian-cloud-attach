@@ -3119,10 +3119,11 @@ class PdfFullscreenView extends ItemView {
     
     if (this._viewMode === 'single') {
       // 单页模式：relative 容器 + absolute canvas，transform 滑动
+      // 保持 flex:1 参与父 flex 布局获得高度
       this.scrollEl.style.position = 'relative';
       this.scrollEl.style.overflow = 'hidden';
-      this.scrollEl.style.display = 'block';
-      this.scrollEl.style.height = '100%';
+      this.scrollEl.style.display = ''; // let flex layout control
+      this.scrollEl.style.height = '';
       
       const scrollW = this.scrollEl.clientWidth;
       const scrollH = this.scrollEl.clientHeight;
