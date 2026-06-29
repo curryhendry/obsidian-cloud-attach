@@ -2900,58 +2900,83 @@ var PdfFullscreenView = class extends ItemView {
   _applyViewMode() {
     const canvases = this.scrollEl.querySelectorAll("canvas.cloud-attach-pdf-fullscreen-page");
     const cur = this._currentPage || 1;
+    this.scrollEl.style.display = "block";
+    this.scrollEl.style.flexDirection = "";
+    this.scrollEl.style.flexWrap = "";
+    this.scrollEl.style.justifyContent = "";
     if (this._viewMode === "single") {
       canvases.forEach((c) => {
         const pn = parseInt(c.dataset.pageNum, 10);
-        c.style.display = pn === cur ? "block" : "none";
+        c.style.display = "block";
+        c.style.position = "absolute";
+        c.style.top = "0";
+        c.style.left = "0";
+        c.style.width = "100%";
+        c.style.height = "100%";
+        c.style.transition = "transform 0.3s ease";
+        const offset = pn - cur;
+        c.style.transform = `translateY(${offset * 100}%)`;
       });
-      const target = this.scrollEl.querySelector(`canvas[data-page-num="${cur}"]`);
-      if (target)
-        target.scrollIntoView({ behavior: "smooth", block: "start" });
+      this.scrollEl.style.position = "relative";
+      this.scrollEl.style.overflow = "hidden";
     } else if (this._viewMode === "double") {
+      this.scrollEl.style.display = "flex";
+      this.scrollEl.style.flexDirection = "row";
+      this.scrollEl.style.flexWrap = "wrap";
+      this.scrollEl.style.justifyContent = "center";
+      this.scrollEl.style.position = "";
+      this.scrollEl.style.overflow = "auto";
       const startPage = cur % 2 === 1 ? cur : cur - 1;
       canvases.forEach((c) => {
         const pn = parseInt(c.dataset.pageNum, 10);
-        c.style.display = pn === startPage || pn === startPage + 1 ? "inline-block" : "none";
-        if (pn === startPage || pn === startPage + 1) {
-          c.style.verticalAlign = "top";
-          c.style.margin = "0 4px 8px 0";
-        }
+        const pairIndex = Math.floor((pn - 1) / 2);
+        const currentPairIndex = Math.floor((cur - 1) / 2);
+        const isVisible = pairIndex === currentPairIndex;
+        c.style.display = isVisible ? "block" : "none";
+        c.style.position = "";
+        c.style.width = "48%";
+        c.style.height = "auto";
+        c.style.margin = "0 1%";
+        c.style.transform = "";
+        c.style.transition = "";
       });
-      this.scrollEl.style.textAlign = "center";
-      const target = this.scrollEl.querySelector(`canvas[data-page-num="${startPage}"]`);
-      if (target)
-        target.scrollIntoView({ behavior: "smooth", block: "start" });
     } else {
+      this.scrollEl.style.position = "";
+      this.scrollEl.style.overflow = "auto";
       canvases.forEach((c) => {
         c.style.display = "block";
-        c.style.verticalAlign = "";
+        c.style.position = "";
+        c.style.width = "";
+        c.style.height = "";
         c.style.margin = "0 auto 8px";
+        c.style.transform = "";
+        c.style.transition = "";
       });
-      this.scrollEl.style.textAlign = "";
     }
   }
   _applyZoom() {
     this._reRender();
   }
   _toggleThumbnailPanel() {
-    if (!this._thumbnailPanel) {
-      const panelWrap2 = this._contentWrap.createEl("div");
-      panelWrap2.style.display = "flex";
-      panelWrap2.style.flexDirection = "row";
-      this._contentWrap.insertBefore(panelWrap2, this.scrollEl);
-      this._thumbnailPanel = panelWrap2.createEl("div");
+    if (!this._thumbnailPanelWrap) {
+      this._thumbnailPanelWrap = this._contentWrap.createEl("div");
+      this._thumbnailPanelWrap.style.display = "flex";
+      this._thumbnailPanelWrap.style.flexDirection = "row";
+      this._contentWrap.insertBefore(this._thumbnailPanelWrap, this.scrollEl);
+      this._thumbnailPanel = this._thumbnailPanelWrap.createEl("div");
       this._thumbnailPanel.style.width = "150px";
       this._thumbnailPanel.style.flexShrink = "0";
       this._thumbnailPanel.style.overflowY = "auto";
       this._thumbnailPanel.style.background = "var(--background-primary)";
       this._thumbnailPanel.style.padding = "8px";
       this._renderThumbnails();
-      const resizeHandle = panelWrap2.createEl("div");
-      resizeHandle.style.width = "4px";
+      const resizeHandle = this._thumbnailPanelWrap.createEl("div");
+      resizeHandle.style.width = "6px";
       resizeHandle.style.cursor = "col-resize";
       resizeHandle.style.background = "var(--background-modifier-border)";
+      resizeHandle.style.flexShrink = "0";
       resizeHandle.onmousedown = (e) => {
+        e.preventDefault();
         const startX = e.clientX;
         const startW = this._thumbnailPanel.clientWidth;
         const onMove = (ev) => {
@@ -2968,8 +2993,7 @@ var PdfFullscreenView = class extends ItemView {
         document.addEventListener("mouseup", onUp);
       };
     }
-    const panelWrap = this._thumbnailPanel.parentElement;
-    panelWrap.style.display = this._thumbnailVisible ? "flex" : "none";
+    this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? "flex" : "none";
   }
   async _renderThumbnails() {
     if (!this._pdf || !this._thumbnailPanel)
@@ -3019,7 +3043,10 @@ var PdfFullscreenView = class extends ItemView {
       const delta = e.deltaY > 0 ? 1 : -1;
       const step = this._viewMode === "double" ? 2 : 1;
       const newPage = (this._currentPage || 1) + delta * step;
-      this._scrollToPage(Math.max(1, Math.min(newPage, this._pdf?.numPages || 1)));
+      const clampedPage = Math.max(1, Math.min(newPage, this._pdf?.numPages || 1));
+      if (clampedPage !== this._currentPage) {
+        this._scrollToPage(clampedPage);
+      }
     };
     this.scrollEl.onscroll = () => {
       if (!this._pdf)
@@ -3051,6 +3078,13 @@ var PdfFullscreenView = class extends ItemView {
     this._currentPage = pageNum;
     this._highlightThumbnail(pageNum);
     if (this._viewMode === "single") {
+      const canvases = this.scrollEl.querySelectorAll("canvas.cloud-attach-pdf-fullscreen-page");
+      canvases.forEach((c) => {
+        const pn = parseInt(c.dataset.pageNum, 10);
+        const offset = pn - pageNum;
+        c.style.transform = `translateY(${offset * 100}%)`;
+      });
+    } else if (this._viewMode === "double") {
       this._applyViewMode();
     } else {
       const canvas = this.scrollEl.querySelector(`canvas[data-page-num="${pageNum}"]`);
