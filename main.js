@@ -2961,16 +2961,9 @@ var PdfFullscreenView = class extends ItemView {
       });
       this._highlightThumbnail(cur);
     } else {
-      const scrollW = this.scrollEl.clientWidth;
-      canvases.forEach((c) => {
-        c.style.display = "block";
-        c.style.position = "static";
-        c.style.margin = "0 auto 8px";
-        if (this._zoomMode === "fit-width" && scrollW > 0) {
-          c.style.width = scrollW + "px";
-          c.style.height = "auto";
-        }
-      });
+      this.scrollEl.style.overflowY = "auto";
+      this.scrollEl.style.overflowX = "hidden";
+      this.scrollEl.style.position = "";
     }
   }
   _applyZoom() {
@@ -3041,6 +3034,9 @@ var PdfFullscreenView = class extends ItemView {
       };
     }
     this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? "flex" : "none";
+    if (!this._thumbnailVisible) {
+      requestAnimationFrame(() => this._reRender());
+    }
   }
   async _renderThumbnails() {
     if (!this._pdf || !this._thumbnailPanel)
