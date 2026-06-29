@@ -2796,7 +2796,7 @@ class PdfFullscreenView extends ItemView {
   }
 
   getViewType() { return VIEW_TYPE_PDF_FULLSCREEN; }
-  getDisplayText() { return this.pdfName; }
+  getDisplayText() { return this.pdfName || cleanFileNameFromUrl(this.pdfUrl) || 'PDF'; }
   getIcon() { return 'file-text'; }
 
   async onOpen() {
@@ -2983,7 +2983,7 @@ class PdfFullscreenView extends ItemView {
       });
     }, {
       root: this.scrollEl,
-      threshold: 0.5
+      threshold: 0.1
     });
 
     const canvases = this.scrollEl.querySelectorAll('canvas[data-page-num]');
