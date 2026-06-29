@@ -4440,14 +4440,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       name = cleanFileNameFromUrl(url);
     const existing = workspace.getLeavesOfType(VIEW_TYPE_PDF_FULLSCREEN);
     if (existing.length > 0) {
-      workspace.revealLeaf(existing[0]);
-      const view = existing[0].view;
-      if (view instanceof PdfFullscreenView) {
-        view.pdfUrl = url;
-        view.pdfName = name;
-        view._loadPdf();
-      }
-      return;
+      existing[0].detach();
     }
     this._pendingPdfUrl = url;
     this._pendingPdfName = name;
