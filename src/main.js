@@ -3101,6 +3101,8 @@ class PdfFullscreenView extends ItemView {
   _applyViewMode() {
     const canvases = this.scrollEl.querySelectorAll('canvas.cloud-attach-pdf-fullscreen-page');
     const cur = this._currentPage || 1;
+    const containerW = this.scrollEl.clientWidth;
+    const containerH = this.scrollEl.clientHeight;
     
     // 重置容器样式
     this.scrollEl.style.display = 'block';
@@ -3116,39 +3118,67 @@ class PdfFullscreenView extends ItemView {
         c.style.position = 'absolute';
         c.style.top = '0';
         c.style.left = '0';
-        c.style.width = '100%';
-        c.style.height = '100%';
-        c.style.transition = 'transform 0.3s ease';
+        c.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+        // 根据 zoomMode 设置尺寸
+        if (this._zoomMode === 'fit-width') {
+          c.style.width = '100%';
+          c.style.height = 'auto';
+        } else if (this._zoomMode === 'fit-height') {
+          c.style.width = 'auto';
+          c.style.height = '100%';
+          c.style.left = '50%';
+          c.style.transform = 'translateX(-50%)';
+        } else {
+          c.style.width = '100%';
+          c.style.height = 'auto';
+        }
         // 当前页在位置 0，其他页在下方
         const offset = pn - cur;
-        c.style.transform = `translateY(${offset * 100}%)`;
+        if (this._zoomMode === 'fit-height') {
+          c.style.transform = `translateX(-50%) translateY(${offset * 100}%)`;
+        } else {
+          c.style.transform = `translateY(${offset * 100}%)`;
+        }
       });
       this.scrollEl.style.position = 'relative';
       this.scrollEl.style.overflow = 'hidden';
     } else if (this._viewMode === 'double') {
-      // 双页模式：flex 水平布局，每页 50%
+      // 双页模式：flex 水平布局，适配宽度/高度
       this.scrollEl.style.display = 'flex';
       this.scrollEl.style.flexDirection = 'row';
-      this.scrollEl.style.flexWrap = 'wrap';
+      this.scrollEl.style.flexWrap = 'nowrap';
       this.scrollEl.style.justifyContent = 'center';
+      this.scrollEl.style.alignItems = 'center';
       this.scrollEl.style.position = '';
-      this.scrollEl.style.overflow = 'auto';
+      this.scrollEl.style.overflow = 'hidden';
       
       const startPage = cur % 2 === 1 ? cur : cur - 1;
       canvases.forEach(c => {
         const pn = parseInt(c.dataset.pageNum, 10);
-        // 按对分组显示
         const pairIndex = Math.floor((pn - 1) / 2);
         const currentPairIndex = Math.floor((cur - 1) / 2);
         const isVisible = pairIndex === currentPairIndex;
         
         c.style.display = isVisible ? 'block' : 'none';
         c.style.position = '';
-        c.style.width = '48%';
-        c.style.height = 'auto';
-        c.style.margin = '0 1%';
+        c.style.margin = '0 4px';
         c.style.transform = '';
         c.style.transition = '';
+        
+        // 双页适配：两页总宽度适配容器
+        if (this._zoomMode === 'fit-width') {
+          // 每页占约 50% 减去间距
+          c.style.width = `calc(50% - 8px)`;
+          c.style.height = 'auto';
+          c.style.maxHeight = '100%';
+        } else if (this._zoomMode === 'fit-height') {
+          c.style.height = '100%';
+          c.style.width = 'auto';
+          c.style.maxWidth = `calc(50% - 8px)`;
+        } else {
+          c.style.width = `calc(50% - 8px)`;
+          c.style.height = 'auto';
+        }
       });
     } else {
       // 连续模式
@@ -3189,21 +3219,30 @@ class PdfFullscreenView extends ItemView {
       
       // 拖拽分隔条
       const resizeHandle = this._thumbnailPanelWrap.createEl('div');
-      resizeHandle.style.width = '6px';
+      resizeHandle.style.width = '8px';
       resizeHandle.style.cursor = 'col-resize';
       resizeHandle.style.background = 'var(--background-modifier-border)';
       resizeHandle.style.flexShrink = '0';
+      resizeHandle.style.position = 'relative';
+      resizeHandle.style.zIndex = '10';
+      // 悬停效果
+      resizeHandle.onmouseenter = () => { resizeHandle.style.background = 'var(--interactive-accent)'; };
+      resizeHandle.onmouseleave = () => { resizeHandle.style.background = 'var(--background-modifier-border)'; };
       resizeHandle.onmousedown = (e) => {
         e.preventDefault();
+        e.stopPropagation();
+        resizeHandle.style.background = 'var(--interactive-accent)';
         const startX = e.clientX;
-        const startW = this._thumbnailPanel.clientWidth;
+        const startW = parseInt(this._thumbnailPanel.style.width || '150', 10);
         const onMove = (ev) => {
+          ev.preventDefault();
           const newW = startW + (ev.clientX - startX);
-          if (newW >= 100 && newW <= 400) {
+          if (newW >= 100 && newW <= 500) {
             this._thumbnailPanel.style.width = newW + 'px';
           }
         };
         const onUp = () => {
+          resizeHandle.style.background = 'var(--background-modifier-border)';
           document.removeEventListener('mousemove', onMove);
           document.removeEventListener('mouseup', onUp);
         };
@@ -3257,10 +3296,15 @@ class PdfFullscreenView extends ItemView {
   }
 
   _bindScroll() {
-    // 滚轮翻页（单页/双页模式）
+    // 滚轮翻页（单页/双页模式），带节流
+    this._wheelThrottle = false;
     this.scrollEl.onwheel = (e) => {
       if (this._viewMode === 'continuous') return; // 连续模式用原生滚动
       e.preventDefault();
+      if (this._wheelThrottle) return;
+      this._wheelThrottle = true;
+      setTimeout(() => { this._wheelThrottle = false; }, 400);
+      
       const delta = e.deltaY > 0 ? 1 : -1;
       const step = (this._viewMode === 'double') ? 2 : 1;
       const newPage = (this._currentPage || 1) + delta * step;
