@@ -2842,13 +2842,16 @@ var PdfFullscreenView = class extends ItemView {
     if (!this._pdf)
       return;
     const totalPages = this._pdf.numPages;
+    const firstPg = await this._pdf.getPage(1);
+    const firstVp = firstPg.getViewport({ scale: 1 });
+    const pageW = firstVp.width;
     let scale = 1;
     if (this._zoomMode === "fit-width") {
       const w = this.scrollEl.clientWidth;
-      scale = w > 0 ? w / 612 : 1;
+      scale = w > 0 ? w / pageW : 1;
     } else if (this._zoomMode === "fit-height") {
       const h = this.scrollEl.clientHeight;
-      scale = h > 0 ? h / 792 : 1;
+      scale = h > 0 ? h / firstVp.height : 1;
     }
     for (let i = 1; i <= totalPages; i++) {
       const page = await this._pdf.getPage(i);
@@ -2873,8 +2876,10 @@ var PdfFullscreenView = class extends ItemView {
     if (!this._pdf)
       return;
     this.scrollEl.empty();
-    this._renderAllPages().then(() => {
-      this._applyViewMode();
+    requestAnimationFrame(() => {
+      this._renderAllPages().then(() => {
+        this._applyViewMode();
+      });
     });
   }
   _applyViewMode() {
