@@ -2866,25 +2866,39 @@ class PdfFullscreenView extends ItemView {
       menu.showAtMouseEvent(e);
     };
 
-    // 视图模式按钮（图标 + 下拉）
-    this._viewMode = 'continuous'; // 'continuous' | 'single' | 'double-odd' | 'double-even'
-    this._zoomMode = 'fit-width'; // 'fit-width' | 'fit-height' | '100%' | '150%' | '200%'
-    const viewBtnWrap = left.createEl('div');
-    viewBtnWrap.style.display = 'flex';
-    viewBtnWrap.style.alignItems = 'center';
-    const viewBtn = viewBtnWrap.createEl('button');
-    viewBtn.className = 'clickable-icon';
-    viewBtn.setAttribute('aria-label', '视图');
-    // 单页图标
-    viewBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="12" height="16" rx="2"></rect></svg>';
-    const viewArrow = viewBtnWrap.createEl('button');
-    viewArrow.className = 'clickable-icon';
-    viewArrow.style.padding = '2px';
-    viewArrow.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
-    viewArrow.onclick = (e) => {
+    // 缩放按钮组：缩小、放大、下拉菜单
+    this._viewMode = 'continuous'; // 'continuous' | 'single' | 'double'
+    this._zoomMode = 'fit-width'; // 'fit-width' | 'fit-height'
+    
+    // 缩小按钮
+    const zoomOutBtn = left.createEl('button');
+    zoomOutBtn.className = 'clickable-icon';
+    zoomOutBtn.setAttribute('aria-label', '缩小');
+    zoomOutBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
+    zoomOutBtn.onclick = () => {
+      // TODO: 实现缩小
+      new Notice('缩小功能开发中');
+    };
+    
+    // 放大按钮
+    const zoomInBtn = left.createEl('button');
+    zoomInBtn.className = 'clickable-icon';
+    zoomInBtn.setAttribute('aria-label', '放大');
+    zoomInBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
+    zoomInBtn.onclick = () => {
+      // TODO: 实现放大
+      new Notice('放大功能开发中');
+    };
+    
+    // 下拉菜单按钮
+    const viewMenuBtn = left.createEl('button');
+    viewMenuBtn.className = 'clickable-icon';
+    viewMenuBtn.style.padding = '2px';
+    viewMenuBtn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+    viewMenuBtn.onclick = (e) => {
       const menu = new Menu();
       // 缩放部分
-      const zoomOpts = { 'fit-width': '适应宽度', 'fit-height': '适应高度', '100%': '100%', '150%': '150%', '200%': '200%' };
+      const zoomOpts = { 'fit-width': '适应宽度', 'fit-height': '适应高度' };
       Object.entries(zoomOpts).forEach(([val, label]) => {
         menu.addItem(item => item.setTitle((this._zoomMode === val ? '✓ ' : '') + label).onClick(() => {
           this._zoomMode = val;
@@ -2893,7 +2907,7 @@ class PdfFullscreenView extends ItemView {
       });
       menu.addSeparator();
       // 滚动方式部分
-      const modeOpts = { 'continuous': '连续', 'single': '单页', 'double-odd': '双页（奇数）', 'double-even': '双页（偶数）' };
+      const modeOpts = { 'continuous': '连续', 'single': '单页', 'double': '双页' };
       Object.entries(modeOpts).forEach(([val, label]) => {
         menu.addItem(item => item.setTitle((this._viewMode === val ? '✓ ' : '') + label).onClick(() => {
           this._viewMode = val;
@@ -3095,20 +3109,30 @@ class PdfFullscreenView extends ItemView {
         c.style.display = pn === cur ? 'block' : 'none';
       });
       const target = this.scrollEl.querySelector(`canvas[data-page-num="${cur}"]`);
-      if (target) target.scrollIntoView({ block: 'start' });
-    } else if (this._viewMode === 'double-odd' || this._viewMode === 'double-even') {
-      // 双页模式：显示当前页和下一页
-      const isOdd = this._viewMode === 'double-odd';
-      const startPage = isOdd ? (cur % 2 === 1 ? cur : cur - 1) : (cur % 2 === 0 ? cur : cur - 1);
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else if (this._viewMode === 'double') {
+      // 双页模式：显示当前页和下一页（并排）
+      const startPage = cur % 2 === 1 ? cur : cur - 1;
       canvases.forEach(c => {
         const pn = parseInt(c.dataset.pageNum, 10);
-        c.style.display = (pn === startPage || pn === startPage + 1) ? 'block' : 'none';
+        c.style.display = (pn === startPage || pn === startPage + 1) ? 'inline-block' : 'none';
+        if (pn === startPage || pn === startPage + 1) {
+          c.style.verticalAlign = 'top';
+          c.style.margin = '0 4px 8px 0';
+        }
       });
+      // 双页模式下容器居中
+      this.scrollEl.style.textAlign = 'center';
       const target = this.scrollEl.querySelector(`canvas[data-page-num="${startPage}"]`);
-      if (target) target.scrollIntoView({ block: 'start' });
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } else {
       // 连续模式
-      canvases.forEach(c => c.style.display = 'block');
+      canvases.forEach(c => {
+        c.style.display = 'block';
+        c.style.verticalAlign = '';
+        c.style.margin = '0 auto 8px';
+      });
+      this.scrollEl.style.textAlign = '';
     }
   }
 
@@ -3207,7 +3231,7 @@ class PdfFullscreenView extends ItemView {
       if (this._viewMode === 'continuous') return; // 连续模式用原生滚动
       e.preventDefault();
       const delta = e.deltaY > 0 ? 1 : -1;
-      const step = (this._viewMode === 'double-odd' || this._viewMode === 'double-even') ? 2 : 1;
+      const step = (this._viewMode === 'double') ? 2 : 1;
       const newPage = (this._currentPage || 1) + delta * step;
       this._scrollToPage(Math.max(1, Math.min(newPage, this._pdf?.numPages || 1)));
     };
