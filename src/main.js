@@ -2832,7 +2832,8 @@ class PdfFullscreenView extends ItemView {
     left.style.fontSize = '13px';
     left.style.color = 'var(--text-normal)';
     left.createEl('span', { text: cleanFileNameFromUrl(this.pdfUrl) });
-    const ver = String((this.plugin?.manifest?.version || '').split('.').pop() || '0');
+    const verParts = (this.plugin?.manifest?.version || '0.0.0').split('.');
+    const ver = String(verParts[2] || '0');
     const verBadge = left.createEl('span', { text: ver });
     verBadge.style.fontSize = '10px';
     verBadge.style.color = 'var(--text-muted)';
