@@ -2634,8 +2634,8 @@ var PdfFullscreenView = class extends ItemView {
   constructor(leaf, plugin, pdfUrl, pdfName) {
     super(leaf);
     this.plugin = plugin;
-    this.pdfUrl = pdfUrl || plugin._pendingPdfUrl || "";
-    this.pdfName = pdfName || plugin._pendingPdfName || cleanFileNameFromUrl(this.pdfUrl);
+    this.pdfUrl = pdfUrl;
+    this.pdfName = pdfName || plugin._pendingPdfName || cleanFileNameFromUrl(pdfUrl || plugin._pendingPdfUrl || "");
   }
   getViewType() {
     return VIEW_TYPE_PDF_FULLSCREEN;
@@ -2649,7 +2649,7 @@ var PdfFullscreenView = class extends ItemView {
   async onOpen() {
     const container = this.containerEl.children[1];
     container.empty();
-    if (this.plugin._pendingPdfUrl) {
+    if (!this.pdfUrl && this.plugin._pendingPdfUrl) {
       this.pdfUrl = this.plugin._pendingPdfUrl;
       this.pdfName = this.plugin._pendingPdfName || cleanFileNameFromUrl(this.pdfUrl);
     }
@@ -2672,14 +2672,7 @@ var PdfFullscreenView = class extends ItemView {
     left.style.fontSize = "13px";
     left.style.color = "var(--text-normal)";
     left.createEl("span", { text: cleanFileNameFromUrl(this.pdfUrl) });
-    let ver = "0";
-    try {
-      const changelog = require("fs").readFileSync(require("path").join(this.plugin.manifest.dir, "CHANGELOG.md"), "utf8");
-      const match = changelog.split("\n")[0].match(/v([\d.]+)/);
-      if (match)
-        ver = match[1].split(".").pop() || "0";
-    } catch {
-    }
+    const ver = String((this.plugin?.manifest?.version || "").split(".").pop() || "0");
     const verBadge = left.createEl("span", { text: ver });
     verBadge.style.fontSize = "10px";
     verBadge.style.color = "var(--text-muted)";

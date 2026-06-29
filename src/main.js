@@ -2791,9 +2791,8 @@ class PdfFullscreenView extends ItemView {
   constructor(leaf, plugin, pdfUrl, pdfName) {
     super(leaf);
     this.plugin = plugin;
-    // 构造时直接从 plugin pending 读取（Obsidian 调用 getDisplayText() 在 onOpen 前）
-    this.pdfUrl = pdfUrl || plugin._pendingPdfUrl || '';
-    this.pdfName = pdfName || plugin._pendingPdfName || cleanFileNameFromUrl(this.pdfUrl);
+    this.pdfUrl = pdfUrl;
+    this.pdfName = pdfName || plugin._pendingPdfName || cleanFileNameFromUrl(pdfUrl || plugin._pendingPdfUrl || '');
   }
 
   getViewType() { return VIEW_TYPE_PDF_FULLSCREEN; }
@@ -2804,8 +2803,8 @@ class PdfFullscreenView extends ItemView {
     const container = this.containerEl.children[1];
     container.empty();
 
-    // 从 plugin pending 取 URL（覆盖构造函数的，确保是最新的）
-    if (this.plugin._pendingPdfUrl) {
+    // 新创建的视图，从 plugin 取 pending URL
+    if (!this.pdfUrl && this.plugin._pendingPdfUrl) {
       this.pdfUrl = this.plugin._pendingPdfUrl;
       this.pdfName = this.plugin._pendingPdfName || cleanFileNameFromUrl(this.pdfUrl);
     }
@@ -2833,13 +2832,7 @@ class PdfFullscreenView extends ItemView {
     left.style.fontSize = '13px';
     left.style.color = 'var(--text-normal)';
     left.createEl('span', { text: cleanFileNameFromUrl(this.pdfUrl) });
-    // 从 CHANGELOG 首行读取版本号（和 deploy.sh 一致）
-    let ver = '0';
-    try {
-      const changelog = require('fs').readFileSync(require('path').join(this.plugin.manifest.dir, 'CHANGELOG.md'), 'utf8');
-      const match = changelog.split('\n')[0].match(/v([\d.]+)/);
-      if (match) ver = match[1].split('.').pop() || '0';
-    } catch {}
+    const ver = String((this.plugin?.manifest?.version || '').split('.').pop() || '0');
     const verBadge = left.createEl('span', { text: ver });
     verBadge.style.fontSize = '10px';
     verBadge.style.color = 'var(--text-muted)';
