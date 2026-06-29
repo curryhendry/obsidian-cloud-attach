@@ -2824,7 +2824,7 @@ class PdfFullscreenView extends ItemView {
     toolbar.style.borderBottom = '1px solid var(--background-modifier-border)';
     toolbar.style.flexShrink = '0';
 
-    // 左侧：文件名
+    // 左侧：文件名 + 版本角标
     const left = toolbar.createEl('div');
     left.style.display = 'flex';
     left.style.alignItems = 'center';
@@ -2832,6 +2832,12 @@ class PdfFullscreenView extends ItemView {
     left.style.fontSize = '13px';
     left.style.color = 'var(--text-normal)';
     left.createEl('span', { text: cleanFileNameFromUrl(this.pdfUrl) });
+    const verBadge = left.createEl('span', { text: '099' });
+    verBadge.style.fontSize = '10px';
+    verBadge.style.color = 'var(--text-muted)';
+    verBadge.style.background = 'var(--background-modifier-hover)';
+    verBadge.style.padding = '1px 4px';
+    verBadge.style.borderRadius = '3px';
 
     // 右侧：功能按钮
     const right = toolbar.createEl('div');
