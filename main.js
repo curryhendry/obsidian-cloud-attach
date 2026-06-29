@@ -2974,7 +2974,6 @@ var PdfFullscreenView = class extends ItemView {
     } else {
       this.scrollEl.style.overflowY = "auto";
       this.scrollEl.style.overflowX = "hidden";
-      this.scrollEl.style.position = "";
     }
   }
   _applyZoom() {
