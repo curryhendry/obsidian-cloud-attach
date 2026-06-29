@@ -2839,12 +2839,11 @@ class PdfFullscreenView extends ItemView {
     right.style.alignItems = 'center';
     right.style.gap = '10px';
 
-    // 上一页
-    const prevBtn = right.createEl('span', { text: '◀' });
-    prevBtn.style.cursor = 'pointer';
-    prevBtn.style.fontSize = '14px';
-    prevBtn.style.padding = '2px 6px';
-    prevBtn.style.userSelect = 'none';
+    // 上一页（图标按钮）
+    const prevBtn = right.createEl('button');
+    prevBtn.className = 'clickable-icon';
+    prevBtn.setAttribute('aria-label', '上一页');
+    prevBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>';
     prevBtn.onclick = () => this._scrollToPage((this._currentPage || 1) - 1);
 
     // 页码输入框（可编辑）
@@ -2873,19 +2872,18 @@ class PdfFullscreenView extends ItemView {
     this.pageTotal.style.fontSize = '13px';
     this.pageTotal.style.color = 'var(--text-muted)';
 
-    // 下一页
-    const nextBtn = right.createEl('span', { text: '▶' });
-    nextBtn.style.cursor = 'pointer';
-    nextBtn.style.fontSize = '14px';
-    nextBtn.style.padding = '2px 6px';
-    nextBtn.style.userSelect = 'none';
+    // 下一页（图标按钮）
+    const nextBtn = right.createEl('button');
+    nextBtn.className = 'clickable-icon';
+    nextBtn.setAttribute('aria-label', '下一页');
+    nextBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>';
     nextBtn.onclick = () => this._scrollToPage((this._currentPage || 1) + 1);
 
-    // 关闭按钮
-    const closeBtn = right.createEl('span', { text: '✕' });
-    closeBtn.style.cursor = 'pointer';
-    closeBtn.style.fontSize = '16px';
-    closeBtn.style.padding = '0 4px';
+    // 关闭按钮（图标按钮）
+    const closeBtn = right.createEl('button');
+    closeBtn.className = 'clickable-icon';
+    closeBtn.setAttribute('aria-label', '关闭');
+    closeBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
     closeBtn.onclick = () => this.leaf.detach();
 
     // 内容区
@@ -2974,29 +2972,22 @@ class PdfFullscreenView extends ItemView {
   }
 
   _bindScroll() {
-    let ticking = false;
-    this.scrollEl.onscroll = () => {
-      if (ticking) return;
-      ticking = true;
-      requestAnimationFrame(() => {
-        ticking = false;
-        if (!this._pdf) return;
-        const canvases = this.scrollEl.querySelectorAll('canvas[data-page-num]');
-        for (const c of canvases) {
-          const rect = c.getBoundingClientRect();
-          const containerRect = this.scrollEl.getBoundingClientRect();
-          const cTop = rect.top - containerRect.top;
-          const cBottom = cTop + rect.height;
-          // 页面上半部分在视口内即认为是当前页
-          if (cTop >= 0 && cTop < containerRect.height / 2) {
-            const pageNum = parseInt(c.dataset.pageNum, 10);
-            this.pageInput.value = String(pageNum);
-            this._currentPage = pageNum;
-            break;
-          }
+    // 用 IntersectionObserver 监听每个 canvas 的可见性
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting && entry.intersectionRatio > 0.5) {
+          const pageNum = parseInt(entry.target.dataset.pageNum, 10);
+          this.pageInput.value = String(pageNum);
+          this._currentPage = pageNum;
         }
       });
-    };
+    }, {
+      root: this.scrollEl,
+      threshold: 0.5
+    });
+
+    const canvases = this.scrollEl.querySelectorAll('canvas[data-page-num]');
+    canvases.forEach(c => observer.observe(c));
   }
 
   _scrollToPage(pageNum) {
