@@ -2704,20 +2704,27 @@ var PdfFullscreenView = class extends ItemView {
     };
     this._viewMode = "continuous";
     this._zoomMode = "fit-width";
-    const viewBtnWrap = left.createEl("div");
-    viewBtnWrap.style.display = "flex";
-    viewBtnWrap.style.alignItems = "center";
-    const viewBtn = viewBtnWrap.createEl("button");
-    viewBtn.className = "clickable-icon";
-    viewBtn.setAttribute("aria-label", "\u89C6\u56FE");
-    viewBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="12" height="16" rx="2"></rect></svg>';
-    const viewArrow = viewBtnWrap.createEl("button");
-    viewArrow.className = "clickable-icon";
-    viewArrow.style.padding = "2px";
-    viewArrow.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
-    viewArrow.onclick = (e) => {
+    const zoomOutBtn = left.createEl("button");
+    zoomOutBtn.className = "clickable-icon";
+    zoomOutBtn.setAttribute("aria-label", "\u7F29\u5C0F");
+    zoomOutBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
+    zoomOutBtn.onclick = () => {
+      new Notice("\u7F29\u5C0F\u529F\u80FD\u5F00\u53D1\u4E2D");
+    };
+    const zoomInBtn = left.createEl("button");
+    zoomInBtn.className = "clickable-icon";
+    zoomInBtn.setAttribute("aria-label", "\u653E\u5927");
+    zoomInBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
+    zoomInBtn.onclick = () => {
+      new Notice("\u653E\u5927\u529F\u80FD\u5F00\u53D1\u4E2D");
+    };
+    const viewMenuBtn = left.createEl("button");
+    viewMenuBtn.className = "clickable-icon";
+    viewMenuBtn.style.padding = "2px";
+    viewMenuBtn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+    viewMenuBtn.onclick = (e) => {
       const menu = new Menu();
-      const zoomOpts = { "fit-width": "\u9002\u5E94\u5BBD\u5EA6", "fit-height": "\u9002\u5E94\u9AD8\u5EA6", "100%": "100%", "150%": "150%", "200%": "200%" };
+      const zoomOpts = { "fit-width": "\u9002\u5E94\u5BBD\u5EA6", "fit-height": "\u9002\u5E94\u9AD8\u5EA6" };
       Object.entries(zoomOpts).forEach(([val, label]) => {
         menu.addItem((item) => item.setTitle((this._zoomMode === val ? "\u2713 " : "") + label).onClick(() => {
           this._zoomMode = val;
@@ -2725,7 +2732,7 @@ var PdfFullscreenView = class extends ItemView {
         }));
       });
       menu.addSeparator();
-      const modeOpts = { "continuous": "\u8FDE\u7EED", "single": "\u5355\u9875", "double-odd": "\u53CC\u9875\uFF08\u5947\u6570\uFF09", "double-even": "\u53CC\u9875\uFF08\u5076\u6570\uFF09" };
+      const modeOpts = { "continuous": "\u8FDE\u7EED", "single": "\u5355\u9875", "double": "\u53CC\u9875" };
       Object.entries(modeOpts).forEach(([val, label]) => {
         menu.addItem((item) => item.setTitle((this._viewMode === val ? "\u2713 " : "") + label).onClick(() => {
           this._viewMode = val;
@@ -2900,19 +2907,28 @@ var PdfFullscreenView = class extends ItemView {
       });
       const target = this.scrollEl.querySelector(`canvas[data-page-num="${cur}"]`);
       if (target)
-        target.scrollIntoView({ block: "start" });
-    } else if (this._viewMode === "double-odd" || this._viewMode === "double-even") {
-      const isOdd = this._viewMode === "double-odd";
-      const startPage = isOdd ? cur % 2 === 1 ? cur : cur - 1 : cur % 2 === 0 ? cur : cur - 1;
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+    } else if (this._viewMode === "double") {
+      const startPage = cur % 2 === 1 ? cur : cur - 1;
       canvases.forEach((c) => {
         const pn = parseInt(c.dataset.pageNum, 10);
-        c.style.display = pn === startPage || pn === startPage + 1 ? "block" : "none";
+        c.style.display = pn === startPage || pn === startPage + 1 ? "inline-block" : "none";
+        if (pn === startPage || pn === startPage + 1) {
+          c.style.verticalAlign = "top";
+          c.style.margin = "0 4px 8px 0";
+        }
       });
+      this.scrollEl.style.textAlign = "center";
       const target = this.scrollEl.querySelector(`canvas[data-page-num="${startPage}"]`);
       if (target)
-        target.scrollIntoView({ block: "start" });
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
     } else {
-      canvases.forEach((c) => c.style.display = "block");
+      canvases.forEach((c) => {
+        c.style.display = "block";
+        c.style.verticalAlign = "";
+        c.style.margin = "0 auto 8px";
+      });
+      this.scrollEl.style.textAlign = "";
     }
   }
   _applyZoom() {
@@ -3001,7 +3017,7 @@ var PdfFullscreenView = class extends ItemView {
         return;
       e.preventDefault();
       const delta = e.deltaY > 0 ? 1 : -1;
-      const step = this._viewMode === "double-odd" || this._viewMode === "double-even" ? 2 : 1;
+      const step = this._viewMode === "double" ? 2 : 1;
       const newPage = (this._currentPage || 1) + delta * step;
       this._scrollToPage(Math.max(1, Math.min(newPage, this._pdf?.numPages || 1)));
     };
