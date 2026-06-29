@@ -2634,28 +2634,14 @@ var PdfFullscreenView = class extends ItemView {
   constructor(leaf, plugin, pdfUrl, pdfName) {
     super(leaf);
     this.plugin = plugin;
-    this.pdfUrl = pdfUrl;
-    this.pdfName = pdfName || cleanFileNameFromUrl(pdfUrl);
+    this.pdfUrl = pdfUrl || plugin._pendingPdfUrl || "";
+    this.pdfName = pdfName || plugin._pendingPdfName || cleanFileNameFromUrl(this.pdfUrl);
   }
   getViewType() {
     return VIEW_TYPE_PDF_FULLSCREEN;
   }
   getDisplayText() {
-    if (this.pdfName)
-      return this.pdfName;
-    try {
-      const state = this.leaf?.getViewState()?.state;
-      if (state?.pdfName)
-        return state.pdfName;
-      if (state?.pdfUrl)
-        return cleanFileNameFromUrl(state.pdfUrl);
-    } catch {
-    }
-    if (this.plugin?._pendingPdfName)
-      return this.plugin._pendingPdfName;
-    if (this.plugin?._pendingPdfUrl)
-      return cleanFileNameFromUrl(this.plugin._pendingPdfUrl);
-    return "PDF";
+    return this.pdfName || "PDF";
   }
   getIcon() {
     return "file-text";
@@ -2691,7 +2677,8 @@ var PdfFullscreenView = class extends ItemView {
     left.style.fontSize = "13px";
     left.style.color = "var(--text-normal)";
     left.createEl("span", { text: cleanFileNameFromUrl(this.pdfUrl) });
-    const verBadge = left.createEl("span", { text: "099" });
+    const ver = String((this.plugin?.manifest?.version || "").split(".").pop() || "0");
+    const verBadge = left.createEl("span", { text: ver });
     verBadge.style.fontSize = "10px";
     verBadge.style.color = "var(--text-muted)";
     verBadge.style.background = "var(--background-modifier-hover)";
