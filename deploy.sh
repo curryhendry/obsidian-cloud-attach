@@ -81,15 +81,7 @@ else
   # dev 模式：版本号 + .dev 后缀
   DEV_VERSION="${VERSION}.dev"
   echo "==> 版本: $CURRENT_VERSION → $DEV_VERSION (开发模式)"
-
-  # 更新 manifest.json
-  node -e "
-  const fs = require('fs');
-  const m = JSON.parse(fs.readFileSync('manifest.json','utf8'));
-  m.version = '$DEV_VERSION';
-  fs.writeFileSync('manifest.json', JSON.stringify(m, null, 2) + '\n');
-  "
-
+  
   # 更新 CHANGELOG.md 首行
   sed -i.bak "1s/.*/## v$DEV_VERSION - $(date +%Y-%m-%d)/" CHANGELOG.md
   rm -f CHANGELOG.md.bak
