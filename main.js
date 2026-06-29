@@ -4128,8 +4128,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
     await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true, state: { pdfUrl: url, pdfName: name } });
     workspace.revealLeaf(leaf);
-    delete this._pendingPdfUrl;
-    delete this._pendingPdfName;
   }
   // ============================================================
   // PDF.js 内联预览（v0.3.026）
