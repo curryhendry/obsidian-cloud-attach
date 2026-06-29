@@ -2676,11 +2676,10 @@ var PdfFullscreenView = class extends ItemView {
     right.style.display = "flex";
     right.style.alignItems = "center";
     right.style.gap = "10px";
-    const prevBtn = right.createEl("span", { text: "\u25C0" });
-    prevBtn.style.cursor = "pointer";
-    prevBtn.style.fontSize = "14px";
-    prevBtn.style.padding = "2px 6px";
-    prevBtn.style.userSelect = "none";
+    const prevBtn = right.createEl("button");
+    prevBtn.className = "clickable-icon";
+    prevBtn.setAttribute("aria-label", "\u4E0A\u4E00\u9875");
+    prevBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>';
     prevBtn.onclick = () => this._scrollToPage((this._currentPage || 1) - 1);
     const pageWrap = right.createEl("span");
     pageWrap.style.display = "flex";
@@ -2707,16 +2706,15 @@ var PdfFullscreenView = class extends ItemView {
     this.pageTotal = pageWrap.createEl("span", { text: " / 1" });
     this.pageTotal.style.fontSize = "13px";
     this.pageTotal.style.color = "var(--text-muted)";
-    const nextBtn = right.createEl("span", { text: "\u25B6" });
-    nextBtn.style.cursor = "pointer";
-    nextBtn.style.fontSize = "14px";
-    nextBtn.style.padding = "2px 6px";
-    nextBtn.style.userSelect = "none";
+    const nextBtn = right.createEl("button");
+    nextBtn.className = "clickable-icon";
+    nextBtn.setAttribute("aria-label", "\u4E0B\u4E00\u9875");
+    nextBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>';
     nextBtn.onclick = () => this._scrollToPage((this._currentPage || 1) + 1);
-    const closeBtn = right.createEl("span", { text: "\u2715" });
-    closeBtn.style.cursor = "pointer";
-    closeBtn.style.fontSize = "16px";
-    closeBtn.style.padding = "0 4px";
+    const closeBtn = right.createEl("button");
+    closeBtn.className = "clickable-icon";
+    closeBtn.setAttribute("aria-label", "\u5173\u95ED");
+    closeBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
     closeBtn.onclick = () => this.leaf.detach();
     this.scrollEl = container.createEl("div");
     this.scrollEl.style.flex = "1";
@@ -2793,30 +2791,20 @@ var PdfFullscreenView = class extends ItemView {
     });
   }
   _bindScroll() {
-    let ticking = false;
-    this.scrollEl.onscroll = () => {
-      if (ticking)
-        return;
-      ticking = true;
-      requestAnimationFrame(() => {
-        ticking = false;
-        if (!this._pdf)
-          return;
-        const canvases = this.scrollEl.querySelectorAll("canvas[data-page-num]");
-        for (const c of canvases) {
-          const rect = c.getBoundingClientRect();
-          const containerRect = this.scrollEl.getBoundingClientRect();
-          const cTop = rect.top - containerRect.top;
-          const cBottom = cTop + rect.height;
-          if (cTop >= 0 && cTop < containerRect.height / 2) {
-            const pageNum = parseInt(c.dataset.pageNum, 10);
-            this.pageInput.value = String(pageNum);
-            this._currentPage = pageNum;
-            break;
-          }
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting && entry.intersectionRatio > 0.5) {
+          const pageNum = parseInt(entry.target.dataset.pageNum, 10);
+          this.pageInput.value = String(pageNum);
+          this._currentPage = pageNum;
         }
       });
-    };
+    }, {
+      root: this.scrollEl,
+      threshold: 0.5
+    });
+    const canvases = this.scrollEl.querySelectorAll("canvas[data-page-num]");
+    canvases.forEach((c) => observer.observe(c));
   }
   _scrollToPage(pageNum) {
     if (!this._pdf || pageNum < 1 || pageNum > this._pdf.numPages)

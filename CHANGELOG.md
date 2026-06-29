@@ -1,3 +1,9 @@
+## v0.4.097.dev - 2026-06-29
+
+- 修复：PDF 全屏预览页码随滚动同步
+  - 改用 IntersectionObserver 监听当前可见页
+- 优化：翻页按钮样式（改用 Obsidian clickable-icon + SVG 图标）
+
 ## v0.4.095.dev - 2026-06-29
 
 - 优化：PDF 全屏预览顶栏交互
