@@ -4350,8 +4350,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
     await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true, state: { pdfUrl: url, pdfName: name } });
     workspace.revealLeaf(leaf);
-    delete this._pendingPdfUrl;
-    delete this._pendingPdfName;
+    // 不 delete _pendingPdfUrl，onOpen 是 async 的，setViewState 返回时 onOpen 可能还没执行
+    // _pendingPdfUrl 在 onOpen 读取后被下一次 openPdfFullscreen 覆盖即可
   }
 
   // ============================================================
