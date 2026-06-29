@@ -2796,17 +2796,22 @@ class PdfFullscreenView extends ItemView {
   }
 
   getViewType() { return VIEW_TYPE_PDF_FULLSCREEN; }
-  getDisplayText() { return ' '; }
+  getDisplayText() { return this.pdfName || 'PDF'; }
   getIcon() { return 'file-text'; }
 
   async onOpen() {
     const container = this.containerEl.children[1];
     container.empty();
 
-    // 新创建的视图，从 plugin 取 pending URL
+    // 从 state 或 plugin pending 取 URL
+    const state = this.leaf.getViewState()?.state || {};
+    if (!this.pdfUrl && state.pdfUrl) {
+      this.pdfUrl = state.pdfUrl;
+      this.pdfName = state.pdfName || cleanFileNameFromUrl(this.pdfUrl);
+    }
     if (!this.pdfUrl && this.plugin._pendingPdfUrl) {
       this.pdfUrl = this.plugin._pendingPdfUrl;
-      this.pdfName = cleanFileNameFromUrl(this.pdfUrl);
+      this.pdfName = this.plugin._pendingPdfName || cleanFileNameFromUrl(this.pdfUrl);
     }
 
     container.style.padding = '0';
@@ -4347,7 +4352,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       console.log('[CloudAttach] openPopoutLeaf failed, fallback to split:', e);
       leaf = workspace.getLeaf('split', 'vertical');
     }
-    await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true });
+    await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true, state: { pdfUrl: url, pdfName: name } });
     workspace.revealLeaf(leaf);
     delete this._pendingPdfUrl;
     delete this._pendingPdfName;

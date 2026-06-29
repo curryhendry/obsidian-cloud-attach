@@ -2641,7 +2641,7 @@ var PdfFullscreenView = class extends ItemView {
     return VIEW_TYPE_PDF_FULLSCREEN;
   }
   getDisplayText() {
-    return " ";
+    return this.pdfName || "PDF";
   }
   getIcon() {
     return "file-text";
@@ -2649,9 +2649,14 @@ var PdfFullscreenView = class extends ItemView {
   async onOpen() {
     const container = this.containerEl.children[1];
     container.empty();
+    const state = this.leaf.getViewState()?.state || {};
+    if (!this.pdfUrl && state.pdfUrl) {
+      this.pdfUrl = state.pdfUrl;
+      this.pdfName = state.pdfName || cleanFileNameFromUrl(this.pdfUrl);
+    }
     if (!this.pdfUrl && this.plugin._pendingPdfUrl) {
       this.pdfUrl = this.plugin._pendingPdfUrl;
-      this.pdfName = cleanFileNameFromUrl(this.pdfUrl);
+      this.pdfName = this.plugin._pendingPdfName || cleanFileNameFromUrl(this.pdfUrl);
     }
     container.style.padding = "0";
     container.style.overflow = "hidden";
@@ -4125,7 +4130,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       console.log("[CloudAttach] openPopoutLeaf failed, fallback to split:", e);
       leaf = workspace.getLeaf("split", "vertical");
     }
-    await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true });
+    await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true, state: { pdfUrl: url, pdfName: name } });
     workspace.revealLeaf(leaf);
     delete this._pendingPdfUrl;
     delete this._pendingPdfName;
