@@ -2824,59 +2824,76 @@ class PdfFullscreenView extends ItemView {
     toolbar.style.borderBottom = '1px solid var(--background-modifier-border)';
     toolbar.style.flexShrink = '0';
 
-    // 左侧：文件名 + 视图模式 + 缩放 + 版本角标
+    // 左侧：缩略图按钮 + 视图模式 + 缩放 + 版本角标
     const left = toolbar.createEl('div');
     left.style.display = 'flex';
     left.style.alignItems = 'center';
     left.style.gap = '8px';
     left.style.fontSize = '13px';
     left.style.color = 'var(--text-normal)';
-    left.createEl('span', { text: cleanFileNameFromUrl(this.pdfUrl) });
 
-    // 视图模式下拉
+    // 缩略图/目录按钮
+    this._thumbnailVisible = false;
+    const thumbBtn = left.createEl('button');
+    thumbBtn.className = 'clickable-icon';
+    thumbBtn.setAttribute('aria-label', '缩略图');
+    thumbBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>';
+    thumbBtn.onclick = () => {
+      this._thumbnailVisible = !this._thumbnailVisible;
+      this._toggleThumbnailPanel();
+    };
+
+    // 视图模式按钮 + 菜单
     this._viewMode = 'continuous';
-    const viewSelect = left.createEl('select');
-    viewSelect.style.fontSize = '12px';
-    viewSelect.style.border = '1px solid var(--background-modifier-border)';
-    viewSelect.style.borderRadius = '4px';
-    viewSelect.style.background = 'var(--background-primary)';
-    viewSelect.style.color = 'var(--text-normal)';
-    viewSelect.style.padding = '2px 4px';
-    ['continuous', 'single'].forEach(mode => {
-      const opt = viewSelect.createEl('option', { text: mode === 'continuous' ? '连续' : '单页', value: mode });
-      if (mode === this._viewMode) opt.selected = true;
-    });
-    viewSelect.onchange = () => {
-      this._viewMode = viewSelect.value;
-      // 单页模式：隐藏其他页，显示当前页全高；连续模式：显示全部
-      this._applyViewMode();
+    const viewBtn = left.createEl('button');
+    viewBtn.className = 'clickable-icon';
+    viewBtn.setAttribute('aria-label', '视图模式');
+    viewBtn.textContent = '连续';
+    viewBtn.style.fontSize = '12px';
+    viewBtn.style.padding = '2px 8px';
+    viewBtn.onclick = () => {
+      const menu = new Menu();
+      menu.addItem(item => item.setTitle('连续').onClick(() => {
+        this._viewMode = 'continuous';
+        viewBtn.textContent = '连续';
+        this._applyViewMode();
+      }));
+      menu.addItem(item => item.setTitle('单页').onClick(() => {
+        this._viewMode = 'single';
+        viewBtn.textContent = '单页';
+        this._applyViewMode();
+      }));
+      menu.showAtMouseEvent(event);
     };
 
-    // 缩放下拉
-    this._zoomLevel = -1; // -1 = 适应宽度, >0 = 百分比
-    const zoomSelect = left.createEl('select');
-    zoomSelect.style.fontSize = '12px';
-    zoomSelect.style.border = '1px solid var(--background-modifier-border)';
-    zoomSelect.style.borderRadius = '4px';
-    zoomSelect.style.background = 'var(--background-primary)';
-    zoomSelect.style.color = 'var(--text-normal)';
-    zoomSelect.style.padding = '2px 4px';
-    const zoomOpts = [{ label: '适应宽度', value: '-1' }, { label: '100%', value: '1' }, { label: '150%', value: '1.5' }, { label: '200%', value: '2' }];
-    zoomOpts.forEach(z => {
-      const opt = zoomSelect.createEl('option', { text: z.label, value: z.value });
-      if (Number(z.value) === this._zoomLevel) opt.selected = true;
-    });
-    zoomSelect.onchange = () => {
-      this._zoomLevel = Number(zoomSelect.value);
-      this._reRender();
+    // 缩放按钮 + 菜单
+    this._zoomLevel = -1;
+    const zoomBtn = left.createEl('button');
+    zoomBtn.className = 'clickable-icon';
+    zoomBtn.setAttribute('aria-label', '缩放');
+    zoomBtn.textContent = '适应宽度';
+    zoomBtn.style.fontSize = '12px';
+    zoomBtn.style.padding = '2px 8px';
+    const zoomLabels = { '-1': '适应宽度', '1': '100%', '1.5': '150%', '2': '200%' };
+    zoomBtn.onclick = () => {
+      const menu = new Menu();
+      Object.entries(zoomLabels).forEach(([val, label]) => {
+        menu.addItem(item => item.setTitle(label).onClick(() => {
+          this._zoomLevel = Number(val);
+          zoomBtn.textContent = label;
+          this._reRender();
+        }));
+      });
+      menu.showAtMouseEvent(event);
     };
-    // 版本角标：从 CHANGELOG 首行读取（dev 模式不更新 manifest.json）
+
+    // 版本角标：从 CHANGELOG 首行读取（兼容 .dev 后缀）
     let ver = '0';
     try {
       const { readFileSync } = require('fs');
       const { join } = require('path');
       const changelog = readFileSync(join(this.plugin.manifest.dir || '.', 'CHANGELOG.md'), 'utf8');
-      const match = changelog.split('\n')[0].match(/v([\d.]+)/);
+      const match = changelog.split('\n')[0].match(/v([\d.]+)(?:\.dev)?/);
       if (match) ver = match[1].split('.').pop() || '0';
     } catch {}
     const verBadge = left.createEl('span', { text: ver });
@@ -2939,8 +2956,14 @@ class PdfFullscreenView extends ItemView {
     closeBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
     closeBtn.onclick = () => this.leaf.detach();
 
+    // 内容区包装器（flex row，容纳缩略图面板 + 滚动区）
+    this._contentWrap = container.createEl('div');
+    this._contentWrap.style.flex = '1';
+    this._contentWrap.style.display = 'flex';
+    this._contentWrap.style.overflow = 'hidden';
+
     // 内容区
-    this.scrollEl = container.createEl('div');
+    this.scrollEl = this._contentWrap.createEl('div');
     this.scrollEl.style.flex = '1';
     this.scrollEl.style.overflowY = 'auto';
     this.scrollEl.style.overflowX = 'hidden';
@@ -3042,6 +3065,50 @@ class PdfFullscreenView extends ItemView {
       if (target) target.scrollIntoView({ block: 'start' });
     } else {
       canvases.forEach(c => c.style.display = 'block');
+    }
+  }
+
+  _toggleThumbnailPanel() {
+    if (!this._thumbnailPanel) {
+      // 创建缩略图面板，插入到 _contentWrap 最前面
+      this._thumbnailPanel = this._contentWrap.createEl('div');
+      this._thumbnailPanel.style.width = '150px';
+      this._thumbnailPanel.style.flexShrink = '0';
+      this._thumbnailPanel.style.borderRight = '1px solid var(--background-modifier-border)';
+      this._thumbnailPanel.style.overflowY = 'auto';
+      this._thumbnailPanel.style.background = 'var(--background-primary)';
+      this._thumbnailPanel.style.padding = '8px';
+      // 移到 scrollEl 前面
+      this._contentWrap.insertBefore(this._thumbnailPanel, this.scrollEl);
+      this._renderThumbnails();
+    }
+    this._thumbnailPanel.style.display = this._thumbnailVisible ? 'block' : 'none';
+  }
+
+  async _renderThumbnails() {
+    if (!this._pdf || !this._thumbnailPanel) return;
+    this._thumbnailPanel.empty();
+    const total = this._pdf.numPages;
+    for (let i = 1; i <= total; i++) {
+      const page = await this._pdf.getPage(i);
+      const viewport = page.getViewport({ scale: 0.2 }); // 缩略图小尺寸
+      const canvas = this._thumbnailPanel.createEl('canvas');
+      canvas.style.width = '100%';
+      canvas.style.height = 'auto';
+      canvas.style.marginBottom = '8px';
+      canvas.style.cursor = 'pointer';
+      canvas.style.border = '2px solid transparent';
+      canvas.style.borderRadius = '4px';
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      canvas.dataset.pageNum = String(i);
+      canvas.onclick = () => {
+        this._scrollToPage(i);
+        // 高亮当前缩略图
+        this._thumbnailPanel.querySelectorAll('canvas').forEach(c => c.style.borderColor = 'transparent');
+        canvas.style.borderColor = 'var(--interactive-accent)';
+      };
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
     }
   }
 
