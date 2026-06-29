@@ -2900,17 +2900,40 @@ var PdfFullscreenView = class extends ItemView {
   }
   _toggleThumbnailPanel() {
     if (!this._thumbnailPanel) {
-      this._thumbnailPanel = this._contentWrap.createEl("div");
+      const panelWrap2 = this._contentWrap.createEl("div");
+      panelWrap2.style.display = "flex";
+      panelWrap2.style.flexDirection = "row";
+      this._contentWrap.insertBefore(panelWrap2, this.scrollEl);
+      this._thumbnailPanel = panelWrap2.createEl("div");
       this._thumbnailPanel.style.width = "150px";
       this._thumbnailPanel.style.flexShrink = "0";
-      this._thumbnailPanel.style.borderRight = "1px solid var(--background-modifier-border)";
       this._thumbnailPanel.style.overflowY = "auto";
       this._thumbnailPanel.style.background = "var(--background-primary)";
       this._thumbnailPanel.style.padding = "8px";
-      this._contentWrap.insertBefore(this._thumbnailPanel, this.scrollEl);
       this._renderThumbnails();
+      const resizeHandle = panelWrap2.createEl("div");
+      resizeHandle.style.width = "4px";
+      resizeHandle.style.cursor = "col-resize";
+      resizeHandle.style.background = "var(--background-modifier-border)";
+      resizeHandle.onmousedown = (e) => {
+        const startX = e.clientX;
+        const startW = this._thumbnailPanel.clientWidth;
+        const onMove = (ev) => {
+          const newW = startW + (ev.clientX - startX);
+          if (newW >= 100 && newW <= 400) {
+            this._thumbnailPanel.style.width = newW + "px";
+          }
+        };
+        const onUp = () => {
+          document.removeEventListener("mousemove", onMove);
+          document.removeEventListener("mouseup", onUp);
+        };
+        document.addEventListener("mousemove", onMove);
+        document.addEventListener("mouseup", onUp);
+      };
     }
-    this._thumbnailPanel.style.display = this._thumbnailVisible ? "block" : "none";
+    const panelWrap = this._thumbnailPanel.parentElement;
+    panelWrap.style.display = this._thumbnailVisible ? "flex" : "none";
   }
   async _renderThumbnails() {
     if (!this._pdf || !this._thumbnailPanel)
@@ -2942,14 +2965,14 @@ var PdfFullscreenView = class extends ItemView {
       await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
       const pageNumEl = wrap.createEl("div", { text: String(i) });
       pageNumEl.style.position = "absolute";
-      pageNumEl.style.bottom = "8px";
-      pageNumEl.style.right = "8px";
-      pageNumEl.style.background = "var(--background-primary)";
-      pageNumEl.style.color = "var(--text-normal)";
-      pageNumEl.style.fontSize = "11px";
-      pageNumEl.style.padding = "2px 6px";
-      pageNumEl.style.borderRadius = "10px";
-      pageNumEl.style.boxShadow = "0 1px 3px rgba(0,0,0,0.2)";
+      pageNumEl.style.bottom = "4px";
+      pageNumEl.style.right = "4px";
+      pageNumEl.style.background = "rgba(var(--background-primary-rgb, 255,255,255), 0.85)";
+      pageNumEl.style.color = "var(--text-muted)";
+      pageNumEl.style.fontSize = "10px";
+      pageNumEl.style.padding = "1px 5px";
+      pageNumEl.style.borderRadius = "8px";
+      pageNumEl.style.boxShadow = "0 1px 2px rgba(0,0,0,0.1)";
     }
   }
   _bindScroll() {
@@ -2969,6 +2992,7 @@ var PdfFullscreenView = class extends ItemView {
           if (this.pageInput.value !== String(pageNum)) {
             this.pageInput.value = String(pageNum);
             this._currentPage = pageNum;
+            this._highlightThumbnail(pageNum);
           }
           break;
         }
@@ -2980,6 +3004,7 @@ var PdfFullscreenView = class extends ItemView {
       return;
     this.pageInput.value = String(pageNum);
     this._currentPage = pageNum;
+    this._highlightThumbnail(pageNum);
     if (this._viewMode === "single") {
       this._applyViewMode();
     } else {
@@ -2987,6 +3012,13 @@ var PdfFullscreenView = class extends ItemView {
       if (canvas)
         canvas.scrollIntoView({ behavior: "smooth", block: "start" });
     }
+  }
+  _highlightThumbnail(pageNum) {
+    if (!this._thumbnailPanel)
+      return;
+    this._thumbnailPanel.querySelectorAll("div[data-page-num]").forEach((d) => {
+      d.style.borderColor = parseInt(d.dataset.pageNum, 10) === pageNum ? "var(--interactive-accent)" : "transparent";
+    });
   }
 };
 var AddAccountModal = class extends Modal {
