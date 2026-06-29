@@ -2841,8 +2841,8 @@ class PdfFullscreenView extends ItemView {
     const thumbBtn = thumbBtnWrap.createEl('button');
     thumbBtn.className = 'clickable-icon';
     thumbBtn.setAttribute('aria-label', '面板');
-    // 参考 Obsidian 样式：三条横线 + 下箭头
-    thumbBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>';
+    // 参考图样式：方格图标（2x2 网格）
+    thumbBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>';
     thumbBtn.onclick = () => {
       this._thumbnailVisible = !this._thumbnailVisible;
       this._toggleThumbnailPanel();
@@ -2853,15 +2853,14 @@ class PdfFullscreenView extends ItemView {
     arrowBtn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
     arrowBtn.onclick = (e) => {
       const menu = new Menu();
-      menu.addItem(item => item.setTitle('缩略图').onClick(() => {
+      menu.addItem(item => item.setTitle(this._panelMode === 'thumbnail' ? '✓ 缩略图' : '缩略图').onClick(() => {
         this._panelMode = 'thumbnail';
         this._thumbnailVisible = true;
         this._toggleThumbnailPanel();
       }));
-      menu.addItem(item => item.setTitle('目录').onClick(() => {
+      menu.addItem(item => item.setTitle(this._panelMode === 'outline' ? '✓ 目录' : '目录').onClick(() => {
         this._panelMode = 'outline';
         this._thumbnailVisible = true;
-        // TODO: 目录模式
         new Notice('目录功能开发中');
       }));
       menu.showAtMouseEvent(e);
@@ -3117,6 +3116,7 @@ class PdfFullscreenView extends ItemView {
       const page = await this._pdf.getPage(i);
       const viewport = page.getViewport({ scale: 0.2 }); // 缩略图小尺寸
       const wrap = this._thumbnailPanel.createEl('div');
+      wrap.style.position = 'relative';
       wrap.style.marginBottom = '8px';
       wrap.style.cursor = 'pointer';
       wrap.style.border = '2px solid transparent';
@@ -3136,12 +3136,17 @@ class PdfFullscreenView extends ItemView {
       canvas.width = viewport.width;
       canvas.height = viewport.height;
       await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-      // 页码
+      // 悬浮页码（右下角白色圆角标签）
       const pageNumEl = wrap.createEl('div', { text: String(i) });
-      pageNumEl.style.textAlign = 'center';
+      pageNumEl.style.position = 'absolute';
+      pageNumEl.style.bottom = '8px';
+      pageNumEl.style.right = '8px';
+      pageNumEl.style.background = 'var(--background-primary)';
+      pageNumEl.style.color = 'var(--text-normal)';
       pageNumEl.style.fontSize = '11px';
-      pageNumEl.style.color = 'var(--text-muted)';
-      pageNumEl.style.marginTop = '4px';
+      pageNumEl.style.padding = '2px 6px';
+      pageNumEl.style.borderRadius = '10px';
+      pageNumEl.style.boxShadow = '0 1px 3px rgba(0,0,0,0.2)';
     }
   }
 
