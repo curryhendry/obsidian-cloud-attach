@@ -2650,11 +2650,10 @@ var PdfFullscreenView = class extends ItemView {
     const container = this.containerEl.children[1];
     container.empty();
     const state = this.leaf.getViewState()?.state || {};
-    if (!this.pdfUrl && state.pdfUrl) {
+    if (state.pdfUrl) {
       this.pdfUrl = state.pdfUrl;
       this.pdfName = state.pdfName || cleanFileNameFromUrl(this.pdfUrl);
-    }
-    if (!this.pdfUrl && this.plugin._pendingPdfUrl) {
+    } else if (!this.pdfUrl && this.plugin._pendingPdfUrl) {
       this.pdfUrl = this.plugin._pendingPdfUrl;
       this.pdfName = this.plugin._pendingPdfName || cleanFileNameFromUrl(this.pdfUrl);
     }
@@ -2677,7 +2676,14 @@ var PdfFullscreenView = class extends ItemView {
     left.style.fontSize = "13px";
     left.style.color = "var(--text-normal)";
     left.createEl("span", { text: cleanFileNameFromUrl(this.pdfUrl) });
-    const ver = String((this.plugin?.manifest?.version || "").split(".").pop() || "0");
+    let ver = "0";
+    try {
+      const changelog = require("fs").readFileSync(require("path").join(this.plugin.manifest.dir, "CHANGELOG.md"), "utf8");
+      const match = changelog.split("\n")[0].match(/v([\d.]+)/);
+      if (match)
+        ver = match[1].split(".").pop() || "0";
+    } catch {
+    }
     const verBadge = left.createEl("span", { text: ver });
     verBadge.style.fontSize = "10px";
     verBadge.style.color = "var(--text-muted)";
