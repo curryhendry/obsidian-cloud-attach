@@ -2907,8 +2907,8 @@ var PdfFullscreenView = class extends ItemView {
     if (this._viewMode === "single") {
       this.scrollEl.style.position = "relative";
       this.scrollEl.style.overflow = "hidden";
-      this.scrollEl.style.display = "block";
-      this.scrollEl.style.height = "100%";
+      this.scrollEl.style.display = "";
+      this.scrollEl.style.height = "";
       const scrollW = this.scrollEl.clientWidth;
       const scrollH = this.scrollEl.clientHeight;
       canvases.forEach((c) => {
