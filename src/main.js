@@ -3102,37 +3102,67 @@ class PdfFullscreenView extends ItemView {
     const canvases = this.scrollEl.querySelectorAll('canvas.cloud-attach-pdf-fullscreen-page');
     const cur = this._currentPage || 1;
     
+    // 重置容器样式
+    this.scrollEl.style.display = 'block';
+    this.scrollEl.style.flexDirection = '';
+    this.scrollEl.style.flexWrap = '';
+    this.scrollEl.style.justifyContent = '';
+    
     if (this._viewMode === 'single') {
-      // 单页模式：只显示当前页
+      // 单页模式：用 transform 实现整页滑动
       canvases.forEach(c => {
         const pn = parseInt(c.dataset.pageNum, 10);
-        c.style.display = pn === cur ? 'block' : 'none';
+        c.style.display = 'block';
+        c.style.position = 'absolute';
+        c.style.top = '0';
+        c.style.left = '0';
+        c.style.width = '100%';
+        c.style.height = '100%';
+        c.style.transition = 'transform 0.3s ease';
+        // 当前页在位置 0，其他页在下方
+        const offset = pn - cur;
+        c.style.transform = `translateY(${offset * 100}%)`;
       });
-      const target = this.scrollEl.querySelector(`canvas[data-page-num="${cur}"]`);
-      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      this.scrollEl.style.position = 'relative';
+      this.scrollEl.style.overflow = 'hidden';
     } else if (this._viewMode === 'double') {
-      // 双页模式：显示当前页和下一页（并排）
+      // 双页模式：flex 水平布局，每页 50%
+      this.scrollEl.style.display = 'flex';
+      this.scrollEl.style.flexDirection = 'row';
+      this.scrollEl.style.flexWrap = 'wrap';
+      this.scrollEl.style.justifyContent = 'center';
+      this.scrollEl.style.position = '';
+      this.scrollEl.style.overflow = 'auto';
+      
       const startPage = cur % 2 === 1 ? cur : cur - 1;
       canvases.forEach(c => {
         const pn = parseInt(c.dataset.pageNum, 10);
-        c.style.display = (pn === startPage || pn === startPage + 1) ? 'inline-block' : 'none';
-        if (pn === startPage || pn === startPage + 1) {
-          c.style.verticalAlign = 'top';
-          c.style.margin = '0 4px 8px 0';
-        }
+        // 按对分组显示
+        const pairIndex = Math.floor((pn - 1) / 2);
+        const currentPairIndex = Math.floor((cur - 1) / 2);
+        const isVisible = pairIndex === currentPairIndex;
+        
+        c.style.display = isVisible ? 'block' : 'none';
+        c.style.position = '';
+        c.style.width = '48%';
+        c.style.height = 'auto';
+        c.style.margin = '0 1%';
+        c.style.transform = '';
+        c.style.transition = '';
       });
-      // 双页模式下容器居中
-      this.scrollEl.style.textAlign = 'center';
-      const target = this.scrollEl.querySelector(`canvas[data-page-num="${startPage}"]`);
-      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } else {
       // 连续模式
+      this.scrollEl.style.position = '';
+      this.scrollEl.style.overflow = 'auto';
       canvases.forEach(c => {
         c.style.display = 'block';
-        c.style.verticalAlign = '';
+        c.style.position = '';
+        c.style.width = '';
+        c.style.height = '';
         c.style.margin = '0 auto 8px';
+        c.style.transform = '';
+        c.style.transition = '';
       });
-      this.scrollEl.style.textAlign = '';
     }
   }
 
@@ -3141,15 +3171,15 @@ class PdfFullscreenView extends ItemView {
   }
 
   _toggleThumbnailPanel() {
-    if (!this._thumbnailPanel) {
+    if (!this._thumbnailPanelWrap) {
       // 创建缩略图面板容器
-      const panelWrap = this._contentWrap.createEl('div');
-      panelWrap.style.display = 'flex';
-      panelWrap.style.flexDirection = 'row';
-      this._contentWrap.insertBefore(panelWrap, this.scrollEl);
+      this._thumbnailPanelWrap = this._contentWrap.createEl('div');
+      this._thumbnailPanelWrap.style.display = 'flex';
+      this._thumbnailPanelWrap.style.flexDirection = 'row';
+      this._contentWrap.insertBefore(this._thumbnailPanelWrap, this.scrollEl);
       
       // 缩略图面板
-      this._thumbnailPanel = panelWrap.createEl('div');
+      this._thumbnailPanel = this._thumbnailPanelWrap.createEl('div');
       this._thumbnailPanel.style.width = '150px';
       this._thumbnailPanel.style.flexShrink = '0';
       this._thumbnailPanel.style.overflowY = 'auto';
@@ -3158,11 +3188,13 @@ class PdfFullscreenView extends ItemView {
       this._renderThumbnails();
       
       // 拖拽分隔条
-      const resizeHandle = panelWrap.createEl('div');
-      resizeHandle.style.width = '4px';
+      const resizeHandle = this._thumbnailPanelWrap.createEl('div');
+      resizeHandle.style.width = '6px';
       resizeHandle.style.cursor = 'col-resize';
       resizeHandle.style.background = 'var(--background-modifier-border)';
+      resizeHandle.style.flexShrink = '0';
       resizeHandle.onmousedown = (e) => {
+        e.preventDefault();
         const startX = e.clientX;
         const startW = this._thumbnailPanel.clientWidth;
         const onMove = (ev) => {
@@ -3179,8 +3211,7 @@ class PdfFullscreenView extends ItemView {
         document.addEventListener('mouseup', onUp);
       };
     }
-    const panelWrap = this._thumbnailPanel.parentElement;
-    panelWrap.style.display = this._thumbnailVisible ? 'flex' : 'none';
+    this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? 'flex' : 'none';
   }
 
   async _renderThumbnails() {
@@ -3233,7 +3264,10 @@ class PdfFullscreenView extends ItemView {
       const delta = e.deltaY > 0 ? 1 : -1;
       const step = (this._viewMode === 'double') ? 2 : 1;
       const newPage = (this._currentPage || 1) + delta * step;
-      this._scrollToPage(Math.max(1, Math.min(newPage, this._pdf?.numPages || 1)));
+      const clampedPage = Math.max(1, Math.min(newPage, this._pdf?.numPages || 1));
+      if (clampedPage !== this._currentPage) {
+        this._scrollToPage(clampedPage);
+      }
     };
     
     // 用 scroll 事件计算当前页（IntersectionObserver 在 Obsidian 中不稳定）
@@ -3271,6 +3305,14 @@ class PdfFullscreenView extends ItemView {
     this._highlightThumbnail(pageNum);
 
     if (this._viewMode === 'single') {
+      // 单页模式：用 CSS transform 实现整页滑动
+      const canvases = this.scrollEl.querySelectorAll('canvas.cloud-attach-pdf-fullscreen-page');
+      canvases.forEach(c => {
+        const pn = parseInt(c.dataset.pageNum, 10);
+        const offset = pn - pageNum;
+        c.style.transform = `translateY(${offset * 100}%)`;
+      });
+    } else if (this._viewMode === 'double') {
       this._applyViewMode();
     } else {
       const canvas = this.scrollEl.querySelector(`canvas[data-page-num="${pageNum}"]`);
