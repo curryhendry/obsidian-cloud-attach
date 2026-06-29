@@ -2672,6 +2672,12 @@ var PdfFullscreenView = class extends ItemView {
     left.style.fontSize = "13px";
     left.style.color = "var(--text-normal)";
     left.createEl("span", { text: cleanFileNameFromUrl(this.pdfUrl) });
+    const verBadge = left.createEl("span", { text: "099" });
+    verBadge.style.fontSize = "10px";
+    verBadge.style.color = "var(--text-muted)";
+    verBadge.style.background = "var(--background-modifier-hover)";
+    verBadge.style.padding = "1px 4px";
+    verBadge.style.borderRadius = "3px";
     const right = toolbar.createEl("div");
     right.style.display = "flex";
     right.style.alignItems = "center";
