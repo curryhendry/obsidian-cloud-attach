@@ -2560,7 +2560,7 @@ var CloudAttachView = class extends ItemView {
     this.renderFiles();
     this.renderBatchBar();
   }
-  showMenu(file, event2) {
+  showMenu(file, event) {
     const menu = new Menu(this.plugin.app);
     if (!file.isDirectory) {
       menu.addItem((item) => {
@@ -2616,7 +2616,7 @@ var CloudAttachView = class extends ItemView {
         item.setTitle(t("menu.rename")).onClick(() => this.showRenameModal(file));
       });
     }
-    menu.showAtPosition({ x: event2.clientX, y: event2.clientY });
+    menu.showAtPosition({ x: event.clientX, y: event.clientY });
   }
 };
 function cleanFileNameFromUrl(url) {
@@ -2703,44 +2703,36 @@ var PdfFullscreenView = class extends ItemView {
       menu.showAtMouseEvent(e);
     };
     this._viewMode = "continuous";
-    const viewBtn = left.createEl("button");
+    this._zoomMode = "fit-width";
+    const viewBtnWrap = left.createEl("div");
+    viewBtnWrap.style.display = "flex";
+    viewBtnWrap.style.alignItems = "center";
+    const viewBtn = viewBtnWrap.createEl("button");
     viewBtn.className = "clickable-icon";
-    viewBtn.setAttribute("aria-label", "\u89C6\u56FE\u6A21\u5F0F");
-    viewBtn.textContent = "\u8FDE\u7EED";
-    viewBtn.style.fontSize = "12px";
-    viewBtn.style.padding = "2px 8px";
-    viewBtn.onclick = () => {
+    viewBtn.setAttribute("aria-label", "\u89C6\u56FE");
+    viewBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="12" height="16" rx="2"></rect></svg>';
+    const viewArrow = viewBtnWrap.createEl("button");
+    viewArrow.className = "clickable-icon";
+    viewArrow.style.padding = "2px";
+    viewArrow.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+    viewArrow.onclick = (e) => {
       const menu = new Menu();
-      menu.addItem((item) => item.setTitle("\u8FDE\u7EED").onClick(() => {
-        this._viewMode = "continuous";
-        viewBtn.textContent = "\u8FDE\u7EED";
-        this._applyViewMode();
-      }));
-      menu.addItem((item) => item.setTitle("\u5355\u9875").onClick(() => {
-        this._viewMode = "single";
-        viewBtn.textContent = "\u5355\u9875";
-        this._applyViewMode();
-      }));
-      menu.showAtMouseEvent(event);
-    };
-    this._zoomLevel = -1;
-    const zoomBtn = left.createEl("button");
-    zoomBtn.className = "clickable-icon";
-    zoomBtn.setAttribute("aria-label", "\u7F29\u653E");
-    zoomBtn.textContent = "\u9002\u5E94\u5BBD\u5EA6";
-    zoomBtn.style.fontSize = "12px";
-    zoomBtn.style.padding = "2px 8px";
-    const zoomLabels = { "-1": "\u9002\u5E94\u5BBD\u5EA6", "1": "100%", "1.5": "150%", "2": "200%" };
-    zoomBtn.onclick = () => {
-      const menu = new Menu();
-      Object.entries(zoomLabels).forEach(([val, label]) => {
-        menu.addItem((item) => item.setTitle(label).onClick(() => {
-          this._zoomLevel = Number(val);
-          zoomBtn.textContent = label;
-          this._reRender();
+      const zoomOpts = { "fit-width": "\u9002\u5E94\u5BBD\u5EA6", "fit-height": "\u9002\u5E94\u9AD8\u5EA6", "100%": "100%", "150%": "150%", "200%": "200%" };
+      Object.entries(zoomOpts).forEach(([val, label]) => {
+        menu.addItem((item) => item.setTitle((this._zoomMode === val ? "\u2713 " : "") + label).onClick(() => {
+          this._zoomMode = val;
+          this._applyZoom();
         }));
       });
-      menu.showAtMouseEvent(event);
+      menu.addSeparator();
+      const modeOpts = { "continuous": "\u8FDE\u7EED", "single": "\u5355\u9875", "double-odd": "\u53CC\u9875\uFF08\u5947\u6570\uFF09", "double-even": "\u53CC\u9875\uFF08\u5076\u6570\uFF09" };
+      Object.entries(modeOpts).forEach(([val, label]) => {
+        menu.addItem((item) => item.setTitle((this._viewMode === val ? "\u2713 " : "") + label).onClick(() => {
+          this._viewMode = val;
+          this._applyViewMode();
+        }));
+      });
+      menu.showAtMouseEvent(e);
     };
     let ver = "0";
     try {
@@ -2841,16 +2833,31 @@ var PdfFullscreenView = class extends ItemView {
     if (!this._pdf)
       return;
     const totalPages = this._pdf.numPages;
-    const scale = this._zoomLevel === -1 ? this._fitWidthScale() : this._zoomLevel;
+    let scale = 1;
+    if (this._zoomMode === "fit-width") {
+      scale = this._fitWidthScale();
+    } else if (this._zoomMode === "fit-height") {
+      const h = this.scrollEl.clientHeight - 32;
+      scale = h > 0 ? h / 792 : 1;
+    } else if (this._zoomMode === "100%") {
+      scale = 1;
+    } else if (this._zoomMode === "150%") {
+      scale = 1.5;
+    } else if (this._zoomMode === "200%") {
+      scale = 2;
+    }
     for (let i = 1; i <= totalPages; i++) {
       const page = await this._pdf.getPage(i);
       const viewport = page.getViewport({ scale });
       const canvas = document.createElement("canvas");
       canvas.className = "cloud-attach-pdf-fullscreen-page";
       canvas.style.display = "block";
-      if (this._zoomLevel === -1) {
+      if (this._zoomMode === "fit-width") {
         canvas.style.width = "100%";
         canvas.style.height = "auto";
+      } else if (this._zoomMode === "fit-height") {
+        canvas.style.height = "100%";
+        canvas.style.width = "auto";
       }
       canvas.style.margin = "0 auto 8px";
       canvas.style.boxShadow = "0 1px 4px rgba(0,0,0,0.15)";
@@ -2885,8 +2892,8 @@ var PdfFullscreenView = class extends ItemView {
   }
   _applyViewMode() {
     const canvases = this.scrollEl.querySelectorAll("canvas.cloud-attach-pdf-fullscreen-page");
+    const cur = this._currentPage || 1;
     if (this._viewMode === "single") {
-      const cur = this._currentPage || 1;
       canvases.forEach((c) => {
         const pn = parseInt(c.dataset.pageNum, 10);
         c.style.display = pn === cur ? "block" : "none";
@@ -2894,9 +2901,22 @@ var PdfFullscreenView = class extends ItemView {
       const target = this.scrollEl.querySelector(`canvas[data-page-num="${cur}"]`);
       if (target)
         target.scrollIntoView({ block: "start" });
+    } else if (this._viewMode === "double-odd" || this._viewMode === "double-even") {
+      const isOdd = this._viewMode === "double-odd";
+      const startPage = isOdd ? cur % 2 === 1 ? cur : cur - 1 : cur % 2 === 0 ? cur : cur - 1;
+      canvases.forEach((c) => {
+        const pn = parseInt(c.dataset.pageNum, 10);
+        c.style.display = pn === startPage || pn === startPage + 1 ? "block" : "none";
+      });
+      const target = this.scrollEl.querySelector(`canvas[data-page-num="${startPage}"]`);
+      if (target)
+        target.scrollIntoView({ block: "start" });
     } else {
       canvases.forEach((c) => c.style.display = "block");
     }
+  }
+  _applyZoom() {
+    this._reRender();
   }
   _toggleThumbnailPanel() {
     if (!this._thumbnailPanel) {
@@ -2976,6 +2996,15 @@ var PdfFullscreenView = class extends ItemView {
     }
   }
   _bindScroll() {
+    this.scrollEl.onwheel = (e) => {
+      if (this._viewMode === "continuous")
+        return;
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? 1 : -1;
+      const step = this._viewMode === "double-odd" || this._viewMode === "double-even" ? 2 : 1;
+      const newPage = (this._currentPage || 1) + delta * step;
+      this._scrollToPage(Math.max(1, Math.min(newPage, this._pdf?.numPages || 1)));
+    };
     this.scrollEl.onscroll = () => {
       if (!this._pdf)
         return;
