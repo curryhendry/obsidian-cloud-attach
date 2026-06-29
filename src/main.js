@@ -3093,19 +3093,45 @@ class PdfFullscreenView extends ItemView {
 
   _toggleThumbnailPanel() {
     if (!this._thumbnailPanel) {
-      // 创建缩略图面板，插入到 _contentWrap 最前面
-      this._thumbnailPanel = this._contentWrap.createEl('div');
+      // 创建缩略图面板容器
+      const panelWrap = this._contentWrap.createEl('div');
+      panelWrap.style.display = 'flex';
+      panelWrap.style.flexDirection = 'row';
+      this._contentWrap.insertBefore(panelWrap, this.scrollEl);
+      
+      // 缩略图面板
+      this._thumbnailPanel = panelWrap.createEl('div');
       this._thumbnailPanel.style.width = '150px';
       this._thumbnailPanel.style.flexShrink = '0';
-      this._thumbnailPanel.style.borderRight = '1px solid var(--background-modifier-border)';
       this._thumbnailPanel.style.overflowY = 'auto';
       this._thumbnailPanel.style.background = 'var(--background-primary)';
       this._thumbnailPanel.style.padding = '8px';
-      // 移到 scrollEl 前面
-      this._contentWrap.insertBefore(this._thumbnailPanel, this.scrollEl);
       this._renderThumbnails();
+      
+      // 拖拽分隔条
+      const resizeHandle = panelWrap.createEl('div');
+      resizeHandle.style.width = '4px';
+      resizeHandle.style.cursor = 'col-resize';
+      resizeHandle.style.background = 'var(--background-modifier-border)';
+      resizeHandle.onmousedown = (e) => {
+        const startX = e.clientX;
+        const startW = this._thumbnailPanel.clientWidth;
+        const onMove = (ev) => {
+          const newW = startW + (ev.clientX - startX);
+          if (newW >= 100 && newW <= 400) {
+            this._thumbnailPanel.style.width = newW + 'px';
+          }
+        };
+        const onUp = () => {
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      };
     }
-    this._thumbnailPanel.style.display = this._thumbnailVisible ? 'block' : 'none';
+    const panelWrap = this._thumbnailPanel.parentElement;
+    panelWrap.style.display = this._thumbnailVisible ? 'flex' : 'none';
   }
 
   async _renderThumbnails() {
@@ -3136,17 +3162,17 @@ class PdfFullscreenView extends ItemView {
       canvas.width = viewport.width;
       canvas.height = viewport.height;
       await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-      // 悬浮页码（右下角白色圆角标签）
+      // 悬浮页码（右下角更小巧透明）
       const pageNumEl = wrap.createEl('div', { text: String(i) });
       pageNumEl.style.position = 'absolute';
-      pageNumEl.style.bottom = '8px';
-      pageNumEl.style.right = '8px';
-      pageNumEl.style.background = 'var(--background-primary)';
-      pageNumEl.style.color = 'var(--text-normal)';
-      pageNumEl.style.fontSize = '11px';
-      pageNumEl.style.padding = '2px 6px';
-      pageNumEl.style.borderRadius = '10px';
-      pageNumEl.style.boxShadow = '0 1px 3px rgba(0,0,0,0.2)';
+      pageNumEl.style.bottom = '4px';
+      pageNumEl.style.right = '4px';
+      pageNumEl.style.background = 'rgba(var(--background-primary-rgb, 255,255,255), 0.85)';
+      pageNumEl.style.color = 'var(--text-muted)';
+      pageNumEl.style.fontSize = '10px';
+      pageNumEl.style.padding = '1px 5px';
+      pageNumEl.style.borderRadius = '8px';
+      pageNumEl.style.boxShadow = '0 1px 2px rgba(0,0,0,0.1)';
     }
   }
 
@@ -3170,6 +3196,8 @@ class PdfFullscreenView extends ItemView {
           if (this.pageInput.value !== String(pageNum)) {
             this.pageInput.value = String(pageNum);
             this._currentPage = pageNum;
+            // 同步高亮侧边栏缩略图
+            this._highlightThumbnail(pageNum);
           }
           break;
         }
@@ -3181,6 +3209,7 @@ class PdfFullscreenView extends ItemView {
     if (!this._pdf || pageNum < 1 || pageNum > this._pdf.numPages) return;
     this.pageInput.value = String(pageNum);
     this._currentPage = pageNum;
+    this._highlightThumbnail(pageNum);
 
     if (this._viewMode === 'single') {
       this._applyViewMode();
@@ -3188,6 +3217,13 @@ class PdfFullscreenView extends ItemView {
       const canvas = this.scrollEl.querySelector(`canvas[data-page-num="${pageNum}"]`);
       if (canvas) canvas.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+  }
+
+  _highlightThumbnail(pageNum) {
+    if (!this._thumbnailPanel) return;
+    this._thumbnailPanel.querySelectorAll('div[data-page-num]').forEach(d => {
+      d.style.borderColor = parseInt(d.dataset.pageNum, 10) === pageNum ? 'var(--interactive-accent)' : 'transparent';
+    });
   }
 }
 
