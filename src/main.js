@@ -3180,17 +3180,10 @@ class PdfFullscreenView extends ItemView {
       
       this._highlightThumbnail(cur);
     } else {
-      // 连续模式也要做宽度适应
-      const scrollW = this.scrollEl.clientWidth;
-      canvases.forEach(c => {
-        c.style.display = 'block';
-        c.style.position = 'static';
-        c.style.margin = '0 auto 8px';
-        if (this._zoomMode === 'fit-width' && scrollW > 0) {
-          c.style.width = scrollW + 'px';
-          c.style.height = 'auto';
-        }
-      });
+      // 连续模式：重渲染让 _renderAllPages 按 fit-width scale 重新画 canvas
+      this.scrollEl.style.overflowY = 'auto';
+      this.scrollEl.style.overflowX = 'hidden';
+      this.scrollEl.style.position = '';
     }
   }
 
@@ -3272,7 +3265,12 @@ class PdfFullscreenView extends ItemView {
         window.addEventListener('pointerup', onUp);
       };
     }
+    // 侧边栏开关后重渲染（宽度变化）
     this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? 'flex' : 'none';
+    if (!this._thumbnailVisible) {
+      // 关侧边栏后 scrollEl 变宽，需要重渲染
+      requestAnimationFrame(() => this._reRender());
+    }
   }
 
   async _renderThumbnails() {
