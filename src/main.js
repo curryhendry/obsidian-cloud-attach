@@ -2824,23 +2824,62 @@ class PdfFullscreenView extends ItemView {
     toolbar.style.borderBottom = '1px solid var(--background-modifier-border)';
     toolbar.style.flexShrink = '0';
 
+    // 左侧：文件名
     const left = toolbar.createEl('div');
     left.style.display = 'flex';
     left.style.alignItems = 'center';
     left.style.gap = '8px';
-    // 顶部只显示文件名（不含 query/sign）
-    left.createEl('span', { text: '📄 ' + cleanFileNameFromUrl(this.pdfUrl) });
+    left.style.fontSize = '13px';
+    left.style.color = 'var(--text-normal)';
+    left.createEl('span', { text: cleanFileNameFromUrl(this.pdfUrl) });
 
+    // 右侧：功能按钮
     const right = toolbar.createEl('div');
     right.style.display = 'flex';
     right.style.alignItems = 'center';
-    right.style.gap = '8px';
+    right.style.gap = '10px';
 
-    // 页码指示器
-    this.pageIndicator = right.createEl('span');
-    this.pageIndicator.style.fontSize = '13px';
-    this.pageIndicator.style.color = 'var(--text-muted)';
-    this.pageIndicator.textContent = '1 / 1';
+    // 上一页
+    const prevBtn = right.createEl('span', { text: '◀' });
+    prevBtn.style.cursor = 'pointer';
+    prevBtn.style.fontSize = '14px';
+    prevBtn.style.padding = '2px 6px';
+    prevBtn.style.userSelect = 'none';
+    prevBtn.onclick = () => this._scrollToPage((this._currentPage || 1) - 1);
+
+    // 页码输入框（可编辑）
+    const pageWrap = right.createEl('span');
+    pageWrap.style.display = 'flex';
+    pageWrap.style.alignItems = 'center';
+    pageWrap.style.gap = '2px';
+    this.pageInput = pageWrap.createEl('input', { type: 'number', value: '1' });
+    this.pageInput.style.width = '40px';
+    this.pageInput.style.fontSize = '13px';
+    this.pageInput.style.textAlign = 'center';
+    this.pageInput.style.border = '1px solid var(--background-modifier-border)';
+    this.pageInput.style.borderRadius = '4px';
+    this.pageInput.style.background = 'var(--background-primary)';
+    this.pageInput.style.color = 'var(--text-normal)';
+    this.pageInput.onchange = () => {
+      const val = parseInt(this.pageInput.value, 10);
+      if (val && val >= 1 && val <= (this._pdf?.numPages || 1)) {
+        this._scrollToPage(val);
+      }
+    };
+    this.pageInput.onkeydown = (e) => {
+      if (e.key === 'Enter') this.pageInput.blur();
+    };
+    this.pageTotal = pageWrap.createEl('span', { text: ' / 1' });
+    this.pageTotal.style.fontSize = '13px';
+    this.pageTotal.style.color = 'var(--text-muted)';
+
+    // 下一页
+    const nextBtn = right.createEl('span', { text: '▶' });
+    nextBtn.style.cursor = 'pointer';
+    nextBtn.style.fontSize = '14px';
+    nextBtn.style.padding = '2px 6px';
+    nextBtn.style.userSelect = 'none';
+    nextBtn.onclick = () => this._scrollToPage((this._currentPage || 1) + 1);
 
     // 关闭按钮
     const closeBtn = right.createEl('span', { text: '✕' });
@@ -2872,7 +2911,9 @@ class PdfFullscreenView extends ItemView {
         : pdfjsLib.getDocument({ url: this.pdfUrl, ownerDocument: this.containerEl.ownerDocument });
       this._pdf = await loadingTask.promise;
       const totalPages = this._pdf.numPages;
-      this.pageIndicator.textContent = `1 / ${totalPages}`;
+      this.pageTotal.textContent = ' / ' + totalPages;
+      this.pageInput.value = '1';
+      this._currentPage = 1;
 
       this.scrollEl.empty();
       this._renderAllPages();
@@ -2941,18 +2982,31 @@ class PdfFullscreenView extends ItemView {
         ticking = false;
         if (!this._pdf) return;
         const canvases = this.scrollEl.querySelectorAll('canvas[data-page-num]');
-        const midY = this.scrollEl.scrollTop + this.scrollEl.clientHeight / 2;
         for (const c of canvases) {
           const rect = c.getBoundingClientRect();
           const containerRect = this.scrollEl.getBoundingClientRect();
-          const cMid = rect.top - containerRect.top + rect.height / 2;
-          if (cMid >= this.scrollEl.scrollTop && cMid <= this.scrollEl.scrollTop + this.scrollEl.clientHeight) {
-            this.pageIndicator.textContent = `${c.dataset.pageNum} / ${this._pdf.numPages}`;
+          const cTop = rect.top - containerRect.top;
+          const cBottom = cTop + rect.height;
+          // 页面上半部分在视口内即认为是当前页
+          if (cTop >= 0 && cTop < containerRect.height / 2) {
+            const pageNum = parseInt(c.dataset.pageNum, 10);
+            this.pageInput.value = String(pageNum);
+            this._currentPage = pageNum;
             break;
           }
         }
       });
     };
+  }
+
+  _scrollToPage(pageNum) {
+    if (!this._pdf || pageNum < 1 || pageNum > this._pdf.numPages) return;
+    const canvas = this.scrollEl.querySelector(`canvas[data-page-num="${pageNum}"]`);
+    if (canvas) {
+      canvas.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      this.pageInput.value = String(pageNum);
+      this._currentPage = pageNum;
+    }
   }
 }
 
