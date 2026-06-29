@@ -2804,12 +2804,8 @@ class PdfFullscreenView extends ItemView {
     const container = this.containerEl.children[1];
     container.empty();
 
-    // 优先用 state（带完整 sign URL），其次用构造函数传的
-    const state = this.leaf.getViewState()?.state || {};
-    if (state.pdfUrl) {
-      this.pdfUrl = state.pdfUrl;
-      this.pdfName = state.pdfName || cleanFileNameFromUrl(this.pdfUrl);
-    } else if (!this.pdfUrl && this.plugin._pendingPdfUrl) {
+    // 从 plugin pending 取 URL（覆盖构造函数的，确保是最新的）
+    if (this.plugin._pendingPdfUrl) {
       this.pdfUrl = this.plugin._pendingPdfUrl;
       this.pdfName = this.plugin._pendingPdfName || cleanFileNameFromUrl(this.pdfUrl);
     }

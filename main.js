@@ -2649,11 +2649,7 @@ var PdfFullscreenView = class extends ItemView {
   async onOpen() {
     const container = this.containerEl.children[1];
     container.empty();
-    const state = this.leaf.getViewState()?.state || {};
-    if (state.pdfUrl) {
-      this.pdfUrl = state.pdfUrl;
-      this.pdfName = state.pdfName || cleanFileNameFromUrl(this.pdfUrl);
-    } else if (!this.pdfUrl && this.plugin._pendingPdfUrl) {
+    if (this.plugin._pendingPdfUrl) {
       this.pdfUrl = this.plugin._pendingPdfUrl;
       this.pdfName = this.plugin._pendingPdfName || cleanFileNameFromUrl(this.pdfUrl);
     }
