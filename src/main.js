@@ -3192,9 +3192,12 @@ class PdfFullscreenView extends ItemView {
       
       this._highlightThumbnail(cur);
     } else {
-      // 连续模式：恢复 scroll
+      // 连续模式：恢复 scroll 并重置页码
       this.scrollEl.style.overflowY = 'auto';
       this.scrollEl.style.overflowX = 'hidden';
+      this.pageInput.value = '1';
+      this._currentPage = 1;
+      this.scrollEl.scrollTop = 0;
     }
   }
 
