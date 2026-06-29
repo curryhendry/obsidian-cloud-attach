@@ -3039,18 +3039,20 @@ class PdfFullscreenView extends ItemView {
     if (!this._pdf) return;
     const totalPages = this._pdf.numPages;
     
-    // 用第一页实际宽度算 fit-width scale
+    // 用第一页实际尺寸算 scale
     const firstPg = await this._pdf.getPage(1);
     const firstVp = firstPg.getViewport({ scale: 1 });
     const pageW = firstVp.width;
+    const pageH = firstVp.height;
     
     let scale = 1;
     if (this._zoomMode === 'fit-width') {
-      const w = this.scrollEl.clientWidth;
+      const w = this.scrollEl.clientWidth || this.containerEl.clientWidth;
       scale = w > 0 ? w / pageW : 1;
     } else if (this._zoomMode === 'fit-height') {
-      const h = this.scrollEl.clientHeight;
-      scale = h > 0 ? h / firstVp.height : 1;
+      // scrollEl 空内容时 clientHeight 可能为 0，fallback 到父容器
+      const h = this.scrollEl.clientHeight || this.containerEl.clientHeight;
+      scale = h > 0 ? h / pageH : 1;
     }
 
     for (let i = 1; i <= totalPages; i++) {

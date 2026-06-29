@@ -2845,13 +2845,14 @@ var PdfFullscreenView = class extends ItemView {
     const firstPg = await this._pdf.getPage(1);
     const firstVp = firstPg.getViewport({ scale: 1 });
     const pageW = firstVp.width;
+    const pageH = firstVp.height;
     let scale = 1;
     if (this._zoomMode === "fit-width") {
-      const w = this.scrollEl.clientWidth;
+      const w = this.scrollEl.clientWidth || this.containerEl.clientWidth;
       scale = w > 0 ? w / pageW : 1;
     } else if (this._zoomMode === "fit-height") {
-      const h = this.scrollEl.clientHeight;
-      scale = h > 0 ? h / firstVp.height : 1;
+      const h = this.scrollEl.clientHeight || this.containerEl.clientHeight;
+      scale = h > 0 ? h / pageH : 1;
     }
     for (let i = 1; i <= totalPages; i++) {
       const page = await this._pdf.getPage(i);
