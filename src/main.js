@@ -3116,6 +3116,7 @@ class PdfFullscreenView extends ItemView {
       this.scrollEl.style.position = 'relative';
       this.scrollEl.style.overflow = 'hidden';
       this.scrollEl.style.display = 'block';
+      this.scrollEl.style.height = '100%';
       
       const scrollW = this.scrollEl.clientWidth;
       const scrollH = this.scrollEl.clientHeight;
@@ -3143,12 +3144,12 @@ class PdfFullscreenView extends ItemView {
         
         // Position: translateY based on page offset
         const offset = pn - cur;
-        c.style.transform = `translateY(${offset * 100}vh)`;
+        c.style.transform = `translateY(${offset * 100}%)`;
       });
       
       this._highlightThumbnail(cur);
     } else if (this._viewMode === 'double') {
-      // 双页模式：flex row, two pages side by side
+      // 双页模式：flex row，两页并排，无过渡
       this.scrollEl.style.position = 'relative';
       this.scrollEl.style.overflow = 'hidden';
       this.scrollEl.style.display = 'flex';
@@ -3167,14 +3168,20 @@ class PdfFullscreenView extends ItemView {
         const pn = parseInt(c.dataset.pageNum, 10);
         const pairIndex = Math.floor((pn - 1) / 2);
         const currentPairIndex = Math.floor((cur - 1) / 2);
+        const isVisible = pairIndex === currentPairIndex;
         
-        c.style.display = (pairIndex === currentPairIndex) ? 'block' : 'none';
+        c.style.display = isVisible ? 'block' : 'none';
         c.style.position = 'static';
-        c.style.transition = 'opacity 0.2s';
+        c.style.transition = '';
+        c.style.opacity = '';
+        c.style.pointerEvents = '';
         c.style.margin = '0';
+        c.style.transform = '';
+        c.style.left = '';
+        c.style.top = '';
         
-        // Resize to fit half width while preserving aspect ratio
-        if (scrollW > 0) {
+        // 适配宽度：每页占一半
+        if (isVisible && scrollW > 0) {
           const cw = c.width;
           const ch = c.height;
           const ratio = cw / (ch || 1);
@@ -3263,35 +3270,29 @@ class PdfFullscreenView extends ItemView {
       resizeHandle.onpointerdown = (e) => {
         e.preventDefault();
         e.stopPropagation();
-        resizeHandle.setPointerCapture(e.pointerId);
         gripLine.style.background = 'var(--interactive-accent)';
         document.body.style.cursor = 'col-resize';
         document.body.style.userSelect = 'none';
         const startX = e.clientX;
         const startW = parseInt(this._thumbnailPanel.style.width || '150', 10);
         
-        resizeHandle.onpointermove = (ev) => {
+        const onMove = (ev) => {
           const newW = startW + (ev.clientX - startX);
           if (newW >= 100 && newW <= 500) {
             this._thumbnailPanel.style.width = newW + 'px';
           }
         };
         
-        resizeHandle.onpointerup = () => {
+        const onUp = () => {
           gripLine.style.background = 'var(--text-muted)';
           document.body.style.cursor = '';
           document.body.style.userSelect = '';
-          resizeHandle.onpointermove = null;
-          resizeHandle.onpointerup = null;
+          window.removeEventListener('pointermove', onMove);
+          window.removeEventListener('pointerup', onUp);
         };
         
-        resizeHandle.onlostpointercapture = () => {
-          gripLine.style.background = 'var(--text-muted)';
-          document.body.style.cursor = '';
-          document.body.style.userSelect = '';
-          resizeHandle.onpointermove = null;
-          resizeHandle.onpointerup = null;
-        };
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onUp);
       };
     }
     this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? 'flex' : 'none';
