@@ -3365,17 +3365,11 @@ class PdfFullscreenView extends ItemView {
     // 连续模式下双指缩放（无极）
     this._pinchScaleCurrent = 1;
     
-    // 调试：先监听所有 wheel 事件看双指缩放触发什么
-    this.scrollEl.addEventListener('wheel', (e) => {
-      if (this._viewMode !== 'continuous') return;
-      console.log('[CloudAttach] wheel event:', { 
-        deltaY: e.deltaY, 
-        deltaX: e.deltaX, 
-        ctrlKey: e.ctrlKey, 
-        metaKey: e.metaKey,
-        pinch: e.ctrlKey || e.metaKey
-      });
-    }, { passive: true });
+    // 挂到 contentWrap（containerEl 的子层），用 capture 确保拿到事件
+    const target = this._contentWrap || this.containerEl;
+    target.addEventListener('wheel', (e) => {
+      console.log('[CloudAttach] wheel:', e.ctrlKey, e.deltaY);
+    }, { capture: true });
   }
 
   _bindScroll() {

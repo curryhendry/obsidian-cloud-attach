@@ -3116,17 +3116,10 @@ var PdfFullscreenView = class extends ItemView {
   }
   _bindPinchZoom() {
     this._pinchScaleCurrent = 1;
-    this.scrollEl.addEventListener("wheel", (e) => {
-      if (this._viewMode !== "continuous")
-        return;
-      console.log("[CloudAttach] wheel event:", {
-        deltaY: e.deltaY,
-        deltaX: e.deltaX,
-        ctrlKey: e.ctrlKey,
-        metaKey: e.metaKey,
-        pinch: e.ctrlKey || e.metaKey
-      });
-    }, { passive: true });
+    const target = this._contentWrap || this.containerEl;
+    target.addEventListener("wheel", (e) => {
+      console.log("[CloudAttach] wheel:", e.ctrlKey, e.deltaY);
+    }, { capture: true });
   }
   _bindScroll() {
     this._bindPinchZoom();
