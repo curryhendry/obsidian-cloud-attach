@@ -1,4 +1,4 @@
-## v0.4.147.dev - 2026-06-30
+## v0.4.148.dev - 2026-07-01
 
 - 修复：标签页标题显示文件名（viewState 传递 pdfUrl/pdfName）
 - 修复：页码滚动同步改用 scroll 事件（IntersectionObserver 在 Obsidian 中不稳定）
