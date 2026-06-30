@@ -2870,15 +2870,17 @@ var PdfFullscreenView = class extends ItemView {
   _reRender() {
     if (!this._pdf)
       return;
-    this.scrollEl.style.opacity = "0.4";
+    this.scrollEl.style.display = "none";
     this.scrollEl.empty();
     requestAnimationFrame(() => {
       this._renderAllPages().then(() => {
         this._applyViewMode();
-        this.scrollEl.style.opacity = "";
+        this.scrollEl.style.display = "";
+        void this.scrollEl.offsetHeight;
       }).catch((e) => {
         console.error("[CloudAttach] _reRender _renderAllPages error:", e);
-        this.scrollEl.style.opacity = "";
+        this.scrollEl.style.display = "";
+        void this.scrollEl.offsetHeight;
       });
     });
   }
