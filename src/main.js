@@ -3080,6 +3080,9 @@ class PdfFullscreenView extends ItemView {
 
   _reRender() {
     if (!this._pdf) return;
+    // 保存当前状态
+    const savedPage = this._currentPage || 1;
+    const savedScroll = this.scrollEl.scrollTop;
     // 从 DOM 移除再插回，强制 Obsidian/Electron 重绘
     const parent = this.scrollEl.parentNode;
     const next = this.scrollEl.nextSibling;
@@ -3088,6 +3091,8 @@ class PdfFullscreenView extends ItemView {
     this._renderAllPages().then(() => {
       this._applyViewMode();
       parent.insertBefore(this.scrollEl, next);
+      // 恢复位置
+      this._scrollToPage(savedPage);
     }).catch(e => {
       console.error('[CloudAttach] _reRender error:', e);
       parent.insertBefore(this.scrollEl, next);

@@ -2877,6 +2877,8 @@ var PdfFullscreenView = class extends ItemView {
   _reRender() {
     if (!this._pdf)
       return;
+    const savedPage = this._currentPage || 1;
+    const savedScroll = this.scrollEl.scrollTop;
     const parent = this.scrollEl.parentNode;
     const next = this.scrollEl.nextSibling;
     parent.removeChild(this.scrollEl);
@@ -2884,6 +2886,7 @@ var PdfFullscreenView = class extends ItemView {
     this._renderAllPages().then(() => {
       this._applyViewMode();
       parent.insertBefore(this.scrollEl, next);
+      this._scrollToPage(savedPage);
     }).catch((e) => {
       console.error("[CloudAttach] _reRender error:", e);
       parent.insertBefore(this.scrollEl, next);
