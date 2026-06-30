@@ -2939,9 +2939,6 @@ var PdfFullscreenView = class extends ItemView {
         c.style.margin = "0";
         c.style.display = "block";
         c.style.transition = "transform 0.35s ease-out";
-        c.style.width = "100%";
-        c.style.height = "100%";
-        c.style.objectFit = "contain";
         const offset = pn - cur;
         if (manualZoom) {
           const baseTransform = c.style.transform || "";
@@ -2949,6 +2946,9 @@ var PdfFullscreenView = class extends ItemView {
           const scalePart = scaleMatch ? scaleMatch[0] : "";
           c.style.transform = `${scalePart} translateY(${offset * 100}%)`;
         } else {
+          c.style.width = "100%";
+          c.style.height = "100%";
+          c.style.objectFit = "contain";
           c.style.transform = `translateY(${offset * 100}%)`;
         }
       });
@@ -2971,21 +2971,25 @@ var PdfFullscreenView = class extends ItemView {
         const pairIndex = Math.floor((pn - 1) / 2);
         const currentPairIndex = Math.floor((cur - 1) / 2);
         const isVisible = pairIndex === currentPairIndex;
-        c.style.position = "static";
         c.style.margin = "0";
         c.style.display = isVisible ? "block" : "none";
-        if (isVisible && scrollW > 0 && !manualZoom) {
-          const cw = c.width;
-          const ch = c.height;
-          const ratio = cw / (ch || 1);
-          const targetW = Math.min(halfW, cw);
-          const targetH = targetW / ratio;
-          if (targetH > scrollH && scrollH > 0) {
-            c.style.height = scrollH + "px";
-            c.style.width = scrollH * ratio + "px";
-          } else {
-            c.style.width = targetW + "px";
-            c.style.height = targetH + "px";
+        if (isVisible) {
+          if (manualZoom) {
+            c.style.position = "static";
+          } else if (scrollW > 0) {
+            c.style.position = "static";
+            const cw = c.width;
+            const ch = c.height;
+            const ratio = cw / (ch || 1);
+            const targetW = Math.min(halfW, cw);
+            const targetH = targetW / ratio;
+            if (targetH > scrollH && scrollH > 0) {
+              c.style.height = scrollH + "px";
+              c.style.width = scrollH * ratio + "px";
+            } else {
+              c.style.width = targetW + "px";
+              c.style.height = targetH + "px";
+            }
           }
         }
       });
