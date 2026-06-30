@@ -3068,19 +3068,17 @@ class PdfFullscreenView extends ItemView {
 
   _reRender() {
     if (!this._pdf) return;
-    this.scrollEl.style.display = 'none';
+    // 从 DOM 移除再插回，强制 Obsidian/Electron 重绘
+    const parent = this.scrollEl.parentNode;
+    const next = this.scrollEl.nextSibling;
+    parent.removeChild(this.scrollEl);
     this.scrollEl.empty();
-    requestAnimationFrame(() => {
-      this._renderAllPages().then(() => {
-        this._applyViewMode();
-        this.scrollEl.style.display = '';
-        // 强制浏览器重绘
-        void this.scrollEl.offsetHeight;
-      }).catch(e => {
-        console.error('[CloudAttach] _reRender _renderAllPages error:', e);
-        this.scrollEl.style.display = '';
-        void this.scrollEl.offsetHeight;
-      });
+    this._renderAllPages().then(() => {
+      this._applyViewMode();
+      parent.insertBefore(this.scrollEl, next);
+    }).catch(e => {
+      console.error('[CloudAttach] _reRender error:', e);
+      parent.insertBefore(this.scrollEl, next);
     });
   }
 
