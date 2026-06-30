@@ -2844,7 +2844,11 @@ var PdfFullscreenView = class extends ItemView {
     const pageW = firstVp.width;
     const pageH = firstVp.height;
     let renderScale = 1;
-    if (this._renderScaleLevel > 0) {
+    let cssZoom = 1;
+    if (this._renderScaleLevel > 0 && this._renderScaleLevel < 1) {
+      renderScale = 1;
+      cssZoom = this._renderScaleLevel;
+    } else if (this._renderScaleLevel >= 1) {
       renderScale = this._renderScaleLevel;
     } else {
       if (this._zoomMode === "fit-width") {
@@ -2863,8 +2867,8 @@ var PdfFullscreenView = class extends ItemView {
       canvas.style.display = "block";
       canvas.style.margin = "0 auto 8px";
       canvas.style.boxShadow = "0 1px 4px rgba(0,0,0,0.15)";
-      if (renderScale < 1) {
-        canvas.style.imageRendering = "pixelated";
+      if (cssZoom < 1) {
+        canvas.style.zoom = String(cssZoom);
       }
       canvas.width = viewport.width;
       canvas.height = viewport.height;
@@ -2912,7 +2916,7 @@ var PdfFullscreenView = class extends ItemView {
       c.style.pointerEvents = "";
       c.style.maxWidth = "";
       c.style.maxHeight = "";
-      c.style.imageRendering = "";
+      c.style.zoom = "";
     });
     this.scrollEl.style.position = "";
     this.scrollEl.style.overflow = "";

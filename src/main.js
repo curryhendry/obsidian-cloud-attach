@@ -3042,9 +3042,13 @@ class PdfFullscreenView extends ItemView {
     const pageW = firstVp.width;
     const pageH = firstVp.height;
     
-    // 计算渲染 scale：直接按目标倍数渲染，<1x 时用 pixelated 减少模糊
+    // 计算渲染 scale：<1x 时 1x 渲染 + CSS zoom 缩小，>=1x 直接渲染
     let renderScale = 1;
-    if (this._renderScaleLevel > 0) {
+    let cssZoom = 1;
+    if (this._renderScaleLevel > 0 && this._renderScaleLevel < 1) {
+      renderScale = 1;
+      cssZoom = this._renderScaleLevel;
+    } else if (this._renderScaleLevel >= 1) {
       renderScale = this._renderScaleLevel;
     } else {
       if (this._zoomMode === 'fit-width') {
@@ -3064,8 +3068,8 @@ class PdfFullscreenView extends ItemView {
       canvas.style.display = 'block';
       canvas.style.margin = '0 auto 8px';
       canvas.style.boxShadow = '0 1px 4px rgba(0,0,0,0.15)';
-      if (renderScale < 1) {
-        canvas.style.imageRendering = 'pixelated';
+      if (cssZoom < 1) {
+        canvas.style.zoom = String(cssZoom);
       }
       canvas.width = viewport.width;
       canvas.height = viewport.height;
@@ -3121,7 +3125,7 @@ class PdfFullscreenView extends ItemView {
       c.style.pointerEvents = '';
       c.style.maxWidth = '';
       c.style.maxHeight = '';
-      c.style.imageRendering = '';
+      c.style.zoom = '';
     });
     
     // Reset scrollEl
