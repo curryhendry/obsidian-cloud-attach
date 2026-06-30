@@ -2704,19 +2704,26 @@ var PdfFullscreenView = class extends ItemView {
     };
     this._viewMode = "continuous";
     this._zoomMode = "fit-width";
+    this._zoomLevel = 0;
     const zoomOutBtn = left.createEl("button");
     zoomOutBtn.className = "clickable-icon";
     zoomOutBtn.setAttribute("aria-label", "\u7F29\u5C0F");
     zoomOutBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
     zoomOutBtn.onclick = () => {
-      new Notice("\u7F29\u5C0F\u529F\u80FD\u5F00\u53D1\u4E2D");
+      if (this._zoomLevel <= 0)
+        this._zoomLevel = 1;
+      this._zoomLevel = Math.max(0.1, +(this._zoomLevel - 0.1).toFixed(1));
+      this._applyZoom();
     };
     const zoomInBtn = left.createEl("button");
     zoomInBtn.className = "clickable-icon";
     zoomInBtn.setAttribute("aria-label", "\u653E\u5927");
     zoomInBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
     zoomInBtn.onclick = () => {
-      new Notice("\u653E\u5927\u529F\u80FD\u5F00\u53D1\u4E2D");
+      if (this._zoomLevel <= 0)
+        this._zoomLevel = 1;
+      this._zoomLevel = Math.min(5, +(this._zoomLevel + 0.1).toFixed(1));
+      this._applyZoom();
     };
     const viewMenuBtn = left.createEl("button");
     viewMenuBtn.className = "clickable-icon";
@@ -2726,8 +2733,9 @@ var PdfFullscreenView = class extends ItemView {
       const menu = new Menu();
       const zoomOpts = { "fit-width": "\u9002\u5E94\u5BBD\u5EA6", "fit-height": "\u9002\u5E94\u9AD8\u5EA6" };
       Object.entries(zoomOpts).forEach(([val, label]) => {
-        menu.addItem((item) => item.setTitle((this._zoomMode === val ? "\u2713 " : "") + label).onClick(() => {
+        menu.addItem((item) => item.setTitle((this._zoomMode === val && this._zoomLevel <= 0 ? "\u2713 " : "") + label).onClick(() => {
           this._zoomMode = val;
+          this._zoomLevel = 0;
           this._applyZoom();
         }));
       });
@@ -2831,7 +2839,9 @@ var PdfFullscreenView = class extends ItemView {
     const pageW = firstVp.width;
     const pageH = firstVp.height;
     let scale = 1;
-    if (this._zoomMode === "fit-width") {
+    if (this._zoomLevel > 0) {
+      scale = this._zoomLevel;
+    } else if (this._zoomMode === "fit-width") {
       const w = this.scrollEl.clientWidth || this.containerEl.clientWidth;
       scale = w > 0 ? w / pageW : 1;
     } else if (this._zoomMode === "fit-height") {
