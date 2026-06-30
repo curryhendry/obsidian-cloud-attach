@@ -2709,21 +2709,26 @@ var PdfFullscreenView = class extends ItemView {
     zoomOutBtn.className = "clickable-icon";
     zoomOutBtn.setAttribute("aria-label", "\u7F29\u5C0F");
     zoomOutBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
+    this._renderScaleLevel = 0;
     zoomOutBtn.onclick = () => {
-      if (this._zoomLevel <= 0)
-        this._zoomLevel = 1;
-      this._zoomLevel = Math.max(0.1, +(this._zoomLevel - 0.1).toFixed(1));
-      this._applyZoom();
+      const levels = [0, 2, 3, 4, 5];
+      const idx = levels.indexOf(this._renderScaleLevel);
+      if (idx > 0) {
+        this._renderScaleLevel = levels[idx - 1];
+        this._applyZoom();
+      }
     };
     const zoomInBtn = left.createEl("button");
     zoomInBtn.className = "clickable-icon";
     zoomInBtn.setAttribute("aria-label", "\u653E\u5927");
     zoomInBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
     zoomInBtn.onclick = () => {
-      if (this._zoomLevel <= 0)
-        this._zoomLevel = 1;
-      this._zoomLevel = Math.min(5, +(this._zoomLevel + 0.1).toFixed(1));
-      this._applyZoom();
+      const levels = [0, 2, 3, 4, 5];
+      const idx = levels.indexOf(this._renderScaleLevel);
+      if (idx < levels.length - 1) {
+        this._renderScaleLevel = levels[idx + 1];
+        this._applyZoom();
+      }
     };
     const viewMenuBtn = left.createEl("button");
     viewMenuBtn.className = "clickable-icon";
@@ -2733,9 +2738,9 @@ var PdfFullscreenView = class extends ItemView {
       const menu = new Menu();
       const zoomOpts = { "fit-width": "\u9002\u5E94\u5BBD\u5EA6", "fit-height": "\u9002\u5E94\u9AD8\u5EA6" };
       Object.entries(zoomOpts).forEach(([val, label]) => {
-        menu.addItem((item) => item.setTitle((this._zoomMode === val && this._zoomLevel <= 0 ? "\u2713 " : "") + label).onClick(() => {
+        menu.addItem((item) => item.setTitle((this._zoomMode === val && this._renderScaleLevel <= 0 ? "\u2713 " : "") + label).onClick(() => {
           this._zoomMode = val;
-          this._zoomLevel = 0;
+          this._renderScaleLevel = 0;
           this._applyZoom();
         }));
       });
@@ -2838,9 +2843,13 @@ var PdfFullscreenView = class extends ItemView {
     const firstVp = firstPg.getViewport({ scale: 1 });
     const pageW = firstVp.width;
     const pageH = firstVp.height;
-    let scale = 1;
-    if (this._zoomLevel > 0) {
-      scale = this._zoomLevel;
+    let renderScale = 1;
+    let cssScale = 1;
+    if (this._renderScaleLevel > 0) {
+      renderScale = this._renderScaleLevel;
+      const containerW = this.scrollEl.clientWidth || this.containerEl.clientWidth;
+      const baseScale = containerW > 0 ? containerW / pageW : 1;
+      cssScale = baseScale / renderScale;
     } else if (this._zoomMode === "fit-width") {
       const w = this.scrollEl.clientWidth || this.containerEl.clientWidth;
       scale = w > 0 ? w / pageW : 1;
@@ -2850,12 +2859,16 @@ var PdfFullscreenView = class extends ItemView {
     }
     for (let i = 1; i <= totalPages; i++) {
       const page = await this._pdf.getPage(i);
-      const viewport = page.getViewport({ scale });
+      const viewport = page.getViewport({ scale: renderScale });
       const canvas = document.createElement("canvas");
       canvas.className = "cloud-attach-pdf-fullscreen-page";
       canvas.style.display = "block";
       canvas.style.margin = "0 auto 8px";
       canvas.style.boxShadow = "0 1px 4px rgba(0,0,0,0.15)";
+      if (this._renderScaleLevel > 0) {
+        canvas.style.transformOrigin = "top center";
+        canvas.style.transform = `scale(${cssScale})`;
+      }
       canvas.width = viewport.width;
       canvas.height = viewport.height;
       canvas.dataset.pageNum = String(i);
@@ -2912,7 +2925,7 @@ var PdfFullscreenView = class extends ItemView {
     if (this._viewMode === "single") {
       this.scrollEl.style.position = "relative";
       this.scrollEl.style.overflow = "hidden";
-      const manualZoom = this._zoomLevel > 0;
+      const manualZoom = this._renderScaleLevel > 0;
       canvases.forEach((c) => {
         const pn = parseInt(c.dataset.pageNum, 10);
         c.style.position = "absolute";
@@ -2929,7 +2942,14 @@ var PdfFullscreenView = class extends ItemView {
           }
         }
         const offset = pn - cur;
-        c.style.transform = `translateY(${offset * 100}%)`;
+        if (manualZoom) {
+          const baseTransform = c.style.transform || "";
+          const scaleMatch = baseTransform.match(/scale\([^)]+\)/);
+          const scalePart = scaleMatch ? scaleMatch[0] : "";
+          c.style.transform = `${scalePart} translateY(${offset * 100}%)`;
+        } else {
+          c.style.transform = `translateY(${offset * 100}%)`;
+        }
       });
       this._highlightThumbnail(cur);
     } else if (this._viewMode === "double") {
@@ -2944,7 +2964,7 @@ var PdfFullscreenView = class extends ItemView {
       const scrollW = this.scrollEl.clientWidth;
       const scrollH = this.scrollEl.clientHeight;
       const halfW = scrollW / 2 - 8;
-      const manualZoom = this._zoomLevel > 0;
+      const manualZoom = this._renderScaleLevel > 0;
       canvases.forEach((c) => {
         const pn = parseInt(c.dataset.pageNum, 10);
         const pairIndex = Math.floor((pn - 1) / 2);
@@ -4785,9 +4805,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
   // 渲染指定页码的 PDF 页面到指定 canvas
   // containerW: 容器实际显示宽度，用于计算 canvas CSS 高度以维护宽高比
-  async _renderPdfPage(canvas, pdf, pageNum, scale, containerW) {
+  async _renderPdfPage(canvas, pdf, pageNum, scale2, containerW) {
     const page = await pdf.getPage(pageNum);
-    const viewport = page.getViewport({ scale });
+    const viewport = page.getViewport({ scale: scale2 });
     canvas.width = viewport.width;
     canvas.height = viewport.height;
     canvas.style.width = "100%";
@@ -4798,13 +4818,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
     await page.render({ canvasContext: ctx, viewport }).promise;
   }
   // 懒加载：渲染单页并替换占位符
-  async _renderLazyPage(placeholder, pdf, pageNum, scale, containerW) {
+  async _renderLazyPage(placeholder, pdf, pageNum, scale2, containerW) {
     const canvas = document.createElement("canvas");
     canvas.className = "cloudattach-pdf-page";
     canvas.dataset.pageNum = String(pageNum);
     canvas.style.userSelect = "none";
     canvas.draggable = false;
-    await this._renderPdfPage(canvas, pdf, pageNum, scale, containerW);
+    await this._renderPdfPage(canvas, pdf, pageNum, scale2, containerW);
     placeholder.replaceWith(canvas);
     console.log("[CloudAttach] lazy page", pageNum, "rendered");
   }

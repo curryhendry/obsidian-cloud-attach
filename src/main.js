@@ -2876,10 +2876,16 @@ class PdfFullscreenView extends ItemView {
     zoomOutBtn.className = 'clickable-icon';
     zoomOutBtn.setAttribute('aria-label', '缩小');
     zoomOutBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
+    // 整数倍渲染级别：2x, 3x, 4x, 5x（清晰无模糊）
+    this._renderScaleLevel = 0; // 0=自动, 2/3/4/5=整数倍
+    
     zoomOutBtn.onclick = () => {
-      if (this._zoomLevel <= 0) this._zoomLevel = 1; // 从自动切换到 100%
-      this._zoomLevel = Math.max(0.1, +(this._zoomLevel - 0.1).toFixed(1));
-      this._applyZoom();
+      const levels = [0, 2, 3, 4, 5];
+      const idx = levels.indexOf(this._renderScaleLevel);
+      if (idx > 0) {
+        this._renderScaleLevel = levels[idx - 1];
+        this._applyZoom();
+      }
     };
     
     // 放大按钮
@@ -2888,9 +2894,12 @@ class PdfFullscreenView extends ItemView {
     zoomInBtn.setAttribute('aria-label', '放大');
     zoomInBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
     zoomInBtn.onclick = () => {
-      if (this._zoomLevel <= 0) this._zoomLevel = 1; // 从自动切换到 100%
-      this._zoomLevel = Math.min(5, +(this._zoomLevel + 0.1).toFixed(1));
-      this._applyZoom();
+      const levels = [0, 2, 3, 4, 5];
+      const idx = levels.indexOf(this._renderScaleLevel);
+      if (idx < levels.length - 1) {
+        this._renderScaleLevel = levels[idx + 1];
+        this._applyZoom();
+      }
     };
     
     // 下拉菜单按钮
@@ -2903,9 +2912,9 @@ class PdfFullscreenView extends ItemView {
       // 缩放部分
       const zoomOpts = { 'fit-width': '适应宽度', 'fit-height': '适应高度' };
       Object.entries(zoomOpts).forEach(([val, label]) => {
-        menu.addItem(item => item.setTitle((this._zoomMode === val && this._zoomLevel <= 0 ? '✓ ' : '') + label).onClick(() => {
+        menu.addItem(item => item.setTitle((this._zoomMode === val && this._renderScaleLevel <= 0 ? '✓ ' : '') + label).onClick(() => {
           this._zoomMode = val;
-          this._zoomLevel = 0; // 切回自动
+          this._renderScaleLevel = 0; // 切回自动
           this._applyZoom();
         }));
       });
@@ -3033,9 +3042,15 @@ class PdfFullscreenView extends ItemView {
     const pageW = firstVp.width;
     const pageH = firstVp.height;
     
-    let scale = 1;
-    if (this._zoomLevel > 0) {
-      scale = this._zoomLevel;
+    // 计算渲染 scale（整数倍优先清晰）和 CSS 缩放比例
+    let renderScale = 1;
+    let cssScale = 1;
+    if (this._renderScaleLevel > 0) {
+      renderScale = this._renderScaleLevel;
+      // CSS 缩放让 canvas 适应容器（保持整数倍渲染的清晰度）
+      const containerW = this.scrollEl.clientWidth || this.containerEl.clientWidth;
+      const baseScale = containerW > 0 ? containerW / pageW : 1;
+      cssScale = baseScale / renderScale;
     } else if (this._zoomMode === 'fit-width') {
       const w = this.scrollEl.clientWidth || this.containerEl.clientWidth;
       scale = w > 0 ? w / pageW : 1;
@@ -3046,12 +3061,17 @@ class PdfFullscreenView extends ItemView {
 
     for (let i = 1; i <= totalPages; i++) {
       const page = await this._pdf.getPage(i);
-      const viewport = page.getViewport({ scale });
+      const viewport = page.getViewport({ scale: renderScale });
       const canvas = document.createElement('canvas');
       canvas.className = 'cloud-attach-pdf-fullscreen-page';
       canvas.style.display = 'block';
       canvas.style.margin = '0 auto 8px';
       canvas.style.boxShadow = '0 1px 4px rgba(0,0,0,0.15)';
+      // 整数倍渲染时，用 CSS transform 缩放显示，保持清晰度
+      if (this._renderScaleLevel > 0) {
+        canvas.style.transformOrigin = 'top center';
+        canvas.style.transform = `scale(${cssScale})`;
+      }
       canvas.width = viewport.width;
       canvas.height = viewport.height;
       canvas.dataset.pageNum = String(i);
@@ -3119,7 +3139,7 @@ class PdfFullscreenView extends ItemView {
       this.scrollEl.style.position = 'relative';
       this.scrollEl.style.overflow = 'hidden';
       
-      const manualZoom = this._zoomLevel > 0;
+      const manualZoom = this._renderScaleLevel > 0;
       canvases.forEach(c => {
         const pn = parseInt(c.dataset.pageNum, 10);
         c.style.position = 'absolute';
@@ -3129,7 +3149,7 @@ class PdfFullscreenView extends ItemView {
         c.style.display = 'block';
         c.style.transition = 'transform 0.35s ease-out';
         
-        // 自动模式才做 CSS 尺寸适配，手动缩放保持原生分辨率
+        // 自动模式才做 CSS 尺寸适配，手动缩放保持原生分辨率（transform 已在 _renderAllPages 设置）
         if (!manualZoom) {
           const scrollW = this.scrollEl.clientWidth;
           if (scrollW && c.width > scrollW) {
@@ -3139,7 +3159,15 @@ class PdfFullscreenView extends ItemView {
         }
         
         const offset = pn - cur;
-        c.style.transform = `translateY(${offset * 100}%)`;
+        // 整数倍缩放时保留原有 transform，只叠加 translateY
+        if (manualZoom) {
+          const baseTransform = c.style.transform || '';
+          const scaleMatch = baseTransform.match(/scale\([^)]+\)/);
+          const scalePart = scaleMatch ? scaleMatch[0] : '';
+          c.style.transform = `${scalePart} translateY(${offset * 100}%)`;
+        } else {
+          c.style.transform = `translateY(${offset * 100}%)`;
+        }
       });
       
       this._highlightThumbnail(cur);
@@ -3157,7 +3185,7 @@ class PdfFullscreenView extends ItemView {
       const scrollW = this.scrollEl.clientWidth;
       const scrollH = this.scrollEl.clientHeight;
       const halfW = scrollW / 2 - 8;
-      const manualZoom = this._zoomLevel > 0;
+      const manualZoom = this._renderScaleLevel > 0;
       
       canvases.forEach(c => {
         const pn = parseInt(c.dataset.pageNum, 10);
