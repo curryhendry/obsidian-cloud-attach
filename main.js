@@ -3116,15 +3116,17 @@ var PdfFullscreenView = class extends ItemView {
   }
   _bindPinchZoom() {
     this._pinchScaleCurrent = 1;
-    this._pinchStartDist = 0;
-    this.scrollEl.addEventListener("wheel", (e) => {
+    this.scrollEl.addEventListener("gesturestart", (e) => {
       if (this._viewMode !== "continuous")
         return;
-      if (!e.ctrlKey)
+      e.preventDefault();
+      this._pinchScaleStart = this._pinchScaleCurrent;
+    }, { passive: false });
+    this.scrollEl.addEventListener("gesturechange", (e) => {
+      if (this._viewMode !== "continuous")
         return;
       e.preventDefault();
-      const zoomFactor = Math.exp(-e.deltaY / 200);
-      const newScale = Math.max(0.1, Math.min(8, this._pinchScaleCurrent * zoomFactor));
+      const newScale = Math.max(0.1, Math.min(8, this._pinchScaleStart * e.scale));
       const canvases = this.scrollEl.querySelectorAll("canvas.cloud-attach-pdf-fullscreen-page");
       const rect = this.scrollEl.getBoundingClientRect();
       const cx = e.clientX - rect.left;
@@ -3135,40 +3137,11 @@ var PdfFullscreenView = class extends ItemView {
       });
       this._pinchScaleCurrent = newScale;
     }, { passive: false });
-    this.scrollEl.addEventListener("touchstart", (e) => {
-      if (this._viewMode !== "continuous" || e.touches.length !== 2)
+    this.scrollEl.addEventListener("gestureend", (e) => {
+      if (this._viewMode !== "continuous")
         return;
       e.preventDefault();
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      this._pinchStartDist = Math.sqrt(dx * dx + dy * dy);
     }, { passive: false });
-    this.scrollEl.addEventListener("touchmove", (e) => {
-      if (this._viewMode !== "continuous" || e.touches.length !== 2 || this._pinchStartDist <= 0)
-        return;
-      e.preventDefault();
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      const scale = dist / this._pinchStartDist * this._pinchScaleCurrent;
-      const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-      const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-      const canvases = this.scrollEl.querySelectorAll("canvas.cloud-attach-pdf-fullscreen-page");
-      canvases.forEach((c) => {
-        const canvasRect = c.getBoundingClientRect();
-        const cx = midX - canvasRect.left;
-        const cy = midY - canvasRect.top;
-        c.style.transformOrigin = `${cx}px ${cy}px`;
-        c.style.transform = `scale(${scale})`;
-      });
-      this._pinchScaleTemp = scale;
-    }, { passive: false });
-    this.scrollEl.addEventListener("touchend", (e) => {
-      if (e.touches.length < 2) {
-        this._pinchScaleCurrent = this._pinchScaleTemp || this._pinchScaleCurrent;
-        this._pinchStartDist = 0;
-      }
-    });
   }
   _bindScroll() {
     this._bindPinchZoom();

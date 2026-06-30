@@ -3362,21 +3362,20 @@ class PdfFullscreenView extends ItemView {
   }
 
   _bindPinchZoom() {
-    // 连续模式下双指缩放（无极），同时支持：
-    // - Mac 触控板：wheel + ctrlKey
-    // - iOS/触屏：touchstart/touchmove/touchend
+    // 连续模式下双指缩放（无极）
+    // Safari/macOS 用 gesturestart/gesturechange/gestureend
     this._pinchScaleCurrent = 1;
-    this._pinchStartDist = 0;
     
-    // 方案1：Mac 触控板双指缩放（wheel + ctrlKey）
-    this.scrollEl.addEventListener('wheel', (e) => {
+    this.scrollEl.addEventListener('gesturestart', (e) => {
       if (this._viewMode !== 'continuous') return;
-      if (!e.ctrlKey) return; // 非双指缩放，正常滚动
       e.preventDefault();
-      
-      // deltaY 是缩放量，用指数衰减做无极缩放
-      const zoomFactor = Math.exp(-e.deltaY / 200);
-      const newScale = Math.max(0.1, Math.min(8, this._pinchScaleCurrent * zoomFactor));
+      this._pinchScaleStart = this._pinchScaleCurrent;
+    }, { passive: false });
+    
+    this.scrollEl.addEventListener('gesturechange', (e) => {
+      if (this._viewMode !== 'continuous') return;
+      e.preventDefault();
+      const newScale = Math.max(0.1, Math.min(8, this._pinchScaleStart * e.scale));
       
       const canvases = this.scrollEl.querySelectorAll('canvas.cloud-attach-pdf-fullscreen-page');
       const rect = this.scrollEl.getBoundingClientRect();
@@ -3390,42 +3389,10 @@ class PdfFullscreenView extends ItemView {
       this._pinchScaleCurrent = newScale;
     }, { passive: false });
     
-    // 方案2：iOS/触屏 双指缩放
-    this.scrollEl.addEventListener('touchstart', (e) => {
-      if (this._viewMode !== 'continuous' || e.touches.length !== 2) return;
+    this.scrollEl.addEventListener('gestureend', (e) => {
+      if (this._viewMode !== 'continuous') return;
       e.preventDefault();
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      this._pinchStartDist = Math.sqrt(dx * dx + dy * dy);
     }, { passive: false });
-    
-    this.scrollEl.addEventListener('touchmove', (e) => {
-      if (this._viewMode !== 'continuous' || e.touches.length !== 2 || this._pinchStartDist <= 0) return;
-      e.preventDefault();
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      const scale = dist / this._pinchStartDist * this._pinchScaleCurrent;
-      const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-      const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-      
-      const canvases = this.scrollEl.querySelectorAll('canvas.cloud-attach-pdf-fullscreen-page');
-      canvases.forEach(c => {
-        const canvasRect = c.getBoundingClientRect();
-        const cx = midX - canvasRect.left;
-        const cy = midY - canvasRect.top;
-        c.style.transformOrigin = `${cx}px ${cy}px`;
-        c.style.transform = `scale(${scale})`;
-      });
-      this._pinchScaleTemp = scale;
-    }, { passive: false });
-    
-    this.scrollEl.addEventListener('touchend', (e) => {
-      if (e.touches.length < 2) {
-        this._pinchScaleCurrent = this._pinchScaleTemp || this._pinchScaleCurrent;
-        this._pinchStartDist = 0;
-      }
-    });
   }
 
   _bindScroll() {
