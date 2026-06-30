@@ -3157,14 +3157,10 @@ class PdfFullscreenView extends ItemView {
         c.style.display = 'block';
         c.style.transition = 'transform 0.35s ease-out';
         
-        // 自动模式才做 CSS 尺寸适配，手动缩放保持原生分辨率（transform 已在 _renderAllPages 设置）
-        if (!manualZoom) {
-          const scrollW = this.scrollEl.clientWidth;
-          if (scrollW && c.width > scrollW) {
-            c.style.width = scrollW + 'px';
-            c.style.height = 'auto';
-          }
-        }
+        // 单页模式：canvas 撑满容器，通过 translateY 切换页面
+        c.style.width = '100%';
+        c.style.height = '100%';
+        c.style.objectFit = 'contain';
         
         const offset = pn - cur;
         // 手动缩放时保留原有 scale transform，只叠加 translateY
