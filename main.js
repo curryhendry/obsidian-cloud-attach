@@ -3119,24 +3119,14 @@ var PdfFullscreenView = class extends ItemView {
     this.scrollEl.addEventListener("wheel", (e) => {
       if (this._viewMode !== "continuous")
         return;
-      if (!e.ctrlKey && !e.metaKey)
-        return;
-      e.preventDefault();
-      e.stopPropagation();
-      const delta = e.deltaY;
-      const zoomFactor = delta > 0 ? 0.9 : 1.1;
-      const newScale = Math.max(0.1, Math.min(8, this._pinchScaleCurrent * zoomFactor));
-      console.log("[CloudAttach] pinch zoom:", { delta, zoomFactor, newScale });
-      const canvases = this.scrollEl.querySelectorAll("canvas.cloud-attach-pdf-fullscreen-page");
-      const rect = this.scrollEl.getBoundingClientRect();
-      const cx = e.clientX - rect.left;
-      const cy = e.clientY - rect.top;
-      canvases.forEach((c) => {
-        c.style.transformOrigin = `${cx}px ${cy}px`;
-        c.style.transform = `scale(${newScale})`;
+      console.log("[CloudAttach] wheel event:", {
+        deltaY: e.deltaY,
+        deltaX: e.deltaX,
+        ctrlKey: e.ctrlKey,
+        metaKey: e.metaKey,
+        pinch: e.ctrlKey || e.metaKey
       });
-      this._pinchScaleCurrent = newScale;
-    }, { passive: false, capture: true });
+    }, { passive: true });
   }
   _bindScroll() {
     this._bindPinchZoom();

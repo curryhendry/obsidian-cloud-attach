@@ -3363,34 +3363,19 @@ class PdfFullscreenView extends ItemView {
 
   _bindPinchZoom() {
     // 连续模式下双指缩放（无极）
-    // 方案：wheel + ctrlKey（Mac 触控板双指缩放）
     this._pinchScaleCurrent = 1;
     
+    // 调试：先监听所有 wheel 事件看双指缩放触发什么
     this.scrollEl.addEventListener('wheel', (e) => {
       if (this._viewMode !== 'continuous') return;
-      if (!e.ctrlKey && !e.metaKey) return; // 非缩放手势，正常滚动
-      
-      e.preventDefault();
-      e.stopPropagation();
-      
-      // 根据 deltaY 计算缩放因子
-      const delta = e.deltaY;
-      const zoomFactor = delta > 0 ? 0.9 : 1.1; // 捏合缩小，张开放大
-      const newScale = Math.max(0.1, Math.min(8, this._pinchScaleCurrent * zoomFactor));
-      
-      console.log('[CloudAttach] pinch zoom:', { delta, zoomFactor, newScale });
-      
-      const canvases = this.scrollEl.querySelectorAll('canvas.cloud-attach-pdf-fullscreen-page');
-      const rect = this.scrollEl.getBoundingClientRect();
-      const cx = e.clientX - rect.left;
-      const cy = e.clientY - rect.top;
-      
-      canvases.forEach(c => {
-        c.style.transformOrigin = `${cx}px ${cy}px`;
-        c.style.transform = `scale(${newScale})`;
+      console.log('[CloudAttach] wheel event:', { 
+        deltaY: e.deltaY, 
+        deltaX: e.deltaX, 
+        ctrlKey: e.ctrlKey, 
+        metaKey: e.metaKey,
+        pinch: e.ctrlKey || e.metaKey
       });
-      this._pinchScaleCurrent = newScale;
-    }, { passive: false, capture: true });
+    }, { passive: true });
   }
 
   _bindScroll() {
