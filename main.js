@@ -2903,6 +2903,7 @@ var PdfFullscreenView = class extends ItemView {
   _applyViewMode() {
     const canvases = this.scrollEl.querySelectorAll("canvas.cloud-attach-pdf-fullscreen-page");
     const cur = this._currentPage || 1;
+    const isSubOneZoom = this._renderScaleLevel > 0 && this._renderScaleLevel < 1;
     canvases.forEach((c) => {
       c.style.display = "block";
       c.style.position = "";
@@ -2911,7 +2912,8 @@ var PdfFullscreenView = class extends ItemView {
       c.style.width = "";
       c.style.height = "";
       c.style.margin = "0 auto 8px";
-      c.style.transform = "";
+      if (!isSubOneZoom)
+        c.style.transform = "";
       c.style.transition = "";
       c.style.opacity = "";
       c.style.pointerEvents = "";
