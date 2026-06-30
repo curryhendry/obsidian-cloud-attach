@@ -3115,10 +3115,26 @@ var PdfFullscreenView = class extends ItemView {
     }
   }
   _bindPinchZoom() {
-    this._pinchStartDist = 0;
     this._pinchScaleCurrent = 1;
-    this._pinchMidX = 0;
-    this._pinchMidY = 0;
+    this._pinchStartDist = 0;
+    this.scrollEl.addEventListener("wheel", (e) => {
+      if (this._viewMode !== "continuous")
+        return;
+      if (!e.ctrlKey)
+        return;
+      e.preventDefault();
+      const zoomFactor = Math.exp(-e.deltaY / 200);
+      const newScale = Math.max(0.1, Math.min(8, this._pinchScaleCurrent * zoomFactor));
+      const canvases = this.scrollEl.querySelectorAll("canvas.cloud-attach-pdf-fullscreen-page");
+      const rect = this.scrollEl.getBoundingClientRect();
+      const cx = e.clientX - rect.left;
+      const cy = e.clientY - rect.top;
+      canvases.forEach((c) => {
+        c.style.transformOrigin = `${cx}px ${cy}px`;
+        c.style.transform = `scale(${newScale})`;
+      });
+      this._pinchScaleCurrent = newScale;
+    }, { passive: false });
     this.scrollEl.addEventListener("touchstart", (e) => {
       if (this._viewMode !== "continuous" || e.touches.length !== 2)
         return;
@@ -3126,8 +3142,6 @@ var PdfFullscreenView = class extends ItemView {
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       this._pinchStartDist = Math.sqrt(dx * dx + dy * dy);
-      this._pinchMidX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-      this._pinchMidY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
     }, { passive: false });
     this.scrollEl.addEventListener("touchmove", (e) => {
       if (this._viewMode !== "continuous" || e.touches.length !== 2 || this._pinchStartDist <= 0)
@@ -3141,7 +3155,6 @@ var PdfFullscreenView = class extends ItemView {
       const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
       const canvases = this.scrollEl.querySelectorAll("canvas.cloud-attach-pdf-fullscreen-page");
       canvases.forEach((c) => {
-        c.style.transformOrigin = "0 0";
         const canvasRect = c.getBoundingClientRect();
         const cx = midX - canvasRect.left;
         const cy = midY - canvasRect.top;
