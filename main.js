@@ -3114,7 +3114,51 @@ var PdfFullscreenView = class extends ItemView {
       pageNumEl.style.boxShadow = "0 1px 2px rgba(0,0,0,0.1)";
     }
   }
+  _bindPinchZoom() {
+    this._pinchStartDist = 0;
+    this._pinchScaleCurrent = 1;
+    this._pinchMidX = 0;
+    this._pinchMidY = 0;
+    this.scrollEl.addEventListener("touchstart", (e) => {
+      if (this._viewMode !== "continuous" || e.touches.length !== 2)
+        return;
+      e.preventDefault();
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      this._pinchStartDist = Math.sqrt(dx * dx + dy * dy);
+      this._pinchMidX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      this._pinchMidY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+    }, { passive: false });
+    this.scrollEl.addEventListener("touchmove", (e) => {
+      if (this._viewMode !== "continuous" || e.touches.length !== 2 || this._pinchStartDist <= 0)
+        return;
+      e.preventDefault();
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const scale = dist / this._pinchStartDist * this._pinchScaleCurrent;
+      const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      const canvases = this.scrollEl.querySelectorAll("canvas.cloud-attach-pdf-fullscreen-page");
+      canvases.forEach((c) => {
+        c.style.transformOrigin = "0 0";
+        const canvasRect = c.getBoundingClientRect();
+        const cx = midX - canvasRect.left;
+        const cy = midY - canvasRect.top;
+        c.style.transformOrigin = `${cx}px ${cy}px`;
+        c.style.transform = `scale(${scale})`;
+      });
+      this._pinchScaleTemp = scale;
+    }, { passive: false });
+    this.scrollEl.addEventListener("touchend", (e) => {
+      if (e.touches.length < 2) {
+        this._pinchScaleCurrent = this._pinchScaleTemp || this._pinchScaleCurrent;
+        this._pinchStartDist = 0;
+      }
+    });
+  }
   _bindScroll() {
+    this._bindPinchZoom();
     this._wheelThrottle = false;
     this.scrollEl.onwheel = (e) => {
       if (this._viewMode === "continuous")
