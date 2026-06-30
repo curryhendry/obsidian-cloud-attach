@@ -3051,12 +3051,15 @@ class PdfFullscreenView extends ItemView {
       const containerW = this.scrollEl.clientWidth || this.containerEl.clientWidth;
       const baseScale = containerW > 0 ? containerW / pageW : 1;
       cssScale = baseScale / renderScale;
-    } else if (this._zoomMode === 'fit-width') {
-      const w = this.scrollEl.clientWidth || this.containerEl.clientWidth;
-      scale = w > 0 ? w / pageW : 1;
-    } else if (this._zoomMode === 'fit-height') {
-      const h = this.scrollEl.clientHeight || this.containerEl.clientHeight;
-      scale = h > 0 ? h / pageH : 1;
+    } else {
+      // 自动模式：直接用 fit 计算的 scale
+      if (this._zoomMode === 'fit-width') {
+        const w = this.scrollEl.clientWidth || this.containerEl.clientWidth;
+        renderScale = w > 0 ? w / pageW : 1;
+      } else if (this._zoomMode === 'fit-height') {
+        const h = this.scrollEl.clientHeight || this.containerEl.clientHeight;
+        renderScale = h > 0 ? h / pageH : 1;
+      }
     }
 
     for (let i = 1; i <= totalPages; i++) {
