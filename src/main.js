@@ -3363,13 +3363,28 @@ class PdfFullscreenView extends ItemView {
 
   _bindPinchZoom() {
     // 连续模式下双指缩放（无极）
+    // Obsidian/Electron 可能拦截 scrollEl 上的 wheel，尝试 window 级别监听
     this._pinchScaleCurrent = 1;
     
-    // 挂到 contentWrap（containerEl 的子层），用 capture 确保拿到事件
-    const target = this._contentWrap || this.containerEl;
-    target.addEventListener('wheel', (e) => {
-      console.log('[CloudAttach] wheel:', e.ctrlKey, e.deltaY);
-    }, { capture: true });
+    const handler = (e) => {
+      // 只在连续模式 + PDF 全屏视图打开时处理
+      if (this._viewMode !== 'continuous') return;
+      if (!this._pdf) return;
+      
+      // 检查事件是否发生在 scrollEl 范围内
+      const rect = this.scrollEl.getBoundingClientRect();
+      if (e.clientX < rect.left || e.clientX > rect.right || 
+          e.clientY < rect.top || e.clientY > rect.bottom) return;
+      
+      console.log('[CloudAttach] window wheel:', { 
+        deltaY: e.deltaY, ctrlKey: e.ctrlKey, metaKey: e.metaKey,
+        deltaMode: e.deltaMode
+      });
+    };
+    
+    window.addEventListener('wheel', handler, { capture: true, passive: true });
+    // 保存引用以便卸载时移除
+    this._pinchZoomHandler = handler;
   }
 
   _bindScroll() {
