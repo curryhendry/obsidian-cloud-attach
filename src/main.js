@@ -3363,19 +3363,22 @@ class PdfFullscreenView extends ItemView {
 
   _bindPinchZoom() {
     // 连续模式下双指缩放（无极）
-    // Safari/macOS 用 gesturestart/gesturechange/gestureend
+    // 方案：wheel + ctrlKey（Mac 触控板双指缩放）
     this._pinchScaleCurrent = 1;
     
-    this.scrollEl.addEventListener('gesturestart', (e) => {
+    this.scrollEl.addEventListener('wheel', (e) => {
       if (this._viewMode !== 'continuous') return;
+      if (!e.ctrlKey && !e.metaKey) return; // 非缩放手势，正常滚动
+      
       e.preventDefault();
-      this._pinchScaleStart = this._pinchScaleCurrent;
-    }, { passive: false });
-    
-    this.scrollEl.addEventListener('gesturechange', (e) => {
-      if (this._viewMode !== 'continuous') return;
-      e.preventDefault();
-      const newScale = Math.max(0.1, Math.min(8, this._pinchScaleStart * e.scale));
+      e.stopPropagation();
+      
+      // 根据 deltaY 计算缩放因子
+      const delta = e.deltaY;
+      const zoomFactor = delta > 0 ? 0.9 : 1.1; // 捏合缩小，张开放大
+      const newScale = Math.max(0.1, Math.min(8, this._pinchScaleCurrent * zoomFactor));
+      
+      console.log('[CloudAttach] pinch zoom:', { delta, zoomFactor, newScale });
       
       const canvases = this.scrollEl.querySelectorAll('canvas.cloud-attach-pdf-fullscreen-page');
       const rect = this.scrollEl.getBoundingClientRect();
@@ -3387,12 +3390,7 @@ class PdfFullscreenView extends ItemView {
         c.style.transform = `scale(${newScale})`;
       });
       this._pinchScaleCurrent = newScale;
-    }, { passive: false });
-    
-    this.scrollEl.addEventListener('gestureend', (e) => {
-      if (this._viewMode !== 'continuous') return;
-      e.preventDefault();
-    }, { passive: false });
+    }, { passive: false, capture: true });
   }
 
   _bindScroll() {

@@ -3116,17 +3116,17 @@ var PdfFullscreenView = class extends ItemView {
   }
   _bindPinchZoom() {
     this._pinchScaleCurrent = 1;
-    this.scrollEl.addEventListener("gesturestart", (e) => {
+    this.scrollEl.addEventListener("wheel", (e) => {
       if (this._viewMode !== "continuous")
         return;
-      e.preventDefault();
-      this._pinchScaleStart = this._pinchScaleCurrent;
-    }, { passive: false });
-    this.scrollEl.addEventListener("gesturechange", (e) => {
-      if (this._viewMode !== "continuous")
+      if (!e.ctrlKey && !e.metaKey)
         return;
       e.preventDefault();
-      const newScale = Math.max(0.1, Math.min(8, this._pinchScaleStart * e.scale));
+      e.stopPropagation();
+      const delta = e.deltaY;
+      const zoomFactor = delta > 0 ? 0.9 : 1.1;
+      const newScale = Math.max(0.1, Math.min(8, this._pinchScaleCurrent * zoomFactor));
+      console.log("[CloudAttach] pinch zoom:", { delta, zoomFactor, newScale });
       const canvases = this.scrollEl.querySelectorAll("canvas.cloud-attach-pdf-fullscreen-page");
       const rect = this.scrollEl.getBoundingClientRect();
       const cx = e.clientX - rect.left;
@@ -3136,12 +3136,7 @@ var PdfFullscreenView = class extends ItemView {
         c.style.transform = `scale(${newScale})`;
       });
       this._pinchScaleCurrent = newScale;
-    }, { passive: false });
-    this.scrollEl.addEventListener("gestureend", (e) => {
-      if (this._viewMode !== "continuous")
-        return;
-      e.preventDefault();
-    }, { passive: false });
+    }, { passive: false, capture: true });
   }
   _bindScroll() {
     this._bindPinchZoom();
