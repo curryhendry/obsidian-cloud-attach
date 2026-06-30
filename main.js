@@ -2939,13 +2939,9 @@ var PdfFullscreenView = class extends ItemView {
         c.style.margin = "0";
         c.style.display = "block";
         c.style.transition = "transform 0.35s ease-out";
-        if (!manualZoom) {
-          const scrollW = this.scrollEl.clientWidth;
-          if (scrollW && c.width > scrollW) {
-            c.style.width = scrollW + "px";
-            c.style.height = "auto";
-          }
-        }
+        c.style.width = "100%";
+        c.style.height = "100%";
+        c.style.objectFit = "contain";
         const offset = pn - cur;
         if (manualZoom) {
           const baseTransform = c.style.transform || "";
