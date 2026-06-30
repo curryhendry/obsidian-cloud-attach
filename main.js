@@ -2850,12 +2850,14 @@ var PdfFullscreenView = class extends ItemView {
       const containerW = this.scrollEl.clientWidth || this.containerEl.clientWidth;
       const baseScale = containerW > 0 ? containerW / pageW : 1;
       cssScale = baseScale / renderScale;
-    } else if (this._zoomMode === "fit-width") {
-      const w = this.scrollEl.clientWidth || this.containerEl.clientWidth;
-      scale = w > 0 ? w / pageW : 1;
-    } else if (this._zoomMode === "fit-height") {
-      const h = this.scrollEl.clientHeight || this.containerEl.clientHeight;
-      scale = h > 0 ? h / pageH : 1;
+    } else {
+      if (this._zoomMode === "fit-width") {
+        const w = this.scrollEl.clientWidth || this.containerEl.clientWidth;
+        renderScale = w > 0 ? w / pageW : 1;
+      } else if (this._zoomMode === "fit-height") {
+        const h = this.scrollEl.clientHeight || this.containerEl.clientHeight;
+        renderScale = h > 0 ? h / pageH : 1;
+      }
     }
     for (let i = 1; i <= totalPages; i++) {
       const page = await this._pdf.getPage(i);
@@ -4805,9 +4807,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
   // 渲染指定页码的 PDF 页面到指定 canvas
   // containerW: 容器实际显示宽度，用于计算 canvas CSS 高度以维护宽高比
-  async _renderPdfPage(canvas, pdf, pageNum, scale2, containerW) {
+  async _renderPdfPage(canvas, pdf, pageNum, scale, containerW) {
     const page = await pdf.getPage(pageNum);
-    const viewport = page.getViewport({ scale: scale2 });
+    const viewport = page.getViewport({ scale });
     canvas.width = viewport.width;
     canvas.height = viewport.height;
     canvas.style.width = "100%";
@@ -4818,13 +4820,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
     await page.render({ canvasContext: ctx, viewport }).promise;
   }
   // 懒加载：渲染单页并替换占位符
-  async _renderLazyPage(placeholder, pdf, pageNum, scale2, containerW) {
+  async _renderLazyPage(placeholder, pdf, pageNum, scale, containerW) {
     const canvas = document.createElement("canvas");
     canvas.className = "cloudattach-pdf-page";
     canvas.dataset.pageNum = String(pageNum);
     canvas.style.userSelect = "none";
     canvas.draggable = false;
-    await this._renderPdfPage(canvas, pdf, pageNum, scale2, containerW);
+    await this._renderPdfPage(canvas, pdf, pageNum, scale, containerW);
     placeholder.replaceWith(canvas);
     console.log("[CloudAttach] lazy page", pageNum, "rendered");
   }
