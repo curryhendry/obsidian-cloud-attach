@@ -2912,6 +2912,7 @@ var PdfFullscreenView = class extends ItemView {
     if (this._viewMode === "single") {
       this.scrollEl.style.position = "relative";
       this.scrollEl.style.overflow = "hidden";
+      const manualZoom = this._zoomLevel > 0;
       canvases.forEach((c) => {
         const pn = parseInt(c.dataset.pageNum, 10);
         c.style.position = "absolute";
@@ -2920,10 +2921,12 @@ var PdfFullscreenView = class extends ItemView {
         c.style.margin = "0";
         c.style.display = "block";
         c.style.transition = "transform 0.35s ease-out";
-        const scrollW = this.scrollEl.clientWidth;
-        if (scrollW && c.width > scrollW) {
-          c.style.width = scrollW + "px";
-          c.style.height = "auto";
+        if (!manualZoom) {
+          const scrollW = this.scrollEl.clientWidth;
+          if (scrollW && c.width > scrollW) {
+            c.style.width = scrollW + "px";
+            c.style.height = "auto";
+          }
         }
         const offset = pn - cur;
         c.style.transform = `translateY(${offset * 100}%)`;
@@ -2941,6 +2944,7 @@ var PdfFullscreenView = class extends ItemView {
       const scrollW = this.scrollEl.clientWidth;
       const scrollH = this.scrollEl.clientHeight;
       const halfW = scrollW / 2 - 8;
+      const manualZoom = this._zoomLevel > 0;
       canvases.forEach((c) => {
         const pn = parseInt(c.dataset.pageNum, 10);
         const pairIndex = Math.floor((pn - 1) / 2);
@@ -2949,7 +2953,7 @@ var PdfFullscreenView = class extends ItemView {
         c.style.position = "static";
         c.style.margin = "0";
         c.style.display = isVisible ? "block" : "none";
-        if (isVisible && scrollW > 0) {
+        if (isVisible && scrollW > 0 && !manualZoom) {
           const cw = c.width;
           const ch = c.height;
           const ratio = cw / (ch || 1);

@@ -3119,6 +3119,7 @@ class PdfFullscreenView extends ItemView {
       this.scrollEl.style.position = 'relative';
       this.scrollEl.style.overflow = 'hidden';
       
+      const manualZoom = this._zoomLevel > 0;
       canvases.forEach(c => {
         const pn = parseInt(c.dataset.pageNum, 10);
         c.style.position = 'absolute';
@@ -3128,11 +3129,13 @@ class PdfFullscreenView extends ItemView {
         c.style.display = 'block';
         c.style.transition = 'transform 0.35s ease-out';
         
-        // Fit width
-        const scrollW = this.scrollEl.clientWidth;
-        if (scrollW && c.width > scrollW) {
-          c.style.width = scrollW + 'px';
-          c.style.height = 'auto';
+        // 自动模式才做 CSS 尺寸适配，手动缩放保持原生分辨率
+        if (!manualZoom) {
+          const scrollW = this.scrollEl.clientWidth;
+          if (scrollW && c.width > scrollW) {
+            c.style.width = scrollW + 'px';
+            c.style.height = 'auto';
+          }
         }
         
         const offset = pn - cur;
@@ -3154,6 +3157,7 @@ class PdfFullscreenView extends ItemView {
       const scrollW = this.scrollEl.clientWidth;
       const scrollH = this.scrollEl.clientHeight;
       const halfW = scrollW / 2 - 8;
+      const manualZoom = this._zoomLevel > 0;
       
       canvases.forEach(c => {
         const pn = parseInt(c.dataset.pageNum, 10);
@@ -3165,7 +3169,7 @@ class PdfFullscreenView extends ItemView {
         c.style.margin = '0';
         c.style.display = isVisible ? 'block' : 'none';
         
-        if (isVisible && scrollW > 0) {
+        if (isVisible && scrollW > 0 && !manualZoom) {
           const cw = c.width;
           const ch = c.height;
           const ratio = cw / (ch || 1);
