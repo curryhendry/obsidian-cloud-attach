@@ -3034,8 +3034,22 @@ class PdfFullscreenView extends ItemView {
       console.log('[CloudAttach] PdfFullscreen _loadPdf: calling _renderAllPages...');
       this.scrollEl.empty();
       await this._renderAllPages();
-      // Force repaint: popout 窗口需要触发布局重绘
+      // Force repaint: Electron popout 窗口 compositor 不自动重绘
+      // 方案: toggle display 触发 reflow → requestAnimationFrame → 操作 leaf 触发 Obsidian 布局
+      this.scrollEl.style.display = 'none';
       this.scrollEl.offsetHeight;
+      this.scrollEl.style.display = '';
+      requestAnimationFrame(() => {
+        // 触发 Obsidian workspace 重新布局
+        if (this.leaf?.containerEl) {
+          this.leaf.containerEl.style.minHeight = '99.9%';
+          requestAnimationFrame(() => {
+            if (this.leaf?.containerEl) {
+              this.leaf.containerEl.style.minHeight = '';
+            }
+          });
+        }
+      });
       console.log('[CloudAttach] PdfFullscreen _loadPdf: force repaint done');
     } catch (e) {
       console.error('[CloudAttach] PdfFullscreenView load error:', e);
