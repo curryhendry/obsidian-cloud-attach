@@ -2886,19 +2886,12 @@ var PdfFullscreenView = class extends ItemView {
     if (!this._pdf)
       return;
     const savedPage = this._currentPage || 1;
-    const savedScroll = this.scrollEl.scrollTop;
-    const parent = this.scrollEl.parentNode;
-    const next = this.scrollEl.nextSibling;
-    parent.removeChild(this.scrollEl);
     this.scrollEl.empty();
     this._renderAllPages().then(() => {
       this._applyViewMode();
-      parent.insertBefore(this.scrollEl, next);
-      void this.scrollEl.offsetHeight;
       this._scrollToPage(savedPage);
     }).catch((e) => {
       console.error("[CloudAttach] _reRender error:", e);
-      parent.insertBefore(this.scrollEl, next);
     });
   }
   _applyViewMode() {
