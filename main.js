@@ -2838,7 +2838,19 @@ var PdfFullscreenView = class extends ItemView {
       console.log("[CloudAttach] PdfFullscreen _loadPdf: calling _renderAllPages...");
       this.scrollEl.empty();
       await this._renderAllPages();
+      this.scrollEl.style.display = "none";
       this.scrollEl.offsetHeight;
+      this.scrollEl.style.display = "";
+      requestAnimationFrame(() => {
+        if (this.leaf?.containerEl) {
+          this.leaf.containerEl.style.minHeight = "99.9%";
+          requestAnimationFrame(() => {
+            if (this.leaf?.containerEl) {
+              this.leaf.containerEl.style.minHeight = "";
+            }
+          });
+        }
+      });
       console.log("[CloudAttach] PdfFullscreen _loadPdf: force repaint done");
     } catch (e) {
       console.error("[CloudAttach] PdfFullscreenView load error:", e);
