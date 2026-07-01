@@ -3033,7 +3033,10 @@ class PdfFullscreenView extends ItemView {
 
       console.log('[CloudAttach] PdfFullscreen _loadPdf: calling _renderAllPages...');
       this.scrollEl.empty();
-      this._renderAllPages();
+      await this._renderAllPages();
+      // Force repaint: popout 窗口需要触发布局重绘
+      this.scrollEl.offsetHeight;
+      console.log('[CloudAttach] PdfFullscreen _loadPdf: force repaint done');
     } catch (e) {
       console.error('[CloudAttach] PdfFullscreenView load error:', e);
       this.scrollEl.empty();
