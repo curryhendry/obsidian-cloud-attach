@@ -2825,7 +2825,7 @@ var PdfFullscreenView = class extends ItemView {
       this.pageInput.value = "1";
       this._currentPage = 1;
       this.scrollEl.empty();
-      this._renderAllPages();
+      await this._renderAllPages();
     } catch (e) {
       console.error("[CloudAttach] PdfFullscreenView load error:", e);
       this.scrollEl.empty();
@@ -2855,14 +2855,23 @@ var PdfFullscreenView = class extends ItemView {
         renderScale = h > 0 ? h / pageH : 1;
       }
     }
+    const subOne = renderScale < 1;
+    const effectiveScale = subOne ? 1 : renderScale;
+    const cssDisplayScale = subOne ? renderScale : 1;
+    this._subOneActive = subOne;
+    this._subOneCssScale = cssDisplayScale;
     for (let i = 1; i <= totalPages; i++) {
       const page = await this._pdf.getPage(i);
-      const viewport = page.getViewport({ scale: renderScale });
+      const viewport = page.getViewport({ scale: effectiveScale });
       const canvas = document.createElement("canvas");
       canvas.className = "cloud-attach-pdf-fullscreen-page";
       canvas.style.display = "block";
       canvas.style.margin = "0 auto 8px";
       canvas.style.boxShadow = "0 1px 4px rgba(0,0,0,0.15)";
+      if (subOne) {
+        canvas.style.transformOrigin = "top center";
+        canvas.style.transform = `scale(${cssDisplayScale})`;
+      }
       canvas.width = viewport.width;
       canvas.height = viewport.height;
       canvas.dataset.pageNum = String(i);
@@ -2878,18 +2887,16 @@ var PdfFullscreenView = class extends ItemView {
     if (!this._pdf)
       return;
     const savedPage = this._currentPage || 1;
-    const savedScroll = this.scrollEl.scrollTop;
-    const parent = this.scrollEl.parentNode;
-    const next = this.scrollEl.nextSibling;
-    parent.removeChild(this.scrollEl);
     this.scrollEl.empty();
     this._renderAllPages().then(() => {
       this._applyViewMode();
-      parent.insertBefore(this.scrollEl, next);
-      this._scrollToPage(savedPage);
-    }).catch((e) => {
-      console.error("[CloudAttach] _reRender error:", e);
-      parent.insertBefore(this.scrollEl, next);
+      if (this._thumbnailVisible && this._thumbnailPanel) {
+        this._thumbnailPanel.empty();
+        this._renderThumbnails();
+      }
+      requestAnimationFrame(() => {
+        this._scrollToPage(savedPage);
+      });
     });
   }
   _applyViewMode() {

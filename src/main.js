@@ -3021,7 +3021,7 @@ class PdfFullscreenView extends ItemView {
       this._currentPage = 1;
 
       this.scrollEl.empty();
-      this._renderAllPages();
+      await this._renderAllPages();
     } catch (e) {
       console.error('[CloudAttach] PdfFullscreenView load error:', e);
       this.scrollEl.empty();
@@ -3042,7 +3042,7 @@ class PdfFullscreenView extends ItemView {
     const pageW = firstVp.width;
     const pageH = firstVp.height;
     
-    // 计算渲染 scale
+    // 计算渲染 scale：<1x 时 1x 渲染 + CSS transform 缩小（保清晰）
     let renderScale = 1;
     if (this._renderScaleLevel > 0) {
       renderScale = this._renderScaleLevel;
@@ -3056,14 +3056,25 @@ class PdfFullscreenView extends ItemView {
       }
     }
 
+    // <1x 时：1x 渲染 + CSS transform 缩小（保清晰）
+    const subOne = renderScale < 1;
+    const effectiveScale = subOne ? 1 : renderScale;
+    const cssDisplayScale = subOne ? renderScale : 1;
+    this._subOneActive = subOne;
+    this._subOneCssScale = cssDisplayScale;
+
     for (let i = 1; i <= totalPages; i++) {
       const page = await this._pdf.getPage(i);
-      const viewport = page.getViewport({ scale: renderScale });
+      const viewport = page.getViewport({ scale: effectiveScale });
       const canvas = document.createElement('canvas');
       canvas.className = 'cloud-attach-pdf-fullscreen-page';
       canvas.style.display = 'block';
       canvas.style.margin = '0 auto 8px';
       canvas.style.boxShadow = '0 1px 4px rgba(0,0,0,0.15)';
+      if (subOne) {
+        canvas.style.transformOrigin = 'top center';
+        canvas.style.transform = `scale(${cssDisplayScale})`;
+      }
       canvas.width = viewport.width;
       canvas.height = viewport.height;
       canvas.dataset.pageNum = String(i);
@@ -3080,22 +3091,19 @@ class PdfFullscreenView extends ItemView {
 
   _reRender() {
     if (!this._pdf) return;
-    // 保存当前状态
     const savedPage = this._currentPage || 1;
-    const savedScroll = this.scrollEl.scrollTop;
-    // 从 DOM 移除再插回，强制 Obsidian/Electron 重绘
-    const parent = this.scrollEl.parentNode;
-    const next = this.scrollEl.nextSibling;
-    parent.removeChild(this.scrollEl);
     this.scrollEl.empty();
     this._renderAllPages().then(() => {
       this._applyViewMode();
-      parent.insertBefore(this.scrollEl, next);
-      // 恢复位置
-      this._scrollToPage(savedPage);
-    }).catch(e => {
-      console.error('[CloudAttach] _reRender error:', e);
-      parent.insertBefore(this.scrollEl, next);
+      // 重建缩略图
+      if (this._thumbnailVisible && this._thumbnailPanel) {
+        this._thumbnailPanel.empty();
+        this._renderThumbnails();
+      }
+      // 等 layout 完成后恢复位置
+      requestAnimationFrame(() => {
+        this._scrollToPage(savedPage);
+      });
     });
   }
 
