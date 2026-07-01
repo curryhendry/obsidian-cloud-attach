@@ -2837,7 +2837,9 @@ var PdfFullscreenView = class extends ItemView {
       this._currentPage = 1;
       console.log("[CloudAttach] PdfFullscreen _loadPdf: calling _renderAllPages...");
       this.scrollEl.empty();
-      this._renderAllPages();
+      await this._renderAllPages();
+      this.scrollEl.offsetHeight;
+      console.log("[CloudAttach] PdfFullscreen _loadPdf: force repaint done");
     } catch (e) {
       console.error("[CloudAttach] PdfFullscreenView load error:", e);
       this.scrollEl.empty();
