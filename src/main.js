@@ -3042,7 +3042,7 @@ class PdfFullscreenView extends ItemView {
     const pageW = firstVp.width;
     const pageH = firstVp.height;
     
-    // 计算渲染 scale：直接按目标倍数渲染，<1x 时用 pixelated 减少模糊
+    // 计算渲染 scale：<1x 时固定 1x 渲染 + CSS transform 缩小（保清晰）
     let renderScale = 1;
     if (this._renderScaleLevel > 0) {
       renderScale = this._renderScaleLevel;
@@ -3055,17 +3055,24 @@ class PdfFullscreenView extends ItemView {
         renderScale = h > 0 ? h / pageH : 1;
       }
     }
+    // 小于 1x 时：canvas 用 1x 渲染，CSS transform 缩小
+    const subOne = renderScale < 1;
+    const effectiveScale = subOne ? 1 : renderScale;
+    const cssDisplayScale = subOne ? renderScale : 1;
+    this._subOneActive = subOne;
+    this._subOneCssScale = cssDisplayScale;
 
     for (let i = 1; i <= totalPages; i++) {
       const page = await this._pdf.getPage(i);
-      const viewport = page.getViewport({ scale: renderScale });
+      const viewport = page.getViewport({ scale: effectiveScale });
       const canvas = document.createElement('canvas');
       canvas.className = 'cloud-attach-pdf-fullscreen-page';
       canvas.style.display = 'block';
       canvas.style.margin = '0 auto 8px';
       canvas.style.boxShadow = '0 1px 4px rgba(0,0,0,0.15)';
-      if (renderScale < 1) {
-        canvas.style.imageRendering = 'pixelated';
+      if (subOne) {
+        canvas.style.transformOrigin = 'top center';
+        canvas.style.transform = `scale(${cssDisplayScale})`;
       }
       canvas.width = viewport.width;
       canvas.height = viewport.height;
@@ -3122,6 +3129,11 @@ class PdfFullscreenView extends ItemView {
       c.style.maxWidth = '';
       c.style.maxHeight = '';
       c.style.imageRendering = '';
+      // 还原 sub-1x 缩放
+      if (this._subOneActive) {
+        c.style.transformOrigin = 'top center';
+        c.style.transform = `scale(${this._subOneCssScale})`;
+      }
     });
     
     // Reset scrollEl

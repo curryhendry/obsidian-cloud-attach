@@ -2855,16 +2855,22 @@ var PdfFullscreenView = class extends ItemView {
         renderScale = h > 0 ? h / pageH : 1;
       }
     }
+    const subOne = renderScale < 1;
+    const effectiveScale = subOne ? 1 : renderScale;
+    const cssDisplayScale = subOne ? renderScale : 1;
+    this._subOneActive = subOne;
+    this._subOneCssScale = cssDisplayScale;
     for (let i = 1; i <= totalPages; i++) {
       const page = await this._pdf.getPage(i);
-      const viewport = page.getViewport({ scale: renderScale });
+      const viewport = page.getViewport({ scale: effectiveScale });
       const canvas = document.createElement("canvas");
       canvas.className = "cloud-attach-pdf-fullscreen-page";
       canvas.style.display = "block";
       canvas.style.margin = "0 auto 8px";
       canvas.style.boxShadow = "0 1px 4px rgba(0,0,0,0.15)";
-      if (renderScale < 1) {
-        canvas.style.imageRendering = "pixelated";
+      if (subOne) {
+        canvas.style.transformOrigin = "top center";
+        canvas.style.transform = `scale(${cssDisplayScale})`;
       }
       canvas.width = viewport.width;
       canvas.height = viewport.height;
@@ -2913,6 +2919,10 @@ var PdfFullscreenView = class extends ItemView {
       c.style.maxWidth = "";
       c.style.maxHeight = "";
       c.style.imageRendering = "";
+      if (this._subOneActive) {
+        c.style.transformOrigin = "top center";
+        c.style.transform = `scale(${this._subOneCssScale})`;
+      }
     });
     this.scrollEl.style.position = "";
     this.scrollEl.style.overflow = "";
