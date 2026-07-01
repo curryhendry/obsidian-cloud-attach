@@ -2647,12 +2647,14 @@ var PdfFullscreenView = class extends ItemView {
     return "file-text";
   }
   async onOpen() {
+    console.log("[CloudAttach] PdfFullscreen onOpen START, leaf:", this.leaf?.view?.getViewType?.(), "popout:", !!this.containerEl.ownerDocument.defaultView?.open);
     const container = this.containerEl.children[1];
     container.empty();
     if (!this.pdfUrl && this.plugin._pendingPdfUrl) {
       this.pdfUrl = this.plugin._pendingPdfUrl;
       this.pdfName = this.plugin._pendingPdfName || cleanFileNameFromUrl(this.pdfUrl);
     }
+    console.log("[CloudAttach] PdfFullscreen onOpen pdfUrl:", this.pdfUrl, "name:", this.pdfName);
     container.style.padding = "0";
     container.style.overflow = "hidden";
     container.style.height = "100%";
@@ -2704,31 +2706,19 @@ var PdfFullscreenView = class extends ItemView {
     };
     this._viewMode = "continuous";
     this._zoomMode = "fit-width";
-    this._zoomLevel = 0;
     const zoomOutBtn = left.createEl("button");
     zoomOutBtn.className = "clickable-icon";
     zoomOutBtn.setAttribute("aria-label", "\u7F29\u5C0F");
     zoomOutBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
-    this._renderScaleLevel = 0;
     zoomOutBtn.onclick = () => {
-      const levels = [0.1, 0.25, 0.5, 0.75, 0, 1.5, 2, 3, 4, 5];
-      const idx = levels.indexOf(this._renderScaleLevel);
-      if (idx > 0) {
-        this._renderScaleLevel = levels[idx - 1];
-        this._applyZoom();
-      }
+      new Notice("\u7F29\u5C0F\u529F\u80FD\u5F00\u53D1\u4E2D");
     };
     const zoomInBtn = left.createEl("button");
     zoomInBtn.className = "clickable-icon";
     zoomInBtn.setAttribute("aria-label", "\u653E\u5927");
     zoomInBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
     zoomInBtn.onclick = () => {
-      const levels = [0.1, 0.25, 0.5, 0.75, 0, 1.5, 2, 3, 4, 5];
-      const idx = levels.indexOf(this._renderScaleLevel);
-      if (idx < levels.length - 1) {
-        this._renderScaleLevel = levels[idx + 1];
-        this._applyZoom();
-      }
+      new Notice("\u653E\u5927\u529F\u80FD\u5F00\u53D1\u4E2D");
     };
     const viewMenuBtn = left.createEl("button");
     viewMenuBtn.className = "clickable-icon";
@@ -2738,9 +2728,8 @@ var PdfFullscreenView = class extends ItemView {
       const menu = new Menu();
       const zoomOpts = { "fit-width": "\u9002\u5E94\u5BBD\u5EA6", "fit-height": "\u9002\u5E94\u9AD8\u5EA6" };
       Object.entries(zoomOpts).forEach(([val, label]) => {
-        menu.addItem((item) => item.setTitle((this._zoomMode === val && this._renderScaleLevel <= 0 ? "\u2713 " : "") + label).onClick(() => {
+        menu.addItem((item) => item.setTitle((this._zoomMode === val ? "\u2713 " : "") + label).onClick(() => {
           this._zoomMode = val;
-          this._renderScaleLevel = 0;
           this._applyZoom();
         }));
       });
@@ -2754,6 +2743,22 @@ var PdfFullscreenView = class extends ItemView {
       });
       menu.showAtMouseEvent(e);
     };
+    let ver = "0";
+    try {
+      const { readFileSync } = require("fs");
+      const { join } = require("path");
+      const changelog = readFileSync(join(this.plugin.manifest.dir || ".", "CHANGELOG.md"), "utf8");
+      const match = changelog.split("\n")[0].match(/v([\d.]+)(?:\.dev)?/);
+      if (match)
+        ver = match[1].split(".").pop() || "0";
+    } catch {
+    }
+    const verBadge = left.createEl("span", { text: ver });
+    verBadge.style.fontSize = "10px";
+    verBadge.style.color = "var(--text-muted)";
+    verBadge.style.background = "var(--background-modifier-hover)";
+    verBadge.style.padding = "1px 4px";
+    verBadge.style.borderRadius = "3px";
     const right = toolbar.createEl("div");
     right.style.display = "flex";
     right.style.alignItems = "center";
@@ -2810,20 +2815,27 @@ var PdfFullscreenView = class extends ItemView {
     this.scrollEl.style.overflowX = "hidden";
     this.scrollEl.style.background = "var(--background-secondary)";
     this.scrollEl.style.padding = "0";
+    console.log("[CloudAttach] PdfFullscreen onOpen: calling _loadPdf...");
     this._loadPdf();
   }
   async _loadPdf() {
+    console.log("[CloudAttach] PdfFullscreen _loadPdf START, url:", this.pdfUrl, "popout:", !!this.containerEl.ownerDocument.defaultView?.open);
     try {
       this.scrollEl.empty();
       this.scrollEl.createEl("div", { text: t("view.fullscreen_loading"), cls: "cloud-attach-loading" });
+      console.log("[CloudAttach] PdfFullscreen _loadPdf: loading pdfjsLib...");
       const pdfjsLib = await this.plugin._loadPdfJs();
+      console.log("[CloudAttach] PdfFullscreen _loadPdf: pdfjsLib loaded, downloading binary...");
       const pdfData = await this.plugin._downloadPdfBinary(this.pdfUrl);
+      console.log("[CloudAttach] PdfFullscreen _loadPdf: binary downloaded, size:", pdfData?.byteLength);
       const loadingTask = pdfData ? pdfjsLib.getDocument({ data: pdfData, ownerDocument: this.containerEl.ownerDocument }) : pdfjsLib.getDocument({ url: this.pdfUrl, ownerDocument: this.containerEl.ownerDocument });
       this._pdf = await loadingTask.promise;
       const totalPages = this._pdf.numPages;
+      console.log("[CloudAttach] PdfFullscreen _loadPdf: doc loaded, pages:", totalPages);
       this.pageTotal.textContent = " / " + totalPages;
       this.pageInput.value = "1";
       this._currentPage = 1;
+      console.log("[CloudAttach] PdfFullscreen _loadPdf: calling _renderAllPages...");
       this.scrollEl.empty();
       this._renderAllPages();
     } catch (e) {
@@ -2839,38 +2851,29 @@ var PdfFullscreenView = class extends ItemView {
     if (!this._pdf)
       return;
     const totalPages = this._pdf.numPages;
+    console.log("[CloudAttach] PdfFullscreen _renderAllPages START pages=", totalPages, "scrollEl.clientW=", this.scrollEl.clientWidth, "containerEl.clientW=", this.containerEl.clientWidth, "inDOM=", !!this.scrollEl.parentNode);
     const firstPg = await this._pdf.getPage(1);
     const firstVp = firstPg.getViewport({ scale: 1 });
     const pageW = firstVp.width;
-    const pageH = firstVp.height;
-    let renderScale = 1;
-    let cssScale = 1;
-    if (this._renderScaleLevel > 0) {
-      renderScale = this._renderScaleLevel;
-      const containerW = this.scrollEl.clientWidth || this.containerEl.clientWidth;
-      const baseScale = containerW > 0 ? containerW / pageW : 1;
-      cssScale = baseScale / renderScale;
-    } else {
-      if (this._zoomMode === "fit-width") {
-        const w = this.scrollEl.clientWidth || this.containerEl.clientWidth;
-        renderScale = w > 0 ? w / pageW : 1;
-      } else if (this._zoomMode === "fit-height") {
-        const h = this.scrollEl.clientHeight || this.containerEl.clientHeight;
-        renderScale = h > 0 ? h / pageH : 1;
-      }
+    let scale = 1;
+    if (this._zoomMode === "fit-width") {
+      const w = this.scrollEl.clientWidth;
+      scale = w > 0 ? w / pageW : 1;
+      console.log("[CloudAttach] PdfFullscreen _renderAllPages fit-width: w=", w, "pageW=", pageW, "scale=", scale);
+    } else if (this._zoomMode === "fit-height") {
+      const h = this.scrollEl.clientHeight;
+      scale = h > 0 ? h / firstVp.height : 1;
+      console.log("[CloudAttach] PdfFullscreen _renderAllPages fit-height: h=", h, "pageH=", firstVp.height, "scale=", scale);
     }
+    let lastCanvas;
     for (let i = 1; i <= totalPages; i++) {
       const page = await this._pdf.getPage(i);
-      const viewport = page.getViewport({ scale: renderScale });
+      const viewport = page.getViewport({ scale });
       const canvas = document.createElement("canvas");
       canvas.className = "cloud-attach-pdf-fullscreen-page";
       canvas.style.display = "block";
       canvas.style.margin = "0 auto 8px";
       canvas.style.boxShadow = "0 1px 4px rgba(0,0,0,0.15)";
-      if (this._renderScaleLevel > 0) {
-        canvas.style.transformOrigin = "top center";
-        canvas.style.transform = `scale(${cssScale})`;
-      }
       canvas.width = viewport.width;
       canvas.height = viewport.height;
       canvas.dataset.pageNum = String(i);
@@ -2879,30 +2882,27 @@ var PdfFullscreenView = class extends ItemView {
         canvasContext: canvas.getContext("2d"),
         viewport
       }).promise;
+      lastCanvas = canvas;
     }
+    console.log("[CloudAttach] PdfFullscreen _renderAllPages DONE, rendered", totalPages, "pages, lastCanvas.size:", lastCanvas?.width + "x" + lastCanvas?.height, "scrollEl.children:", this.scrollEl.children.length);
     this._bindScroll();
   }
   _reRender() {
     if (!this._pdf)
       return;
-    const savedPage = this._currentPage || 1;
-    const savedScroll = this.scrollEl.scrollTop;
-    const parent = this.scrollEl.parentNode;
-    const next = this.scrollEl.nextSibling;
-    parent.removeChild(this.scrollEl);
+    console.log("[CloudAttach] PdfFullscreen _reRender: viewMode=", this._viewMode, "zoomMode=", this._zoomMode, "scrollEl.clientW=", this.scrollEl.clientWidth);
     this.scrollEl.empty();
-    this._renderAllPages().then(() => {
-      this._applyViewMode();
-      parent.insertBefore(this.scrollEl, next);
-      this._scrollToPage(savedPage);
-    }).catch((e) => {
-      console.error("[CloudAttach] _reRender error:", e);
-      parent.insertBefore(this.scrollEl, next);
+    requestAnimationFrame(() => {
+      this._renderAllPages().then(() => {
+        console.log("[CloudAttach] PdfFullscreen _reRender: render done, calling _applyViewMode");
+        this._applyViewMode();
+      });
     });
   }
   _applyViewMode() {
     const canvases = this.scrollEl.querySelectorAll("canvas.cloud-attach-pdf-fullscreen-page");
     const cur = this._currentPage || 1;
+    console.log("[CloudAttach] PdfFullscreen _applyViewMode:", this._viewMode, "curPage=", cur, "canvases=", canvases.length);
     canvases.forEach((c) => {
       c.style.display = "block";
       c.style.position = "";
@@ -2930,7 +2930,6 @@ var PdfFullscreenView = class extends ItemView {
     if (this._viewMode === "single") {
       this.scrollEl.style.position = "relative";
       this.scrollEl.style.overflow = "hidden";
-      const manualZoom = this._renderScaleLevel > 0;
       canvases.forEach((c) => {
         const pn = parseInt(c.dataset.pageNum, 10);
         c.style.position = "absolute";
@@ -2939,18 +2938,13 @@ var PdfFullscreenView = class extends ItemView {
         c.style.margin = "0";
         c.style.display = "block";
         c.style.transition = "transform 0.35s ease-out";
-        const offset = pn - cur;
-        if (manualZoom) {
-          const baseTransform = c.style.transform || "";
-          const scaleMatch = baseTransform.match(/scale\([^)]+\)/);
-          const scalePart = scaleMatch ? scaleMatch[0] : "";
-          c.style.transform = `${scalePart} translateY(${offset * 100}%)`;
-        } else {
-          c.style.width = "100%";
-          c.style.height = "100%";
-          c.style.objectFit = "contain";
-          c.style.transform = `translateY(${offset * 100}%)`;
+        const scrollW = this.scrollEl.clientWidth;
+        if (scrollW && c.width > scrollW) {
+          c.style.width = scrollW + "px";
+          c.style.height = "auto";
         }
+        const offset = pn - cur;
+        c.style.transform = `translateY(${offset * 100}%)`;
       });
       this._highlightThumbnail(cur);
     } else if (this._viewMode === "double") {
@@ -2965,31 +2959,26 @@ var PdfFullscreenView = class extends ItemView {
       const scrollW = this.scrollEl.clientWidth;
       const scrollH = this.scrollEl.clientHeight;
       const halfW = scrollW / 2 - 8;
-      const manualZoom = this._renderScaleLevel > 0;
       canvases.forEach((c) => {
         const pn = parseInt(c.dataset.pageNum, 10);
         const pairIndex = Math.floor((pn - 1) / 2);
         const currentPairIndex = Math.floor((cur - 1) / 2);
         const isVisible = pairIndex === currentPairIndex;
+        c.style.position = "static";
         c.style.margin = "0";
         c.style.display = isVisible ? "block" : "none";
-        if (isVisible) {
-          if (manualZoom) {
-            c.style.position = "static";
-          } else if (scrollW > 0) {
-            c.style.position = "static";
-            const cw = c.width;
-            const ch = c.height;
-            const ratio = cw / (ch || 1);
-            const targetW = Math.min(halfW, cw);
-            const targetH = targetW / ratio;
-            if (targetH > scrollH && scrollH > 0) {
-              c.style.height = scrollH + "px";
-              c.style.width = scrollH * ratio + "px";
-            } else {
-              c.style.width = targetW + "px";
-              c.style.height = targetH + "px";
-            }
+        if (isVisible && scrollW > 0) {
+          const cw = c.width;
+          const ch = c.height;
+          const ratio = cw / (ch || 1);
+          const targetW = Math.min(halfW, cw);
+          const targetH = targetW / ratio;
+          if (targetH > scrollH && scrollH > 0) {
+            c.style.height = scrollH + "px";
+            c.style.width = scrollH * ratio + "px";
+          } else {
+            c.style.width = targetW + "px";
+            c.style.height = targetH + "px";
           }
         }
       });
@@ -2997,9 +2986,7 @@ var PdfFullscreenView = class extends ItemView {
     } else {
       this.scrollEl.style.overflowY = "auto";
       this.scrollEl.style.overflowX = "hidden";
-      this.pageInput.value = "1";
-      this._currentPage = 1;
-      this.scrollEl.scrollTop = 0;
+      this.scrollEl.style.position = "";
     }
   }
   _applyZoom() {
@@ -4458,6 +4445,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
    * 打开 PDF 全屏预览（新窗口 Popout Leaf）
    */
   async openPdfFullscreen(url, name) {
+    console.log("[CloudAttach] openPdfFullscreen START url:", url, "name:", name);
     const { workspace } = this.app;
     if (!name)
       name = cleanFileNameFromUrl(url);
@@ -4466,12 +4454,16 @@ module.exports = class CloudAttachPlugin extends Plugin {
     let leaf;
     try {
       leaf = workspace.openPopoutLeaf();
+      console.log("[CloudAttach] openPdfFullscreen: openPopoutLeaf OK");
     } catch (e) {
-      console.log("[CloudAttach] openPopoutLeaf failed, fallback to split:", e);
+      console.log("[CloudAttach] openPdfFullscreen: openPopoutLeaf failed, fallback to split:", e);
       leaf = workspace.getLeaf("split", "vertical");
     }
+    console.log("[CloudAttach] openPdfFullscreen: setViewState...");
     await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true, state: { pdfUrl: url, pdfName: name } });
+    console.log("[CloudAttach] openPdfFullscreen: setViewState done, revealLeaf...");
     workspace.revealLeaf(leaf);
+    console.log("[CloudAttach] openPdfFullscreen: DONE");
   }
   // ============================================================
   // PDF.js 内联预览（v0.3.026）

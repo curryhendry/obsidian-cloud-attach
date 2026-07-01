@@ -1,7 +1,7 @@
-## v0.4.158.dev - 2026-07-01
+## v0.4.170.dev - 2026-07-01
 
-- 修复：标签页标题显示文件名（viewState 传递 pdfUrl/pdfName）
-- 修复：页码滚动同步改用 scroll 事件（IntersectionObserver 在 Obsidian 中不稳定）
+- 回退 PdfFullscreenView 类到 v0.4.130 基线（去掉 zoom/renderScaleLevel/cssScale/manualZoom 改动）
+- 保留 v0.4.130 的所有 UI 功能（缩略图/侧边栏/页码悬浮/拖拽调整宽度/工具栏图标）
 
 ## v0.4.100.dev - 2026-06-29
 
