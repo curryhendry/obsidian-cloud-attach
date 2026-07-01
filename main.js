@@ -2894,6 +2894,7 @@ var PdfFullscreenView = class extends ItemView {
     this._renderAllPages().then(() => {
       this._applyViewMode();
       parent.insertBefore(this.scrollEl, next);
+      void this.scrollEl.offsetHeight;
       this._scrollToPage(savedPage);
     }).catch((e) => {
       console.error("[CloudAttach] _reRender error:", e);

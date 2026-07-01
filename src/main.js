@@ -3102,6 +3102,8 @@ class PdfFullscreenView extends ItemView {
     this._renderAllPages().then(() => {
       this._applyViewMode();
       parent.insertBefore(this.scrollEl, next);
+      // 强制 Electron 重绘
+      void this.scrollEl.offsetHeight;
       // 恢复位置
       this._scrollToPage(savedPage);
     }).catch(e => {
