@@ -3006,8 +3006,8 @@ class PdfFullscreenView extends ItemView {
     this.scrollEl.style.background = 'var(--background-secondary)';
     this.scrollEl.style.padding = '0';
 
-    console.log('[CloudAttach] PdfFullscreen onOpen: calling _loadPdf...');
-    this._loadPdf();
+    console.log('[CloudAttach] PdfFullscreen onOpen: rAF deferred _loadPdf...');
+    requestAnimationFrame(() => this._loadPdf());
   }
 
   async _loadPdf() {
