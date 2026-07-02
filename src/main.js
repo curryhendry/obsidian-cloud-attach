@@ -4762,7 +4762,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         const pdf = await loadingTask.promise;
         const totalPages = pdf.numPages;
         pageEl.textContent = `1 / ${totalPages}`;
-        scrollEl.empty();
+        scrollEl.innerHTML = '';
 
         const reRender = async () => {
           const val = zoomSelect.value;
@@ -4775,7 +4775,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
           } else {
             scale = parseInt(val) / 100;
           }
-          scrollEl.empty();
+          scrollEl.innerHTML = '';
           for (let i = 1; i <= totalPages; i++) {
             const page = await pdf.getPage(i);
             const viewport = page.getViewport({ scale });
@@ -4806,8 +4806,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
         await reRender();
       } catch (e) {
         console.error('[CloudAttach] overlay PDF error:', e);
-        scrollEl.empty();
-        scrollEl.createEl('div', { text: '❌ 加载 PDF 失败: ' + (e.message || ''), cls: 'cloud-attach-error' });
+        scrollEl.innerHTML = '';
+        const errEl = document.createElement('div');
+        errEl.textContent = '❌ 加载 PDF 失败: ' + (e.message || '');
+        errEl.className = 'cloud-attach-error';
+        scrollEl.appendChild(errEl);
       }
     })();
   }

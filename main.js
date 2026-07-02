@@ -4471,7 +4471,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         const pdf = await loadingTask.promise;
         const totalPages = pdf.numPages;
         pageEl.textContent = `1 / ${totalPages}`;
-        scrollEl.empty();
+        scrollEl.innerHTML = "";
         const reRender = async () => {
           const val = zoomSelect.value;
           let scale = 2;
@@ -4483,7 +4483,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
           } else {
             scale = parseInt(val) / 100;
           }
-          scrollEl.empty();
+          scrollEl.innerHTML = "";
           for (let i = 1; i <= totalPages; i++) {
             const page = await pdf.getPage(i);
             const viewport = page.getViewport({ scale });
@@ -4513,8 +4513,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
         await reRender();
       } catch (e) {
         console.error("[CloudAttach] overlay PDF error:", e);
-        scrollEl.empty();
-        scrollEl.createEl("div", { text: "\u274C \u52A0\u8F7D PDF \u5931\u8D25: " + (e.message || ""), cls: "cloud-attach-error" });
+        scrollEl.innerHTML = "";
+        const errEl = document.createElement("div");
+        errEl.textContent = "\u274C \u52A0\u8F7D PDF \u5931\u8D25: " + (e.message || "");
+        errEl.className = "cloud-attach-error";
+        scrollEl.appendChild(errEl);
       }
     })();
   }
