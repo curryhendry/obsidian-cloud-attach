@@ -1,8 +1,6 @@
-## v0.4.208.dev - 2026-07-02
+## v0.4.209.dev - 2026-07-02
 
-- 全屏预览改用 window.open 浏览器原生 PDF 查看器（自带缩放/翻页/缩略图，无 macOS Space 隔离问题）
-- 移除 PdfFullscreenView 自定义渲染（popout/tab 方案均不可靠）
-- 保留代码：PdfFullscreenView 类、VIEW_TYPE_PDF_FULLSCREEN 注册、_loadPdfJs / _downloadPdfBinary 等工具方法
+- 回退到 v0.4.203 代码（_showPdfOverlay 是 overlay 方案，实际可用，之前误判为 ReferenceError）
 
 ## v0.4.100.dev - 2026-06-29
 
