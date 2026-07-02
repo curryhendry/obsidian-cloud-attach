@@ -179,6 +179,9 @@ Object.assign(I18n.translations.zh, {
   'view.new_folder_success': '✅ 文件夹已创建: {name}',
   'view.new_folder_failed': '❌ 创建失败: {error}',
   'view.new_folder_name_empty': '⚠️ 文件夹名称不能为空',
+  'view.fullscreen_loading': '⏳ 加载 PDF...',
+  'view.fullscreen_load_fail': '❌ 加载 PDF 失败',
+  'view.fullscreen_fit_width': '适应宽度',
   'view.file_count': '{count}/{total} 项已选',
   'view.select_all': '全选',
   'view.select_invert': '反选',
@@ -441,6 +444,9 @@ Object.assign(I18n.translations.en, {
   'view.new_folder_success': '✅ Folder created: {name}',
   'view.new_folder_failed': '❌ Failed: {error}',
   'view.new_folder_name_empty': '⚠️ Folder name cannot be empty',
+  'view.fullscreen_loading': '⏳ Loading PDF...',
+  'view.fullscreen_load_fail': '❌ Failed to load PDF',
+  'view.fullscreen_fit_width': 'Fit Width',
   'view.file_count': '{count}/{total} selected',
   'view.select_all': 'Select All',
   'view.select_invert': 'Invert',
@@ -2771,6 +2777,7 @@ class CloudAttachView extends ItemView {
   }
 }
 
+
 class AddAccountModal extends Modal {
   constructor(app, plugin, onSave, account = null) {
     super(app);
@@ -3918,6 +3925,15 @@ module.exports = class CloudAttachPlugin extends Plugin {
         throw e;
       }
     }
+    // 注册 PDF 全屏预览视图
+    try {
+    } catch (e) {
+      if (e.message?.includes('existing view type')) {
+        console.log('[CloudAttach] pdf fullscreen view type already registered, skipping');
+      } else {
+        throw e;
+      }
+    }
     // Auto-upload: 监听粘贴/拖入创建的新文件
     if (!this._autoUploadChain) this._autoUploadChain = Promise.resolve();
     this.registerEvent(this.app.vault.on('create', (file) => {
@@ -4047,7 +4063,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
 
   /**
-   * 全屏 overlay 预览 PDF（复用现有 PDF.js 渲染）
+   * 通过 Obsidian requestUrl 下载 PDF 二进制（绕过 CORS）
    */
   _showPdfOverlay(url) {
     const overlay = document.createElement('div');
@@ -4159,9 +4175,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     })();
   }
 
-  /**
-   * 通过 Obsidian requestUrl 下载 PDF 二进制（绕过 CORS）
-   */
   async _downloadPdfBinary(url) {
     let reqUrlFn = null;
     try { reqUrlFn = require('obsidian').requestUrl; } catch(e) {}
@@ -4173,7 +4186,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
         console.error('[CloudAttach] _downloadPdfBinary requestUrl error:', e);
       }
     }
+    const resp = await fetch(url);
+    return resp.arrayBuffer();
   }
+
 
   // ============================================================
   // PDF.js 内联预览（v0.3.026）
@@ -4632,13 +4648,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const fullscreenBtn = document.createElement("span");
     fullscreenBtn.textContent = "\u26F6";
     fullscreenBtn.style.cursor = "pointer";
-    fullscreenBtn.title = "全屏预览";
+    fullscreenBtn.title = "\u5168\u5C4F\u9884\u89C8\uFF08\u656C\u8BF7\u671F\u5F85\uFF09";
     fullscreenBtn.dataset.role = "fullscreen";
     toolbar.appendChild(fullscreenBtn);
     fullscreenBtn.onclick = (e) => {
       e.stopPropagation();
       const url = container.dataset.pdfUrl;
-      if (!url) return;
       this._showPdfOverlay(url);
     };
     const scrollArea = container.querySelector(".cloudattach-pdf-scrollarea");

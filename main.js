@@ -166,6 +166,9 @@ Object.assign(I18n.translations.zh, {
   "view.new_folder_success": "\u2705 \u6587\u4EF6\u5939\u5DF2\u521B\u5EFA: {name}",
   "view.new_folder_failed": "\u274C \u521B\u5EFA\u5931\u8D25: {error}",
   "view.new_folder_name_empty": "\u26A0\uFE0F \u6587\u4EF6\u5939\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A",
+  "view.fullscreen_loading": "\u23F3 \u52A0\u8F7D PDF...",
+  "view.fullscreen_load_fail": "\u274C \u52A0\u8F7D PDF \u5931\u8D25",
+  "view.fullscreen_fit_width": "\u9002\u5E94\u5BBD\u5EA6",
   "view.file_count": "{count}/{total} \u9879\u5DF2\u9009",
   "view.select_all": "\u5168\u9009",
   "view.select_invert": "\u53CD\u9009",
@@ -419,6 +422,9 @@ Object.assign(I18n.translations.en, {
   "view.new_folder_success": "\u2705 Folder created: {name}",
   "view.new_folder_failed": "\u274C Failed: {error}",
   "view.new_folder_name_empty": "\u26A0\uFE0F Folder name cannot be empty",
+  "view.fullscreen_loading": "\u23F3 Loading PDF...",
+  "view.fullscreen_load_fail": "\u274C Failed to load PDF",
+  "view.fullscreen_fit_width": "Fit Width",
   "view.file_count": "{count}/{total} selected",
   "view.select_all": "Select All",
   "view.select_invert": "Invert",
@@ -3717,6 +3723,14 @@ module.exports = class CloudAttachPlugin extends Plugin {
         throw e;
       }
     }
+    try {
+    } catch (e) {
+      if (e.message?.includes("existing view type")) {
+        console.log("[CloudAttach] pdf fullscreen view type already registered, skipping");
+      } else {
+        throw e;
+      }
+    }
     if (!this._autoUploadChain)
       this._autoUploadChain = Promise.resolve();
     this.registerEvent(this.app.vault.on("create", (file) => {
@@ -3852,7 +3866,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     this._pdfErrorLog = "";
   }
   /**
-   * 全屏 overlay 预览 PDF（复用现有 PDF.js 渲染）
+   * 通过 Obsidian requestUrl 下载 PDF 二进制（绕过 CORS）
    */
   _showPdfOverlay(url) {
     const overlay = document.createElement("div");
@@ -3951,9 +3965,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
     })();
   }
-  /**
-   * 通过 Obsidian requestUrl 下载 PDF 二进制（绕过 CORS）
-   */
   async _downloadPdfBinary(url) {
     let reqUrlFn = null;
     try {
@@ -3962,12 +3973,14 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
     if (reqUrlFn) {
       try {
-        const resp = await reqUrlFn({ url, method: "GET" });
-        return resp.arrayBuffer;
+        const resp2 = await reqUrlFn({ url, method: "GET" });
+        return resp2.arrayBuffer;
       } catch (e) {
         console.error("[CloudAttach] _downloadPdfBinary requestUrl error:", e);
       }
     }
+    const resp = await fetch(url);
+    return resp.arrayBuffer();
   }
   // ============================================================
   // PDF.js 内联预览（v0.3.026）
@@ -4414,14 +4427,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const fullscreenBtn = document.createElement("span");
     fullscreenBtn.textContent = "\u26F6";
     fullscreenBtn.style.cursor = "pointer";
-    fullscreenBtn.title = "\u5168\u5C4F\u9884\u89C8";
+    fullscreenBtn.title = "\u5168\u5C4F\u9884\u89C8\uFF08\u656C\u8BF7\u671F\u5F85\uFF09";
     fullscreenBtn.dataset.role = "fullscreen";
     toolbar.appendChild(fullscreenBtn);
     fullscreenBtn.onclick = (e) => {
       e.stopPropagation();
       const url = container.dataset.pdfUrl;
-      if (!url)
-        return;
       this._showPdfOverlay(url);
     };
     const scrollArea = container.querySelector(".cloudattach-pdf-scrollarea");
