@@ -1,4 +1,4 @@
-## v0.4.203.dev - 2026-07-02
+## v0.4.204.dev - 2026-07-02
 
 - 回退 PdfFullscreenView 类到 v0.4.130 基线（去掉 zoom/renderScaleLevel/cssScale/manualZoom 改动）
 - 保留 v0.4.130 的所有 UI 功能（缩略图/侧边栏/页码悬浮/拖拽调整宽度/工具栏图标）
