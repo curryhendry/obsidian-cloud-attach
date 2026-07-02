@@ -2803,11 +2803,9 @@ class PdfFullscreenView extends ItemView {
 
   async onOpen() {
     console.log('[CloudAttach] PdfFullscreenView onOpen START');
-    this.plugin._log('PdfFullscreenView onOpen START, leaf: ' + (this.leaf?.view?.getViewType?.() || '?'));
     const container = this.containerEl.children[1];
     container.empty();
 
-    // 新创建的视图，从 plugin 取 pending URL
     if (!this.pdfUrl && this.plugin._pendingPdfUrl) {
       this.pdfUrl = this.plugin._pendingPdfUrl;
       this.pdfName = this.plugin._pendingPdfName || cleanFileNameFromUrl(this.pdfUrl);
@@ -2819,7 +2817,31 @@ class PdfFullscreenView extends ItemView {
     container.style.display = 'flex';
     container.style.flexDirection = 'column';
 
-    // 顶部工具栏
+    // 先创建 scrollEl（_loadPdf 依赖它）
+    this._contentWrap = container.createEl('div');
+    this._contentWrap.style.flex = '1';
+    this._contentWrap.style.display = 'flex';
+    this._contentWrap.style.overflow = 'hidden';
+    this._contentWrap.style.minHeight = '0';
+    this.scrollEl = this._contentWrap.createEl('div');
+    this.scrollEl.style.flex = '1';
+    this.scrollEl.style.minHeight = '0';
+    this.scrollEl.style.overflowY = 'auto';
+    this.scrollEl.style.overflowX = 'hidden';
+    this.scrollEl.style.background = 'var(--background-secondary)';
+    this.scrollEl.style.padding = '0';
+
+    // 立即启动加载（不等待 toolbar 创建）
+    this._loadPdf().catch(e => {
+      console.error('[CloudAttach] _loadPdf error:', e);
+    });
+
+    // 创建顶部工具栏（可能失败，但不影响 PDF 渲染）
+    this._createToolbar(container);
+  }
+
+  _createToolbar(container) {
+    try {
     const toolbar = container.createEl('div');
     toolbar.style.display = 'flex';
     toolbar.style.alignItems = 'center';
@@ -2991,28 +3013,9 @@ class PdfFullscreenView extends ItemView {
     closeBtn.setAttribute('aria-label', '关闭');
     closeBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
     closeBtn.onclick = () => this.leaf.detach();
-
-    // 内容区包装器（flex row，容纳缩略图面板 + 滚动区）
-    this._contentWrap = container.createEl('div');
-    this._contentWrap.style.flex = '1';
-    this._contentWrap.style.display = 'flex';
-    this._contentWrap.style.overflow = 'hidden';
-    this._contentWrap.style.minHeight = '0'; // flex 子元素必须设 min-height:0 才会收缩
-
-    // 内容区
-    this.scrollEl = this._contentWrap.createEl('div');
-    this.scrollEl.style.flex = '1';
-    this.scrollEl.style.minHeight = '0';
-    this.scrollEl.style.overflowY = 'auto';
-    this.scrollEl.style.overflowX = 'hidden';
-    this.scrollEl.style.background = 'var(--background-secondary)';
-    this.scrollEl.style.padding = '0';
-
-    this._loadPdf().catch(e => {
-      console.error('[CloudAttach] _loadPdf error:', e);
-      this.plugin._log('_loadPdf ERROR: ' + (e?.message || e));
-      this.plugin._flushPdfErrorLog();
-    });
+    } catch(e) {
+      console.error('[CloudAttach] _createToolbar error:', e);
+    }
   }
 
   async _loadPdf() {

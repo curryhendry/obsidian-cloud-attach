@@ -2650,7 +2650,6 @@ var PdfFullscreenView = class extends ItemView {
   }
   async onOpen() {
     console.log("[CloudAttach] PdfFullscreenView onOpen START");
-    this.plugin._log("PdfFullscreenView onOpen START, leaf: " + (this.leaf?.view?.getViewType?.() || "?"));
     const container = this.containerEl.children[1];
     container.empty();
     if (!this.pdfUrl && this.plugin._pendingPdfUrl) {
@@ -2662,149 +2661,6 @@ var PdfFullscreenView = class extends ItemView {
     container.style.height = "100%";
     container.style.display = "flex";
     container.style.flexDirection = "column";
-    const toolbar = container.createEl("div");
-    toolbar.style.display = "flex";
-    toolbar.style.alignItems = "center";
-    toolbar.style.justifyContent = "space-between";
-    toolbar.style.padding = "6px 12px";
-    toolbar.style.borderBottom = "1px solid var(--background-modifier-border)";
-    toolbar.style.flexShrink = "0";
-    const left = toolbar.createEl("div");
-    left.style.display = "flex";
-    left.style.alignItems = "center";
-    left.style.gap = "8px";
-    left.style.fontSize = "13px";
-    left.style.color = "var(--text-normal)";
-    this._thumbnailVisible = false;
-    this._panelMode = "thumbnail";
-    const thumbBtnWrap = left.createEl("div");
-    thumbBtnWrap.style.display = "flex";
-    thumbBtnWrap.style.alignItems = "center";
-    const thumbBtn = thumbBtnWrap.createEl("button");
-    thumbBtn.className = "clickable-icon";
-    thumbBtn.setAttribute("aria-label", "\u9762\u677F");
-    thumbBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>';
-    thumbBtn.onclick = () => {
-      this._thumbnailVisible = !this._thumbnailVisible;
-      this._toggleThumbnailPanel();
-    };
-    const arrowBtn = thumbBtnWrap.createEl("button");
-    arrowBtn.className = "clickable-icon";
-    arrowBtn.style.padding = "2px";
-    arrowBtn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
-    arrowBtn.onclick = (e) => {
-      const menu = new Menu();
-      menu.addItem((item) => item.setTitle(this._panelMode === "thumbnail" ? "\u2713 \u7F29\u7565\u56FE" : "\u7F29\u7565\u56FE").onClick(() => {
-        this._panelMode = "thumbnail";
-        this._thumbnailVisible = true;
-        this._toggleThumbnailPanel();
-      }));
-      menu.addItem((item) => item.setTitle(this._panelMode === "outline" ? "\u2713 \u76EE\u5F55" : "\u76EE\u5F55").onClick(() => {
-        this._panelMode = "outline";
-        this._thumbnailVisible = true;
-        new Notice("\u76EE\u5F55\u529F\u80FD\u5F00\u53D1\u4E2D");
-      }));
-      menu.showAtMouseEvent(e);
-    };
-    this._viewMode = "continuous";
-    this._zoomMode = "fit-width";
-    const zoomOutBtn = left.createEl("button");
-    zoomOutBtn.className = "clickable-icon";
-    zoomOutBtn.setAttribute("aria-label", "\u7F29\u5C0F");
-    zoomOutBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
-    zoomOutBtn.onclick = () => {
-      new Notice("\u7F29\u5C0F\u529F\u80FD\u5F00\u53D1\u4E2D");
-    };
-    const zoomInBtn = left.createEl("button");
-    zoomInBtn.className = "clickable-icon";
-    zoomInBtn.setAttribute("aria-label", "\u653E\u5927");
-    zoomInBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
-    zoomInBtn.onclick = () => {
-      new Notice("\u653E\u5927\u529F\u80FD\u5F00\u53D1\u4E2D");
-    };
-    const viewMenuBtn = left.createEl("button");
-    viewMenuBtn.className = "clickable-icon";
-    viewMenuBtn.style.padding = "2px";
-    viewMenuBtn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
-    viewMenuBtn.onclick = (e) => {
-      const menu = new Menu();
-      const zoomOpts = { "fit-width": "\u9002\u5E94\u5BBD\u5EA6", "fit-height": "\u9002\u5E94\u9AD8\u5EA6" };
-      Object.entries(zoomOpts).forEach(([val, label]) => {
-        menu.addItem((item) => item.setTitle((this._zoomMode === val ? "\u2713 " : "") + label).onClick(() => {
-          this._zoomMode = val;
-          this._applyZoom();
-        }));
-      });
-      menu.addSeparator();
-      const modeOpts = { "continuous": "\u8FDE\u7EED", "single": "\u5355\u9875", "double": "\u53CC\u9875" };
-      Object.entries(modeOpts).forEach(([val, label]) => {
-        menu.addItem((item) => item.setTitle((this._viewMode === val ? "\u2713 " : "") + label).onClick(() => {
-          this._viewMode = val;
-          this._applyViewMode();
-        }));
-      });
-      menu.showAtMouseEvent(e);
-    };
-    let ver = "0";
-    try {
-      const { readFileSync } = require("fs");
-      const { join } = require("path");
-      const changelog = readFileSync(join(this.plugin.manifest.dir || ".", "CHANGELOG.md"), "utf8");
-      const match = changelog.split("\n")[0].match(/v([\d.]+)(?:\.dev)?/);
-      if (match)
-        ver = match[1].split(".").pop() || "0";
-    } catch {
-    }
-    const verBadge = left.createEl("span", { text: ver });
-    verBadge.style.fontSize = "10px";
-    verBadge.style.color = "var(--text-muted)";
-    verBadge.style.background = "var(--background-modifier-hover)";
-    verBadge.style.padding = "1px 4px";
-    verBadge.style.borderRadius = "3px";
-    const right = toolbar.createEl("div");
-    right.style.display = "flex";
-    right.style.alignItems = "center";
-    right.style.gap = "10px";
-    const prevBtn = right.createEl("button");
-    prevBtn.className = "clickable-icon";
-    prevBtn.setAttribute("aria-label", "\u4E0A\u4E00\u9875");
-    prevBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>';
-    prevBtn.onclick = () => this._scrollToPage((this._currentPage || 1) - 1);
-    const pageWrap = right.createEl("span");
-    pageWrap.style.display = "flex";
-    pageWrap.style.alignItems = "center";
-    pageWrap.style.gap = "2px";
-    this.pageInput = pageWrap.createEl("input", { type: "number", value: "1" });
-    this.pageInput.style.width = "40px";
-    this.pageInput.style.fontSize = "13px";
-    this.pageInput.style.textAlign = "center";
-    this.pageInput.style.border = "1px solid var(--background-modifier-border)";
-    this.pageInput.style.borderRadius = "4px";
-    this.pageInput.style.background = "var(--background-primary)";
-    this.pageInput.style.color = "var(--text-normal)";
-    this.pageInput.onchange = () => {
-      const val = parseInt(this.pageInput.value, 10);
-      if (val && val >= 1 && val <= (this._pdf?.numPages || 1)) {
-        this._scrollToPage(val);
-      }
-    };
-    this.pageInput.onkeydown = (e) => {
-      if (e.key === "Enter")
-        this.pageInput.blur();
-    };
-    this.pageTotal = pageWrap.createEl("span", { text: " / 1" });
-    this.pageTotal.style.fontSize = "13px";
-    this.pageTotal.style.color = "var(--text-muted)";
-    const nextBtn = right.createEl("button");
-    nextBtn.className = "clickable-icon";
-    nextBtn.setAttribute("aria-label", "\u4E0B\u4E00\u9875");
-    nextBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>';
-    nextBtn.onclick = () => this._scrollToPage((this._currentPage || 1) + 1);
-    const closeBtn = right.createEl("button");
-    closeBtn.className = "clickable-icon";
-    closeBtn.setAttribute("aria-label", "\u5173\u95ED");
-    closeBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
-    closeBtn.onclick = () => this.leaf.detach();
     this._contentWrap = container.createEl("div");
     this._contentWrap.style.flex = "1";
     this._contentWrap.style.display = "flex";
@@ -2819,9 +2675,157 @@ var PdfFullscreenView = class extends ItemView {
     this.scrollEl.style.padding = "0";
     this._loadPdf().catch((e) => {
       console.error("[CloudAttach] _loadPdf error:", e);
-      this.plugin._log("_loadPdf ERROR: " + (e?.message || e));
-      this.plugin._flushPdfErrorLog();
     });
+    this._createToolbar(container);
+  }
+  _createToolbar(container) {
+    try {
+      const toolbar = container.createEl("div");
+      toolbar.style.display = "flex";
+      toolbar.style.alignItems = "center";
+      toolbar.style.justifyContent = "space-between";
+      toolbar.style.padding = "6px 12px";
+      toolbar.style.borderBottom = "1px solid var(--background-modifier-border)";
+      toolbar.style.flexShrink = "0";
+      const left = toolbar.createEl("div");
+      left.style.display = "flex";
+      left.style.alignItems = "center";
+      left.style.gap = "8px";
+      left.style.fontSize = "13px";
+      left.style.color = "var(--text-normal)";
+      this._thumbnailVisible = false;
+      this._panelMode = "thumbnail";
+      const thumbBtnWrap = left.createEl("div");
+      thumbBtnWrap.style.display = "flex";
+      thumbBtnWrap.style.alignItems = "center";
+      const thumbBtn = thumbBtnWrap.createEl("button");
+      thumbBtn.className = "clickable-icon";
+      thumbBtn.setAttribute("aria-label", "\u9762\u677F");
+      thumbBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>';
+      thumbBtn.onclick = () => {
+        this._thumbnailVisible = !this._thumbnailVisible;
+        this._toggleThumbnailPanel();
+      };
+      const arrowBtn = thumbBtnWrap.createEl("button");
+      arrowBtn.className = "clickable-icon";
+      arrowBtn.style.padding = "2px";
+      arrowBtn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+      arrowBtn.onclick = (e) => {
+        const menu = new Menu();
+        menu.addItem((item) => item.setTitle(this._panelMode === "thumbnail" ? "\u2713 \u7F29\u7565\u56FE" : "\u7F29\u7565\u56FE").onClick(() => {
+          this._panelMode = "thumbnail";
+          this._thumbnailVisible = true;
+          this._toggleThumbnailPanel();
+        }));
+        menu.addItem((item) => item.setTitle(this._panelMode === "outline" ? "\u2713 \u76EE\u5F55" : "\u76EE\u5F55").onClick(() => {
+          this._panelMode = "outline";
+          this._thumbnailVisible = true;
+          new Notice("\u76EE\u5F55\u529F\u80FD\u5F00\u53D1\u4E2D");
+        }));
+        menu.showAtMouseEvent(e);
+      };
+      this._viewMode = "continuous";
+      this._zoomMode = "fit-width";
+      const zoomOutBtn = left.createEl("button");
+      zoomOutBtn.className = "clickable-icon";
+      zoomOutBtn.setAttribute("aria-label", "\u7F29\u5C0F");
+      zoomOutBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
+      zoomOutBtn.onclick = () => {
+        new Notice("\u7F29\u5C0F\u529F\u80FD\u5F00\u53D1\u4E2D");
+      };
+      const zoomInBtn = left.createEl("button");
+      zoomInBtn.className = "clickable-icon";
+      zoomInBtn.setAttribute("aria-label", "\u653E\u5927");
+      zoomInBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
+      zoomInBtn.onclick = () => {
+        new Notice("\u653E\u5927\u529F\u80FD\u5F00\u53D1\u4E2D");
+      };
+      const viewMenuBtn = left.createEl("button");
+      viewMenuBtn.className = "clickable-icon";
+      viewMenuBtn.style.padding = "2px";
+      viewMenuBtn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+      viewMenuBtn.onclick = (e) => {
+        const menu = new Menu();
+        const zoomOpts = { "fit-width": "\u9002\u5E94\u5BBD\u5EA6", "fit-height": "\u9002\u5E94\u9AD8\u5EA6" };
+        Object.entries(zoomOpts).forEach(([val, label]) => {
+          menu.addItem((item) => item.setTitle((this._zoomMode === val ? "\u2713 " : "") + label).onClick(() => {
+            this._zoomMode = val;
+            this._applyZoom();
+          }));
+        });
+        menu.addSeparator();
+        const modeOpts = { "continuous": "\u8FDE\u7EED", "single": "\u5355\u9875", "double": "\u53CC\u9875" };
+        Object.entries(modeOpts).forEach(([val, label]) => {
+          menu.addItem((item) => item.setTitle((this._viewMode === val ? "\u2713 " : "") + label).onClick(() => {
+            this._viewMode = val;
+            this._applyViewMode();
+          }));
+        });
+        menu.showAtMouseEvent(e);
+      };
+      let ver = "0";
+      try {
+        const { readFileSync } = require("fs");
+        const { join } = require("path");
+        const changelog = readFileSync(join(this.plugin.manifest.dir || ".", "CHANGELOG.md"), "utf8");
+        const match = changelog.split("\n")[0].match(/v([\d.]+)(?:\.dev)?/);
+        if (match)
+          ver = match[1].split(".").pop() || "0";
+      } catch {
+      }
+      const verBadge = left.createEl("span", { text: ver });
+      verBadge.style.fontSize = "10px";
+      verBadge.style.color = "var(--text-muted)";
+      verBadge.style.background = "var(--background-modifier-hover)";
+      verBadge.style.padding = "1px 4px";
+      verBadge.style.borderRadius = "3px";
+      const right = toolbar.createEl("div");
+      right.style.display = "flex";
+      right.style.alignItems = "center";
+      right.style.gap = "10px";
+      const prevBtn = right.createEl("button");
+      prevBtn.className = "clickable-icon";
+      prevBtn.setAttribute("aria-label", "\u4E0A\u4E00\u9875");
+      prevBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>';
+      prevBtn.onclick = () => this._scrollToPage((this._currentPage || 1) - 1);
+      const pageWrap = right.createEl("span");
+      pageWrap.style.display = "flex";
+      pageWrap.style.alignItems = "center";
+      pageWrap.style.gap = "2px";
+      this.pageInput = pageWrap.createEl("input", { type: "number", value: "1" });
+      this.pageInput.style.width = "40px";
+      this.pageInput.style.fontSize = "13px";
+      this.pageInput.style.textAlign = "center";
+      this.pageInput.style.border = "1px solid var(--background-modifier-border)";
+      this.pageInput.style.borderRadius = "4px";
+      this.pageInput.style.background = "var(--background-primary)";
+      this.pageInput.style.color = "var(--text-normal)";
+      this.pageInput.onchange = () => {
+        const val = parseInt(this.pageInput.value, 10);
+        if (val && val >= 1 && val <= (this._pdf?.numPages || 1)) {
+          this._scrollToPage(val);
+        }
+      };
+      this.pageInput.onkeydown = (e) => {
+        if (e.key === "Enter")
+          this.pageInput.blur();
+      };
+      this.pageTotal = pageWrap.createEl("span", { text: " / 1" });
+      this.pageTotal.style.fontSize = "13px";
+      this.pageTotal.style.color = "var(--text-muted)";
+      const nextBtn = right.createEl("button");
+      nextBtn.className = "clickable-icon";
+      nextBtn.setAttribute("aria-label", "\u4E0B\u4E00\u9875");
+      nextBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>';
+      nextBtn.onclick = () => this._scrollToPage((this._currentPage || 1) + 1);
+      const closeBtn = right.createEl("button");
+      closeBtn.className = "clickable-icon";
+      closeBtn.setAttribute("aria-label", "\u5173\u95ED");
+      closeBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+      closeBtn.onclick = () => this.leaf.detach();
+    } catch (e) {
+      console.error("[CloudAttach] _createToolbar error:", e);
+    }
   }
   async _loadPdf() {
     try {
