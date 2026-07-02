@@ -2828,8 +2828,7 @@ var PdfFullscreenView = class extends ItemView {
       this.pageInput.value = "1";
       this._currentPage = 1;
       this.scrollEl.empty();
-      await new Promise((r) => requestAnimationFrame(r));
-      await new Promise((r) => setTimeout(r, 100));
+      await new Promise((r) => setTimeout(r, 200));
       this._renderAllPages();
     } catch (e) {
       console.error("[CloudAttach] PdfFullscreenView load error:", e);
@@ -4445,13 +4444,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
     this._pendingPdfUrl = url;
     this._pendingPdfName = name;
-    let leaf;
-    try {
-      leaf = workspace.openPopoutLeaf();
-    } catch (e) {
-      console.log("[CloudAttach] openPopoutLeaf failed, fallback to split:", e);
-      leaf = workspace.getLeaf("split", "vertical");
-    }
+    const leaf = workspace.getLeaf("tab");
     await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true, state: { pdfUrl: url, pdfName: name } });
     workspace.revealLeaf(leaf);
   }
