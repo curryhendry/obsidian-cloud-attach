@@ -2790,6 +2790,8 @@ function cleanFileNameFromUrl(url) {
 class PdfFullscreenView extends ItemView {
   constructor(leaf, plugin, pdfUrl, pdfName) {
     super(leaf);
+    console.log('[CloudAttach] PdfFullscreenView CONSTRUCTOR called, leaf:', !!leaf, 'pdfUrl:', pdfUrl);
+    plugin._log('PdfFullscreenView CONSTRUCTOR pdfUrl=' + pdfUrl);
     this.plugin = plugin;
     this.pdfUrl = pdfUrl;
     this.pdfName = pdfName || plugin._pendingPdfName || cleanFileNameFromUrl(pdfUrl || plugin._pendingPdfUrl || '');
@@ -2800,6 +2802,8 @@ class PdfFullscreenView extends ItemView {
   getIcon() { return 'file-text'; }
 
   async onOpen() {
+    console.log('[CloudAttach] PdfFullscreenView onOpen START');
+    this.plugin._log('PdfFullscreenView onOpen START, leaf: ' + (this.leaf?.view?.getViewType?.() || '?'));
     const container = this.containerEl.children[1];
     container.empty();
 
@@ -3004,7 +3008,7 @@ class PdfFullscreenView extends ItemView {
     this.scrollEl.style.background = 'var(--background-secondary)';
     this.scrollEl.style.padding = '0';
 
-    requestAnimationFrame(() => this._loadPdf());
+    setTimeout(() => this._loadPdf(), 50);
   }
 
   async _loadPdf() {
@@ -4681,6 +4685,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
     this._flushPdfErrorLog();
   }
 
+  _log(msg) {
+    if (!this._pdfErrorLog) this._pdfErrorLog = '';
+    const ts = new Date().toISOString().split('T')[1].slice(0, 12);
+    this._pdfErrorLog += `[${ts}] ${msg}\n`;
+    if (this._pdfErrorLog.length > 4000) this._flushPdfErrorLog();
+  }
+
   _flushPdfErrorLog() {
     if (!this._pdfErrorLog) return;
     try {
@@ -4718,24 +4729,24 @@ module.exports = class CloudAttachPlugin extends Plugin {
    * 打开 PDF 全屏预览（新窗口 Popout Leaf）
    */
   async openPdfFullscreen(url, name) {
+    this._log('openPdfFullscreen start url=' + url);
     const { workspace } = this.app;
     if (!name) name = cleanFileNameFromUrl(url);
-    // 检查是否已存在
-    // 每次创建新 leaf，不关闭旧的
-    // store 到实例上，onOpen 会读取
     this._pendingPdfUrl = url;
     this._pendingPdfName = name;
-    // 优先 popout 窗口（真·全屏），fallback 到 split
-    let leaf;
-    try {
-      leaf = workspace.openPopoutLeaf();
-    } catch (e) {
-      leaf = workspace.getLeaf('split', 'vertical');
+    const leaf = workspace.openPopoutLeaf();
+    this._log('openPopoutLeaf OK');
+    // 关键：聚焦 popout 窗口，否则 Electron 不执行 JS/rAF
+    const popoutWin = leaf.containerEl?.ownerDocument?.defaultView;
+    if (popoutWin && popoutWin !== window) {
+      popoutWin.focus();
+      this._log('popout window focused');
     }
     await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true, state: { pdfUrl: url, pdfName: name } });
-    workspace.revealLeaf(leaf);
-    // 不 delete _pendingPdfUrl，onOpen 是 async 的，setViewState 返回时 onOpen 可能还没执行
-    // _pendingPdfUrl 在 onOpen 读取后被下一次 openPdfFullscreen 覆盖即可
+    this._log('setViewState done');
+    workspace.setActiveLeaf(leaf, { focus: true });
+    this._log('setActiveLeaf done, flushing...');
+    this._flushPdfErrorLog();
   }
 
   // ============================================================
@@ -5200,6 +5211,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     toolbar.appendChild(fullscreenBtn);
     fullscreenBtn.onclick = (e) => {
       e.stopPropagation();
+      console.log('[CloudAttach] fullscreenBtn clicked, url:', container.dataset.pdfUrl);
       const url = container.dataset.pdfUrl;
       this.openPdfFullscreen(url, cleanFileNameFromUrl(url));
     };
