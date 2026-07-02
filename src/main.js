@@ -9,7 +9,6 @@ const { Plugin, Notice, Menu, Modal, PluginSettingTab, MarkdownView, ItemView, E
 // heic2any 动态加载，遇 HEIC 图时才 require('./heic2any.bundle.js')
 
 const VIEW_TYPE_CLOUDATTACH = 'cloud-attach-view';
-const VIEW_TYPE_PDF_FULLSCREEN = 'cloud-attach-pdf-fullscreen';
 
 // 国际化系统
 // ============================================================
@@ -180,9 +179,6 @@ Object.assign(I18n.translations.zh, {
   'view.new_folder_success': '✅ 文件夹已创建: {name}',
   'view.new_folder_failed': '❌ 创建失败: {error}',
   'view.new_folder_name_empty': '⚠️ 文件夹名称不能为空',
-  'view.fullscreen_loading': '⏳ 加载 PDF...',
-  'view.fullscreen_load_fail': '❌ 加载 PDF 失败',
-  'view.fullscreen_fit_width': '适应宽度',
   'view.file_count': '{count}/{total} 项已选',
   'view.select_all': '全选',
   'view.select_invert': '反选',
@@ -445,9 +441,6 @@ Object.assign(I18n.translations.en, {
   'view.new_folder_success': '✅ Folder created: {name}',
   'view.new_folder_failed': '❌ Failed: {error}',
   'view.new_folder_name_empty': '⚠️ Folder name cannot be empty',
-  'view.fullscreen_loading': '⏳ Loading PDF...',
-  'view.fullscreen_load_fail': '❌ Failed to load PDF',
-  'view.fullscreen_fit_width': 'Fit Width',
   'view.file_count': '{count}/{total} selected',
   'view.select_all': 'Select All',
   'view.select_invert': 'Invert',
@@ -2778,200 +2771,6 @@ class CloudAttachView extends ItemView {
   }
 }
 
-// === PDF 全屏预览视图 ===
-function cleanFileNameFromUrl(url) {
-  if (!url) return 'PDF';
-  // 去掉 query (?sign=...&token=...) 和 hash
-  const noQuery = url.split('?')[0].split('#')[0];
-  const last = noQuery.split('/').pop() || 'PDF';
-  try { return decodeURIComponent(last); } catch { return last; }
-}
-
-class PdfFullscreenView extends ItemView {
-  constructor(leaf, plugin, pdfUrl, pdfName) {
-    super(leaf);
-    this.plugin = plugin;
-    this.pdfUrl = pdfUrl;
-    this.pdfName = pdfName || cleanFileNameFromUrl(pdfUrl);
-  }
-
-  getViewType() { return VIEW_TYPE_PDF_FULLSCREEN; }
-  getDisplayText() { return this.pdfName; }
-  getIcon() { return 'file-text'; }
-
-  async onOpen() {
-    const container = this.containerEl.children[1];
-    container.empty();
-
-    // 新创建的视图，从 plugin 取 pending URL
-    if (!this.pdfUrl && this.plugin._pendingPdfUrl) {
-      this.pdfUrl = this.plugin._pendingPdfUrl;
-      this.pdfName = cleanFileNameFromUrl(this.pdfUrl);
-    }
-
-    container.style.padding = '0';
-    container.style.overflow = 'hidden';
-    container.style.height = '100%';
-    container.style.display = 'flex';
-    container.style.flexDirection = 'column';
-
-    // 顶部工具栏
-    const toolbar = container.createEl('div');
-    toolbar.style.display = 'flex';
-    toolbar.style.alignItems = 'center';
-    toolbar.style.justifyContent = 'space-between';
-    toolbar.style.padding = '6px 12px';
-    toolbar.style.borderBottom = '1px solid var(--background-modifier-border)';
-    toolbar.style.flexShrink = '0';
-
-    const left = toolbar.createEl('div');
-    left.style.display = 'flex';
-    left.style.alignItems = 'center';
-    left.style.gap = '8px';
-    // 顶部只显示文件名（不含 query/sign）
-    left.createEl('span', { text: '📄 ' + cleanFileNameFromUrl(this.pdfUrl) });
-
-    const right = toolbar.createEl('div');
-    right.style.display = 'flex';
-    right.style.alignItems = 'center';
-    right.style.gap = '8px';
-
-    // 页码指示器
-    this.pageIndicator = right.createEl('span');
-    this.pageIndicator.style.fontSize = '13px';
-    this.pageIndicator.style.cursor = 'pointer';
-    this.pageIndicator.textContent = '1 / 1';
-
-    // 缩放：默认 Fit Width（-1 表示自适应宽度）
-    this._zoomLevel = -1;
-    const fitLabel = t('view.fullscreen_fit_width');
-    const zoomSelect = right.createEl('select');
-    zoomSelect.style.fontSize = '12px';
-    zoomSelect.style.padding = '2px 4px';
-    ['50%', '75%', '100%', '125%', '150%', '200%', fitLabel].forEach(v => {
-      const opt = zoomSelect.createEl('option', { text: v });
-      if (v === fitLabel) opt.selected = true;
-    });
-    zoomSelect.onchange = () => {
-      const val = zoomSelect.value;
-      if (val === fitLabel) {
-        this._zoomLevel = -1;
-      } else {
-        this._zoomLevel = parseInt(val);
-      }
-      this._reRender();
-    };
-    this._zoomSelect = zoomSelect;
-
-    // 关闭
-    const closeBtn = right.createEl('span', { text: '✕' });
-    closeBtn.style.cursor = 'pointer';
-    closeBtn.style.fontSize = '16px';
-    closeBtn.style.padding = '0 4px';
-    closeBtn.onclick = () => this.leaf.detach();
-
-    // 内容区
-    this.scrollEl = container.createEl('div');
-    this.scrollEl.style.flex = '1';
-    this.scrollEl.style.overflowY = 'auto';
-    this.scrollEl.style.overflowX = 'hidden';
-    this.scrollEl.style.background = 'var(--background-secondary)';
-    this.scrollEl.style.padding = '8px 0';
-
-    this._loadPdf();
-  }
-
-  async _loadPdf() {
-    try {
-      this.scrollEl.empty();
-      this.scrollEl.createEl('div', { text: t('view.fullscreen_loading'), cls: 'cloud-attach-loading' });
-
-      const pdfjsLib = await this.plugin._loadPdfJs();
-      const pdfData = await this.plugin._downloadPdfBinary(this.pdfUrl);
-      const loadingTask = pdfData
-        ? pdfjsLib.getDocument({ data: pdfData, ownerDocument: this.containerEl.ownerDocument })
-        : pdfjsLib.getDocument({ url: this.pdfUrl, ownerDocument: this.containerEl.ownerDocument });
-      this._pdf = await loadingTask.promise;
-      const totalPages = this._pdf.numPages;
-      this.pageIndicator.textContent = `1 / ${totalPages}`;
-
-      this.scrollEl.empty();
-      this._renderAllPages();
-    } catch (e) {
-      console.error('[CloudAttach] PdfFullscreenView load error:', e);
-      this.scrollEl.empty();
-      this.scrollEl.createEl('div', {
-        text: t('view.fullscreen_load_fail') + ': ' + (e.message || ''),
-        cls: 'cloud-attach-error'
-      });
-    }
-  }
-
-  async _renderAllPages() {
-    if (!this._pdf) return;
-    const totalPages = this._pdf.numPages;
-    const scale = this._zoomLevel === -1 ? this._fitWidthScale() : (this._zoomLevel / 100);
-
-    for (let i = 1; i <= totalPages; i++) {
-      const page = await this._pdf.getPage(i);
-      const viewport = page.getViewport({ scale });
-      const canvas = document.createElement('canvas');
-      canvas.style.display = 'block';
-      canvas.style.margin = '0 auto 8px';
-      canvas.style.boxShadow = '0 1px 4px rgba(0,0,0,0.15)';
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      canvas.dataset.pageNum = String(i);
-      this.scrollEl.appendChild(canvas);
-
-      await page.render({
-        canvasContext: canvas.getContext('2d'),
-        viewport
-      }).promise;
-
-      // 更新页码（滚动时更新）
-      if (i === 1) this._bindScroll();
-    }
-  }
-
-  _fitWidthScale() {
-    const w = this.scrollEl.clientWidth - 16; // padding 补偿
-    return w / 612; // PDF 标准 A4 宽度 612pt
-  }
-
-  _reRender() {
-    if (!this._pdf) return;
-    const curScroll = this.scrollEl.scrollTop;
-    this.scrollEl.empty();
-    this._renderAllPages().then(() => {
-      this.scrollEl.scrollTop = curScroll;
-    });
-  }
-
-  _bindScroll() {
-    let ticking = false;
-    this.scrollEl.onscroll = () => {
-      if (ticking) return;
-      ticking = true;
-      requestAnimationFrame(() => {
-        ticking = false;
-        if (!this._pdf) return;
-        const canvases = this.scrollEl.querySelectorAll('canvas[data-page-num]');
-        const midY = this.scrollEl.scrollTop + this.scrollEl.clientHeight / 2;
-        for (const c of canvases) {
-          const rect = c.getBoundingClientRect();
-          const containerRect = this.scrollEl.getBoundingClientRect();
-          const cMid = rect.top - containerRect.top + rect.height / 2;
-          if (cMid >= this.scrollEl.scrollTop && cMid <= this.scrollEl.scrollTop + this.scrollEl.clientHeight) {
-            this.pageIndicator.textContent = `${c.dataset.pageNum} / ${this._pdf.numPages}`;
-            break;
-          }
-        }
-      });
-    };
-  }
-}
-
 class AddAccountModal extends Modal {
   constructor(app, plugin, onSave, account = null) {
     super(app);
@@ -4119,16 +3918,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
         throw e;
       }
     }
-    // 注册 PDF 全屏预览视图
-    try {
-      this.registerView(VIEW_TYPE_PDF_FULLSCREEN, (leaf) => new PdfFullscreenView(leaf, this, '', ''));
-    } catch (e) {
-      if (e.message?.includes('existing view type')) {
-        console.log('[CloudAttach] pdf fullscreen view type already registered, skipping');
-      } else {
-        throw e;
-      }
-    }
     // Auto-upload: 监听粘贴/拖入创建的新文件
     if (!this._autoUploadChain) this._autoUploadChain = Promise.resolve();
     this.registerEvent(this.app.vault.on('create', (file) => {
@@ -4271,43 +4060,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
         console.error('[CloudAttach] _downloadPdfBinary requestUrl error:', e);
       }
     }
-    const resp = await fetch(url);
-    return resp.arrayBuffer();
-  }
-
-  /**
-   * 打开 PDF 全屏预览（新窗口 Popout Leaf）
-   */
-  async openPdfFullscreen(url, name) {
-    const { workspace } = this.app;
-    if (!name) name = cleanFileNameFromUrl(url);
-    // 检查是否已存在
-    const existing = workspace.getLeavesOfType(VIEW_TYPE_PDF_FULLSCREEN);
-    if (existing.length > 0) {
-      workspace.revealLeaf(existing[0]);
-      const view = existing[0].view;
-      if (view instanceof PdfFullscreenView) {
-        view.pdfUrl = url;
-        view.pdfName = name;
-        view._loadPdf();
-      }
-      return;
-    }
-    // store 到实例上，onOpen 会读取
-    this._pendingPdfUrl = url;
-    this._pendingPdfName = name;
-    // 新窗口 tab 打开
-    let leaf;
-    try {
-      leaf = workspace.getLeaf('tab');
-    } catch (e) {
-      console.log('[CloudAttach] tab fallback:', e);
-      leaf = workspace.getLeaf('split', 'vertical');
-    }
-    await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true });
-    workspace.revealLeaf(leaf);
-    delete this._pendingPdfUrl;
-    delete this._pendingPdfName;
   }
 
   // ============================================================
@@ -4767,13 +4519,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const fullscreenBtn = document.createElement("span");
     fullscreenBtn.textContent = "\u26F6";
     fullscreenBtn.style.cursor = "pointer";
-    fullscreenBtn.title = "\u5168\u5C4F\u9884\u89C8\uFF08\u656C\u8BF7\u671F\u5F85\uFF09";
+    fullscreenBtn.title = "全屏预览";
     fullscreenBtn.dataset.role = "fullscreen";
     toolbar.appendChild(fullscreenBtn);
     fullscreenBtn.onclick = (e) => {
       e.stopPropagation();
       const url = container.dataset.pdfUrl;
-      this.openPdfFullscreen(url, cleanFileNameFromUrl(url));
+      if (url) window.open(url, '_blank');
     };
     const scrollArea = container.querySelector(".cloudattach-pdf-scrollarea");
     const scrollToPage = (pageNum) => {
