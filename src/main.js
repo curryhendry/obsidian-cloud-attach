@@ -3058,7 +3058,11 @@ class PdfFullscreenView extends ItemView {
       this._currentPage = 1;
 
       this.scrollEl.empty();
-      await new Promise(r => setTimeout(r, 200));
+      // popout 窗口可能在另一个 Space，等 layout flush 直到 clientWidth > 0
+      for (let i = 0; i < 20; i++) {
+        await new Promise(r => setTimeout(r, 100));
+        if (this.scrollEl.clientWidth > 0) break;
+      }
       await this._renderAllPages();
       this._applyViewMode();
     } catch (e) {
@@ -4795,8 +4799,14 @@ module.exports = class CloudAttachPlugin extends Plugin {
     // store 到实例上，onOpen 会读取
     this._pendingPdfUrl = url;
     this._pendingPdfName = name;
-    // tab 打开（popout 在 macOS 有 Space 隔离渲染问题）
-    const leaf = workspace.getLeaf('tab');
+    // popout 窗口打开（独立窗口 = 真·全屏）
+    let leaf;
+    try {
+      leaf = workspace.openPopoutLeaf();
+    } catch (e) {
+      console.log('[CloudAttach] openPopoutLeaf failed, fallback to tab:', e);
+      leaf = workspace.getLeaf('tab');
+    }
     await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true, state: { pdfUrl: url, pdfName: name } });
     workspace.revealLeaf(leaf);
     // 不 delete _pendingPdfUrl，onOpen 是 async 的，setViewState 返回时 onOpen 可能还没执行

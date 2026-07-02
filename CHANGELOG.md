@@ -1,4 +1,4 @@
-## v0.4.206.dev - 2026-07-02
+## v0.4.207.dev - 2026-07-02
 
 - 修复：全屏按钮调用不存在的 _showPdfOverlay 导致 ReferenceError，改回 openPdfFullscreen
 - 修复：popout 窗口 rAF 永不触发 → 改用 setTimeout(200ms) + tab 替代 popout（消除 macOS Space 隔离问题）
