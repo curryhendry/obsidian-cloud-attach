@@ -4455,7 +4455,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       name = cleanFileNameFromUrl(url);
     this._pendingPdfUrl = url;
     this._pendingPdfName = name;
-    const leaf = workspace.getLeaf("tab");
+    const leaf = workspace.openPopoutLeaf();
     await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true, state: { pdfUrl: url, pdfName: name } });
     workspace.revealLeaf(leaf);
   }
