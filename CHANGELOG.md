@@ -1,7 +1,7 @@
-## v0.4.204.dev - 2026-07-02
+## v0.4.205.dev - 2026-07-02
 
-- 回退 PdfFullscreenView 类到 v0.4.130 基线（去掉 zoom/renderScaleLevel/cssScale/manualZoom 改动）
-- 保留 v0.4.130 的所有 UI 功能（缩略图/侧边栏/页码悬浮/拖拽调整宽度/工具栏图标）
+- 修复：全屏按钮调用不存在的 _showPdfOverlay 导致 ReferenceError，改回 openPdfFullscreen
+- 修复：popout 窗口 rAF 永不触发导致 _renderAllPages 永不执行（macOS Space 隔离），改用 setTimeout(200ms) + tab 打开替代 popout
 
 ## v0.4.100.dev - 2026-06-29
 
