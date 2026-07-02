@@ -2837,18 +2837,6 @@ var PdfFullscreenView = class extends ItemView {
       this._currentPage = 1;
       this.scrollEl.empty();
       await this._renderAllPages();
-      this._repainting = true;
-      this.scrollEl.style.display = "none";
-      this.scrollEl.offsetHeight;
-      this.scrollEl.style.display = "";
-      if (this.leaf?.containerEl) {
-        this.leaf.containerEl.style.minHeight = "99.9%";
-        this.leaf.containerEl.offsetHeight;
-        this.leaf.containerEl.style.minHeight = "";
-      }
-      requestAnimationFrame(() => {
-        this._repainting = false;
-      });
     } catch (e) {
       console.error("[CloudAttach] PdfFullscreenView load error:", e);
       this.scrollEl.empty();
@@ -2893,7 +2881,7 @@ var PdfFullscreenView = class extends ItemView {
     this._bindScroll();
   }
   _reRender() {
-    if (!this._pdf || this._repainting)
+    if (!this._pdf)
       return;
     this.scrollEl.empty();
     requestAnimationFrame(() => {
@@ -4453,27 +4441,17 @@ module.exports = class CloudAttachPlugin extends Plugin {
     return resp.arrayBuffer();
   }
   /**
-   * 打开 PDF 全屏预览（新窗口 Popout Leaf）
+   * 打开 PDF 全屏预览（主窗口内新 Tab）
    */
   async openPdfFullscreen(url, name) {
-    this._log("openPdfFullscreen start url=" + url);
     const { workspace } = this.app;
     if (!name)
       name = cleanFileNameFromUrl(url);
     this._pendingPdfUrl = url;
     this._pendingPdfName = name;
-    const leaf = workspace.openPopoutLeaf();
-    this._log("openPopoutLeaf OK");
-    const popoutWin = leaf.containerEl?.ownerDocument?.defaultView;
-    if (popoutWin && popoutWin !== window) {
-      popoutWin.focus();
-      this._log("popout window focused");
-    }
+    const leaf = workspace.getLeaf("tab");
     await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true, state: { pdfUrl: url, pdfName: name } });
-    this._log("setViewState done");
-    workspace.setActiveLeaf(leaf, { focus: true });
-    this._log("setActiveLeaf done, flushing...");
-    this._flushPdfErrorLog();
+    workspace.revealLeaf(leaf);
   }
   // ============================================================
   // PDF.js 内联预览（v0.3.026）
