@@ -4443,9 +4443,17 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
     this._pendingPdfUrl = url;
     this._pendingPdfName = name;
-    const leaf = workspace.getLeaf("tab");
-    await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true, state: { pdfUrl: url, pdfName: name } });
+    let leaf;
+    try {
+      leaf = workspace.getLeaf("tab");
+    } catch (e) {
+      console.log("[CloudAttach] tab fallback:", e);
+      leaf = workspace.getLeaf("split", "vertical");
+    }
+    await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true });
     workspace.revealLeaf(leaf);
+    delete this._pendingPdfUrl;
+    delete this._pendingPdfName;
   }
   // ============================================================
   // PDF.js 内联预览（v0.3.026）
