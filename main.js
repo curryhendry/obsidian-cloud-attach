@@ -2633,203 +2633,83 @@ function cleanFileNameFromUrl(url) {
 var PdfFullscreenView = class extends ItemView {
   constructor(leaf, plugin, pdfUrl, pdfName) {
     super(leaf);
-    console.log("[CloudAttach] PdfFullscreenView CONSTRUCTOR called, leaf:", !!leaf, "pdfUrl:", pdfUrl);
-    plugin._log("PdfFullscreenView CONSTRUCTOR pdfUrl=" + pdfUrl);
     this.plugin = plugin;
     this.pdfUrl = pdfUrl;
-    this.pdfName = pdfName || plugin._pendingPdfName || cleanFileNameFromUrl(pdfUrl || plugin._pendingPdfUrl || "");
+    this.pdfName = pdfName || cleanFileNameFromUrl(pdfUrl);
   }
   getViewType() {
     return VIEW_TYPE_PDF_FULLSCREEN;
   }
   getDisplayText() {
-    return this.pdfName || "PDF";
+    return this.pdfName;
   }
   getIcon() {
     return "file-text";
   }
   async onOpen() {
-    console.log("[CloudAttach] PdfFullscreenView onOpen START, viewType:", this.getViewType?.());
-    try {
-      const container = this.containerEl;
-      container.empty();
-      container.style.padding = "0";
-      container.style.overflow = "hidden";
-      container.style.height = "100%";
-      container.style.display = "flex";
-      container.style.flexDirection = "column";
-      if (!this.pdfUrl && this.plugin._pendingPdfUrl) {
-        this.pdfUrl = this.plugin._pendingPdfUrl;
-        this.pdfName = this.plugin._pendingPdfName || cleanFileNameFromUrl(this.pdfUrl);
-      }
-      this._contentWrap = container.createEl("div");
-      this._contentWrap.style.flex = "1";
-      this._contentWrap.style.display = "flex";
-      this._contentWrap.style.overflow = "hidden";
-      this._contentWrap.style.minHeight = "0";
-      this.scrollEl = this._contentWrap.createEl("div");
-      this.scrollEl.style.flex = "1";
-      this.scrollEl.style.minHeight = "0";
-      this.scrollEl.style.overflowY = "auto";
-      this.scrollEl.style.overflowX = "hidden";
-      this.scrollEl.style.background = "var(--background-secondary)";
-      this.scrollEl.style.padding = "0";
-      this._loadPdf().catch((e) => {
-        console.error("[CloudAttach] _loadPdf error:", e);
-      });
-      this._createToolbar(container);
-    } catch (e) {
-      console.error("[CloudAttach] onOpen failed:", e);
+    const container = this.containerEl.children[1];
+    container.empty();
+    if (!this.pdfUrl && this.plugin._pendingPdfUrl) {
+      this.pdfUrl = this.plugin._pendingPdfUrl;
+      this.pdfName = cleanFileNameFromUrl(this.pdfUrl);
     }
-  }
-  _createToolbar(container) {
-    try {
-      const toolbar = container.createEl("div");
-      toolbar.style.display = "flex";
-      toolbar.style.alignItems = "center";
-      toolbar.style.justifyContent = "space-between";
-      toolbar.style.padding = "6px 12px";
-      toolbar.style.borderBottom = "1px solid var(--background-modifier-border)";
-      toolbar.style.flexShrink = "0";
-      const left = toolbar.createEl("div");
-      left.style.display = "flex";
-      left.style.alignItems = "center";
-      left.style.gap = "8px";
-      left.style.fontSize = "13px";
-      left.style.color = "var(--text-normal)";
-      this._thumbnailVisible = false;
-      this._panelMode = "thumbnail";
-      const thumbBtnWrap = left.createEl("div");
-      thumbBtnWrap.style.display = "flex";
-      thumbBtnWrap.style.alignItems = "center";
-      const thumbBtn = thumbBtnWrap.createEl("button");
-      thumbBtn.className = "clickable-icon";
-      thumbBtn.setAttribute("aria-label", "\u9762\u677F");
-      thumbBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>';
-      thumbBtn.onclick = () => {
-        this._thumbnailVisible = !this._thumbnailVisible;
-        this._toggleThumbnailPanel();
-      };
-      const arrowBtn = thumbBtnWrap.createEl("button");
-      arrowBtn.className = "clickable-icon";
-      arrowBtn.style.padding = "2px";
-      arrowBtn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
-      arrowBtn.onclick = (e) => {
-        const menu = new Menu();
-        menu.addItem((item) => item.setTitle(this._panelMode === "thumbnail" ? "\u2713 \u7F29\u7565\u56FE" : "\u7F29\u7565\u56FE").onClick(() => {
-          this._panelMode = "thumbnail";
-          this._thumbnailVisible = true;
-          this._toggleThumbnailPanel();
-        }));
-        menu.addItem((item) => item.setTitle(this._panelMode === "outline" ? "\u2713 \u76EE\u5F55" : "\u76EE\u5F55").onClick(() => {
-          this._panelMode = "outline";
-          this._thumbnailVisible = true;
-          new Notice("\u76EE\u5F55\u529F\u80FD\u5F00\u53D1\u4E2D");
-        }));
-        menu.showAtMouseEvent(e);
-      };
-      this._viewMode = "continuous";
-      this._zoomMode = "fit-width";
-      const zoomOutBtn = left.createEl("button");
-      zoomOutBtn.className = "clickable-icon";
-      zoomOutBtn.setAttribute("aria-label", "\u7F29\u5C0F");
-      zoomOutBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
-      zoomOutBtn.onclick = () => {
-        new Notice("\u7F29\u5C0F\u529F\u80FD\u5F00\u53D1\u4E2D");
-      };
-      const zoomInBtn = left.createEl("button");
-      zoomInBtn.className = "clickable-icon";
-      zoomInBtn.setAttribute("aria-label", "\u653E\u5927");
-      zoomInBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
-      zoomInBtn.onclick = () => {
-        new Notice("\u653E\u5927\u529F\u80FD\u5F00\u53D1\u4E2D");
-      };
-      const viewMenuBtn = left.createEl("button");
-      viewMenuBtn.className = "clickable-icon";
-      viewMenuBtn.style.padding = "2px";
-      viewMenuBtn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
-      viewMenuBtn.onclick = (e) => {
-        const menu = new Menu();
-        const zoomOpts = { "fit-width": "\u9002\u5E94\u5BBD\u5EA6", "fit-height": "\u9002\u5E94\u9AD8\u5EA6" };
-        Object.entries(zoomOpts).forEach(([val, label]) => {
-          menu.addItem((item) => item.setTitle((this._zoomMode === val ? "\u2713 " : "") + label).onClick(() => {
-            this._zoomMode = val;
-            this._applyZoom();
-          }));
-        });
-        menu.addSeparator();
-        const modeOpts = { "continuous": "\u8FDE\u7EED", "single": "\u5355\u9875", "double": "\u53CC\u9875" };
-        Object.entries(modeOpts).forEach(([val, label]) => {
-          menu.addItem((item) => item.setTitle((this._viewMode === val ? "\u2713 " : "") + label).onClick(() => {
-            this._viewMode = val;
-            this._applyViewMode();
-          }));
-        });
-        menu.showAtMouseEvent(e);
-      };
-      let ver = "0";
-      try {
-        const { readFileSync } = require("fs");
-        const { join } = require("path");
-        const changelog = readFileSync(join(this.plugin.manifest.dir || ".", "CHANGELOG.md"), "utf8");
-        const match = changelog.split("\n")[0].match(/v([\d.]+)(?:\.dev)?/);
-        if (match)
-          ver = match[1].split(".").pop() || "0";
-      } catch {
+    container.style.padding = "0";
+    container.style.overflow = "hidden";
+    container.style.height = "100%";
+    container.style.display = "flex";
+    container.style.flexDirection = "column";
+    const toolbar = container.createEl("div");
+    toolbar.style.display = "flex";
+    toolbar.style.alignItems = "center";
+    toolbar.style.justifyContent = "space-between";
+    toolbar.style.padding = "6px 12px";
+    toolbar.style.borderBottom = "1px solid var(--background-modifier-border)";
+    toolbar.style.flexShrink = "0";
+    const left = toolbar.createEl("div");
+    left.style.display = "flex";
+    left.style.alignItems = "center";
+    left.style.gap = "8px";
+    left.createEl("span", { text: "\u{1F4C4} " + cleanFileNameFromUrl(this.pdfUrl) });
+    const right = toolbar.createEl("div");
+    right.style.display = "flex";
+    right.style.alignItems = "center";
+    right.style.gap = "8px";
+    this.pageIndicator = right.createEl("span");
+    this.pageIndicator.style.fontSize = "13px";
+    this.pageIndicator.style.cursor = "pointer";
+    this.pageIndicator.textContent = "1 / 1";
+    this._zoomLevel = -1;
+    const fitLabel = t("view.fullscreen_fit_width");
+    const zoomSelect = right.createEl("select");
+    zoomSelect.style.fontSize = "12px";
+    zoomSelect.style.padding = "2px 4px";
+    ["50%", "75%", "100%", "125%", "150%", "200%", fitLabel].forEach((v) => {
+      const opt = zoomSelect.createEl("option", { text: v });
+      if (v === fitLabel)
+        opt.selected = true;
+    });
+    zoomSelect.onchange = () => {
+      const val = zoomSelect.value;
+      if (val === fitLabel) {
+        this._zoomLevel = -1;
+      } else {
+        this._zoomLevel = parseInt(val);
       }
-      const verBadge = left.createEl("span", { text: ver });
-      verBadge.style.fontSize = "10px";
-      verBadge.style.color = "var(--text-muted)";
-      verBadge.style.background = "var(--background-modifier-hover)";
-      verBadge.style.padding = "1px 4px";
-      verBadge.style.borderRadius = "3px";
-      const right = toolbar.createEl("div");
-      right.style.display = "flex";
-      right.style.alignItems = "center";
-      right.style.gap = "10px";
-      const prevBtn = right.createEl("button");
-      prevBtn.className = "clickable-icon";
-      prevBtn.setAttribute("aria-label", "\u4E0A\u4E00\u9875");
-      prevBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>';
-      prevBtn.onclick = () => this._scrollToPage((this._currentPage || 1) - 1);
-      const pageWrap = right.createEl("span");
-      pageWrap.style.display = "flex";
-      pageWrap.style.alignItems = "center";
-      pageWrap.style.gap = "2px";
-      this.pageInput = pageWrap.createEl("input", { type: "number", value: "1" });
-      this.pageInput.style.width = "40px";
-      this.pageInput.style.fontSize = "13px";
-      this.pageInput.style.textAlign = "center";
-      this.pageInput.style.border = "1px solid var(--background-modifier-border)";
-      this.pageInput.style.borderRadius = "4px";
-      this.pageInput.style.background = "var(--background-primary)";
-      this.pageInput.style.color = "var(--text-normal)";
-      this.pageInput.onchange = () => {
-        const val = parseInt(this.pageInput.value, 10);
-        if (val && val >= 1 && val <= (this._pdf?.numPages || 1)) {
-          this._scrollToPage(val);
-        }
-      };
-      this.pageInput.onkeydown = (e) => {
-        if (e.key === "Enter")
-          this.pageInput.blur();
-      };
-      this.pageTotal = pageWrap.createEl("span", { text: " / 1" });
-      this.pageTotal.style.fontSize = "13px";
-      this.pageTotal.style.color = "var(--text-muted)";
-      const nextBtn = right.createEl("button");
-      nextBtn.className = "clickable-icon";
-      nextBtn.setAttribute("aria-label", "\u4E0B\u4E00\u9875");
-      nextBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>';
-      nextBtn.onclick = () => this._scrollToPage((this._currentPage || 1) + 1);
-      const closeBtn = right.createEl("button");
-      closeBtn.className = "clickable-icon";
-      closeBtn.setAttribute("aria-label", "\u5173\u95ED");
-      closeBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
-      closeBtn.onclick = () => this.leaf.detach();
-    } catch (e) {
-      console.error("[CloudAttach] _createToolbar error:", e);
-    }
+      this._reRender();
+    };
+    this._zoomSelect = zoomSelect;
+    const closeBtn = right.createEl("span", { text: "\u2715" });
+    closeBtn.style.cursor = "pointer";
+    closeBtn.style.fontSize = "16px";
+    closeBtn.style.padding = "0 4px";
+    closeBtn.onclick = () => this.leaf.detach();
+    this.scrollEl = container.createEl("div");
+    this.scrollEl.style.flex = "1";
+    this.scrollEl.style.overflowY = "auto";
+    this.scrollEl.style.overflowX = "hidden";
+    this.scrollEl.style.background = "var(--background-secondary)";
+    this.scrollEl.style.padding = "8px 0";
+    this._loadPdf();
   }
   async _loadPdf() {
     try {
@@ -2840,13 +2720,9 @@ var PdfFullscreenView = class extends ItemView {
       const loadingTask = pdfData ? pdfjsLib.getDocument({ data: pdfData, ownerDocument: this.containerEl.ownerDocument }) : pdfjsLib.getDocument({ url: this.pdfUrl, ownerDocument: this.containerEl.ownerDocument });
       this._pdf = await loadingTask.promise;
       const totalPages = this._pdf.numPages;
-      if (this.pageTotal)
-        this.pageTotal.textContent = " / " + totalPages;
-      if (this.pageInput)
-        this.pageInput.value = "1";
-      this._currentPage = 1;
+      this.pageIndicator.textContent = `1 / ${totalPages}`;
       this.scrollEl.empty();
-      await this._renderAllPages();
+      this._renderAllPages();
     } catch (e) {
       console.error("[CloudAttach] PdfFullscreenView load error:", e);
       this.scrollEl.empty();
@@ -2860,22 +2736,11 @@ var PdfFullscreenView = class extends ItemView {
     if (!this._pdf)
       return;
     const totalPages = this._pdf.numPages;
-    const firstPg = await this._pdf.getPage(1);
-    const firstVp = firstPg.getViewport({ scale: 1 });
-    const pageW = firstVp.width;
-    let scale = 1;
-    if (this._zoomMode === "fit-width") {
-      const w = this.scrollEl.clientWidth;
-      scale = w > 0 ? w / pageW : 1;
-    } else if (this._zoomMode === "fit-height") {
-      const h = this.scrollEl.clientHeight;
-      scale = h > 0 ? h / firstVp.height : 1;
-    }
+    const scale = this._zoomLevel === -1 ? this._fitWidthScale() : this._zoomLevel / 100;
     for (let i = 1; i <= totalPages; i++) {
       const page = await this._pdf.getPage(i);
       const viewport = page.getViewport({ scale });
       const canvas = document.createElement("canvas");
-      canvas.className = "cloud-attach-pdf-fullscreen-page";
       canvas.style.display = "block";
       canvas.style.margin = "0 auto 8px";
       canvas.style.boxShadow = "0 1px 4px rgba(0,0,0,0.15)";
@@ -2887,290 +2752,46 @@ var PdfFullscreenView = class extends ItemView {
         canvasContext: canvas.getContext("2d"),
         viewport
       }).promise;
+      if (i === 1)
+        this._bindScroll();
     }
-    this._bindScroll();
+  }
+  _fitWidthScale() {
+    const w = this.scrollEl.clientWidth - 16;
+    return w / 612;
   }
   _reRender() {
     if (!this._pdf)
       return;
+    const curScroll = this.scrollEl.scrollTop;
     this.scrollEl.empty();
-    requestAnimationFrame(() => {
-      this._renderAllPages().then(() => {
-        this._applyViewMode();
-      });
+    this._renderAllPages().then(() => {
+      this.scrollEl.scrollTop = curScroll;
     });
-  }
-  _applyViewMode() {
-    const canvases = this.scrollEl.querySelectorAll("canvas.cloud-attach-pdf-fullscreen-page");
-    const cur = this._currentPage || 1;
-    canvases.forEach((c) => {
-      c.style.display = "block";
-      c.style.position = "";
-      c.style.top = "";
-      c.style.left = "";
-      c.style.width = "";
-      c.style.height = "";
-      c.style.margin = "0 auto 8px";
-      c.style.transform = "";
-      c.style.transition = "";
-      c.style.opacity = "";
-      c.style.pointerEvents = "";
-      c.style.maxWidth = "";
-      c.style.maxHeight = "";
-    });
-    this.scrollEl.style.position = "";
-    this.scrollEl.style.overflow = "";
-    this.scrollEl.style.display = "";
-    this.scrollEl.style.flexDirection = "";
-    this.scrollEl.style.flexWrap = "";
-    this.scrollEl.style.justifyContent = "";
-    this.scrollEl.style.alignItems = "";
-    this.scrollEl.style.gap = "";
-    this.scrollEl.style.height = "";
-    if (this._viewMode === "single") {
-      this.scrollEl.style.position = "relative";
-      this.scrollEl.style.overflow = "hidden";
-      canvases.forEach((c) => {
-        const pn = parseInt(c.dataset.pageNum, 10);
-        c.style.position = "absolute";
-        c.style.top = "0";
-        c.style.left = "0";
-        c.style.margin = "0";
-        c.style.display = "block";
-        c.style.transition = "transform 0.35s ease-out";
-        const scrollW = this.scrollEl.clientWidth;
-        if (scrollW && c.width > scrollW) {
-          c.style.width = scrollW + "px";
-          c.style.height = "auto";
-        }
-        const offset = pn - cur;
-        c.style.transform = `translateY(${offset * 100}%)`;
-      });
-      this._highlightThumbnail(cur);
-    } else if (this._viewMode === "double") {
-      this.scrollEl.style.display = "flex";
-      this.scrollEl.style.flexDirection = "row";
-      this.scrollEl.style.flexWrap = "nowrap";
-      this.scrollEl.style.justifyContent = "center";
-      this.scrollEl.style.alignItems = "center";
-      this.scrollEl.style.gap = "4px";
-      this.scrollEl.style.overflow = "hidden";
-      const startPage = cur % 2 === 1 ? cur : cur - 1;
-      const scrollW = this.scrollEl.clientWidth;
-      const scrollH = this.scrollEl.clientHeight;
-      const halfW = scrollW / 2 - 8;
-      canvases.forEach((c) => {
-        const pn = parseInt(c.dataset.pageNum, 10);
-        const pairIndex = Math.floor((pn - 1) / 2);
-        const currentPairIndex = Math.floor((cur - 1) / 2);
-        const isVisible = pairIndex === currentPairIndex;
-        c.style.position = "static";
-        c.style.margin = "0";
-        c.style.display = isVisible ? "block" : "none";
-        if (isVisible && scrollW > 0) {
-          const cw = c.width;
-          const ch = c.height;
-          const ratio = cw / (ch || 1);
-          const targetW = Math.min(halfW, cw);
-          const targetH = targetW / ratio;
-          if (targetH > scrollH && scrollH > 0) {
-            c.style.height = scrollH + "px";
-            c.style.width = scrollH * ratio + "px";
-          } else {
-            c.style.width = targetW + "px";
-            c.style.height = targetH + "px";
-          }
-        }
-      });
-      this._highlightThumbnail(cur);
-    } else {
-      this.scrollEl.style.overflowY = "auto";
-      this.scrollEl.style.overflowX = "hidden";
-      this.scrollEl.style.position = "";
-    }
-  }
-  _applyZoom() {
-    this._reRender();
-  }
-  _toggleThumbnailPanel() {
-    if (!this._thumbnailPanelWrap) {
-      this._thumbnailPanelWrap = this._contentWrap.createEl("div");
-      this._thumbnailPanelWrap.style.display = "flex";
-      this._thumbnailPanelWrap.style.flexDirection = "row";
-      this._contentWrap.insertBefore(this._thumbnailPanelWrap, this.scrollEl);
-      this._thumbnailPanel = this._thumbnailPanelWrap.createEl("div");
-      this._thumbnailPanel.style.width = "150px";
-      this._thumbnailPanel.style.flexShrink = "0";
-      this._thumbnailPanel.style.overflowY = "auto";
-      this._thumbnailPanel.style.background = "var(--background-primary)";
-      this._thumbnailPanel.style.padding = "8px";
-      this._renderThumbnails();
-      const resizeHandle = this._thumbnailPanelWrap.createEl("div");
-      resizeHandle.style.width = "10px";
-      resizeHandle.style.minWidth = "10px";
-      resizeHandle.style.cursor = "col-resize";
-      resizeHandle.style.background = "var(--background-modifier-border)";
-      resizeHandle.style.flexShrink = "0";
-      resizeHandle.style.alignSelf = "stretch";
-      resizeHandle.style.userSelect = "none";
-      resizeHandle.style.position = "relative";
-      resizeHandle.style.zIndex = "100";
-      resizeHandle.style.display = "flex";
-      resizeHandle.style.alignItems = "center";
-      resizeHandle.style.justifyContent = "center";
-      const gripLine = resizeHandle.createEl("div");
-      gripLine.style.width = "3px";
-      gripLine.style.height = "30px";
-      gripLine.style.borderRadius = "2px";
-      gripLine.style.background = "var(--text-muted)";
-      resizeHandle.onmouseenter = () => {
-        resizeHandle.style.background = "var(--background-modifier-border)";
-        gripLine.style.background = "var(--interactive-accent)";
-      };
-      resizeHandle.onmouseleave = () => {
-        resizeHandle.style.background = "var(--background-modifier-border)";
-        gripLine.style.background = "var(--text-muted)";
-      };
-      resizeHandle.onpointerdown = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        gripLine.style.background = "var(--interactive-accent)";
-        document.body.style.cursor = "col-resize";
-        document.body.style.userSelect = "none";
-        const startX = e.clientX;
-        const startW = parseInt(this._thumbnailPanel.style.width || "150", 10);
-        const onMove = (ev) => {
-          const newW = startW + (ev.clientX - startX);
-          if (newW >= 100 && newW <= 500) {
-            this._thumbnailPanel.style.width = newW + "px";
-          }
-        };
-        const onUp = () => {
-          gripLine.style.background = "var(--text-muted)";
-          document.body.style.cursor = "";
-          document.body.style.userSelect = "";
-          window.removeEventListener("pointermove", onMove);
-          window.removeEventListener("pointerup", onUp);
-        };
-        window.addEventListener("pointermove", onMove);
-        window.addEventListener("pointerup", onUp);
-      };
-    }
-    this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? "flex" : "none";
-    if (!this._thumbnailVisible) {
-      requestAnimationFrame(() => this._reRender());
-    }
-  }
-  async _renderThumbnails() {
-    if (!this._pdf || !this._thumbnailPanel)
-      return;
-    this._thumbnailPanel.empty();
-    const total = this._pdf.numPages;
-    for (let i = 1; i <= total; i++) {
-      const page = await this._pdf.getPage(i);
-      const viewport = page.getViewport({ scale: 0.2 });
-      const wrap = this._thumbnailPanel.createEl("div");
-      wrap.style.position = "relative";
-      wrap.style.marginBottom = "8px";
-      wrap.style.cursor = "pointer";
-      wrap.style.border = "2px solid transparent";
-      wrap.style.borderRadius = "4px";
-      wrap.style.padding = "4px";
-      wrap.dataset.pageNum = String(i);
-      wrap.onclick = () => {
-        this._scrollToPage(i);
-        this._thumbnailPanel.querySelectorAll("div[data-page-num]").forEach((d) => d.style.borderColor = "transparent");
-        wrap.style.borderColor = "var(--interactive-accent)";
-      };
-      const canvas = wrap.createEl("canvas");
-      canvas.style.width = "100%";
-      canvas.style.height = "auto";
-      canvas.style.display = "block";
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
-      const pageNumEl = wrap.createEl("div", { text: String(i) });
-      pageNumEl.style.position = "absolute";
-      pageNumEl.style.bottom = "4px";
-      pageNumEl.style.right = "4px";
-      pageNumEl.style.background = "rgba(var(--background-primary-rgb, 255,255,255), 0.85)";
-      pageNumEl.style.color = "var(--text-muted)";
-      pageNumEl.style.fontSize = "10px";
-      pageNumEl.style.padding = "1px 5px";
-      pageNumEl.style.borderRadius = "8px";
-      pageNumEl.style.boxShadow = "0 1px 2px rgba(0,0,0,0.1)";
-    }
   }
   _bindScroll() {
-    this._wheelThrottle = false;
-    this.scrollEl.onwheel = (e) => {
-      if (this._viewMode === "continuous")
-        return;
-      e.preventDefault();
-      if (this._wheelThrottle)
-        return;
-      this._wheelThrottle = true;
-      setTimeout(() => {
-        this._wheelThrottle = false;
-      }, 400);
-      const delta = e.deltaY > 0 ? 1 : -1;
-      const step = this._viewMode === "double" ? 2 : 1;
-      const newPage = (this._currentPage || 1) + delta * step;
-      const clampedPage = Math.max(1, Math.min(newPage, this._pdf?.numPages || 1));
-      if (clampedPage !== this._currentPage) {
-        this._scrollToPage(clampedPage);
-      }
-    };
+    let ticking = false;
     this.scrollEl.onscroll = () => {
-      if (!this._pdf)
+      if (ticking)
         return;
-      const canvases = this.scrollEl.querySelectorAll("canvas[data-page-num]");
-      const scrollTop = this.scrollEl.scrollTop;
-      const containerHeight = this.scrollEl.clientHeight;
-      for (const c of canvases) {
-        const rect = c.getBoundingClientRect();
-        const containerRect = this.scrollEl.getBoundingClientRect();
-        const top = rect.top - containerRect.top;
-        const bottom = top + rect.height;
-        if (top >= 0 && top < containerHeight * 0.6) {
-          const pageNum = parseInt(c.dataset.pageNum, 10);
-          if (this.pageInput.value !== String(pageNum)) {
-            this.pageInput.value = String(pageNum);
-            this._currentPage = pageNum;
-            this._highlightThumbnail(pageNum);
+      ticking = true;
+      requestAnimationFrame(() => {
+        ticking = false;
+        if (!this._pdf)
+          return;
+        const canvases = this.scrollEl.querySelectorAll("canvas[data-page-num]");
+        const midY = this.scrollEl.scrollTop + this.scrollEl.clientHeight / 2;
+        for (const c of canvases) {
+          const rect = c.getBoundingClientRect();
+          const containerRect = this.scrollEl.getBoundingClientRect();
+          const cMid = rect.top - containerRect.top + rect.height / 2;
+          if (cMid >= this.scrollEl.scrollTop && cMid <= this.scrollEl.scrollTop + this.scrollEl.clientHeight) {
+            this.pageIndicator.textContent = `${c.dataset.pageNum} / ${this._pdf.numPages}`;
+            break;
           }
-          break;
         }
-      }
-    };
-  }
-  _scrollToPage(pageNum) {
-    if (!this._pdf || pageNum < 1 || pageNum > this._pdf.numPages)
-      return;
-    this.pageInput.value = String(pageNum);
-    this._currentPage = pageNum;
-    this._highlightThumbnail(pageNum);
-    if (this._viewMode === "single") {
-      const canvases = this.scrollEl.querySelectorAll("canvas.cloud-attach-pdf-fullscreen-page");
-      canvases.forEach((c) => {
-        const pn = parseInt(c.dataset.pageNum, 10);
-        const offset = pn - pageNum;
-        c.style.transform = `translateY(${offset * 100}%)`;
       });
-    } else if (this._viewMode === "double") {
-      this._applyViewMode();
-    } else {
-      const canvas = this.scrollEl.querySelector(`canvas[data-page-num="${pageNum}"]`);
-      if (canvas)
-        canvas.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  }
-  _highlightThumbnail(pageNum) {
-    if (!this._thumbnailPanel)
-      return;
-    this._thumbnailPanel.querySelectorAll("div[data-page-num]").forEach((d) => {
-      d.style.borderColor = parseInt(d.dataset.pageNum, 10) === pageNum ? "var(--interactive-accent)" : "transparent";
-    });
+    };
   }
 };
 var AddAccountModal = class extends Modal {
@@ -4406,15 +4027,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       this._pdfObserver.disconnect();
     this._flushPdfErrorLog();
   }
-  _log(msg) {
-    if (!this._pdfErrorLog)
-      this._pdfErrorLog = "";
-    const ts = (/* @__PURE__ */ new Date()).toISOString().split("T")[1].slice(0, 12);
-    this._pdfErrorLog += `[${ts}] ${msg}
-`;
-    if (this._pdfErrorLog.length > 4e3)
-      this._flushPdfErrorLog();
-  }
   _flushPdfErrorLog() {
     if (!this._pdfErrorLog)
       return;
@@ -4451,17 +4063,36 @@ module.exports = class CloudAttachPlugin extends Plugin {
     return resp.arrayBuffer();
   }
   /**
-   * 打开 PDF 全屏预览（主窗口内新 Tab）
+   * 打开 PDF 全屏预览（新窗口 Popout Leaf）
    */
   async openPdfFullscreen(url, name) {
     const { workspace } = this.app;
     if (!name)
       name = cleanFileNameFromUrl(url);
+    const existing = workspace.getLeavesOfType(VIEW_TYPE_PDF_FULLSCREEN);
+    if (existing.length > 0) {
+      workspace.revealLeaf(existing[0]);
+      const view = existing[0].view;
+      if (view instanceof PdfFullscreenView) {
+        view.pdfUrl = url;
+        view.pdfName = name;
+        view._loadPdf();
+      }
+      return;
+    }
     this._pendingPdfUrl = url;
     this._pendingPdfName = name;
-    const leaf = workspace.openPopoutLeaf();
-    await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true, state: { pdfUrl: url, pdfName: name } });
+    let leaf;
+    try {
+      leaf = workspace.getLeaf("tab");
+    } catch (e) {
+      console.log("[CloudAttach] tab fallback:", e);
+      leaf = workspace.getLeaf("split", "vertical");
+    }
+    await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true });
     workspace.revealLeaf(leaf);
+    delete this._pendingPdfUrl;
+    delete this._pendingPdfName;
   }
   // ============================================================
   // PDF.js 内联预览（v0.3.026）
@@ -4913,7 +4544,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     toolbar.appendChild(fullscreenBtn);
     fullscreenBtn.onclick = (e) => {
       e.stopPropagation();
-      console.log("[CloudAttach] fullscreenBtn clicked, url:", container.dataset.pdfUrl);
       const url = container.dataset.pdfUrl;
       this.openPdfFullscreen(url, cleanFileNameFromUrl(url));
     };
