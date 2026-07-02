@@ -4693,48 +4693,63 @@ module.exports = class CloudAttachPlugin extends Plugin {
     document.body.appendChild(overlay);
 
     // 顶部工具栏
-    const toolbar = overlay.createEl('div');
+    const toolbar = document.createElement('div');
     toolbar.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:6px 12px;border-bottom:1px solid var(--background-modifier-border);flex-shrink:0;';
+    overlay.appendChild(toolbar);
     
-    const left = toolbar.createEl('div');
+    const left = document.createElement('div');
     left.style.cssText = 'display:flex;align-items:center;gap:8px;';
+    toolbar.appendChild(left);
     // 文件名
     const name = url.split('?')[0].split('/').pop() || 'PDF';
     let displayName = name;
     try { displayName = decodeURIComponent(name); } catch {}
-    left.createEl('span', { text: '📄 ' + displayName });
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = '📄 ' + displayName;
+    left.appendChild(nameSpan);
 
-    const right = toolbar.createEl('div');
+    const right = document.createElement('div');
     right.style.cssText = 'display:flex;align-items:center;gap:10px;';
+    toolbar.appendChild(right);
 
     // 页码
-    const pageEl = right.createEl('span', { text: '1 / 1' });
+    const pageEl = document.createElement('span');
+    pageEl.textContent = '1 / 1';
     pageEl.style.cssText = 'font-size:13px;';
+    right.appendChild(pageEl);
 
     // 缩放下拉
-    const zoomSelect = right.createEl('select');
+    const zoomSelect = document.createElement('select');
     zoomSelect.style.cssText = 'font-size:12px;padding:2px 4px;';
     const zoomLevels = ['50%','75%','100%','125%','150%','200%','适应宽度'];
     zoomLevels.forEach((v, i) => {
-      const opt = zoomSelect.createEl('option', { text: v });
+      const opt = document.createElement('option');
+      opt.textContent = v;
       if (i === zoomLevels.length - 1) opt.selected = true;
+      zoomSelect.appendChild(opt);
     });
+    right.appendChild(zoomSelect);
 
     // 关闭按钮
-    const closeBtn = right.createEl('button');
+    const closeBtn = document.createElement('button');
     closeBtn.className = 'clickable-icon';
     closeBtn.setAttribute('aria-label', '关闭');
     closeBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
     closeBtn.onclick = () => overlay.remove();
+    right.appendChild(closeBtn);
     
     // Esc 关闭
     const escHandler = (ev) => { if (ev.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', escHandler); } };
     document.addEventListener('keydown', escHandler);
 
     // 内容区
-    const scrollEl = overlay.createEl('div');
+    const scrollEl = document.createElement('div');
     scrollEl.style.cssText = 'flex:1;overflow-y:auto;overflow-x:hidden;background:var(--background-secondary);padding:8px 0;min-height:0;';
-    scrollEl.createEl('div', { text: '⏳ 加载 PDF...', cls: 'cloud-attach-loading' });
+    overlay.appendChild(scrollEl);
+    const loadingEl = document.createElement('div');
+    loadingEl.textContent = '⏳ 加载 PDF...';
+    loadingEl.className = 'cloud-attach-loading';
+    scrollEl.appendChild(loadingEl);
 
     // 异步加载渲染
     (async () => {

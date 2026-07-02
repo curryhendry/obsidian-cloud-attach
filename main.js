@@ -4410,34 +4410,45 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const overlay = document.createElement("div");
     overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;background:var(--background-primary);display:flex;flex-direction:column;";
     document.body.appendChild(overlay);
-    const toolbar = overlay.createEl("div");
+    const toolbar = document.createElement("div");
     toolbar.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:6px 12px;border-bottom:1px solid var(--background-modifier-border);flex-shrink:0;";
-    const left = toolbar.createEl("div");
+    overlay.appendChild(toolbar);
+    const left = document.createElement("div");
     left.style.cssText = "display:flex;align-items:center;gap:8px;";
+    toolbar.appendChild(left);
     const name = url.split("?")[0].split("/").pop() || "PDF";
     let displayName = name;
     try {
       displayName = decodeURIComponent(name);
     } catch {
     }
-    left.createEl("span", { text: "\u{1F4C4} " + displayName });
-    const right = toolbar.createEl("div");
+    const nameSpan = document.createElement("span");
+    nameSpan.textContent = "\u{1F4C4} " + displayName;
+    left.appendChild(nameSpan);
+    const right = document.createElement("div");
     right.style.cssText = "display:flex;align-items:center;gap:10px;";
-    const pageEl = right.createEl("span", { text: "1 / 1" });
+    toolbar.appendChild(right);
+    const pageEl = document.createElement("span");
+    pageEl.textContent = "1 / 1";
     pageEl.style.cssText = "font-size:13px;";
-    const zoomSelect = right.createEl("select");
+    right.appendChild(pageEl);
+    const zoomSelect = document.createElement("select");
     zoomSelect.style.cssText = "font-size:12px;padding:2px 4px;";
     const zoomLevels = ["50%", "75%", "100%", "125%", "150%", "200%", "\u9002\u5E94\u5BBD\u5EA6"];
     zoomLevels.forEach((v, i) => {
-      const opt = zoomSelect.createEl("option", { text: v });
+      const opt = document.createElement("option");
+      opt.textContent = v;
       if (i === zoomLevels.length - 1)
         opt.selected = true;
+      zoomSelect.appendChild(opt);
     });
-    const closeBtn = right.createEl("button");
+    right.appendChild(zoomSelect);
+    const closeBtn = document.createElement("button");
     closeBtn.className = "clickable-icon";
     closeBtn.setAttribute("aria-label", "\u5173\u95ED");
     closeBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
     closeBtn.onclick = () => overlay.remove();
+    right.appendChild(closeBtn);
     const escHandler = (ev) => {
       if (ev.key === "Escape") {
         overlay.remove();
@@ -4445,9 +4456,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
     };
     document.addEventListener("keydown", escHandler);
-    const scrollEl = overlay.createEl("div");
+    const scrollEl = document.createElement("div");
     scrollEl.style.cssText = "flex:1;overflow-y:auto;overflow-x:hidden;background:var(--background-secondary);padding:8px 0;min-height:0;";
-    scrollEl.createEl("div", { text: "\u23F3 \u52A0\u8F7D PDF...", cls: "cloud-attach-loading" });
+    overlay.appendChild(scrollEl);
+    const loadingEl = document.createElement("div");
+    loadingEl.textContent = "\u23F3 \u52A0\u8F7D PDF...";
+    loadingEl.className = "cloud-attach-loading";
+    scrollEl.appendChild(loadingEl);
     (async () => {
       try {
         const pdfjsLib = await this._loadPdfJs();
