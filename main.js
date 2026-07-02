@@ -68,8 +68,6 @@ Object.assign(I18n.translations.zh, {
   "notice.delete_success": "\u2705 \u5DF2\u5220\u9664 {count} \u9879",
   "notice.delete_partial": "\u26A0\uFE0F \u5220\u9664\u6210\u529F {success} \u9879\uFF0C\u5931\u8D25 {failed} \u9879",
   "notice.delete_failed": "\u274C \u5220\u9664\u5931\u8D25\uFF1A{error}",
-  "notice.delete_webdav_forbidden": "\u26A0\uFE0F \u6B64\u670D\u52A1\u5668\u4E0D\u652F\u6301\u901A\u8FC7 WebDAV \u5220\u9664\uFF08\u53EF\u5220\u9664\u6587\u4EF6\uFF0C\u6587\u4EF6\u5939\u9700\u5230\u7F51\u9875\u7AEF\u64CD\u4F5C\uFF09",
-  "notice.delete_s3_forbidden": "\u26A0\uFE0F \u5220\u9664\u5931\u8D25\uFF08\u8D26\u53F7\u65E0\u5220\u9664\u6743\u9650\u6216\u5B58\u50A8\u6876\u7B56\u7565\u7981\u6B62\uFF09",
   "notice.rename_conflict": "\u274C \u91CD\u547D\u540D\u5931\u8D25\uFF1A\u76EE\u6807\u6587\u4EF6\u540D\u5DF2\u5B58\u5728",
   "notice.rename_failed": "\u274C \u91CD\u547D\u540D\u5931\u8D25\uFF1A{error}",
   "notice.rename_success": "\u2705 \u91CD\u547D\u540D\u6210\u529F",
@@ -162,10 +160,12 @@ Object.assign(I18n.translations.zh, {
   "view.new_folder_title": "\u{1F4C1} \u65B0\u5EFA\u6587\u4EF6\u5939",
   "view.new_folder_placeholder": "\u8BF7\u8F93\u5165\u6587\u4EF6\u5939\u540D\u79F0",
   "view.new_folder_confirm": "\u521B\u5EFA",
+  "view.new_folder_cancel": "\u53D6\u6D88",
   "view.new_folder_creating": "\u23F3 \u6B63\u5728\u521B\u5EFA\u6587\u4EF6\u5939...",
   "view.new_folder_success": "\u2705 \u6587\u4EF6\u5939\u5DF2\u521B\u5EFA: {name}",
   "view.new_folder_failed": "\u274C \u521B\u5EFA\u5931\u8D25: {error}",
   "view.new_folder_name_empty": "\u26A0\uFE0F \u6587\u4EF6\u5939\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A",
+  "view.new_folder_keep_notice": "\u2139\uFE0F S3 \u7AEF\u521B\u5EFA\u4E86 .keep \u5360\u4F4D\u6587\u4EF6\uFF08\u6807\u8BB0\u76EE\u5F55\uFF09",
   "view.file_count": "{count}/{total} \u9879\u5DF2\u9009",
   "view.select_all": "\u5168\u9009",
   "view.select_invert": "\u53CD\u9009",
@@ -315,8 +315,6 @@ Object.assign(I18n.translations.en, {
   "notice.delete_success": "\u2705 Deleted {count} item(s)",
   "notice.delete_partial": "\u26A0\uFE0F Deleted {success}, failed {failed}",
   "notice.delete_failed": "\u274C Delete failed: {error}",
-  "notice.delete_webdav_forbidden": "\u26A0\uFE0F This server forbids WebDAV deletion (files ok, folders require web UI)",
-  "notice.delete_s3_forbidden": "\u26A0\uFE0F Delete failed (no delete permission or bucket policy denied)",
   "notice.rename_conflict": "\u274C Rename failed: filename already exists",
   "notice.rename_failed": "\u274C Rename failed: {error}",
   "notice.rename_success": "\u2705 Renamed successfully",
@@ -415,10 +413,12 @@ Object.assign(I18n.translations.en, {
   "view.new_folder_title": "\u{1F4C1} New Folder",
   "view.new_folder_placeholder": "Enter folder name",
   "view.new_folder_confirm": "Create",
+  "view.new_folder_cancel": "Cancel",
   "view.new_folder_creating": "\u23F3 Creating folder...",
   "view.new_folder_success": "\u2705 Folder created: {name}",
   "view.new_folder_failed": "\u274C Failed: {error}",
   "view.new_folder_name_empty": "\u26A0\uFE0F Folder name cannot be empty",
+  "view.new_folder_keep_notice": "\u2139\uFE0F Created .keep placeholder for S3 (to mark the directory)",
   "view.file_count": "{count}/{total} selected",
   "view.select_all": "Select All",
   "view.select_invert": "Invert",
@@ -987,7 +987,7 @@ var OpenListClient = class {
           if (response2.ok || response2.status === 204) {
             results.success.push(fullPath);
           } else {
-            results.failed.push({ path: fullPath, error: response2.text || `HTTP ${response2.status}`, status: response2.status });
+            results.failed.push({ path: fullPath, error: response2.text || `HTTP ${response2.status}` });
           }
           continue;
         }
@@ -1238,7 +1238,7 @@ var OpenListClient = class {
       if (files.length <= 3)
         console.log("[CloudAttach] listDir path:", JSON.stringify(relativePath));
     }
-    if (responses.length > 1 && files.length === 0) {
+    if (responses.length > 0 && files.length === 0) {
       console.warn("[CloudAttach] WebDAV: XML\u89E3\u6790\u5230", responses.length, "\u6761\u76EE\u4F46\u5168\u90E8\u88AB\u8FC7\u6EE4\uFF0CremotePath=", remotePath, "webdavPath=", this.webdavPath);
     }
     return files.sort((a, b) => {
@@ -1733,7 +1733,7 @@ var S3Client = class {
             const itemDeleteUrl = `${this.endpoint}/${this.bucket}/${itemEncodedKey}?${itemSignedQuery}`;
             const r = await this.requestViaObsidian(itemDeleteUrl, { method: "DELETE" });
             if (!r.ok)
-              results.failed.push({ path: item.path, error: `HTTP ${r.status}`, status: r.status });
+              results.failed.push({ path: item.path, error: `HTTP ${r.status}` });
             else
               results.success.push(item.path);
           }
@@ -1745,7 +1745,7 @@ var S3Client = class {
           if (r.ok)
             results.success.push(fullPath);
           else
-            results.failed.push({ path: fullPath, error: `HTTP ${r.status}`, status: r.status });
+            results.failed.push({ path: fullPath, error: `HTTP ${r.status}` });
         }
       } catch (e) {
         results.failed.push({ path: fullPath, error: e.message });
@@ -1969,20 +1969,17 @@ var CloudAttachView = class extends ItemView {
     };
     this.breadcrumbEl.appendChild(root);
     if (this.currentPath === "/") {
-      const actions2 = document.createElement("div");
-      actions2.className = "cloud-attach-breadcrumb-actions";
       const newFolderBtn2 = document.createElement("button");
       newFolderBtn2.className = "cloud-attach-refresh";
       newFolderBtn2.textContent = t("view.new_folder_btn");
       newFolderBtn2.title = t("view.new_folder_title");
       newFolderBtn2.onclick = () => this.showNewFolderDialog();
-      actions2.appendChild(newFolderBtn2);
+      this.breadcrumbEl.appendChild(newFolderBtn2);
       const refresh2 = document.createElement("button");
       refresh2.className = "cloud-attach-refresh";
       refresh2.textContent = t("view.refresh");
       refresh2.onclick = () => this.loadDir();
-      actions2.appendChild(refresh2);
-      this.breadcrumbEl.appendChild(actions2);
+      this.breadcrumbEl.appendChild(refresh2);
       this.renderBatchBar();
       return;
     }
@@ -2001,20 +1998,17 @@ var CloudAttachView = class extends ItemView {
       };
       this.breadcrumbEl.appendChild(btn);
     }
-    const actions = document.createElement("div");
-    actions.className = "cloud-attach-breadcrumb-actions";
     const newFolderBtn = document.createElement("button");
     newFolderBtn.className = "cloud-attach-refresh";
     newFolderBtn.textContent = t("view.new_folder_btn");
     newFolderBtn.title = t("view.new_folder_title");
     newFolderBtn.onclick = () => this.showNewFolderDialog();
-    actions.appendChild(newFolderBtn);
+    this.breadcrumbEl.appendChild(newFolderBtn);
     const refresh = document.createElement("button");
     refresh.className = "cloud-attach-refresh";
     refresh.textContent = t("view.refresh");
     refresh.onclick = () => this.loadDir();
-    actions.appendChild(refresh);
-    this.breadcrumbEl.appendChild(actions);
+    this.breadcrumbEl.appendChild(refresh);
     this.renderBatchBar();
   }
   // 统一的导航方法
@@ -2057,6 +2051,10 @@ var CloudAttachView = class extends ItemView {
     btnRow.style.display = "flex";
     btnRow.style.gap = "8px";
     btnRow.style.justifyContent = "flex-end";
+    const cancelBtn = document.createElement("button");
+    cancelBtn.textContent = t("view.new_folder_cancel");
+    cancelBtn.onclick = () => modal.close();
+    btnRow.appendChild(cancelBtn);
     const confirmBtn2 = document.createElement("button");
     confirmBtn2.textContent = t("view.new_folder_confirm");
     confirmBtn2.className = "mod-cta";
@@ -2076,6 +2074,9 @@ var CloudAttachView = class extends ItemView {
         const result = await this.client.createDirectory(this.currentPath, name);
         if (result.ok) {
           new Notice(t("view.new_folder_success", { name }), 3e3);
+          if (result.usedPlaceholder) {
+            new Notice(t("view.new_folder_keep_notice"), 5e3);
+          }
           modal.close();
           await this.loadDir();
         } else {
@@ -2233,17 +2234,10 @@ var CloudAttachView = class extends ItemView {
       return;
     const paths = files.map((f) => f.path);
     const result = await this.client.delete(paths);
-    const is403 = (failed) => failed.status === 403;
-    const isS3 = this.client.constructor.name === "S3Client";
     if (result.failed.length === 0) {
       new Notice(t("notice.delete_success", { count: result.success.length }));
     } else if (result.success.length === 0) {
-      const first = result.failed[0];
-      if (is403(first)) {
-        new Notice(t(isS3 ? "notice.delete_s3_forbidden" : "notice.delete_webdav_forbidden"), 5e3);
-      } else {
-        new Notice(t("notice.delete_failed", { error: first.error }), 5e3);
-      }
+      new Notice(t("notice.delete_failed", { error: result.failed[0].error }), 5e3);
     } else {
       new Notice(t("notice.delete_partial", { success: result.success.length, failed: result.failed.length }), 5e3);
     }
@@ -2525,30 +2519,30 @@ var CloudAttachView = class extends ItemView {
   }
   // 插入单个文件到笔记（异步）
   async insertFile(file) {
-    const view = this.findMostRecentMarkdownView();
-    if (!view?.editor) {
-      new Notice(t("notice.open_note_first"));
-      return;
-    }
     const md = await this.getInsertMarkdown(file);
-    const cursor = view.editor.getCursor();
-    view.editor.replaceRange(md + "\n", cursor);
-    new Notice(t("notice.inserted", { name: file.name }));
+    const view = this.findMostRecentMarkdownView();
+    if (view?.editor) {
+      const cursor = view.editor.getCursor();
+      view.editor.replaceRange(md + "\n", cursor);
+      new Notice(t("notice.inserted", { name: file.name }));
+    } else {
+      new Notice(t("notice.open_note_first"));
+    }
   }
   // 批量插入（异步）
   async insertSelectedFiles() {
     if (!this.client || this.selectedFiles.size === 0)
       return;
-    const view = this.findMostRecentMarkdownView();
-    if (!view?.editor) {
-      new Notice(t("notice.open_note_first"));
-      return;
-    }
     const selected = this.files.filter((f) => this.selectedFiles.has(f.path));
     const mds = await Promise.all(selected.map((file) => this.getInsertMarkdown(file)));
-    const cursor = view.editor.getCursor();
-    view.editor.replaceRange(mds.map((md) => md + "\n").join("\n") + "\n", cursor);
-    new Notice(t("notice.inserted_count", { count: selected.length }));
+    const view = this.findMostRecentMarkdownView();
+    if (view?.editor) {
+      const cursor = view.editor.getCursor();
+      view.editor.replaceRange(mds.map((md) => md + "\n").join("\n") + "\n", cursor);
+      new Notice(t("notice.inserted_count", { count: selected.length }));
+    } else {
+      new Notice(t("notice.open_note_first"));
+    }
     this.selectedFiles.clear();
     this.renderFiles();
     this.renderBatchBar();
@@ -3583,8 +3577,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       this.app.workspace.on("file-menu", (menu, file, source) => {
         if (!file || !source.startsWith("file-explorer"))
           return;
-        if (file.children !== void 0)
-          return;
         const ext = file.extension?.toLowerCase() || "";
         if (ext === "md")
           return;
@@ -3770,13 +3762,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
       .cloud-attach-title { font-size: 14px; margin: 8px 0; }
       .cloud-attach-select-area { padding: 0 8px 8px; }
       .cloud-attach-select { width: 100%; padding: 6px 8px; font-size: 13px; border-radius: 4px; border: 1px solid var(--background-modifier-border); background: var(--background-primary); }
-      .cloud-attach-breadcrumb { padding: 6px 8px; font-size: 12px; border-bottom: 1px solid var(--background-modifier-border); display: flex; align-items: center; gap: 2px; flex-wrap: wrap; justify-content: space-between; }
-      .cloud-attach-breadcrumb-actions { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+      .cloud-attach-breadcrumb { padding: 6px 8px; font-size: 12px; border-bottom: 1px solid var(--background-modifier-border); display: flex; align-items: center; gap: 2px; flex-wrap: wrap; }
       .cloud-attach-breadcrumb-btn { background: transparent; border: none; color: var(--text-accent); cursor: pointer; padding: 3px 6px; border-radius: 3px; font-size: 12px; }
       .cloud-attach-breadcrumb-btn:hover { background: var(--background-modifier-hover); }
       .cloud-attach-breadcrumb-sep { color: var(--text-muted); }
       .cloud-attach-breadcrumb-current { color: var(--text-muted); padding: 3px 6px; font-size: 12px; }
-      .cloud-attach-refresh { background: transparent; border: 1px solid var(--background-modifier-border); color: var(--text-muted); cursor: pointer; padding: 3px 8px; border-radius: 3px; font-size: 11px; }
+      .cloud-attach-refresh { margin-left: auto; background: transparent; border: 1px solid var(--background-modifier-border); color: var(--text-muted); cursor: pointer; padding: 3px 8px; border-radius: 3px; font-size: 11px; }
       .cloud-attach-refresh:hover { background: var(--background-modifier-hover); }
       .cloud-attach-batch-bar { padding: 6px 8px; background: var(--background-secondary); border-bottom: 1px solid var(--background-modifier-border); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
       .cloud-attach-batch-count { font-size: 12px; color: var(--text-muted); }
@@ -3850,124 +3841,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       console.error("[CloudAttach] _flushPdfErrorLog failed:", e);
     }
     this._pdfErrorLog = "";
-  }
-  /**
-   * 全屏 overlay 预览 PDF（复用现有 PDF.js 渲染）
-   */
-  _showPdfOverlay(url) {
-    const overlay = document.createElement("div");
-    overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;background:var(--background-primary);display:flex;flex-direction:column;";
-    document.body.appendChild(overlay);
-    const toolbar = overlay.createEl("div");
-    toolbar.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:6px 12px;border-bottom:1px solid var(--background-modifier-border);flex-shrink:0;";
-    const left = toolbar.createEl("div");
-    left.style.cssText = "display:flex;align-items:center;gap:8px;";
-    const name = url.split("?")[0].split("/").pop() || "PDF";
-    let displayName = name;
-    try {
-      displayName = decodeURIComponent(name);
-    } catch {
-    }
-    left.createEl("span", { text: "\u{1F4C4} " + displayName });
-    const right = toolbar.createEl("div");
-    right.style.cssText = "display:flex;align-items:center;gap:10px;";
-    const pageEl = right.createEl("span", { text: "1 / 1" });
-    pageEl.style.cssText = "font-size:13px;";
-    const zoomSelect = right.createEl("select");
-    zoomSelect.style.cssText = "font-size:12px;padding:2px 4px;";
-    const zoomLevels = ["50%", "75%", "100%", "125%", "150%", "200%", "\u9002\u5E94\u5BBD\u5EA6"];
-    zoomLevels.forEach((v, i) => {
-      const opt = zoomSelect.createEl("option", { text: v });
-      if (i === zoomLevels.length - 1)
-        opt.selected = true;
-    });
-    const closeBtn = right.createEl("button");
-    closeBtn.className = "clickable-icon";
-    closeBtn.setAttribute("aria-label", "\u5173\u95ED");
-    closeBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
-    closeBtn.onclick = () => overlay.remove();
-    const escHandler = (ev) => {
-      if (ev.key === "Escape") {
-        overlay.remove();
-        document.removeEventListener("keydown", escHandler);
-      }
-    };
-    document.addEventListener("keydown", escHandler);
-    const scrollEl = overlay.createEl("div");
-    scrollEl.style.cssText = "flex:1;overflow-y:auto;overflow-x:hidden;background:var(--background-secondary);padding:8px 0;min-height:0;";
-    scrollEl.createEl("div", { text: "\u23F3 \u52A0\u8F7D PDF...", cls: "cloud-attach-loading" });
-    (async () => {
-      try {
-        const pdfjsLib = await this._loadPdfJs();
-        const pdfData = await this._downloadPdfBinary(url);
-        const loadingTask = pdfData ? pdfjsLib.getDocument({ data: pdfData, ownerDocument: document }) : pdfjsLib.getDocument({ url, ownerDocument: document });
-        const pdf = await loadingTask.promise;
-        const totalPages = pdf.numPages;
-        pageEl.textContent = `1 / ${totalPages}`;
-        scrollEl.empty();
-        const reRender = async () => {
-          const val = zoomSelect.value;
-          let scale = 2;
-          if (val === "\u9002\u5E94\u5BBD\u5EA6") {
-            const w = scrollEl.clientWidth;
-            const pg1 = await pdf.getPage(1);
-            const vp1 = pg1.getViewport({ scale: 1 });
-            scale = w > 0 ? w / vp1.width : 2;
-          } else {
-            scale = parseInt(val) / 100;
-          }
-          scrollEl.empty();
-          for (let i = 1; i <= totalPages; i++) {
-            const page = await pdf.getPage(i);
-            const viewport = page.getViewport({ scale });
-            const canvas = document.createElement("canvas");
-            canvas.style.cssText = "display:block;margin:0 auto 8px;box-shadow:0 1px 4px rgba(0,0,0,0.15);";
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-            canvas.dataset.pageNum = String(i);
-            scrollEl.appendChild(canvas);
-            await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
-          }
-          scrollEl.onscroll = () => {
-            const canvases = scrollEl.querySelectorAll("canvas[data-page-num]");
-            const midY = scrollEl.scrollTop + scrollEl.clientHeight / 2;
-            for (const c of canvases) {
-              const rect = c.getBoundingClientRect();
-              const cTop = rect.top - scrollEl.getBoundingClientRect().top;
-              const cMid = cTop + rect.height / 2;
-              if (cMid >= 0 && cMid <= scrollEl.clientHeight) {
-                pageEl.textContent = `${c.dataset.pageNum} / ${totalPages}`;
-                break;
-              }
-            }
-          };
-        };
-        zoomSelect.onchange = () => reRender();
-        await reRender();
-      } catch (e) {
-        console.error("[CloudAttach] overlay PDF error:", e);
-        scrollEl.empty();
-        scrollEl.createEl("div", { text: "\u274C \u52A0\u8F7D PDF \u5931\u8D25: " + (e.message || ""), cls: "cloud-attach-error" });
-      }
-    })();
-  }
-  /**
-   * 通过 Obsidian requestUrl 下载 PDF 二进制（绕过 CORS）
-   */
-  async _downloadPdfBinary(url) {
-    let reqUrlFn = null;
-    try {
-      reqUrlFn = require("obsidian").requestUrl;
-    } catch (e) {
-    }
-    if (reqUrlFn) {
-      try {
-        const resp = await reqUrlFn({ url, method: "GET" });
-        return resp.arrayBuffer;
-      } catch (e) {
-        console.error("[CloudAttach] _downloadPdfBinary requestUrl error:", e);
-      }
-    }
   }
   // ============================================================
   // PDF.js 内联预览（v0.3.026）
@@ -4414,15 +4287,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const fullscreenBtn = document.createElement("span");
     fullscreenBtn.textContent = "\u26F6";
     fullscreenBtn.style.cursor = "pointer";
-    fullscreenBtn.title = "\u5168\u5C4F\u9884\u89C8";
+    fullscreenBtn.title = "\u5168\u5C4F\u9884\u89C8\uFF08\u656C\u8BF7\u671F\u5F85\uFF09";
     fullscreenBtn.dataset.role = "fullscreen";
     toolbar.appendChild(fullscreenBtn);
     fullscreenBtn.onclick = (e) => {
       e.stopPropagation();
-      const url = container.dataset.pdfUrl;
-      if (!url)
-        return;
-      this._showPdfOverlay(url);
+      const { Notice: Notice2 } = require("obsidian");
+      new Notice2("\u{1F50D} \u5168\u5C4F\u9884\u89C8\u529F\u80FD\uFF0C\u656C\u8BF7\u671F\u5F85");
     };
     const scrollArea = container.querySelector(".cloudattach-pdf-scrollarea");
     const scrollToPage = (pageNum) => {

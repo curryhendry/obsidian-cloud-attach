@@ -79,8 +79,6 @@ Object.assign(I18n.translations.zh, {
   'notice.delete_success': '✅ 已删除 {count} 项',
   'notice.delete_partial': '⚠️ 删除成功 {success} 项，失败 {failed} 项',
   'notice.delete_failed': '❌ 删除失败：{error}',
-  'notice.delete_webdav_forbidden': '⚠️ 此服务器不支持通过 WebDAV 删除（可删除文件，文件夹需到网页端操作）',
-  'notice.delete_s3_forbidden': '⚠️ 删除失败（账号无删除权限或存储桶策略禁止）',
   'notice.rename_conflict': '❌ 重命名失败：目标文件名已存在',
   'notice.rename_failed': '❌ 重命名失败：{error}',
   'notice.rename_success': '✅ 重命名成功',
@@ -175,10 +173,12 @@ Object.assign(I18n.translations.zh, {
   'view.new_folder_title': '📁 新建文件夹',
   'view.new_folder_placeholder': '请输入文件夹名称',
   'view.new_folder_confirm': '创建',
+  'view.new_folder_cancel': '取消',
   'view.new_folder_creating': '⏳ 正在创建文件夹...',
   'view.new_folder_success': '✅ 文件夹已创建: {name}',
   'view.new_folder_failed': '❌ 创建失败: {error}',
   'view.new_folder_name_empty': '⚠️ 文件夹名称不能为空',
+  'view.new_folder_keep_notice': 'ℹ️ S3 端创建了 .keep 占位文件（标记目录）',
   'view.file_count': '{count}/{total} 项已选',
   'view.select_all': '全选',
   'view.select_invert': '反选',
@@ -332,8 +332,6 @@ Object.assign(I18n.translations.en, {
   'notice.delete_success': '✅ Deleted {count} item(s)',
   'notice.delete_partial': '⚠️ Deleted {success}, failed {failed}',
   'notice.delete_failed': '❌ Delete failed: {error}',
-  'notice.delete_webdav_forbidden': '⚠️ This server forbids WebDAV deletion (files ok, folders require web UI)',
-  'notice.delete_s3_forbidden': '⚠️ Delete failed (no delete permission or bucket policy denied)',
   'notice.rename_conflict': '❌ Rename failed: filename already exists',
   'notice.rename_failed': '❌ Rename failed: {error}',
   'notice.rename_success': '✅ Renamed successfully',
@@ -437,10 +435,12 @@ Object.assign(I18n.translations.en, {
   'view.new_folder_title': '📁 New Folder',
   'view.new_folder_placeholder': 'Enter folder name',
   'view.new_folder_confirm': 'Create',
+  'view.new_folder_cancel': 'Cancel',
   'view.new_folder_creating': '⏳ Creating folder...',
   'view.new_folder_success': '✅ Folder created: {name}',
   'view.new_folder_failed': '❌ Failed: {error}',
   'view.new_folder_name_empty': '⚠️ Folder name cannot be empty',
+  'view.new_folder_keep_notice': 'ℹ️ Created .keep placeholder for S3 (to mark the directory)',
   'view.file_count': '{count}/{total} selected',
   'view.select_all': 'Select All',
   'view.select_invert': 'Invert',
@@ -1087,7 +1087,7 @@ class OpenListClient {
           if (response.ok || response.status === 204) {
             results.success.push(fullPath);
           } else {
-            results.failed.push({ path: fullPath, error: response.text || `HTTP ${response.status}`, status: response.status });
+            results.failed.push({ path: fullPath, error: response.text || `HTTP ${response.status}` });
           }
           continue;
         }
@@ -1367,8 +1367,8 @@ class OpenListClient {
       if (files.length <= 3) console.log('[CloudAttach] listDir path:', JSON.stringify(relativePath));
     }
 
-    // XML 有条目但全部被过滤（排除目录自身引用后），可能是路径匹配问题
-    if (responses.length > 1 && files.length === 0) {
+    // XML 有条目但全部被过滤，可能是路径匹配问题
+    if (responses.length > 0 && files.length === 0) {
       console.warn('[CloudAttach] WebDAV: XML解析到', responses.length, '条目但全部被过滤，remotePath=', remotePath, 'webdavPath=', this.webdavPath);
     }
 
@@ -1934,7 +1934,7 @@ class S3Client {
             const itemEncodedKey = encodeURIComponent(itemKey);
             const itemDeleteUrl = `${this.endpoint}/${this.bucket}/${itemEncodedKey}?${itemSignedQuery}`;
             const r = await this.requestViaObsidian(itemDeleteUrl, { method: 'DELETE' });
-            if (!r.ok) results.failed.push({ path: item.path, error: `HTTP ${r.status}`, status: r.status });
+            if (!r.ok) results.failed.push({ path: item.path, error: `HTTP ${r.status}` });
             else results.success.push(item.path);
           }
         } else {
@@ -1943,7 +1943,7 @@ class S3Client {
           const deleteUrl = `${this.endpoint}/${this.bucket}/${encodedKey}?${signedQuery}`;
           const r = await this.requestViaObsidian(deleteUrl, { method: 'DELETE' });
           if (r.ok) results.success.push(fullPath);
-          else results.failed.push({ path: fullPath, error: `HTTP ${r.status}`, status: r.status });
+          else results.failed.push({ path: fullPath, error: `HTTP ${r.status}` });
         }
       } catch (e) {
         results.failed.push({ path: fullPath, error: e.message });
@@ -2170,20 +2170,17 @@ class CloudAttachView extends ItemView {
     this.breadcrumbEl.appendChild(root);
     if (this.currentPath === '/') {
       // 根目录也需要刷新按钮
-      const actions = document.createElement('div');
-      actions.className = 'cloud-attach-breadcrumb-actions';
       const newFolderBtn = document.createElement('button');
       newFolderBtn.className = 'cloud-attach-refresh';
       newFolderBtn.textContent = t('view.new_folder_btn');
       newFolderBtn.title = t('view.new_folder_title');
       newFolderBtn.onclick = () => this.showNewFolderDialog();
-      actions.appendChild(newFolderBtn);
+      this.breadcrumbEl.appendChild(newFolderBtn);
       const refresh = document.createElement('button');
       refresh.className = 'cloud-attach-refresh';
       refresh.textContent = t('view.refresh');
-      refresh.onclick = () => this.loadDir();
-      actions.appendChild(refresh);
-      this.breadcrumbEl.appendChild(actions);
+           refresh.onclick = () => this.loadDir();
+      this.breadcrumbEl.appendChild(refresh);
       this.renderBatchBar();
       return;
     }
@@ -2201,20 +2198,17 @@ class CloudAttachView extends ItemView {
       btn.onclick = () => { this.navigateTo(targetPath); };
       this.breadcrumbEl.appendChild(btn);
     }
-    const actions = document.createElement('div');
-    actions.className = 'cloud-attach-breadcrumb-actions';
     const newFolderBtn = document.createElement('button');
     newFolderBtn.className = 'cloud-attach-refresh';
     newFolderBtn.textContent = t('view.new_folder_btn');
     newFolderBtn.title = t('view.new_folder_title');
     newFolderBtn.onclick = () => this.showNewFolderDialog();
-    actions.appendChild(newFolderBtn);
+    this.breadcrumbEl.appendChild(newFolderBtn);
     const refresh = document.createElement('button');
     refresh.className = 'cloud-attach-refresh';
     refresh.textContent = t('view.refresh');
     refresh.onclick = () => this.loadDir();
-    actions.appendChild(refresh);
-    this.breadcrumbEl.appendChild(actions);
+    this.breadcrumbEl.appendChild(refresh);
     this.renderBatchBar();
   }
   // 统一的导航方法
@@ -2258,6 +2252,10 @@ class CloudAttachView extends ItemView {
     btnRow.style.display = 'flex';
     btnRow.style.gap = '8px';
     btnRow.style.justifyContent = 'flex-end';
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = t('view.new_folder_cancel');
+    cancelBtn.onclick = () => modal.close();
+    btnRow.appendChild(cancelBtn);
     const confirmBtn = document.createElement('button');
     confirmBtn.textContent = t('view.new_folder_confirm');
     confirmBtn.className = 'mod-cta';
@@ -2277,6 +2275,9 @@ class CloudAttachView extends ItemView {
         const result = await this.client.createDirectory(this.currentPath, name);
         if (result.ok) {
           new Notice(t('view.new_folder_success', {name}), 3000);
+          if (result.usedPlaceholder) {
+            new Notice(t('view.new_folder_keep_notice'), 5000);
+          }
           modal.close();
           await this.loadDir();
         } else {
@@ -2431,17 +2432,10 @@ class CloudAttachView extends ItemView {
     if (!this.client) return;
     const paths = files.map(f => f.path);
     const result = await this.client.delete(paths);
-    const is403 = (failed) => failed.status === 403;
-    const isS3 = this.client.constructor.name === 'S3Client';
     if (result.failed.length === 0) {
       new Notice(t('notice.delete_success', { count: result.success.length }));
     } else if (result.success.length === 0) {
-      const first = result.failed[0];
-      if (is403(first)) {
-        new Notice(t(isS3 ? 'notice.delete_s3_forbidden' : 'notice.delete_webdav_forbidden'), 5000);
-      } else {
-        new Notice(t('notice.delete_failed', { error: first.error }), 5000);
-      }
+      new Notice(t('notice.delete_failed', { error: result.failed[0].error }), 5000);
     } else {
       new Notice(t('notice.delete_partial', { success: result.success.length, failed: result.failed.length }), 5000);
     }
@@ -2689,29 +2683,29 @@ class CloudAttachView extends ItemView {
   }
   // 插入单个文件到笔记（异步）
   async insertFile(file) {
-    const view = this.findMostRecentMarkdownView();
-    if (!view?.editor) {
-      new Notice(t('notice.open_note_first'));
-      return;
-    }
     const md = await this.getInsertMarkdown(file);
-    const cursor = view.editor.getCursor();
-    view.editor.replaceRange(md + '\n', cursor);
-    new Notice(t('notice.inserted', {name: file.name}));
+    const view = this.findMostRecentMarkdownView();
+    if (view?.editor) {
+      const cursor = view.editor.getCursor();
+      view.editor.replaceRange(md + '\n', cursor);
+      new Notice(t('notice.inserted', {name: file.name}));
+    } else {
+      new Notice(t('notice.open_note_first'));
+    }
   }
   // 批量插入（异步）
   async insertSelectedFiles() {
     if (!this.client || this.selectedFiles.size === 0) return;
-    const view = this.findMostRecentMarkdownView();
-    if (!view?.editor) {
-      new Notice(t('notice.open_note_first'));
-      return;
-    }
     const selected = this.files.filter(f => this.selectedFiles.has(f.path));
     const mds = await Promise.all(selected.map(file => this.getInsertMarkdown(file)));
-    const cursor = view.editor.getCursor();
-    view.editor.replaceRange(mds.map(md => md + '\n').join('\n') + '\n', cursor);
-    new Notice(t('notice.inserted_count', {count: selected.length}));
+    const view = this.findMostRecentMarkdownView();
+    if (view?.editor) {
+      const cursor = view.editor.getCursor();
+      view.editor.replaceRange(mds.map(md => md + '\n').join('\n') + '\n', cursor);
+      new Notice(t('notice.inserted_count', {count: selected.length}));
+    } else {
+      new Notice(t('notice.open_note_first'));
+    }
     this.selectedFiles.clear();
     this.renderFiles();
     this.renderBatchBar();
@@ -2770,7 +2764,6 @@ class CloudAttachView extends ItemView {
     menu.showAtPosition({ x: event.clientX, y: event.clientY });
   }
 }
-
 class AddAccountModal extends Modal {
   constructor(app, plugin, onSave, account = null) {
     super(app);
@@ -3784,8 +3777,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     this.registerEvent(
       this.app.workspace.on('file-menu', (menu, file, source) => {
         if (!file || !source.startsWith('file-explorer')) return;
-        // 文件夹不上传（保持克制）
-        if (file.children !== undefined) return;
         const ext = file.extension?.toLowerCase() || '';
         if (ext === 'md') return;
 
@@ -3963,13 +3954,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
       .cloud-attach-title { font-size: 14px; margin: 8px 0; }
       .cloud-attach-select-area { padding: 0 8px 8px; }
       .cloud-attach-select { width: 100%; padding: 6px 8px; font-size: 13px; border-radius: 4px; border: 1px solid var(--background-modifier-border); background: var(--background-primary); }
-      .cloud-attach-breadcrumb { padding: 6px 8px; font-size: 12px; border-bottom: 1px solid var(--background-modifier-border); display: flex; align-items: center; gap: 2px; flex-wrap: wrap; justify-content: space-between; }
-      .cloud-attach-breadcrumb-actions { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+      .cloud-attach-breadcrumb { padding: 6px 8px; font-size: 12px; border-bottom: 1px solid var(--background-modifier-border); display: flex; align-items: center; gap: 2px; flex-wrap: wrap; }
       .cloud-attach-breadcrumb-btn { background: transparent; border: none; color: var(--text-accent); cursor: pointer; padding: 3px 6px; border-radius: 3px; font-size: 12px; }
       .cloud-attach-breadcrumb-btn:hover { background: var(--background-modifier-hover); }
       .cloud-attach-breadcrumb-sep { color: var(--text-muted); }
       .cloud-attach-breadcrumb-current { color: var(--text-muted); padding: 3px 6px; font-size: 12px; }
-      .cloud-attach-refresh { background: transparent; border: 1px solid var(--background-modifier-border); color: var(--text-muted); cursor: pointer; padding: 3px 8px; border-radius: 3px; font-size: 11px; }
+      .cloud-attach-refresh { margin-left: auto; background: transparent; border: 1px solid var(--background-modifier-border); color: var(--text-muted); cursor: pointer; padding: 3px 8px; border-radius: 3px; font-size: 11px; }
       .cloud-attach-refresh:hover { background: var(--background-modifier-hover); }
       .cloud-attach-batch-bar { padding: 6px 8px; background: var(--background-secondary); border-bottom: 1px solid var(--background-modifier-border); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
       .cloud-attach-batch-count { font-size: 12px; color: var(--text-muted); }
@@ -4044,135 +4034,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       console.error('[CloudAttach] _flushPdfErrorLog failed:', e);
     }
     this._pdfErrorLog = '';
-  }
-
-  /**
-   * 全屏 overlay 预览 PDF（复用现有 PDF.js 渲染）
-   */
-  _showPdfOverlay(url) {
-    const overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;background:var(--background-primary);display:flex;flex-direction:column;';
-    document.body.appendChild(overlay);
-
-    // 顶部工具栏
-    const toolbar = overlay.createEl('div');
-    toolbar.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:6px 12px;border-bottom:1px solid var(--background-modifier-border);flex-shrink:0;';
-    
-    const left = toolbar.createEl('div');
-    left.style.cssText = 'display:flex;align-items:center;gap:8px;';
-    // 文件名
-    const name = url.split('?')[0].split('/').pop() || 'PDF';
-    let displayName = name;
-    try { displayName = decodeURIComponent(name); } catch {}
-    left.createEl('span', { text: '📄 ' + displayName });
-
-    const right = toolbar.createEl('div');
-    right.style.cssText = 'display:flex;align-items:center;gap:10px;';
-
-    // 页码
-    const pageEl = right.createEl('span', { text: '1 / 1' });
-    pageEl.style.cssText = 'font-size:13px;';
-
-    // 缩放下拉
-    const zoomSelect = right.createEl('select');
-    zoomSelect.style.cssText = 'font-size:12px;padding:2px 4px;';
-    const zoomLevels = ['50%','75%','100%','125%','150%','200%','适应宽度'];
-    zoomLevels.forEach((v, i) => {
-      const opt = zoomSelect.createEl('option', { text: v });
-      if (i === zoomLevels.length - 1) opt.selected = true;
-    });
-
-    // 关闭按钮
-    const closeBtn = right.createEl('button');
-    closeBtn.className = 'clickable-icon';
-    closeBtn.setAttribute('aria-label', '关闭');
-    closeBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
-    closeBtn.onclick = () => overlay.remove();
-    
-    // Esc 关闭
-    const escHandler = (ev) => { if (ev.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', escHandler); } };
-    document.addEventListener('keydown', escHandler);
-
-    // 内容区
-    const scrollEl = overlay.createEl('div');
-    scrollEl.style.cssText = 'flex:1;overflow-y:auto;overflow-x:hidden;background:var(--background-secondary);padding:8px 0;min-height:0;';
-    scrollEl.createEl('div', { text: '⏳ 加载 PDF...', cls: 'cloud-attach-loading' });
-
-    // 异步加载渲染
-    (async () => {
-      try {
-        const pdfjsLib = await this._loadPdfJs();
-        const pdfData = await this._downloadPdfBinary(url);
-        const loadingTask = pdfData
-          ? pdfjsLib.getDocument({ data: pdfData, ownerDocument: document })
-          : pdfjsLib.getDocument({ url, ownerDocument: document });
-        const pdf = await loadingTask.promise;
-        const totalPages = pdf.numPages;
-        pageEl.textContent = `1 / ${totalPages}`;
-        scrollEl.empty();
-
-        const reRender = async () => {
-          const val = zoomSelect.value;
-          let scale = 2;
-          if (val === '适应宽度') {
-            const w = scrollEl.clientWidth;
-            const pg1 = await pdf.getPage(1);
-            const vp1 = pg1.getViewport({ scale: 1 });
-            scale = w > 0 ? w / vp1.width : 2;
-          } else {
-            scale = parseInt(val) / 100;
-          }
-          scrollEl.empty();
-          for (let i = 1; i <= totalPages; i++) {
-            const page = await pdf.getPage(i);
-            const viewport = page.getViewport({ scale });
-            const canvas = document.createElement('canvas');
-            canvas.style.cssText = 'display:block;margin:0 auto 8px;box-shadow:0 1px 4px rgba(0,0,0,0.15);';
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-            canvas.dataset.pageNum = String(i);
-            scrollEl.appendChild(canvas);
-            await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-          }
-          // 绑定滚动
-          scrollEl.onscroll = () => {
-            const canvases = scrollEl.querySelectorAll('canvas[data-page-num]');
-            const midY = scrollEl.scrollTop + scrollEl.clientHeight / 2;
-            for (const c of canvases) {
-              const rect = c.getBoundingClientRect();
-              const cTop = rect.top - scrollEl.getBoundingClientRect().top;
-              const cMid = cTop + rect.height / 2;
-              if (cMid >= 0 && cMid <= scrollEl.clientHeight) {
-                pageEl.textContent = `${c.dataset.pageNum} / ${totalPages}`;
-                break;
-              }
-            }
-          };
-        };
-        zoomSelect.onchange = () => reRender();
-        await reRender();
-      } catch (e) {
-        console.error('[CloudAttach] overlay PDF error:', e);
-        scrollEl.empty();
-        scrollEl.createEl('div', { text: '❌ 加载 PDF 失败: ' + (e.message || ''), cls: 'cloud-attach-error' });
-      }
-    })();
-  }
-
-  /**
-   * 通过 Obsidian requestUrl 下载 PDF 二进制（绕过 CORS）
-   */
-  async _downloadPdfBinary(url) {
-    let reqUrlFn = null;
-    try { reqUrlFn = require('obsidian').requestUrl; } catch(e) {}
-    if (reqUrlFn) {
-      try {
-        const resp = await reqUrlFn({ url, method: 'GET' });
-        return resp.arrayBuffer;
-      } catch(e) {
-        console.error('[CloudAttach] _downloadPdfBinary requestUrl error:', e);
-      }
-    }
   }
 
   // ============================================================
@@ -4632,14 +4493,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const fullscreenBtn = document.createElement("span");
     fullscreenBtn.textContent = "\u26F6";
     fullscreenBtn.style.cursor = "pointer";
-    fullscreenBtn.title = "全屏预览";
+    fullscreenBtn.title = "\u5168\u5C4F\u9884\u89C8\uFF08\u656C\u8BF7\u671F\u5F85\uFF09";
     fullscreenBtn.dataset.role = "fullscreen";
     toolbar.appendChild(fullscreenBtn);
     fullscreenBtn.onclick = (e) => {
       e.stopPropagation();
-      const url = container.dataset.pdfUrl;
-      if (!url) return;
-      this._showPdfOverlay(url);
+      const { Notice: Notice2 } = require("obsidian");
+      new Notice2("\u{1F50D} \u5168\u5C4F\u9884\u89C8\u529F\u80FD\uFF0C\u656C\u8BF7\u671F\u5F85");
     };
     const scrollArea = container.querySelector(".cloudattach-pdf-scrollarea");
     const scrollToPage = (pageNum) => {
