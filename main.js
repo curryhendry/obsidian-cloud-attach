@@ -4,6 +4,7 @@
 // src/main.js
 var { Plugin, Notice, Menu, Modal, PluginSettingTab, MarkdownView, ItemView, EditorSuggest } = require("obsidian");
 var VIEW_TYPE_CLOUDATTACH = "cloud-attach-view";
+var VIEW_TYPE_PDF_FULLSCREEN = "cloud-attach-pdf-fullscreen";
 var I18n = {
   currentLang: "zh",
   translations: {
@@ -68,6 +69,8 @@ Object.assign(I18n.translations.zh, {
   "notice.delete_success": "\u2705 \u5DF2\u5220\u9664 {count} \u9879",
   "notice.delete_partial": "\u26A0\uFE0F \u5220\u9664\u6210\u529F {success} \u9879\uFF0C\u5931\u8D25 {failed} \u9879",
   "notice.delete_failed": "\u274C \u5220\u9664\u5931\u8D25\uFF1A{error}",
+  "notice.delete_webdav_forbidden": "\u26A0\uFE0F \u6B64\u670D\u52A1\u5668\u4E0D\u652F\u6301\u901A\u8FC7 WebDAV \u5220\u9664\uFF08\u53EF\u5220\u9664\u6587\u4EF6\uFF0C\u6587\u4EF6\u5939\u9700\u5230\u7F51\u9875\u7AEF\u64CD\u4F5C\uFF09",
+  "notice.delete_s3_forbidden": "\u26A0\uFE0F \u5220\u9664\u5931\u8D25\uFF08\u8D26\u53F7\u65E0\u5220\u9664\u6743\u9650\u6216\u5B58\u50A8\u6876\u7B56\u7565\u7981\u6B62\uFF09",
   "notice.rename_conflict": "\u274C \u91CD\u547D\u540D\u5931\u8D25\uFF1A\u76EE\u6807\u6587\u4EF6\u540D\u5DF2\u5B58\u5728",
   "notice.rename_failed": "\u274C \u91CD\u547D\u540D\u5931\u8D25\uFF1A{error}",
   "notice.rename_success": "\u2705 \u91CD\u547D\u540D\u6210\u529F",
@@ -160,12 +163,13 @@ Object.assign(I18n.translations.zh, {
   "view.new_folder_title": "\u{1F4C1} \u65B0\u5EFA\u6587\u4EF6\u5939",
   "view.new_folder_placeholder": "\u8BF7\u8F93\u5165\u6587\u4EF6\u5939\u540D\u79F0",
   "view.new_folder_confirm": "\u521B\u5EFA",
-  "view.new_folder_cancel": "\u53D6\u6D88",
   "view.new_folder_creating": "\u23F3 \u6B63\u5728\u521B\u5EFA\u6587\u4EF6\u5939...",
   "view.new_folder_success": "\u2705 \u6587\u4EF6\u5939\u5DF2\u521B\u5EFA: {name}",
   "view.new_folder_failed": "\u274C \u521B\u5EFA\u5931\u8D25: {error}",
   "view.new_folder_name_empty": "\u26A0\uFE0F \u6587\u4EF6\u5939\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A",
-  "view.new_folder_keep_notice": "\u2139\uFE0F S3 \u7AEF\u521B\u5EFA\u4E86 .keep \u5360\u4F4D\u6587\u4EF6\uFF08\u6807\u8BB0\u76EE\u5F55\uFF09",
+  "view.fullscreen_loading": "\u23F3 \u52A0\u8F7D PDF...",
+  "view.fullscreen_load_fail": "\u274C \u52A0\u8F7D PDF \u5931\u8D25",
+  "view.fullscreen_fit_width": "\u9002\u5E94\u5BBD\u5EA6",
   "view.file_count": "{count}/{total} \u9879\u5DF2\u9009",
   "view.select_all": "\u5168\u9009",
   "view.select_invert": "\u53CD\u9009",
@@ -315,6 +319,8 @@ Object.assign(I18n.translations.en, {
   "notice.delete_success": "\u2705 Deleted {count} item(s)",
   "notice.delete_partial": "\u26A0\uFE0F Deleted {success}, failed {failed}",
   "notice.delete_failed": "\u274C Delete failed: {error}",
+  "notice.delete_webdav_forbidden": "\u26A0\uFE0F This server forbids WebDAV deletion (files ok, folders require web UI)",
+  "notice.delete_s3_forbidden": "\u26A0\uFE0F Delete failed (no delete permission or bucket policy denied)",
   "notice.rename_conflict": "\u274C Rename failed: filename already exists",
   "notice.rename_failed": "\u274C Rename failed: {error}",
   "notice.rename_success": "\u2705 Renamed successfully",
@@ -413,12 +419,13 @@ Object.assign(I18n.translations.en, {
   "view.new_folder_title": "\u{1F4C1} New Folder",
   "view.new_folder_placeholder": "Enter folder name",
   "view.new_folder_confirm": "Create",
-  "view.new_folder_cancel": "Cancel",
   "view.new_folder_creating": "\u23F3 Creating folder...",
   "view.new_folder_success": "\u2705 Folder created: {name}",
   "view.new_folder_failed": "\u274C Failed: {error}",
   "view.new_folder_name_empty": "\u26A0\uFE0F Folder name cannot be empty",
-  "view.new_folder_keep_notice": "\u2139\uFE0F Created .keep placeholder for S3 (to mark the directory)",
+  "view.fullscreen_loading": "\u23F3 Loading PDF...",
+  "view.fullscreen_load_fail": "\u274C Failed to load PDF",
+  "view.fullscreen_fit_width": "Fit Width",
   "view.file_count": "{count}/{total} selected",
   "view.select_all": "Select All",
   "view.select_invert": "Invert",
@@ -987,7 +994,7 @@ var OpenListClient = class {
           if (response2.ok || response2.status === 204) {
             results.success.push(fullPath);
           } else {
-            results.failed.push({ path: fullPath, error: response2.text || `HTTP ${response2.status}` });
+            results.failed.push({ path: fullPath, error: response2.text || `HTTP ${response2.status}`, status: response2.status });
           }
           continue;
         }
@@ -1238,7 +1245,7 @@ var OpenListClient = class {
       if (files.length <= 3)
         console.log("[CloudAttach] listDir path:", JSON.stringify(relativePath));
     }
-    if (responses.length > 0 && files.length === 0) {
+    if (responses.length > 1 && files.length === 0) {
       console.warn("[CloudAttach] WebDAV: XML\u89E3\u6790\u5230", responses.length, "\u6761\u76EE\u4F46\u5168\u90E8\u88AB\u8FC7\u6EE4\uFF0CremotePath=", remotePath, "webdavPath=", this.webdavPath);
     }
     return files.sort((a, b) => {
@@ -1733,7 +1740,7 @@ var S3Client = class {
             const itemDeleteUrl = `${this.endpoint}/${this.bucket}/${itemEncodedKey}?${itemSignedQuery}`;
             const r = await this.requestViaObsidian(itemDeleteUrl, { method: "DELETE" });
             if (!r.ok)
-              results.failed.push({ path: item.path, error: `HTTP ${r.status}` });
+              results.failed.push({ path: item.path, error: `HTTP ${r.status}`, status: r.status });
             else
               results.success.push(item.path);
           }
@@ -1745,7 +1752,7 @@ var S3Client = class {
           if (r.ok)
             results.success.push(fullPath);
           else
-            results.failed.push({ path: fullPath, error: `HTTP ${r.status}` });
+            results.failed.push({ path: fullPath, error: `HTTP ${r.status}`, status: r.status });
         }
       } catch (e) {
         results.failed.push({ path: fullPath, error: e.message });
@@ -1969,17 +1976,20 @@ var CloudAttachView = class extends ItemView {
     };
     this.breadcrumbEl.appendChild(root);
     if (this.currentPath === "/") {
+      const actions2 = document.createElement("div");
+      actions2.className = "cloud-attach-breadcrumb-actions";
       const newFolderBtn2 = document.createElement("button");
       newFolderBtn2.className = "cloud-attach-refresh";
       newFolderBtn2.textContent = t("view.new_folder_btn");
       newFolderBtn2.title = t("view.new_folder_title");
       newFolderBtn2.onclick = () => this.showNewFolderDialog();
-      this.breadcrumbEl.appendChild(newFolderBtn2);
+      actions2.appendChild(newFolderBtn2);
       const refresh2 = document.createElement("button");
       refresh2.className = "cloud-attach-refresh";
       refresh2.textContent = t("view.refresh");
       refresh2.onclick = () => this.loadDir();
-      this.breadcrumbEl.appendChild(refresh2);
+      actions2.appendChild(refresh2);
+      this.breadcrumbEl.appendChild(actions2);
       this.renderBatchBar();
       return;
     }
@@ -1998,17 +2008,20 @@ var CloudAttachView = class extends ItemView {
       };
       this.breadcrumbEl.appendChild(btn);
     }
+    const actions = document.createElement("div");
+    actions.className = "cloud-attach-breadcrumb-actions";
     const newFolderBtn = document.createElement("button");
     newFolderBtn.className = "cloud-attach-refresh";
     newFolderBtn.textContent = t("view.new_folder_btn");
     newFolderBtn.title = t("view.new_folder_title");
     newFolderBtn.onclick = () => this.showNewFolderDialog();
-    this.breadcrumbEl.appendChild(newFolderBtn);
+    actions.appendChild(newFolderBtn);
     const refresh = document.createElement("button");
     refresh.className = "cloud-attach-refresh";
     refresh.textContent = t("view.refresh");
     refresh.onclick = () => this.loadDir();
-    this.breadcrumbEl.appendChild(refresh);
+    actions.appendChild(refresh);
+    this.breadcrumbEl.appendChild(actions);
     this.renderBatchBar();
   }
   // 统一的导航方法
@@ -2051,10 +2064,6 @@ var CloudAttachView = class extends ItemView {
     btnRow.style.display = "flex";
     btnRow.style.gap = "8px";
     btnRow.style.justifyContent = "flex-end";
-    const cancelBtn = document.createElement("button");
-    cancelBtn.textContent = t("view.new_folder_cancel");
-    cancelBtn.onclick = () => modal.close();
-    btnRow.appendChild(cancelBtn);
     const confirmBtn2 = document.createElement("button");
     confirmBtn2.textContent = t("view.new_folder_confirm");
     confirmBtn2.className = "mod-cta";
@@ -2074,9 +2083,6 @@ var CloudAttachView = class extends ItemView {
         const result = await this.client.createDirectory(this.currentPath, name);
         if (result.ok) {
           new Notice(t("view.new_folder_success", { name }), 3e3);
-          if (result.usedPlaceholder) {
-            new Notice(t("view.new_folder_keep_notice"), 5e3);
-          }
           modal.close();
           await this.loadDir();
         } else {
@@ -2234,10 +2240,17 @@ var CloudAttachView = class extends ItemView {
       return;
     const paths = files.map((f) => f.path);
     const result = await this.client.delete(paths);
+    const is403 = (failed) => failed.status === 403;
+    const isS3 = this.client.constructor.name === "S3Client";
     if (result.failed.length === 0) {
       new Notice(t("notice.delete_success", { count: result.success.length }));
     } else if (result.success.length === 0) {
-      new Notice(t("notice.delete_failed", { error: result.failed[0].error }), 5e3);
+      const first = result.failed[0];
+      if (is403(first)) {
+        new Notice(t(isS3 ? "notice.delete_s3_forbidden" : "notice.delete_webdav_forbidden"), 5e3);
+      } else {
+        new Notice(t("notice.delete_failed", { error: first.error }), 5e3);
+      }
     } else {
       new Notice(t("notice.delete_partial", { success: result.success.length, failed: result.failed.length }), 5e3);
     }
@@ -2519,30 +2532,30 @@ var CloudAttachView = class extends ItemView {
   }
   // 插入单个文件到笔记（异步）
   async insertFile(file) {
-    const md = await this.getInsertMarkdown(file);
     const view = this.findMostRecentMarkdownView();
-    if (view?.editor) {
-      const cursor = view.editor.getCursor();
-      view.editor.replaceRange(md + "\n", cursor);
-      new Notice(t("notice.inserted", { name: file.name }));
-    } else {
+    if (!view?.editor) {
       new Notice(t("notice.open_note_first"));
+      return;
     }
+    const md = await this.getInsertMarkdown(file);
+    const cursor = view.editor.getCursor();
+    view.editor.replaceRange(md + "\n", cursor);
+    new Notice(t("notice.inserted", { name: file.name }));
   }
   // 批量插入（异步）
   async insertSelectedFiles() {
     if (!this.client || this.selectedFiles.size === 0)
       return;
+    const view = this.findMostRecentMarkdownView();
+    if (!view?.editor) {
+      new Notice(t("notice.open_note_first"));
+      return;
+    }
     const selected = this.files.filter((f) => this.selectedFiles.has(f.path));
     const mds = await Promise.all(selected.map((file) => this.getInsertMarkdown(file)));
-    const view = this.findMostRecentMarkdownView();
-    if (view?.editor) {
-      const cursor = view.editor.getCursor();
-      view.editor.replaceRange(mds.map((md) => md + "\n").join("\n") + "\n", cursor);
-      new Notice(t("notice.inserted_count", { count: selected.length }));
-    } else {
-      new Notice(t("notice.open_note_first"));
-    }
+    const cursor = view.editor.getCursor();
+    view.editor.replaceRange(mds.map((md) => md + "\n").join("\n") + "\n", cursor);
+    new Notice(t("notice.inserted_count", { count: selected.length }));
     this.selectedFiles.clear();
     this.renderFiles();
     this.renderBatchBar();
@@ -2604,6 +2617,542 @@ var CloudAttachView = class extends ItemView {
       });
     }
     menu.showAtPosition({ x: event.clientX, y: event.clientY });
+  }
+};
+function cleanFileNameFromUrl(url) {
+  if (!url)
+    return "PDF";
+  const noQuery = url.split("?")[0].split("#")[0];
+  const last = noQuery.split("/").pop() || "PDF";
+  try {
+    return decodeURIComponent(last);
+  } catch {
+    return last;
+  }
+}
+var PdfFullscreenView = class extends ItemView {
+  constructor(leaf, plugin, pdfUrl, pdfName) {
+    super(leaf);
+    this.plugin = plugin;
+    this.pdfUrl = pdfUrl;
+    this.pdfName = pdfName || plugin._pendingPdfName || cleanFileNameFromUrl(pdfUrl || plugin._pendingPdfUrl || "");
+  }
+  getViewType() {
+    return VIEW_TYPE_PDF_FULLSCREEN;
+  }
+  getDisplayText() {
+    return this.pdfName || "PDF";
+  }
+  getIcon() {
+    return "file-text";
+  }
+  async onOpen() {
+    const container = this.containerEl.children[1];
+    container.empty();
+    if (!this.pdfUrl && this.plugin._pendingPdfUrl) {
+      this.pdfUrl = this.plugin._pendingPdfUrl;
+      this.pdfName = this.plugin._pendingPdfName || cleanFileNameFromUrl(this.pdfUrl);
+    }
+    container.style.padding = "0";
+    container.style.overflow = "hidden";
+    container.style.height = "100%";
+    container.style.display = "flex";
+    container.style.flexDirection = "column";
+    const toolbar = container.createEl("div");
+    toolbar.style.display = "flex";
+    toolbar.style.alignItems = "center";
+    toolbar.style.justifyContent = "space-between";
+    toolbar.style.padding = "6px 12px";
+    toolbar.style.borderBottom = "1px solid var(--background-modifier-border)";
+    toolbar.style.flexShrink = "0";
+    const left = toolbar.createEl("div");
+    left.style.display = "flex";
+    left.style.alignItems = "center";
+    left.style.gap = "8px";
+    left.style.fontSize = "13px";
+    left.style.color = "var(--text-normal)";
+    this._thumbnailVisible = false;
+    this._panelMode = "thumbnail";
+    const thumbBtnWrap = left.createEl("div");
+    thumbBtnWrap.style.display = "flex";
+    thumbBtnWrap.style.alignItems = "center";
+    const thumbBtn = thumbBtnWrap.createEl("button");
+    thumbBtn.className = "clickable-icon";
+    thumbBtn.setAttribute("aria-label", "\u9762\u677F");
+    thumbBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>';
+    thumbBtn.onclick = () => {
+      this._thumbnailVisible = !this._thumbnailVisible;
+      this._toggleThumbnailPanel();
+    };
+    const arrowBtn = thumbBtnWrap.createEl("button");
+    arrowBtn.className = "clickable-icon";
+    arrowBtn.style.padding = "2px";
+    arrowBtn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+    arrowBtn.onclick = (e) => {
+      const menu = new Menu();
+      menu.addItem((item) => item.setTitle(this._panelMode === "thumbnail" ? "\u2713 \u7F29\u7565\u56FE" : "\u7F29\u7565\u56FE").onClick(() => {
+        this._panelMode = "thumbnail";
+        this._thumbnailVisible = true;
+        this._toggleThumbnailPanel();
+      }));
+      menu.addItem((item) => item.setTitle(this._panelMode === "outline" ? "\u2713 \u76EE\u5F55" : "\u76EE\u5F55").onClick(() => {
+        this._panelMode = "outline";
+        this._thumbnailVisible = true;
+        new Notice("\u76EE\u5F55\u529F\u80FD\u5F00\u53D1\u4E2D");
+      }));
+      menu.showAtMouseEvent(e);
+    };
+    this._viewMode = "continuous";
+    this._zoomMode = "fit-width";
+    const zoomOutBtn = left.createEl("button");
+    zoomOutBtn.className = "clickable-icon";
+    zoomOutBtn.setAttribute("aria-label", "\u7F29\u5C0F");
+    zoomOutBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
+    zoomOutBtn.onclick = () => {
+      new Notice("\u7F29\u5C0F\u529F\u80FD\u5F00\u53D1\u4E2D");
+    };
+    const zoomInBtn = left.createEl("button");
+    zoomInBtn.className = "clickable-icon";
+    zoomInBtn.setAttribute("aria-label", "\u653E\u5927");
+    zoomInBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
+    zoomInBtn.onclick = () => {
+      new Notice("\u653E\u5927\u529F\u80FD\u5F00\u53D1\u4E2D");
+    };
+    const viewMenuBtn = left.createEl("button");
+    viewMenuBtn.className = "clickable-icon";
+    viewMenuBtn.style.padding = "2px";
+    viewMenuBtn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+    viewMenuBtn.onclick = (e) => {
+      const menu = new Menu();
+      const zoomOpts = { "fit-width": "\u9002\u5E94\u5BBD\u5EA6", "fit-height": "\u9002\u5E94\u9AD8\u5EA6" };
+      Object.entries(zoomOpts).forEach(([val, label]) => {
+        menu.addItem((item) => item.setTitle((this._zoomMode === val ? "\u2713 " : "") + label).onClick(() => {
+          this._zoomMode = val;
+          this._applyZoom();
+        }));
+      });
+      menu.addSeparator();
+      const modeOpts = { "continuous": "\u8FDE\u7EED", "single": "\u5355\u9875", "double": "\u53CC\u9875" };
+      Object.entries(modeOpts).forEach(([val, label]) => {
+        menu.addItem((item) => item.setTitle((this._viewMode === val ? "\u2713 " : "") + label).onClick(() => {
+          this._viewMode = val;
+          this._applyViewMode();
+        }));
+      });
+      menu.showAtMouseEvent(e);
+    };
+    let ver = "0";
+    try {
+      const { readFileSync } = require("fs");
+      const { join } = require("path");
+      const changelog = readFileSync(join(this.plugin.manifest.dir || ".", "CHANGELOG.md"), "utf8");
+      const match = changelog.split("\n")[0].match(/v([\d.]+)(?:\.dev)?/);
+      if (match)
+        ver = match[1].split(".").pop() || "0";
+    } catch {
+    }
+    const verBadge = left.createEl("span", { text: ver });
+    verBadge.style.fontSize = "10px";
+    verBadge.style.color = "var(--text-muted)";
+    verBadge.style.background = "var(--background-modifier-hover)";
+    verBadge.style.padding = "1px 4px";
+    verBadge.style.borderRadius = "3px";
+    const right = toolbar.createEl("div");
+    right.style.display = "flex";
+    right.style.alignItems = "center";
+    right.style.gap = "10px";
+    const prevBtn = right.createEl("button");
+    prevBtn.className = "clickable-icon";
+    prevBtn.setAttribute("aria-label", "\u4E0A\u4E00\u9875");
+    prevBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>';
+    prevBtn.onclick = () => this._scrollToPage((this._currentPage || 1) - 1);
+    const pageWrap = right.createEl("span");
+    pageWrap.style.display = "flex";
+    pageWrap.style.alignItems = "center";
+    pageWrap.style.gap = "2px";
+    this.pageInput = pageWrap.createEl("input", { type: "number", value: "1" });
+    this.pageInput.style.width = "40px";
+    this.pageInput.style.fontSize = "13px";
+    this.pageInput.style.textAlign = "center";
+    this.pageInput.style.border = "1px solid var(--background-modifier-border)";
+    this.pageInput.style.borderRadius = "4px";
+    this.pageInput.style.background = "var(--background-primary)";
+    this.pageInput.style.color = "var(--text-normal)";
+    this.pageInput.onchange = () => {
+      const val = parseInt(this.pageInput.value, 10);
+      if (val && val >= 1 && val <= (this._pdf?.numPages || 1)) {
+        this._scrollToPage(val);
+      }
+    };
+    this.pageInput.onkeydown = (e) => {
+      if (e.key === "Enter")
+        this.pageInput.blur();
+    };
+    this.pageTotal = pageWrap.createEl("span", { text: " / 1" });
+    this.pageTotal.style.fontSize = "13px";
+    this.pageTotal.style.color = "var(--text-muted)";
+    const nextBtn = right.createEl("button");
+    nextBtn.className = "clickable-icon";
+    nextBtn.setAttribute("aria-label", "\u4E0B\u4E00\u9875");
+    nextBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>';
+    nextBtn.onclick = () => this._scrollToPage((this._currentPage || 1) + 1);
+    const closeBtn = right.createEl("button");
+    closeBtn.className = "clickable-icon";
+    closeBtn.setAttribute("aria-label", "\u5173\u95ED");
+    closeBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+    closeBtn.onclick = () => this.leaf.detach();
+    this._contentWrap = container.createEl("div");
+    this._contentWrap.style.flex = "1";
+    this._contentWrap.style.display = "flex";
+    this._contentWrap.style.overflow = "hidden";
+    this._contentWrap.style.minHeight = "0";
+    this.scrollEl = this._contentWrap.createEl("div");
+    this.scrollEl.style.flex = "1";
+    this.scrollEl.style.minHeight = "0";
+    this.scrollEl.style.overflowY = "auto";
+    this.scrollEl.style.overflowX = "hidden";
+    this.scrollEl.style.background = "var(--background-secondary)";
+    this.scrollEl.style.padding = "0";
+    this._loadPdf();
+  }
+  async _loadPdf() {
+    try {
+      this.scrollEl.empty();
+      this.scrollEl.createEl("div", { text: t("view.fullscreen_loading"), cls: "cloud-attach-loading" });
+      const pdfjsLib = await this.plugin._loadPdfJs();
+      const pdfData = await this.plugin._downloadPdfBinary(this.pdfUrl);
+      const loadingTask = pdfData ? pdfjsLib.getDocument({ data: pdfData, ownerDocument: this.containerEl.ownerDocument }) : pdfjsLib.getDocument({ url: this.pdfUrl, ownerDocument: this.containerEl.ownerDocument });
+      this._pdf = await loadingTask.promise;
+      const totalPages = this._pdf.numPages;
+      this.pageTotal.textContent = " / " + totalPages;
+      this.pageInput.value = "1";
+      this._currentPage = 1;
+      this.scrollEl.empty();
+      this._renderAllPages();
+    } catch (e) {
+      console.error("[CloudAttach] PdfFullscreenView load error:", e);
+      this.scrollEl.empty();
+      this.scrollEl.createEl("div", {
+        text: t("view.fullscreen_load_fail") + ": " + (e.message || ""),
+        cls: "cloud-attach-error"
+      });
+    }
+  }
+  async _renderAllPages() {
+    if (!this._pdf)
+      return;
+    const totalPages = this._pdf.numPages;
+    const firstPg = await this._pdf.getPage(1);
+    const firstVp = firstPg.getViewport({ scale: 1 });
+    const pageW = firstVp.width;
+    let scale = 1;
+    if (this._zoomMode === "fit-width") {
+      const w = this.scrollEl.clientWidth;
+      scale = w > 0 ? w / pageW : 1;
+    } else if (this._zoomMode === "fit-height") {
+      const h = this.scrollEl.clientHeight;
+      scale = h > 0 ? h / firstVp.height : 1;
+    }
+    for (let i = 1; i <= totalPages; i++) {
+      const page = await this._pdf.getPage(i);
+      const viewport = page.getViewport({ scale });
+      const canvas = document.createElement("canvas");
+      canvas.className = "cloud-attach-pdf-fullscreen-page";
+      canvas.style.display = "block";
+      canvas.style.margin = "0 auto 8px";
+      canvas.style.boxShadow = "0 1px 4px rgba(0,0,0,0.15)";
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      canvas.dataset.pageNum = String(i);
+      this.scrollEl.appendChild(canvas);
+      await page.render({
+        canvasContext: canvas.getContext("2d"),
+        viewport
+      }).promise;
+    }
+    this._bindScroll();
+  }
+  _reRender() {
+    if (!this._pdf)
+      return;
+    this.scrollEl.empty();
+    requestAnimationFrame(() => {
+      this._renderAllPages().then(() => {
+        this._applyViewMode();
+      });
+    });
+  }
+  _applyViewMode() {
+    const canvases = this.scrollEl.querySelectorAll("canvas.cloud-attach-pdf-fullscreen-page");
+    const cur = this._currentPage || 1;
+    canvases.forEach((c) => {
+      c.style.display = "block";
+      c.style.position = "";
+      c.style.top = "";
+      c.style.left = "";
+      c.style.width = "";
+      c.style.height = "";
+      c.style.margin = "0 auto 8px";
+      c.style.transform = "";
+      c.style.transition = "";
+      c.style.opacity = "";
+      c.style.pointerEvents = "";
+      c.style.maxWidth = "";
+      c.style.maxHeight = "";
+    });
+    this.scrollEl.style.position = "";
+    this.scrollEl.style.overflow = "";
+    this.scrollEl.style.display = "";
+    this.scrollEl.style.flexDirection = "";
+    this.scrollEl.style.flexWrap = "";
+    this.scrollEl.style.justifyContent = "";
+    this.scrollEl.style.alignItems = "";
+    this.scrollEl.style.gap = "";
+    this.scrollEl.style.height = "";
+    if (this._viewMode === "single") {
+      this.scrollEl.style.position = "relative";
+      this.scrollEl.style.overflow = "hidden";
+      canvases.forEach((c) => {
+        const pn = parseInt(c.dataset.pageNum, 10);
+        c.style.position = "absolute";
+        c.style.top = "0";
+        c.style.left = "0";
+        c.style.margin = "0";
+        c.style.display = "block";
+        c.style.transition = "transform 0.35s ease-out";
+        const scrollW = this.scrollEl.clientWidth;
+        if (scrollW && c.width > scrollW) {
+          c.style.width = scrollW + "px";
+          c.style.height = "auto";
+        }
+        const offset = pn - cur;
+        c.style.transform = `translateY(${offset * 100}%)`;
+      });
+      this._highlightThumbnail(cur);
+    } else if (this._viewMode === "double") {
+      this.scrollEl.style.display = "flex";
+      this.scrollEl.style.flexDirection = "row";
+      this.scrollEl.style.flexWrap = "nowrap";
+      this.scrollEl.style.justifyContent = "center";
+      this.scrollEl.style.alignItems = "center";
+      this.scrollEl.style.gap = "4px";
+      this.scrollEl.style.overflow = "hidden";
+      const startPage = cur % 2 === 1 ? cur : cur - 1;
+      const scrollW = this.scrollEl.clientWidth;
+      const scrollH = this.scrollEl.clientHeight;
+      const halfW = scrollW / 2 - 8;
+      canvases.forEach((c) => {
+        const pn = parseInt(c.dataset.pageNum, 10);
+        const pairIndex = Math.floor((pn - 1) / 2);
+        const currentPairIndex = Math.floor((cur - 1) / 2);
+        const isVisible = pairIndex === currentPairIndex;
+        c.style.position = "static";
+        c.style.margin = "0";
+        c.style.display = isVisible ? "block" : "none";
+        if (isVisible && scrollW > 0) {
+          const cw = c.width;
+          const ch = c.height;
+          const ratio = cw / (ch || 1);
+          const targetW = Math.min(halfW, cw);
+          const targetH = targetW / ratio;
+          if (targetH > scrollH && scrollH > 0) {
+            c.style.height = scrollH + "px";
+            c.style.width = scrollH * ratio + "px";
+          } else {
+            c.style.width = targetW + "px";
+            c.style.height = targetH + "px";
+          }
+        }
+      });
+      this._highlightThumbnail(cur);
+    } else {
+      this.scrollEl.style.overflowY = "auto";
+      this.scrollEl.style.overflowX = "hidden";
+      this.scrollEl.style.position = "";
+    }
+  }
+  _applyZoom() {
+    this._reRender();
+  }
+  _toggleThumbnailPanel() {
+    if (!this._thumbnailPanelWrap) {
+      this._thumbnailPanelWrap = this._contentWrap.createEl("div");
+      this._thumbnailPanelWrap.style.display = "flex";
+      this._thumbnailPanelWrap.style.flexDirection = "row";
+      this._contentWrap.insertBefore(this._thumbnailPanelWrap, this.scrollEl);
+      this._thumbnailPanel = this._thumbnailPanelWrap.createEl("div");
+      this._thumbnailPanel.style.width = "150px";
+      this._thumbnailPanel.style.flexShrink = "0";
+      this._thumbnailPanel.style.overflowY = "auto";
+      this._thumbnailPanel.style.background = "var(--background-primary)";
+      this._thumbnailPanel.style.padding = "8px";
+      this._renderThumbnails();
+      const resizeHandle = this._thumbnailPanelWrap.createEl("div");
+      resizeHandle.style.width = "10px";
+      resizeHandle.style.minWidth = "10px";
+      resizeHandle.style.cursor = "col-resize";
+      resizeHandle.style.background = "var(--background-modifier-border)";
+      resizeHandle.style.flexShrink = "0";
+      resizeHandle.style.alignSelf = "stretch";
+      resizeHandle.style.userSelect = "none";
+      resizeHandle.style.position = "relative";
+      resizeHandle.style.zIndex = "100";
+      resizeHandle.style.display = "flex";
+      resizeHandle.style.alignItems = "center";
+      resizeHandle.style.justifyContent = "center";
+      const gripLine = resizeHandle.createEl("div");
+      gripLine.style.width = "3px";
+      gripLine.style.height = "30px";
+      gripLine.style.borderRadius = "2px";
+      gripLine.style.background = "var(--text-muted)";
+      resizeHandle.onmouseenter = () => {
+        resizeHandle.style.background = "var(--background-modifier-border)";
+        gripLine.style.background = "var(--interactive-accent)";
+      };
+      resizeHandle.onmouseleave = () => {
+        resizeHandle.style.background = "var(--background-modifier-border)";
+        gripLine.style.background = "var(--text-muted)";
+      };
+      resizeHandle.onpointerdown = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        gripLine.style.background = "var(--interactive-accent)";
+        document.body.style.cursor = "col-resize";
+        document.body.style.userSelect = "none";
+        const startX = e.clientX;
+        const startW = parseInt(this._thumbnailPanel.style.width || "150", 10);
+        const onMove = (ev) => {
+          const newW = startW + (ev.clientX - startX);
+          if (newW >= 100 && newW <= 500) {
+            this._thumbnailPanel.style.width = newW + "px";
+          }
+        };
+        const onUp = () => {
+          gripLine.style.background = "var(--text-muted)";
+          document.body.style.cursor = "";
+          document.body.style.userSelect = "";
+          window.removeEventListener("pointermove", onMove);
+          window.removeEventListener("pointerup", onUp);
+        };
+        window.addEventListener("pointermove", onMove);
+        window.addEventListener("pointerup", onUp);
+      };
+    }
+    this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? "flex" : "none";
+    if (!this._thumbnailVisible) {
+      requestAnimationFrame(() => this._reRender());
+    }
+  }
+  async _renderThumbnails() {
+    if (!this._pdf || !this._thumbnailPanel)
+      return;
+    this._thumbnailPanel.empty();
+    const total = this._pdf.numPages;
+    for (let i = 1; i <= total; i++) {
+      const page = await this._pdf.getPage(i);
+      const viewport = page.getViewport({ scale: 0.2 });
+      const wrap = this._thumbnailPanel.createEl("div");
+      wrap.style.position = "relative";
+      wrap.style.marginBottom = "8px";
+      wrap.style.cursor = "pointer";
+      wrap.style.border = "2px solid transparent";
+      wrap.style.borderRadius = "4px";
+      wrap.style.padding = "4px";
+      wrap.dataset.pageNum = String(i);
+      wrap.onclick = () => {
+        this._scrollToPage(i);
+        this._thumbnailPanel.querySelectorAll("div[data-page-num]").forEach((d) => d.style.borderColor = "transparent");
+        wrap.style.borderColor = "var(--interactive-accent)";
+      };
+      const canvas = wrap.createEl("canvas");
+      canvas.style.width = "100%";
+      canvas.style.height = "auto";
+      canvas.style.display = "block";
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+      const pageNumEl = wrap.createEl("div", { text: String(i) });
+      pageNumEl.style.position = "absolute";
+      pageNumEl.style.bottom = "4px";
+      pageNumEl.style.right = "4px";
+      pageNumEl.style.background = "rgba(var(--background-primary-rgb, 255,255,255), 0.85)";
+      pageNumEl.style.color = "var(--text-muted)";
+      pageNumEl.style.fontSize = "10px";
+      pageNumEl.style.padding = "1px 5px";
+      pageNumEl.style.borderRadius = "8px";
+      pageNumEl.style.boxShadow = "0 1px 2px rgba(0,0,0,0.1)";
+    }
+  }
+  _bindScroll() {
+    this._wheelThrottle = false;
+    this.scrollEl.onwheel = (e) => {
+      if (this._viewMode === "continuous")
+        return;
+      e.preventDefault();
+      if (this._wheelThrottle)
+        return;
+      this._wheelThrottle = true;
+      setTimeout(() => {
+        this._wheelThrottle = false;
+      }, 400);
+      const delta = e.deltaY > 0 ? 1 : -1;
+      const step = this._viewMode === "double" ? 2 : 1;
+      const newPage = (this._currentPage || 1) + delta * step;
+      const clampedPage = Math.max(1, Math.min(newPage, this._pdf?.numPages || 1));
+      if (clampedPage !== this._currentPage) {
+        this._scrollToPage(clampedPage);
+      }
+    };
+    this.scrollEl.onscroll = () => {
+      if (!this._pdf)
+        return;
+      const canvases = this.scrollEl.querySelectorAll("canvas[data-page-num]");
+      const scrollTop = this.scrollEl.scrollTop;
+      const containerHeight = this.scrollEl.clientHeight;
+      for (const c of canvases) {
+        const rect = c.getBoundingClientRect();
+        const containerRect = this.scrollEl.getBoundingClientRect();
+        const top = rect.top - containerRect.top;
+        const bottom = top + rect.height;
+        if (top >= 0 && top < containerHeight * 0.6) {
+          const pageNum = parseInt(c.dataset.pageNum, 10);
+          if (this.pageInput.value !== String(pageNum)) {
+            this.pageInput.value = String(pageNum);
+            this._currentPage = pageNum;
+            this._highlightThumbnail(pageNum);
+          }
+          break;
+        }
+      }
+    };
+  }
+  _scrollToPage(pageNum) {
+    if (!this._pdf || pageNum < 1 || pageNum > this._pdf.numPages)
+      return;
+    this.pageInput.value = String(pageNum);
+    this._currentPage = pageNum;
+    this._highlightThumbnail(pageNum);
+    if (this._viewMode === "single") {
+      const canvases = this.scrollEl.querySelectorAll("canvas.cloud-attach-pdf-fullscreen-page");
+      canvases.forEach((c) => {
+        const pn = parseInt(c.dataset.pageNum, 10);
+        const offset = pn - pageNum;
+        c.style.transform = `translateY(${offset * 100}%)`;
+      });
+    } else if (this._viewMode === "double") {
+      this._applyViewMode();
+    } else {
+      const canvas = this.scrollEl.querySelector(`canvas[data-page-num="${pageNum}"]`);
+      if (canvas)
+        canvas.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
+  _highlightThumbnail(pageNum) {
+    if (!this._thumbnailPanel)
+      return;
+    this._thumbnailPanel.querySelectorAll("div[data-page-num]").forEach((d) => {
+      d.style.borderColor = parseInt(d.dataset.pageNum, 10) === pageNum ? "var(--interactive-accent)" : "transparent";
+    });
   }
 };
 var AddAccountModal = class extends Modal {
@@ -3577,6 +4126,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
       this.app.workspace.on("file-menu", (menu, file, source) => {
         if (!file || !source.startsWith("file-explorer"))
           return;
+        if (file.children !== void 0)
+          return;
         const ext = file.extension?.toLowerCase() || "";
         if (ext === "md")
           return;
@@ -3709,6 +4260,15 @@ module.exports = class CloudAttachPlugin extends Plugin {
         throw e;
       }
     }
+    try {
+      this.registerView(VIEW_TYPE_PDF_FULLSCREEN, (leaf) => new PdfFullscreenView(leaf, this, "", ""));
+    } catch (e) {
+      if (e.message?.includes("existing view type")) {
+        console.log("[CloudAttach] pdf fullscreen view type already registered, skipping");
+      } else {
+        throw e;
+      }
+    }
     if (!this._autoUploadChain)
       this._autoUploadChain = Promise.resolve();
     this.registerEvent(this.app.vault.on("create", (file) => {
@@ -3762,12 +4322,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
       .cloud-attach-title { font-size: 14px; margin: 8px 0; }
       .cloud-attach-select-area { padding: 0 8px 8px; }
       .cloud-attach-select { width: 100%; padding: 6px 8px; font-size: 13px; border-radius: 4px; border: 1px solid var(--background-modifier-border); background: var(--background-primary); }
-      .cloud-attach-breadcrumb { padding: 6px 8px; font-size: 12px; border-bottom: 1px solid var(--background-modifier-border); display: flex; align-items: center; gap: 2px; flex-wrap: wrap; }
+      .cloud-attach-breadcrumb { padding: 6px 8px; font-size: 12px; border-bottom: 1px solid var(--background-modifier-border); display: flex; align-items: center; gap: 2px; flex-wrap: wrap; justify-content: space-between; }
+      .cloud-attach-breadcrumb-actions { display: flex; align-items: center; gap: 4px; margin-left: auto; }
       .cloud-attach-breadcrumb-btn { background: transparent; border: none; color: var(--text-accent); cursor: pointer; padding: 3px 6px; border-radius: 3px; font-size: 12px; }
       .cloud-attach-breadcrumb-btn:hover { background: var(--background-modifier-hover); }
       .cloud-attach-breadcrumb-sep { color: var(--text-muted); }
       .cloud-attach-breadcrumb-current { color: var(--text-muted); padding: 3px 6px; font-size: 12px; }
-      .cloud-attach-refresh { margin-left: auto; background: transparent; border: 1px solid var(--background-modifier-border); color: var(--text-muted); cursor: pointer; padding: 3px 8px; border-radius: 3px; font-size: 11px; }
+      .cloud-attach-refresh { background: transparent; border: 1px solid var(--background-modifier-border); color: var(--text-muted); cursor: pointer; padding: 3px 8px; border-radius: 3px; font-size: 11px; }
       .cloud-attach-refresh:hover { background: var(--background-modifier-hover); }
       .cloud-attach-batch-bar { padding: 6px 8px; background: var(--background-secondary); border-bottom: 1px solid var(--background-modifier-border); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
       .cloud-attach-batch-count { font-size: 12px; color: var(--text-muted); }
@@ -3841,6 +4402,50 @@ module.exports = class CloudAttachPlugin extends Plugin {
       console.error("[CloudAttach] _flushPdfErrorLog failed:", e);
     }
     this._pdfErrorLog = "";
+  }
+  /**
+   * 通过 Obsidian requestUrl 下载 PDF 二进制（绕过 CORS）
+   */
+  async _downloadPdfBinary(url) {
+    let reqUrlFn = null;
+    try {
+      reqUrlFn = require("obsidian").requestUrl;
+    } catch (e) {
+    }
+    if (reqUrlFn) {
+      try {
+        const resp2 = await reqUrlFn({ url, method: "GET" });
+        return resp2.arrayBuffer;
+      } catch (e) {
+        console.error("[CloudAttach] _downloadPdfBinary requestUrl error:", e);
+      }
+    }
+    const resp = await fetch(url);
+    return resp.arrayBuffer();
+  }
+  /**
+   * 打开 PDF 全屏预览（新窗口 Popout Leaf）
+   */
+  async openPdfFullscreen(url, name) {
+    const { workspace } = this.app;
+    if (!name)
+      name = cleanFileNameFromUrl(url);
+    const existing = workspace.getLeavesOfType(VIEW_TYPE_PDF_FULLSCREEN);
+    if (existing.length > 0) {
+      workspace.revealLeaf(existing[0]);
+      const view = existing[0].view;
+      if (view instanceof PdfFullscreenView) {
+        view.pdfUrl = url;
+        view.pdfName = name;
+        view._loadPdf();
+      }
+      return;
+    }
+    this._pendingPdfUrl = url;
+    this._pendingPdfName = name;
+    const leaf = workspace.getLeaf("tab");
+    await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true, state: { pdfUrl: url, pdfName: name } });
+    workspace.revealLeaf(leaf);
   }
   // ============================================================
   // PDF.js 内联预览（v0.3.026）
@@ -4292,8 +4897,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
     toolbar.appendChild(fullscreenBtn);
     fullscreenBtn.onclick = (e) => {
       e.stopPropagation();
-      const { Notice: Notice2 } = require("obsidian");
-      new Notice2("\u{1F50D} \u5168\u5C4F\u9884\u89C8\u529F\u80FD\uFF0C\u656C\u8BF7\u671F\u5F85");
+      const url = container.dataset.pdfUrl;
+      this.openPdfFullscreen(url, cleanFileNameFromUrl(url));
     };
     const scrollArea = container.querySelector(".cloudattach-pdf-scrollarea");
     const scrollToPage = (pageNum) => {
