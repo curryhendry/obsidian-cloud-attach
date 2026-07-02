@@ -2836,8 +2836,10 @@ var PdfFullscreenView = class extends ItemView {
       const loadingTask = pdfData ? pdfjsLib.getDocument({ data: pdfData, ownerDocument: this.containerEl.ownerDocument }) : pdfjsLib.getDocument({ url: this.pdfUrl, ownerDocument: this.containerEl.ownerDocument });
       this._pdf = await loadingTask.promise;
       const totalPages = this._pdf.numPages;
-      this.pageTotal.textContent = " / " + totalPages;
-      this.pageInput.value = "1";
+      if (this.pageTotal)
+        this.pageTotal.textContent = " / " + totalPages;
+      if (this.pageInput)
+        this.pageInput.value = "1";
       this._currentPage = 1;
       this.scrollEl.empty();
       await this._renderAllPages();
