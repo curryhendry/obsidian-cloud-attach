@@ -4507,37 +4507,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
    * 打开 PDF 全屏预览（新窗口 Popout Leaf）
    */
   async openPdfFullscreen(url, name) {
-    const { workspace } = this.app;
-    if (!name)
-      name = cleanFileNameFromUrl(url);
-    const existing = workspace.getLeavesOfType(VIEW_TYPE_PDF_FULLSCREEN);
-    if (existing.length > 0) {
-      workspace.revealLeaf(existing[0]);
-      const view = existing[0].view;
-      if (view instanceof PdfFullscreenView) {
-        view.pdfUrl = url;
-        view.pdfName = name;
-        view._viewMode = "continuous";
-        view._zoomMode = "fit-width";
-        view._zoomScale = null;
-        view._thumbnailVisible = false;
-        if (view._thumbnailPanelWrap)
-          view._thumbnailPanelWrap.style.display = "none";
-        view._loadPdf();
-      }
-      return;
-    }
-    this._pendingPdfUrl = url;
-    this._pendingPdfName = name;
-    let leaf;
-    try {
-      leaf = workspace.openPopoutLeaf();
-    } catch (e) {
-      console.log("[CloudAttach] openPopoutLeaf failed, fallback to tab:", e);
-      leaf = workspace.getLeaf("tab");
-    }
-    await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true, state: { pdfUrl: url, pdfName: name } });
-    workspace.revealLeaf(leaf);
+    window.open(url, "_blank");
   }
   // ============================================================
   // PDF.js 内联预览（v0.3.026）
