@@ -2649,34 +2649,38 @@ var PdfFullscreenView = class extends ItemView {
     return "file-text";
   }
   async onOpen() {
-    console.log("[CloudAttach] PdfFullscreenView onOpen START");
-    const container = this.containerEl.children[1];
-    container.empty();
-    if (!this.pdfUrl && this.plugin._pendingPdfUrl) {
-      this.pdfUrl = this.plugin._pendingPdfUrl;
-      this.pdfName = this.plugin._pendingPdfName || cleanFileNameFromUrl(this.pdfUrl);
+    console.log("[CloudAttach] PdfFullscreenView onOpen START, viewType:", this.getViewType?.());
+    try {
+      const container = this.containerEl;
+      container.empty();
+      container.style.padding = "0";
+      container.style.overflow = "hidden";
+      container.style.height = "100%";
+      container.style.display = "flex";
+      container.style.flexDirection = "column";
+      if (!this.pdfUrl && this.plugin._pendingPdfUrl) {
+        this.pdfUrl = this.plugin._pendingPdfUrl;
+        this.pdfName = this.plugin._pendingPdfName || cleanFileNameFromUrl(this.pdfUrl);
+      }
+      this._contentWrap = container.createEl("div");
+      this._contentWrap.style.flex = "1";
+      this._contentWrap.style.display = "flex";
+      this._contentWrap.style.overflow = "hidden";
+      this._contentWrap.style.minHeight = "0";
+      this.scrollEl = this._contentWrap.createEl("div");
+      this.scrollEl.style.flex = "1";
+      this.scrollEl.style.minHeight = "0";
+      this.scrollEl.style.overflowY = "auto";
+      this.scrollEl.style.overflowX = "hidden";
+      this.scrollEl.style.background = "var(--background-secondary)";
+      this.scrollEl.style.padding = "0";
+      this._loadPdf().catch((e) => {
+        console.error("[CloudAttach] _loadPdf error:", e);
+      });
+      this._createToolbar(container);
+    } catch (e) {
+      console.error("[CloudAttach] onOpen failed:", e);
     }
-    container.style.padding = "0";
-    container.style.overflow = "hidden";
-    container.style.height = "100%";
-    container.style.display = "flex";
-    container.style.flexDirection = "column";
-    this._contentWrap = container.createEl("div");
-    this._contentWrap.style.flex = "1";
-    this._contentWrap.style.display = "flex";
-    this._contentWrap.style.overflow = "hidden";
-    this._contentWrap.style.minHeight = "0";
-    this.scrollEl = this._contentWrap.createEl("div");
-    this.scrollEl.style.flex = "1";
-    this.scrollEl.style.minHeight = "0";
-    this.scrollEl.style.overflowY = "auto";
-    this.scrollEl.style.overflowX = "hidden";
-    this.scrollEl.style.background = "var(--background-secondary)";
-    this.scrollEl.style.padding = "0";
-    this._loadPdf().catch((e) => {
-      console.error("[CloudAttach] _loadPdf error:", e);
-    });
-    this._createToolbar(container);
   }
   _createToolbar(container) {
     try {

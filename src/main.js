@@ -2802,20 +2802,21 @@ class PdfFullscreenView extends ItemView {
   getIcon() { return 'file-text'; }
 
   async onOpen() {
-    console.log('[CloudAttach] PdfFullscreenView onOpen START');
-    const container = this.containerEl.children[1];
-    container.empty();
+    console.log('[CloudAttach] PdfFullscreenView onOpen START, viewType:', this.getViewType?.());
+    try {
+      // popout 窗口 containerEl 结构不同，用 containerEl 直接创建容器
+      const container = this.containerEl;
+      container.empty();
+      container.style.padding = '0';
+      container.style.overflow = 'hidden';
+      container.style.height = '100%';
+      container.style.display = 'flex';
+      container.style.flexDirection = 'column';
 
     if (!this.pdfUrl && this.plugin._pendingPdfUrl) {
       this.pdfUrl = this.plugin._pendingPdfUrl;
       this.pdfName = this.plugin._pendingPdfName || cleanFileNameFromUrl(this.pdfUrl);
     }
-
-    container.style.padding = '0';
-    container.style.overflow = 'hidden';
-    container.style.height = '100%';
-    container.style.display = 'flex';
-    container.style.flexDirection = 'column';
 
     // 先创建 scrollEl（_loadPdf 依赖它）
     this._contentWrap = container.createEl('div');
@@ -2836,8 +2837,11 @@ class PdfFullscreenView extends ItemView {
       console.error('[CloudAttach] _loadPdf error:', e);
     });
 
-    // 创建顶部工具栏（可能失败，但不影响 PDF 渲染）
+    // 创建顶部工具栏
     this._createToolbar(container);
+    } catch(e) {
+      console.error('[CloudAttach] onOpen failed:', e);
+    }
   }
 
   _createToolbar(container) {
