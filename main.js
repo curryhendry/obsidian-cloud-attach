@@ -2817,7 +2817,11 @@ var PdfFullscreenView = class extends ItemView {
     this.scrollEl.style.overflowX = "hidden";
     this.scrollEl.style.background = "var(--background-secondary)";
     this.scrollEl.style.padding = "0";
-    setTimeout(() => this._loadPdf(), 50);
+    this._loadPdf().catch((e) => {
+      console.error("[CloudAttach] _loadPdf error:", e);
+      this.plugin._log("_loadPdf ERROR: " + (e?.message || e));
+      this.plugin._flushPdfErrorLog();
+    });
   }
   async _loadPdf() {
     try {
