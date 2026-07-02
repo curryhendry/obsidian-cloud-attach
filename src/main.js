@@ -4723,12 +4723,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
     // store 到实例上，onOpen 会读取
     this._pendingPdfUrl = url;
     this._pendingPdfName = name;
-    // 新窗口 tab 打开
+    // popout 独立窗口全屏
     let leaf;
     try {
-      leaf = workspace.getLeaf('tab');
+      leaf = workspace.openPopoutLeaf();
     } catch (e) {
-      console.log('[CloudAttach] tab fallback:', e);
+      console.log('[CloudAttach] popout failed, fallback split:', e);
       leaf = workspace.getLeaf('split', 'vertical');
     }
     await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true });

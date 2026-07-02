@@ -4445,9 +4445,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
     this._pendingPdfName = name;
     let leaf;
     try {
-      leaf = workspace.getLeaf("tab");
+      leaf = workspace.openPopoutLeaf();
     } catch (e) {
-      console.log("[CloudAttach] tab fallback:", e);
+      console.log("[CloudAttach] popout failed, fallback split:", e);
       leaf = workspace.getLeaf("split", "vertical");
     }
     await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true });
