@@ -1,13 +1,8 @@
-## v0.4.207.dev - 2026-07-02
+## v0.4.208.dev - 2026-07-02
 
-- 修复：全屏按钮调用不存在的 _showPdfOverlay 导致 ReferenceError，改回 openPdfFullscreen
-- 修复：popout 窗口 rAF 永不触发 → 改用 setTimeout(200ms) + tab 替代 popout（消除 macOS Space 隔离问题）
-- 新增：缩放功能，放大/缩小按钮按预设档位缩放(0.25x-5x)，缩放度标签显示 宽/高/%
-- 修复：缩放菜单下拉选适应宽度/高度时取消手动缩放
-- 修复：重新打开已有全屏视图时重置状态(viewMode/zoomMode/zoomScale/thumbnail)
-- 修复：_reRender 后丢失 _currentPage，改为保存并恢复
-- 修复：关闭侧边栏后 rAF 可能拿到旧宽度 → setTimeout(150ms) 替代
-- 修复：工具栏全屏按钮 title 「敬请期待」移除
+- 全屏预览改用 window.open 浏览器原生 PDF 查看器（自带缩放/翻页/缩略图，无 macOS Space 隔离问题）
+- 移除 PdfFullscreenView 自定义渲染（popout/tab 方案均不可靠）
+- 保留代码：PdfFullscreenView 类、VIEW_TYPE_PDF_FULLSCREEN 注册、_loadPdfJs / _downloadPdfBinary 等工具方法
 
 ## v0.4.100.dev - 2026-06-29
 
