@@ -4406,6 +4406,103 @@ module.exports = class CloudAttachPlugin extends Plugin {
   /**
    * 通过 Obsidian requestUrl 下载 PDF 二进制（绕过 CORS）
    */
+  _showPdfOverlay(url) {
+    const overlay = document.createElement("div");
+    overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;background:var(--background-primary);display:flex;flex-direction:column;";
+    document.body.appendChild(overlay);
+    const toolbar = overlay.createEl("div");
+    toolbar.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:6px 12px;border-bottom:1px solid var(--background-modifier-border);flex-shrink:0;";
+    const left = toolbar.createEl("div");
+    left.style.cssText = "display:flex;align-items:center;gap:8px;";
+    const name = url.split("?")[0].split("/").pop() || "PDF";
+    let displayName = name;
+    try {
+      displayName = decodeURIComponent(name);
+    } catch {
+    }
+    left.createEl("span", { text: "\u{1F4C4} " + displayName });
+    const right = toolbar.createEl("div");
+    right.style.cssText = "display:flex;align-items:center;gap:10px;";
+    const pageEl = right.createEl("span", { text: "1 / 1" });
+    pageEl.style.cssText = "font-size:13px;";
+    const zoomSelect = right.createEl("select");
+    zoomSelect.style.cssText = "font-size:12px;padding:2px 4px;";
+    const zoomLevels = ["50%", "75%", "100%", "125%", "150%", "200%", "\u9002\u5E94\u5BBD\u5EA6"];
+    zoomLevels.forEach((v, i) => {
+      const opt = zoomSelect.createEl("option", { text: v });
+      if (i === zoomLevels.length - 1)
+        opt.selected = true;
+    });
+    const closeBtn = right.createEl("button");
+    closeBtn.className = "clickable-icon";
+    closeBtn.setAttribute("aria-label", "\u5173\u95ED");
+    closeBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+    closeBtn.onclick = () => overlay.remove();
+    const escHandler = (ev) => {
+      if (ev.key === "Escape") {
+        overlay.remove();
+        document.removeEventListener("keydown", escHandler);
+      }
+    };
+    document.addEventListener("keydown", escHandler);
+    const scrollEl = overlay.createEl("div");
+    scrollEl.style.cssText = "flex:1;overflow-y:auto;overflow-x:hidden;background:var(--background-secondary);padding:8px 0;min-height:0;";
+    scrollEl.createEl("div", { text: "\u23F3 \u52A0\u8F7D PDF...", cls: "cloud-attach-loading" });
+    (async () => {
+      try {
+        const pdfjsLib = await this._loadPdfJs();
+        const pdfData = await this._downloadPdfBinary(url);
+        const loadingTask = pdfData ? pdfjsLib.getDocument({ data: pdfData, ownerDocument: document }) : pdfjsLib.getDocument({ url, ownerDocument: document });
+        const pdf = await loadingTask.promise;
+        const totalPages = pdf.numPages;
+        pageEl.textContent = `1 / ${totalPages}`;
+        scrollEl.empty();
+        const reRender = async () => {
+          const val = zoomSelect.value;
+          let scale = 2;
+          if (val === "\u9002\u5E94\u5BBD\u5EA6") {
+            const w = scrollEl.clientWidth;
+            const pg1 = await pdf.getPage(1);
+            const vp1 = pg1.getViewport({ scale: 1 });
+            scale = w > 0 ? w / vp1.width : 2;
+          } else {
+            scale = parseInt(val) / 100;
+          }
+          scrollEl.empty();
+          for (let i = 1; i <= totalPages; i++) {
+            const page = await pdf.getPage(i);
+            const viewport = page.getViewport({ scale });
+            const canvas = document.createElement("canvas");
+            canvas.style.cssText = "display:block;margin:0 auto 8px;box-shadow:0 1px 4px rgba(0,0,0,0.15);";
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            canvas.dataset.pageNum = String(i);
+            scrollEl.appendChild(canvas);
+            await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+          }
+          scrollEl.onscroll = () => {
+            const canvases = scrollEl.querySelectorAll("canvas[data-page-num]");
+            const midY = scrollEl.scrollTop + scrollEl.clientHeight / 2;
+            for (const c of canvases) {
+              const rect = c.getBoundingClientRect();
+              const cTop = rect.top - scrollEl.getBoundingClientRect().top;
+              const cMid = cTop + rect.height / 2;
+              if (cMid >= 0 && cMid <= scrollEl.clientHeight) {
+                pageEl.textContent = `${c.dataset.pageNum} / ${totalPages}`;
+                break;
+              }
+            }
+          };
+        };
+        zoomSelect.onchange = () => reRender();
+        await reRender();
+      } catch (e) {
+        console.error("[CloudAttach] overlay PDF error:", e);
+        scrollEl.empty();
+        scrollEl.createEl("div", { text: "\u274C \u52A0\u8F7D PDF \u5931\u8D25: " + (e.message || ""), cls: "cloud-attach-error" });
+      }
+    })();
+  }
   async _downloadPdfBinary(url) {
     let reqUrlFn = null;
     try {
@@ -4906,7 +5003,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     fullscreenBtn.onclick = (e) => {
       e.stopPropagation();
       const url = container.dataset.pdfUrl;
-      this.openPdfFullscreen(url, cleanFileNameFromUrl(url));
+      this._showPdfOverlay(url);
     };
     const scrollArea = container.querySelector(".cloudattach-pdf-scrollarea");
     const scrollToPage = (pageNum) => {
