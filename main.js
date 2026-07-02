@@ -2653,10 +2653,6 @@ var PdfFullscreenView = class extends ItemView {
       this.pdfUrl = this.plugin._pendingPdfUrl;
       this.pdfName = this.plugin._pendingPdfName || cleanFileNameFromUrl(this.pdfUrl);
     }
-    this._viewMode = "continuous";
-    this._zoomMode = "fit-width";
-    this._zoomScale = null;
-    this._thumbnailVisible = false;
     container.style.padding = "0";
     container.style.overflow = "hidden";
     container.style.height = "100%";
@@ -2708,56 +2704,19 @@ var PdfFullscreenView = class extends ItemView {
     };
     this._viewMode = "continuous";
     this._zoomMode = "fit-width";
-    this._zoomScale = null;
-    const ZOOM_STEPS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4, 5];
     const zoomOutBtn = left.createEl("button");
     zoomOutBtn.className = "clickable-icon";
     zoomOutBtn.setAttribute("aria-label", "\u7F29\u5C0F");
     zoomOutBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
     zoomOutBtn.onclick = () => {
-      if (this._zoomScale === null) {
-        const autoScale = this._getAutoScale();
-        for (let i = ZOOM_STEPS.length - 1; i >= 0; i--) {
-          if (ZOOM_STEPS[i] < autoScale - 1e-3) {
-            this._zoomScale = ZOOM_STEPS[i];
-            break;
-          }
-        }
-        if (this._zoomScale === null)
-          this._zoomScale = ZOOM_STEPS[0];
-      } else {
-        const idx = ZOOM_STEPS.indexOf(this._zoomScale);
-        if (idx > 0)
-          this._zoomScale = ZOOM_STEPS[idx - 1];
-      }
-      this._reRender();
+      new Notice("\u7F29\u5C0F\u529F\u80FD\u5F00\u53D1\u4E2D");
     };
-    this._zoomLabel = left.createEl("span", { text: "\u5BBD" });
-    this._zoomLabel.style.fontSize = "11px";
-    this._zoomLabel.style.color = "var(--text-muted)";
-    this._zoomLabel.style.minWidth = "28px";
-    this._zoomLabel.style.textAlign = "center";
     const zoomInBtn = left.createEl("button");
     zoomInBtn.className = "clickable-icon";
     zoomInBtn.setAttribute("aria-label", "\u653E\u5927");
     zoomInBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
     zoomInBtn.onclick = () => {
-      if (this._zoomScale === null) {
-        const autoScale = this._getAutoScale();
-        for (let i = 0; i < ZOOM_STEPS.length; i++) {
-          if (ZOOM_STEPS[i] > autoScale + 1e-3) {
-            this._zoomScale = ZOOM_STEPS[i];
-            break;
-          }
-        }
-        if (this._zoomScale === null)
-          this._zoomScale = ZOOM_STEPS[ZOOM_STEPS.length - 1];
-      } else {
-        const idx = ZOOM_STEPS.indexOf(this._zoomScale);
-        if (idx < ZOOM_STEPS.length - 1)
-          this._zoomScale = ZOOM_STEPS[idx + 1];
-      }
-      this._reRender();
+      new Notice("\u653E\u5927\u529F\u80FD\u5F00\u53D1\u4E2D");
     };
     const viewMenuBtn = left.createEl("button");
     viewMenuBtn.className = "clickable-icon";
@@ -2767,9 +2726,8 @@ var PdfFullscreenView = class extends ItemView {
       const menu = new Menu();
       const zoomOpts = { "fit-width": "\u9002\u5E94\u5BBD\u5EA6", "fit-height": "\u9002\u5E94\u9AD8\u5EA6" };
       Object.entries(zoomOpts).forEach(([val, label]) => {
-        menu.addItem((item) => item.setTitle((this._zoomMode === val && this._zoomScale === null ? "\u2713 " : "") + label).onClick(() => {
+        menu.addItem((item) => item.setTitle((this._zoomMode === val ? "\u2713 " : "") + label).onClick(() => {
           this._zoomMode = val;
-          this._zoomScale = null;
           this._applyZoom();
         }));
       });
@@ -2870,13 +2828,7 @@ var PdfFullscreenView = class extends ItemView {
       this.pageInput.value = "1";
       this._currentPage = 1;
       this.scrollEl.empty();
-      for (let i = 0; i < 20; i++) {
-        await new Promise((r) => setTimeout(r, 100));
-        if (this.scrollEl.clientWidth > 0)
-          break;
-      }
-      await this._renderAllPages();
-      this._applyViewMode();
+      this._renderAllPages();
     } catch (e) {
       console.error("[CloudAttach] PdfFullscreenView load error:", e);
       this.scrollEl.empty();
@@ -2893,21 +2845,14 @@ var PdfFullscreenView = class extends ItemView {
     const firstPg = await this._pdf.getPage(1);
     const firstVp = firstPg.getViewport({ scale: 1 });
     const pageW = firstVp.width;
-    this._firstPageW = pageW;
-    this._firstPageH = firstVp.height;
-    let scale;
-    if (this._zoomScale !== null) {
-      scale = this._zoomScale;
-    } else if (this._zoomMode === "fit-width") {
+    let scale = 1;
+    if (this._zoomMode === "fit-width") {
       const w = this.scrollEl.clientWidth;
       scale = w > 0 ? w / pageW : 1;
     } else if (this._zoomMode === "fit-height") {
       const h = this.scrollEl.clientHeight;
       scale = h > 0 ? h / firstVp.height : 1;
-    } else {
-      scale = 1;
     }
-    this._updateZoomLabel();
     for (let i = 1; i <= totalPages; i++) {
       const page = await this._pdf.getPage(i);
       const viewport = page.getViewport({ scale });
@@ -2930,12 +2875,9 @@ var PdfFullscreenView = class extends ItemView {
   _reRender() {
     if (!this._pdf)
       return;
-    const cur = this._currentPage || 1;
     this.scrollEl.empty();
-    this._updateZoomLabel();
     requestAnimationFrame(() => {
       this._renderAllPages().then(() => {
-        this._currentPage = cur;
         this._applyViewMode();
       });
     });
@@ -3029,30 +2971,8 @@ var PdfFullscreenView = class extends ItemView {
       this.scrollEl.style.position = "";
     }
   }
-  _getAutoScale() {
-    if (!this._pdf)
-      return 1;
-    const w = this.scrollEl.clientWidth;
-    const h = this.scrollEl.clientHeight;
-    if (this._zoomMode === "fit-width" && w > 0)
-      return w / (this._firstPageW || 612);
-    if (this._zoomMode === "fit-height" && h > 0)
-      return h / (this._firstPageH || 792);
-    return 1;
-  }
   _applyZoom() {
     this._reRender();
-  }
-  _updateZoomLabel() {
-    if (!this._zoomLabel)
-      return;
-    if (this._zoomScale !== null) {
-      this._zoomLabel.textContent = Math.round(this._zoomScale * 100) + "%";
-    } else if (this._zoomMode === "fit-width") {
-      this._zoomLabel.textContent = "\u5BBD";
-    } else {
-      this._zoomLabel.textContent = "\u9AD8";
-    }
   }
   _toggleThumbnailPanel() {
     if (!this._thumbnailPanelWrap) {
@@ -3120,7 +3040,7 @@ var PdfFullscreenView = class extends ItemView {
     }
     this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? "flex" : "none";
     if (!this._thumbnailVisible) {
-      setTimeout(() => this._reRender(), 150);
+      requestAnimationFrame(() => this._reRender());
     }
   }
   async _renderThumbnails() {
@@ -4486,6 +4406,121 @@ module.exports = class CloudAttachPlugin extends Plugin {
   /**
    * 通过 Obsidian requestUrl 下载 PDF 二进制（绕过 CORS）
    */
+  _showPdfOverlay(url) {
+    const overlay = document.createElement("div");
+    overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;background:var(--background-primary);display:flex;flex-direction:column;";
+    document.body.appendChild(overlay);
+    const toolbar = document.createElement("div");
+    toolbar.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:6px 12px;border-bottom:1px solid var(--background-modifier-border);flex-shrink:0;";
+    overlay.appendChild(toolbar);
+    const left = document.createElement("div");
+    left.style.cssText = "display:flex;align-items:center;gap:8px;";
+    toolbar.appendChild(left);
+    const name = url.split("?")[0].split("/").pop() || "PDF";
+    let displayName = name;
+    try {
+      displayName = decodeURIComponent(name);
+    } catch {
+    }
+    const nameSpan = document.createElement("span");
+    nameSpan.textContent = "\u{1F4C4} " + displayName;
+    left.appendChild(nameSpan);
+    const right = document.createElement("div");
+    right.style.cssText = "display:flex;align-items:center;gap:10px;";
+    toolbar.appendChild(right);
+    const pageEl = document.createElement("span");
+    pageEl.textContent = "1 / 1";
+    pageEl.style.cssText = "font-size:13px;";
+    right.appendChild(pageEl);
+    const zoomSelect = document.createElement("select");
+    zoomSelect.style.cssText = "font-size:12px;padding:2px 4px;";
+    const zoomLevels = ["50%", "75%", "100%", "125%", "150%", "200%", "\u9002\u5E94\u5BBD\u5EA6"];
+    zoomLevels.forEach((v, i) => {
+      const opt = document.createElement("option");
+      opt.textContent = v;
+      if (i === zoomLevels.length - 1)
+        opt.selected = true;
+      zoomSelect.appendChild(opt);
+    });
+    right.appendChild(zoomSelect);
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "clickable-icon";
+    closeBtn.setAttribute("aria-label", "\u5173\u95ED");
+    closeBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+    closeBtn.onclick = () => overlay.remove();
+    right.appendChild(closeBtn);
+    const escHandler = (ev) => {
+      if (ev.key === "Escape") {
+        overlay.remove();
+        document.removeEventListener("keydown", escHandler);
+      }
+    };
+    document.addEventListener("keydown", escHandler);
+    const scrollEl = document.createElement("div");
+    scrollEl.style.cssText = "flex:1;overflow-y:auto;overflow-x:hidden;background:var(--background-secondary);padding:8px 0;min-height:0;";
+    overlay.appendChild(scrollEl);
+    const loadingEl = document.createElement("div");
+    loadingEl.textContent = "\u23F3 \u52A0\u8F7D PDF...";
+    loadingEl.className = "cloud-attach-loading";
+    scrollEl.appendChild(loadingEl);
+    (async () => {
+      try {
+        const pdfjsLib = await this._loadPdfJs();
+        const pdfData = await this._downloadPdfBinary(url);
+        const loadingTask = pdfData ? pdfjsLib.getDocument({ data: pdfData, ownerDocument: document }) : pdfjsLib.getDocument({ url, ownerDocument: document });
+        const pdf = await loadingTask.promise;
+        const totalPages = pdf.numPages;
+        pageEl.textContent = `1 / ${totalPages}`;
+        scrollEl.innerHTML = "";
+        const reRender = async () => {
+          const val = zoomSelect.value;
+          let scale = 2;
+          if (val === "\u9002\u5E94\u5BBD\u5EA6") {
+            const w = scrollEl.clientWidth;
+            const pg1 = await pdf.getPage(1);
+            const vp1 = pg1.getViewport({ scale: 1 });
+            scale = w > 0 ? w / vp1.width : 2;
+          } else {
+            scale = parseInt(val) / 100;
+          }
+          scrollEl.innerHTML = "";
+          for (let i = 1; i <= totalPages; i++) {
+            const page = await pdf.getPage(i);
+            const viewport = page.getViewport({ scale });
+            const canvas = document.createElement("canvas");
+            canvas.style.cssText = "display:block;margin:0 auto 8px;box-shadow:0 1px 4px rgba(0,0,0,0.15);";
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            canvas.dataset.pageNum = String(i);
+            scrollEl.appendChild(canvas);
+            await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+          }
+          scrollEl.onscroll = () => {
+            const canvases = scrollEl.querySelectorAll("canvas[data-page-num]");
+            const midY = scrollEl.scrollTop + scrollEl.clientHeight / 2;
+            for (const c of canvases) {
+              const rect = c.getBoundingClientRect();
+              const cTop = rect.top - scrollEl.getBoundingClientRect().top;
+              const cMid = cTop + rect.height / 2;
+              if (cMid >= 0 && cMid <= scrollEl.clientHeight) {
+                pageEl.textContent = `${c.dataset.pageNum} / ${totalPages}`;
+                break;
+              }
+            }
+          };
+        };
+        zoomSelect.onchange = () => reRender();
+        await reRender();
+      } catch (e) {
+        console.error("[CloudAttach] overlay PDF error:", e);
+        scrollEl.innerHTML = "";
+        const errEl = document.createElement("div");
+        errEl.textContent = "\u274C \u52A0\u8F7D PDF \u5931\u8D25: " + (e.message || "");
+        errEl.className = "cloud-attach-error";
+        scrollEl.appendChild(errEl);
+      }
+    })();
+  }
   async _downloadPdfBinary(url) {
     let reqUrlFn = null;
     try {
@@ -4507,7 +4542,31 @@ module.exports = class CloudAttachPlugin extends Plugin {
    * 打开 PDF 全屏预览（新窗口 Popout Leaf）
    */
   async openPdfFullscreen(url, name) {
-    window.open(url, "_blank");
+    const { workspace } = this.app;
+    if (!name)
+      name = cleanFileNameFromUrl(url);
+    const existing = workspace.getLeavesOfType(VIEW_TYPE_PDF_FULLSCREEN);
+    if (existing.length > 0) {
+      workspace.revealLeaf(existing[0]);
+      const view = existing[0].view;
+      if (view instanceof PdfFullscreenView) {
+        view.pdfUrl = url;
+        view.pdfName = name;
+        view._loadPdf();
+      }
+      return;
+    }
+    this._pendingPdfUrl = url;
+    this._pendingPdfName = name;
+    let leaf;
+    try {
+      leaf = workspace.openPopoutLeaf();
+    } catch (e) {
+      console.log("[CloudAttach] openPopoutLeaf failed, fallback to split:", e);
+      leaf = workspace.getLeaf("split", "vertical");
+    }
+    await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true, state: { pdfUrl: url, pdfName: name } });
+    workspace.revealLeaf(leaf);
   }
   // ============================================================
   // PDF.js 内联预览（v0.3.026）
@@ -4954,13 +5013,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const fullscreenBtn = document.createElement("span");
     fullscreenBtn.textContent = "\u26F6";
     fullscreenBtn.style.cursor = "pointer";
-    fullscreenBtn.title = "\u5168\u5C4F\u9884\u89C8";
+    fullscreenBtn.title = "\u5168\u5C4F\u9884\u89C8\uFF08\u656C\u8BF7\u671F\u5F85\uFF09";
     fullscreenBtn.dataset.role = "fullscreen";
     toolbar.appendChild(fullscreenBtn);
     fullscreenBtn.onclick = (e) => {
       e.stopPropagation();
       const url = container.dataset.pdfUrl;
-      this.openPdfFullscreen(url, cleanFileNameFromUrl(url));
+      this._showPdfOverlay(url);
     };
     const scrollArea = container.querySelector(".cloudattach-pdf-scrollarea");
     const scrollToPage = (pageNum) => {
