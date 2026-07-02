@@ -2653,6 +2653,10 @@ var PdfFullscreenView = class extends ItemView {
       this.pdfUrl = this.plugin._pendingPdfUrl;
       this.pdfName = this.plugin._pendingPdfName || cleanFileNameFromUrl(this.pdfUrl);
     }
+    this._viewMode = "continuous";
+    this._zoomMode = "fit-width";
+    this._zoomScale = null;
+    this._thumbnailVisible = false;
     container.style.padding = "0";
     container.style.overflow = "hidden";
     container.style.height = "100%";
@@ -2704,19 +2708,56 @@ var PdfFullscreenView = class extends ItemView {
     };
     this._viewMode = "continuous";
     this._zoomMode = "fit-width";
+    this._zoomScale = null;
+    const ZOOM_STEPS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4, 5];
     const zoomOutBtn = left.createEl("button");
     zoomOutBtn.className = "clickable-icon";
     zoomOutBtn.setAttribute("aria-label", "\u7F29\u5C0F");
     zoomOutBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
     zoomOutBtn.onclick = () => {
-      new Notice("\u7F29\u5C0F\u529F\u80FD\u5F00\u53D1\u4E2D");
+      if (this._zoomScale === null) {
+        const autoScale = this._getAutoScale();
+        for (let i = ZOOM_STEPS.length - 1; i >= 0; i--) {
+          if (ZOOM_STEPS[i] < autoScale - 1e-3) {
+            this._zoomScale = ZOOM_STEPS[i];
+            break;
+          }
+        }
+        if (this._zoomScale === null)
+          this._zoomScale = ZOOM_STEPS[0];
+      } else {
+        const idx = ZOOM_STEPS.indexOf(this._zoomScale);
+        if (idx > 0)
+          this._zoomScale = ZOOM_STEPS[idx - 1];
+      }
+      this._reRender();
     };
+    this._zoomLabel = left.createEl("span", { text: "\u5BBD" });
+    this._zoomLabel.style.fontSize = "11px";
+    this._zoomLabel.style.color = "var(--text-muted)";
+    this._zoomLabel.style.minWidth = "28px";
+    this._zoomLabel.style.textAlign = "center";
     const zoomInBtn = left.createEl("button");
     zoomInBtn.className = "clickable-icon";
     zoomInBtn.setAttribute("aria-label", "\u653E\u5927");
     zoomInBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
     zoomInBtn.onclick = () => {
-      new Notice("\u653E\u5927\u529F\u80FD\u5F00\u53D1\u4E2D");
+      if (this._zoomScale === null) {
+        const autoScale = this._getAutoScale();
+        for (let i = 0; i < ZOOM_STEPS.length; i++) {
+          if (ZOOM_STEPS[i] > autoScale + 1e-3) {
+            this._zoomScale = ZOOM_STEPS[i];
+            break;
+          }
+        }
+        if (this._zoomScale === null)
+          this._zoomScale = ZOOM_STEPS[ZOOM_STEPS.length - 1];
+      } else {
+        const idx = ZOOM_STEPS.indexOf(this._zoomScale);
+        if (idx < ZOOM_STEPS.length - 1)
+          this._zoomScale = ZOOM_STEPS[idx + 1];
+      }
+      this._reRender();
     };
     const viewMenuBtn = left.createEl("button");
     viewMenuBtn.className = "clickable-icon";
@@ -2726,8 +2767,9 @@ var PdfFullscreenView = class extends ItemView {
       const menu = new Menu();
       const zoomOpts = { "fit-width": "\u9002\u5E94\u5BBD\u5EA6", "fit-height": "\u9002\u5E94\u9AD8\u5EA6" };
       Object.entries(zoomOpts).forEach(([val, label]) => {
-        menu.addItem((item) => item.setTitle((this._zoomMode === val ? "\u2713 " : "") + label).onClick(() => {
+        menu.addItem((item) => item.setTitle((this._zoomMode === val && this._zoomScale === null ? "\u2713 " : "") + label).onClick(() => {
           this._zoomMode = val;
+          this._zoomScale = null;
           this._applyZoom();
         }));
       });
@@ -2829,7 +2871,8 @@ var PdfFullscreenView = class extends ItemView {
       this._currentPage = 1;
       this.scrollEl.empty();
       await new Promise((r) => setTimeout(r, 200));
-      this._renderAllPages();
+      await this._renderAllPages();
+      this._applyViewMode();
     } catch (e) {
       console.error("[CloudAttach] PdfFullscreenView load error:", e);
       this.scrollEl.empty();
@@ -2846,14 +2889,21 @@ var PdfFullscreenView = class extends ItemView {
     const firstPg = await this._pdf.getPage(1);
     const firstVp = firstPg.getViewport({ scale: 1 });
     const pageW = firstVp.width;
-    let scale = 1;
-    if (this._zoomMode === "fit-width") {
+    this._firstPageW = pageW;
+    this._firstPageH = firstVp.height;
+    let scale;
+    if (this._zoomScale !== null) {
+      scale = this._zoomScale;
+    } else if (this._zoomMode === "fit-width") {
       const w = this.scrollEl.clientWidth;
       scale = w > 0 ? w / pageW : 1;
     } else if (this._zoomMode === "fit-height") {
       const h = this.scrollEl.clientHeight;
       scale = h > 0 ? h / firstVp.height : 1;
+    } else {
+      scale = 1;
     }
+    this._updateZoomLabel();
     for (let i = 1; i <= totalPages; i++) {
       const page = await this._pdf.getPage(i);
       const viewport = page.getViewport({ scale });
@@ -2876,9 +2926,12 @@ var PdfFullscreenView = class extends ItemView {
   _reRender() {
     if (!this._pdf)
       return;
+    const cur = this._currentPage || 1;
     this.scrollEl.empty();
+    this._updateZoomLabel();
     requestAnimationFrame(() => {
       this._renderAllPages().then(() => {
+        this._currentPage = cur;
         this._applyViewMode();
       });
     });
@@ -2972,8 +3025,30 @@ var PdfFullscreenView = class extends ItemView {
       this.scrollEl.style.position = "";
     }
   }
+  _getAutoScale() {
+    if (!this._pdf)
+      return 1;
+    const w = this.scrollEl.clientWidth;
+    const h = this.scrollEl.clientHeight;
+    if (this._zoomMode === "fit-width" && w > 0)
+      return w / (this._firstPageW || 612);
+    if (this._zoomMode === "fit-height" && h > 0)
+      return h / (this._firstPageH || 792);
+    return 1;
+  }
   _applyZoom() {
     this._reRender();
+  }
+  _updateZoomLabel() {
+    if (!this._zoomLabel)
+      return;
+    if (this._zoomScale !== null) {
+      this._zoomLabel.textContent = Math.round(this._zoomScale * 100) + "%";
+    } else if (this._zoomMode === "fit-width") {
+      this._zoomLabel.textContent = "\u5BBD";
+    } else {
+      this._zoomLabel.textContent = "\u9AD8";
+    }
   }
   _toggleThumbnailPanel() {
     if (!this._thumbnailPanelWrap) {
@@ -3041,7 +3116,7 @@ var PdfFullscreenView = class extends ItemView {
     }
     this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? "flex" : "none";
     if (!this._thumbnailVisible) {
-      requestAnimationFrame(() => this._reRender());
+      setTimeout(() => this._reRender(), 150);
     }
   }
   async _renderThumbnails() {
@@ -4438,6 +4513,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (view instanceof PdfFullscreenView) {
         view.pdfUrl = url;
         view.pdfName = name;
+        view._viewMode = "continuous";
+        view._zoomMode = "fit-width";
+        view._zoomScale = null;
+        view._thumbnailVisible = false;
+        if (view._thumbnailPanelWrap)
+          view._thumbnailPanelWrap.style.display = "none";
         view._loadPdf();
       }
       return;
@@ -4893,7 +4974,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const fullscreenBtn = document.createElement("span");
     fullscreenBtn.textContent = "\u26F6";
     fullscreenBtn.style.cursor = "pointer";
-    fullscreenBtn.title = "\u5168\u5C4F\u9884\u89C8\uFF08\u656C\u8BF7\u671F\u5F85\uFF09";
+    fullscreenBtn.title = "\u5168\u5C4F\u9884\u89C8";
     fullscreenBtn.dataset.role = "fullscreen";
     toolbar.appendChild(fullscreenBtn);
     fullscreenBtn.onclick = (e) => {
