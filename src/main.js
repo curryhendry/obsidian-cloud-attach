@@ -4723,12 +4723,18 @@ module.exports = class CloudAttachPlugin extends Plugin {
     // store 到实例上，onOpen 会读取
     this._pendingPdfUrl = url;
     this._pendingPdfName = name;
-    // 新 tab 打开（popout 窗口有白屏问题）
-    const leaf = workspace.getLeaf('tab');
-    await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true, state: { pdfUrl: url, pdfName: name } });
+    // 新窗口 tab 打开（popout 窗口有白屏问题，改用 tab）
+    let leaf;
+    try {
+      leaf = workspace.getLeaf('tab');
+    } catch (e) {
+      console.log('[CloudAttach] tab fallback:', e);
+      leaf = workspace.getLeaf('split', 'vertical');
+    }
+    await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true });
     workspace.revealLeaf(leaf);
-    // 不 delete _pendingPdfUrl，onOpen 是 async 的，setViewState 返回时 onOpen 可能还没执行
-    // _pendingPdfUrl 在 onOpen 读取后被下一次 openPdfFullscreen 覆盖即可
+    delete this._pendingPdfUrl;
+    delete this._pendingPdfName;
   }
 
   // ============================================================
