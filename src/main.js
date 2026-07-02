@@ -4723,7 +4723,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     // store 到实例上，onOpen 会读取
     this._pendingPdfUrl = url;
     this._pendingPdfName = name;
-    // 新窗口 tab 打开（popout 窗口有白屏问题，改用 tab）
+    // 新窗口 tab 打开
     let leaf;
     try {
       leaf = workspace.getLeaf('tab');
