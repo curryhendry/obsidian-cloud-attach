@@ -3138,8 +3138,7 @@ var PdfFullscreenView = class extends ItemView {
       if (this._viewMode === "continuous" && this._renderScaleLevel <= 0)
         return;
       if (this._renderScaleLevel > 0) {
-        const absDY = Math.abs(e.deltaY);
-        if (absDY < 30)
+        if (Math.abs(e.deltaX) > Math.abs(e.deltaY))
           return;
         const atTop = this.scrollEl.scrollTop <= 0;
         const atBottom = this.scrollEl.scrollTop + this.scrollEl.clientHeight >= this.scrollEl.scrollHeight - 2;
