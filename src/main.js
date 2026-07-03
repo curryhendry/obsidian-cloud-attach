@@ -3187,11 +3187,9 @@ class PdfFullscreenView extends ItemView {
       this.scrollEl.style.display = 'flex';
       this.scrollEl.style.flexDirection = 'row';
       this.scrollEl.style.flexWrap = 'nowrap';
-      this.scrollEl.style.justifyContent = 'center';
-      this.scrollEl.style.alignItems = 'center';
-      this.scrollEl.style.gap = '4px';
       const manualZoom = this._renderScaleLevel > 0;
       this.scrollEl.style.overflow = manualZoom ? 'auto' : 'hidden';
+      this.scrollEl.style.justifyContent = manualZoom ? 'flex-start' : 'center';
       
       const startPage = cur % 2 === 1 ? cur : cur - 1;
       const scrollW = this.scrollEl.clientWidth;
