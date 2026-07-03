@@ -3159,7 +3159,12 @@ class PdfFullscreenView extends ItemView {
         // 自动模式才做 CSS 尺寸适配，手动缩放保持原生分辨率（transform 已在 _renderAllPages 设置）
         if (!manualZoom) {
           const scrollW = this.scrollEl.clientWidth;
-          if (scrollW && c.width > scrollW) {
+          const scrollH = this.scrollEl.clientHeight;
+          if (this._zoomMode === 'fit-height') {
+            if (scrollH >= c.height) return; // 无需缩放
+            c.style.height = (scrollH - 16) + 'px';
+            c.style.width = 'auto';
+          } else if (scrollW && c.width > scrollW) {
             c.style.width = scrollW + 'px';
             c.style.height = 'auto';
           }
@@ -3210,14 +3215,22 @@ class PdfFullscreenView extends ItemView {
           const cw = c.width;
           const ch = c.height;
           const ratio = cw / (ch || 1);
-          const targetW = Math.min(halfW, cw);
-          const targetH = targetW / ratio;
-          if (targetH > scrollH && scrollH > 0) {
-            c.style.height = scrollH + 'px';
-            c.style.width = (scrollH * ratio) + 'px';
-          } else {
-            c.style.width = targetW + 'px';
+          if (this._zoomMode === 'fit-height') {
+            // 适应高度：按容器高度约束，宽度等比例
+            const targetH = Math.min(scrollH - 16, ch);
             c.style.height = targetH + 'px';
+            c.style.width = (targetH * ratio) + 'px';
+          } else {
+            // 适应宽度：按半屏宽度约束
+            const targetW = Math.min(halfW, cw);
+            const targetH = targetW / ratio;
+            if (targetH > scrollH && scrollH > 0) {
+              c.style.height = scrollH + 'px';
+              c.style.width = (scrollH * ratio) + 'px';
+            } else {
+              c.style.width = targetW + 'px';
+              c.style.height = targetH + 'px';
+            }
           }
         }
       });

@@ -2941,7 +2941,13 @@ var PdfFullscreenView = class extends ItemView {
         c.style.transition = "transform 0.35s ease-out";
         if (!manualZoom) {
           const scrollW = this.scrollEl.clientWidth;
-          if (scrollW && c.width > scrollW) {
+          const scrollH = this.scrollEl.clientHeight;
+          if (this._zoomMode === "fit-height") {
+            if (scrollH >= c.height)
+              return;
+            c.style.height = scrollH - 16 + "px";
+            c.style.width = "auto";
+          } else if (scrollW && c.width > scrollW) {
             c.style.width = scrollW + "px";
             c.style.height = "auto";
           }
@@ -2984,14 +2990,20 @@ var PdfFullscreenView = class extends ItemView {
           const cw = c.width;
           const ch = c.height;
           const ratio = cw / (ch || 1);
-          const targetW = Math.min(halfW, cw);
-          const targetH = targetW / ratio;
-          if (targetH > scrollH && scrollH > 0) {
-            c.style.height = scrollH + "px";
-            c.style.width = scrollH * ratio + "px";
-          } else {
-            c.style.width = targetW + "px";
+          if (this._zoomMode === "fit-height") {
+            const targetH = Math.min(scrollH - 16, ch);
             c.style.height = targetH + "px";
+            c.style.width = targetH * ratio + "px";
+          } else {
+            const targetW = Math.min(halfW, cw);
+            const targetH = targetW / ratio;
+            if (targetH > scrollH && scrollH > 0) {
+              c.style.height = scrollH + "px";
+              c.style.width = scrollH * ratio + "px";
+            } else {
+              c.style.width = targetW + "px";
+              c.style.height = targetH + "px";
+            }
           }
         }
       });
