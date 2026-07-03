@@ -1,4 +1,4 @@
-## v0.4.217.dev - 2026-07-03
+## v0.4.218.dev - 2026-07-03
 
 - 回退: 插件代码回到 v0.4.156.dev 基线 (restore integer render + CSS transform)
 - 修复: 单页/双页模式下放大后 overflow:auto 支持双向滚动
