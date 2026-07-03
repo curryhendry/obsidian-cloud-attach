@@ -3154,7 +3154,7 @@ class PdfFullscreenView extends ItemView {
         c.style.left = '0';
         c.style.margin = '0';
         c.style.display = 'block';
-        c.style.transition = 'transform 0.35s ease-out';
+        c.style.transition = 'transform 0.6s ease';
         
         // 自动模式才做 CSS 尺寸适配，手动缩放保持原生分辨率（transform 已在 _renderAllPages 设置）
         if (!manualZoom) {
@@ -3195,6 +3195,8 @@ class PdfFullscreenView extends ItemView {
       const manualZoom = this._renderScaleLevel > 0;
       this.scrollEl.style.overflow = manualZoom ? 'auto' : 'hidden';
       this.scrollEl.style.justifyContent = manualZoom ? 'flex-start' : 'center';
+      this.scrollEl.style.alignItems = 'center';
+      this.scrollEl.style.gap = '4px';
       
       const startPage = cur % 2 === 1 ? cur : cur - 1;
       const scrollW = this.scrollEl.clientWidth;
@@ -3400,6 +3402,8 @@ class PdfFullscreenView extends ItemView {
         return;
       }
       e.preventDefault();
+      // 仅纵向滑动意图才翻页
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
       if (this._wheelThrottle) return;
       this._wheelThrottle = true;
       setTimeout(() => { this._wheelThrottle = false; }, 400);
