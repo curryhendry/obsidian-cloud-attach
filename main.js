@@ -2932,8 +2932,12 @@ var PdfFullscreenView = class extends ItemView {
         c.parentNode.insertBefore(wrap, c);
         wrap.appendChild(c);
         if (!manualZoom && this._zoomMode === "fit-height") {
-          wrap.style.justifyContent = "flex-start";
-          wrap.style.overflow = "auto hidden";
+          requestAnimationFrame(() => {
+            if (c.clientWidth > wrap.clientWidth) {
+              wrap.style.justifyContent = "flex-start";
+              wrap.style.overflow = "auto hidden";
+            }
+          });
         }
       });
     } else {
@@ -2963,9 +2967,15 @@ var PdfFullscreenView = class extends ItemView {
         }
         c.parentNode.insertBefore(wrap, c);
         wrap.appendChild(c);
+        if (!manualZoom)
+          this._sizeCanvas(c, scrollW, Infinity);
         if (!manualZoom && this._zoomMode === "fit-height") {
-          wrap.style.justifyContent = "flex-start";
-          wrap.style.overflow = "auto hidden";
+          requestAnimationFrame(() => {
+            if (c.clientWidth > wrap.clientWidth) {
+              wrap.style.justifyContent = "flex-start";
+              wrap.style.overflow = "auto hidden";
+            }
+          });
         }
       });
       if (!manualZoom) {
@@ -3157,12 +3167,13 @@ var PdfFullscreenView = class extends ItemView {
     this.pageInput.value = String(pageNum);
     this._currentPage = pageNum;
     this._highlightThumbnail(pageNum);
-    const step = 1;
-    const idx = Math.floor((pageNum - 1) / step);
-    this.scrollEl.scrollTo({
-      top: this.scrollEl.clientHeight * idx,
-      behavior: "smooth"
-    });
+    const target = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);
+    if (target) {
+      const scrollRect = this.scrollEl.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+      const top = targetRect.top - scrollRect.top + this.scrollEl.scrollTop;
+      this.scrollEl.scrollTo({ top: Math.max(0, top - 4), behavior: "smooth" });
+    }
   }
   _highlightThumbnail(pageNum) {
     if (!this._thumbnailPanel)
