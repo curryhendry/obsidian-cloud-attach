@@ -2910,7 +2910,7 @@ var PdfFullscreenView = class extends ItemView {
         wrap.dataset.pageNum = c.dataset.pageNum;
         wrap.style.cssText = `
           display:flex; align-items:center; justify-content:center;
-          width:100%; height:${scrollH}px; flex-shrink:0;
+          width:100%; min-height:${scrollH}px; flex-shrink:0;
           scroll-snap-align:start; overflow:hidden;
         `;
         c.style.margin = "0";
@@ -2923,6 +2923,7 @@ var PdfFullscreenView = class extends ItemView {
         wrap.appendChild(c);
       });
       requestAnimationFrame(() => {
+        let anyOverflow = false;
         canvases.forEach((c) => {
           const wrap = c.parentNode;
           if (!wrap || !wrap.classList.contains("cloud-attach-snap-item"))
@@ -2931,8 +2932,14 @@ var PdfFullscreenView = class extends ItemView {
             wrap.style.justifyContent = "flex-start";
             wrap.style.alignItems = "flex-start";
             wrap.style.overflow = "auto";
+            wrap.style.height = "auto";
+            anyOverflow = true;
           }
         });
+        if (anyOverflow) {
+          this.scrollEl.style.scrollSnapType = "none";
+          this.scrollEl.style.overflowX = "auto";
+        }
       });
     } else {
       this.scrollEl.style.overflowY = "auto";
