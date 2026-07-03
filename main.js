@@ -2898,27 +2898,20 @@ var PdfFullscreenView = class extends ItemView {
   _applyViewMode() {
     const oldWraps = this.scrollEl.querySelectorAll(".cloud-attach-snap-item");
     oldWraps.forEach((w) => {
-      w.querySelectorAll("canvas").forEach((c) => this.scrollEl.insertBefore(c, w));
-      w.remove();
+      w.replaceWith(...w.childNodes);
     });
     const canvases = this.scrollEl.querySelectorAll("canvas.cloud-attach-pdf-fullscreen-page");
     const cur = this._currentPage || 1;
     const manualZoom = this._renderScaleLevel > 0;
     const scrollW = this.scrollEl.clientWidth;
     const scrollH = this.scrollEl.clientHeight;
-    this.scrollEl.style.display = "";
-    this.scrollEl.style.position = "";
-    this.scrollEl.style.flexDirection = "";
-    this.scrollEl.style.flexWrap = "";
-    this.scrollEl.style.justifyContent = "";
-    this.scrollEl.style.alignItems = "";
-    this.scrollEl.style.gap = "";
-    this.scrollEl.style.scrollSnapType = "";
-    this.scrollEl.style.overflowY = "";
-    this.scrollEl.style.overflowX = "";
-    this.scrollEl.style.scrollSnapStop = "";
+    this.scrollEl.style.cssText = "";
+    this.scrollEl.style.flex = "1";
+    this.scrollEl.style.minHeight = "0";
+    this.scrollEl.style.background = "var(--background-secondary)";
+    this.scrollEl.style.padding = "0";
     if (this._viewMode === "single") {
-      this.scrollEl.style.overflowY = manualZoom ? "auto" : "scroll";
+      this.scrollEl.style.overflowY = "auto";
       this.scrollEl.style.overflowX = manualZoom ? "auto" : "hidden";
       this.scrollEl.style.scrollSnapType = "y mandatory";
       canvases.forEach((c) => {
@@ -2928,35 +2921,21 @@ var PdfFullscreenView = class extends ItemView {
         wrap.style.cssText = `
           display:flex; align-items:center; justify-content:center;
           width:100%; height:${scrollH}px; flex-shrink:0;
-          scroll-snap-align:start; scroll-snap-stop:always;
-          overflow:${manualZoom ? "auto" : "hidden"};
+          scroll-snap-align:start; overflow:${manualZoom ? "auto" : "hidden"};
         `;
         c.style.margin = "0";
         c.style.position = "";
         c.style.transform = "";
         c.style.transition = "";
-        if (!manualZoom) {
-          const cw = c.width, ch = c.height;
-          if (this._zoomMode === "fit-height" && ch > scrollH - 16) {
-            c.style.height = scrollH - 16 + "px";
-            c.style.width = "auto";
-          } else if (scrollW && cw > scrollW) {
-            c.style.width = Math.min(scrollW, cw) + "px";
-            c.style.height = "auto";
-          } else {
-            c.style.width = "";
-            c.style.height = "";
-          }
-        }
+        if (!manualZoom)
+          this._sizeCanvas(c, scrollW, scrollH);
         c.parentNode.insertBefore(wrap, c);
         wrap.appendChild(c);
       });
     } else if (this._viewMode === "double") {
-      this.scrollEl.style.display = "flex";
-      this.scrollEl.style.flexDirection = "row";
-      this.scrollEl.style.overflowY = "hidden";
-      this.scrollEl.style.overflowX = manualZoom ? "auto" : "scroll";
-      this.scrollEl.style.scrollSnapType = "x mandatory";
+      this.scrollEl.style.overflowY = "auto";
+      this.scrollEl.style.overflowX = "hidden";
+      this.scrollEl.style.scrollSnapType = "y mandatory";
       for (let i = 0; i < canvases.length; i += 2) {
         const c1 = canvases[i];
         const c2 = canvases[i + 1] || null;
@@ -2964,27 +2943,16 @@ var PdfFullscreenView = class extends ItemView {
         wrap.className = "cloud-attach-snap-item";
         wrap.dataset.pageNum = c1.dataset.pageNum;
         wrap.style.cssText = `
-          display:flex; align-items:center; justify-content:center;
-          min-width:${scrollW}px; width:${scrollW}px; height:${scrollH}px;
-          flex-shrink:0; scroll-snap-align:start; gap:4px;
-          overflow:${manualZoom ? "auto" : "hidden"};
+          display:flex; align-items:center; justify-content:center; gap:4px;
+          width:100%; height:${scrollH}px; flex-shrink:0;
+          scroll-snap-align:start; overflow:${manualZoom ? "auto" : "hidden"};
         `;
         [c1, c2].filter(Boolean).forEach((c) => {
           c.style.position = "";
           c.style.margin = "0";
           c.style.transform = "";
-          if (!manualZoom) {
-            const cw = c.width, ch = c.height, ratio = cw / (ch || 1);
-            if (this._zoomMode === "fit-height") {
-              const tH = Math.min(scrollH - 16, ch);
-              c.style.height = tH + "px";
-              c.style.width = tH * ratio + "px";
-            } else {
-              const tW = Math.min(scrollW / 2 - 8, cw);
-              c.style.width = tW + "px";
-              c.style.height = tW / ratio + "px";
-            }
-          }
+          if (!manualZoom)
+            this._sizeCanvas(c, scrollW / 2 - 8, scrollH);
         });
         c1.parentNode.insertBefore(wrap, c1);
         wrap.appendChild(c1);
@@ -2996,8 +2964,8 @@ var PdfFullscreenView = class extends ItemView {
       this.scrollEl.style.overflowX = manualZoom ? "auto" : "hidden";
       this.scrollEl.style.scrollSnapType = "y proximity";
       canvases.forEach((c) => {
-        c.style.position = "";
         c.style.margin = "0 auto 8px";
+        c.style.position = "";
         c.style.transform = "";
         c.style.transition = "";
         const wrap = document.createElement("div");
@@ -3005,7 +2973,7 @@ var PdfFullscreenView = class extends ItemView {
         wrap.dataset.pageNum = c.dataset.pageNum;
         wrap.style.cssText = `
           display:flex; align-items:center; justify-content:center;
-          width:100%; flex-shrink:0; margin-bottom:8px;
+          width:100%; flex-shrink:0;
           scroll-snap-align:start; overflow:${manualZoom ? "auto" : "hidden"};
         `;
         c.parentNode.insertBefore(wrap, c);
@@ -3019,6 +2987,23 @@ var PdfFullscreenView = class extends ItemView {
     }
     this._highlightThumbnail(cur);
     requestAnimationFrame(() => this._scrollToPage(cur));
+  }
+  _sizeCanvas(c, maxW, maxH) {
+    const cw = c.width, ch = c.height, ratio = cw / (ch || 1);
+    if (this._zoomMode === "fit-height") {
+      const tH = Math.min(maxH - 16, ch);
+      c.style.height = tH + "px";
+      c.style.width = tH * ratio + "px";
+      c.style.maxWidth = maxW + "px";
+    } else {
+      if (cw > maxW) {
+        c.style.width = Math.min(maxW, cw) + "px";
+        c.style.height = "auto";
+      } else {
+        c.style.width = "";
+        c.style.height = "";
+      }
+    }
   }
   _applyZoom() {
     this._reRender();
@@ -3137,21 +3122,20 @@ var PdfFullscreenView = class extends ItemView {
       if (this._viewMode === "continuous" && this._renderScaleLevel <= 0)
         return;
       if (this._renderScaleLevel > 0) {
+        const target = e.target;
+        if (target !== this.scrollEl && target.classList.contains("cloud-attach-snap-item"))
+          return;
         const atTop = this.scrollEl.scrollTop <= 0;
         const atBottom = this.scrollEl.scrollTop + this.scrollEl.clientHeight >= this.scrollEl.scrollHeight - 2;
-        const atLeft = this.scrollEl.scrollLeft <= 0;
-        const atRight = this.scrollEl.scrollLeft + this.scrollEl.clientWidth >= this.scrollEl.scrollWidth - 2;
-        const goingDown = e.deltaY > 0, goingUp = e.deltaY < 0;
-        const goingRight = e.deltaX > 0, goingLeft = e.deltaX < 0;
-        const canSnap = this._viewMode === "single" ? goingDown && atBottom || goingUp && atTop : goingRight && atRight || goingLeft && atLeft;
-        if (canSnap) {
+        if (e.deltaY < 0 && atTop || e.deltaY > 0 && atBottom) {
           e.preventDefault();
           const step = this._viewMode === "double" ? 2 : 1;
-          const dir = this._viewMode === "single" ? goingDown ? step : -step : goingRight ? step : -step;
-          const newPage = (this._currentPage || 1) + dir;
+          const newPage = (this._currentPage || 1) + (e.deltaY > 0 ? step : -step);
           const clampedPage = Math.max(1, Math.min(newPage, this._pdf?.numPages || 1));
-          if (clampedPage !== this._currentPage)
+          if (clampedPage !== this._currentPage) {
             this._scrollToPage(clampedPage);
+            this.scrollEl.scrollTop = 0;
+          }
         }
         return;
       }
@@ -3159,23 +3143,16 @@ var PdfFullscreenView = class extends ItemView {
     this.scrollEl.onscroll = () => {
       if (!this._pdf)
         return;
-      const snapItems = this.scrollEl.querySelectorAll(".cloud-attach-snap-item");
-      const containerRect = this.scrollEl.getBoundingClientRect();
+      const snaps = this.scrollEl.querySelectorAll(".cloud-attach-snap-item");
+      const ch = this.scrollEl.clientHeight;
+      const cr = this.scrollEl.getBoundingClientRect();
       let bestPage = null, bestDist = Infinity;
-      for (const snap of snapItems) {
-        const rect = snap.getBoundingClientRect();
-        if (this._viewMode === "double") {
-          const overlap = Math.min(rect.right, containerRect.right) - Math.max(rect.left, containerRect.left);
-          if (overlap > 0 && rect.width - overlap < bestDist) {
-            bestDist = rect.width - overlap;
-            bestPage = parseInt(snap.dataset.pageNum, 10);
-          }
-        } else {
-          const top = rect.top - containerRect.top;
-          if (top >= -rect.height * 0.3 && top < containerRect.height * 0.7 && Math.abs(top) < bestDist) {
-            bestDist = Math.abs(top);
-            bestPage = parseInt(snap.dataset.pageNum, 10);
-          }
+      for (const s of snaps) {
+        const r = s.getBoundingClientRect();
+        const top = r.top - cr.top;
+        if (top >= -r.height * 0.3 && top < ch * 0.7 && Math.abs(top) < bestDist) {
+          bestDist = Math.abs(top);
+          bestPage = parseInt(s.dataset.pageNum, 10);
         }
       }
       if (bestPage && this._currentPage !== bestPage) {
@@ -3191,16 +3168,12 @@ var PdfFullscreenView = class extends ItemView {
     this.pageInput.value = String(pageNum);
     this._currentPage = pageNum;
     this._highlightThumbnail(pageNum);
-    if (this._viewMode === "double") {
-      const pairIdx = Math.floor((pageNum - 1) / 2);
-      this.scrollEl.scrollTo({ left: this.scrollEl.clientWidth * pairIdx, behavior: "smooth" });
-    } else if (this._viewMode === "single") {
-      this.scrollEl.scrollTo({ top: this.scrollEl.clientHeight * (pageNum - 1), behavior: "smooth" });
-    } else {
-      const snap = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);
-      if (snap)
-        snap.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
+    const step = this._viewMode === "double" ? 2 : 1;
+    const idx = Math.floor((pageNum - 1) / step);
+    this.scrollEl.scrollTo({
+      top: this.scrollEl.clientHeight * idx,
+      behavior: "smooth"
+    });
   }
   _highlightThumbnail(pageNum) {
     if (!this._thumbnailPanel)
