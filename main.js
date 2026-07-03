@@ -2825,7 +2825,9 @@ var PdfFullscreenView = class extends ItemView {
       this.pageInput.value = "1";
       this._currentPage = 1;
       this.scrollEl.empty();
-      this._renderAllPages();
+      this._renderAllPages().then(() => {
+        this._applyViewMode();
+      });
     } catch (e) {
       console.error("[CloudAttach] PdfFullscreenView load error:", e);
       this.scrollEl.empty();
@@ -2862,9 +2864,6 @@ var PdfFullscreenView = class extends ItemView {
     for (let i = 1; i <= totalPages; i++) {
       const page = await this._pdf.getPage(i);
       const viewport = page.getViewport({ scale: renderScale });
-      const snapItem = document.createElement("div");
-      snapItem.className = "cloud-attach-snap-item";
-      snapItem.dataset.pageNum = String(i);
       const canvas = document.createElement("canvas");
       canvas.className = "cloud-attach-pdf-fullscreen-page";
       canvas.style.display = "block";
@@ -2876,8 +2875,7 @@ var PdfFullscreenView = class extends ItemView {
       canvas.width = viewport.width;
       canvas.height = viewport.height;
       canvas.dataset.pageNum = String(i);
-      snapItem.appendChild(canvas);
-      this.scrollEl.appendChild(snapItem);
+      this.scrollEl.appendChild(canvas);
       await page.render({
         canvasContext: canvas.getContext("2d"),
         viewport
@@ -2889,22 +2887,21 @@ var PdfFullscreenView = class extends ItemView {
     if (!this._pdf)
       return;
     const savedPage = this._currentPage || 1;
-    const savedScroll = this.scrollEl.scrollTop;
-    const parent = this.scrollEl.parentNode;
-    const next = this.scrollEl.nextSibling;
-    parent.removeChild(this.scrollEl);
     this.scrollEl.empty();
     this._renderAllPages().then(() => {
       this._applyViewMode();
-      parent.insertBefore(this.scrollEl, next);
       this._scrollToPage(savedPage);
     }).catch((e) => {
       console.error("[CloudAttach] _reRender error:", e);
-      parent.insertBefore(this.scrollEl, next);
     });
   }
   _applyViewMode() {
-    const snapItems = this.scrollEl.querySelectorAll(".cloud-attach-snap-item");
+    const oldWraps = this.scrollEl.querySelectorAll(".cloud-attach-snap-item");
+    oldWraps.forEach((w) => {
+      w.querySelectorAll("canvas").forEach((c) => this.scrollEl.insertBefore(c, w));
+      w.remove();
+    });
+    const canvases = this.scrollEl.querySelectorAll("canvas.cloud-attach-pdf-fullscreen-page");
     const cur = this._currentPage || 1;
     const manualZoom = this._renderScaleLevel > 0;
     const scrollW = this.scrollEl.clientWidth;
@@ -2917,33 +2914,42 @@ var PdfFullscreenView = class extends ItemView {
     this.scrollEl.style.alignItems = "";
     this.scrollEl.style.gap = "";
     this.scrollEl.style.scrollSnapType = "";
+    this.scrollEl.style.overflowY = "";
+    this.scrollEl.style.overflowX = "";
+    this.scrollEl.style.scrollSnapStop = "";
     if (this._viewMode === "single") {
       this.scrollEl.style.overflowY = manualZoom ? "auto" : "scroll";
       this.scrollEl.style.overflowX = manualZoom ? "auto" : "hidden";
       this.scrollEl.style.scrollSnapType = "y mandatory";
-      this.scrollEl.style.scrollSnapStop = "always";
-      snapItems.forEach((snap) => {
-        const canvas = snap.querySelector("canvas");
-        snap.style.cssText = `
+      canvases.forEach((c) => {
+        const wrap = document.createElement("div");
+        wrap.className = "cloud-attach-snap-item";
+        wrap.dataset.pageNum = c.dataset.pageNum;
+        wrap.style.cssText = `
           display:flex; align-items:center; justify-content:center;
           width:100%; height:${scrollH}px; flex-shrink:0;
           scroll-snap-align:start; scroll-snap-stop:always;
           overflow:${manualZoom ? "auto" : "hidden"};
         `;
-        canvas.style.margin = "0";
+        c.style.margin = "0";
+        c.style.position = "";
+        c.style.transform = "";
+        c.style.transition = "";
         if (!manualZoom) {
-          const cw = canvas.width, ch = canvas.height;
+          const cw = c.width, ch = c.height;
           if (this._zoomMode === "fit-height" && ch > scrollH - 16) {
-            canvas.style.height = scrollH - 16 + "px";
-            canvas.style.width = "auto";
+            c.style.height = scrollH - 16 + "px";
+            c.style.width = "auto";
           } else if (scrollW && cw > scrollW) {
-            canvas.style.width = Math.min(scrollW, cw) + "px";
-            canvas.style.height = "auto";
+            c.style.width = Math.min(scrollW, cw) + "px";
+            c.style.height = "auto";
           } else {
-            canvas.style.width = "";
-            canvas.style.height = "";
+            c.style.width = "";
+            c.style.height = "";
           }
         }
+        c.parentNode.insertBefore(wrap, c);
+        wrap.appendChild(c);
       });
     } else if (this._viewMode === "double") {
       this.scrollEl.style.display = "flex";
@@ -2951,42 +2957,59 @@ var PdfFullscreenView = class extends ItemView {
       this.scrollEl.style.overflowY = "hidden";
       this.scrollEl.style.overflowX = manualZoom ? "auto" : "scroll";
       this.scrollEl.style.scrollSnapType = "x mandatory";
-      snapItems.forEach((snap) => {
-        const canvas = snap.querySelector("canvas");
-        const pn = parseInt(snap.dataset.pageNum, 10);
-        const pairIdx = Math.floor((pn - 1) / 2);
-        const isCover = pn === 1;
-        snap.style.cssText = `
+      for (let i = 0; i < canvases.length; i += 2) {
+        const c1 = canvases[i];
+        const c2 = canvases[i + 1] || null;
+        const wrap = document.createElement("div");
+        wrap.className = "cloud-attach-snap-item";
+        wrap.dataset.pageNum = c1.dataset.pageNum;
+        wrap.style.cssText = `
           display:flex; align-items:center; justify-content:center;
           min-width:${scrollW}px; width:${scrollW}px; height:${scrollH}px;
           flex-shrink:0; scroll-snap-align:start; gap:4px;
           overflow:${manualZoom ? "auto" : "hidden"};
         `;
-        canvas.style.margin = "0";
-        if (!manualZoom) {
-          const cw = canvas.width, ch = canvas.height, ratio = cw / (ch || 1);
-          const halfW = scrollW / 2 - 8;
-          if (this._zoomMode === "fit-height") {
-            const tH = Math.min(scrollH - 16, ch);
-            canvas.style.height = tH + "px";
-            canvas.style.width = tH * ratio + "px";
-          } else {
-            const tW = Math.min(halfW, cw);
-            canvas.style.width = tW + "px";
-            canvas.style.height = tW / ratio + "px";
+        [c1, c2].filter(Boolean).forEach((c) => {
+          c.style.position = "";
+          c.style.margin = "0";
+          c.style.transform = "";
+          if (!manualZoom) {
+            const cw = c.width, ch = c.height, ratio = cw / (ch || 1);
+            if (this._zoomMode === "fit-height") {
+              const tH = Math.min(scrollH - 16, ch);
+              c.style.height = tH + "px";
+              c.style.width = tH * ratio + "px";
+            } else {
+              const tW = Math.min(scrollW / 2 - 8, cw);
+              c.style.width = tW + "px";
+              c.style.height = tW / ratio + "px";
+            }
           }
-        }
-      });
+        });
+        c1.parentNode.insertBefore(wrap, c1);
+        wrap.appendChild(c1);
+        if (c2)
+          wrap.appendChild(c2);
+      }
     } else {
       this.scrollEl.style.overflowY = "auto";
       this.scrollEl.style.overflowX = manualZoom ? "auto" : "hidden";
       this.scrollEl.style.scrollSnapType = "y proximity";
-      snapItems.forEach((snap) => {
-        snap.style.cssText = `
+      canvases.forEach((c) => {
+        c.style.position = "";
+        c.style.margin = "0 auto 8px";
+        c.style.transform = "";
+        c.style.transition = "";
+        const wrap = document.createElement("div");
+        wrap.className = "cloud-attach-snap-item";
+        wrap.dataset.pageNum = c.dataset.pageNum;
+        wrap.style.cssText = `
           display:flex; align-items:center; justify-content:center;
-          width:100%; flex-shrink:0; margin-bottom:8px; overflow:hidden;
+          width:100%; flex-shrink:0; margin-bottom:8px;
+          scroll-snap-align:start; overflow:${manualZoom ? "auto" : "hidden"};
         `;
-        snap.querySelector("canvas").style.margin = "0";
+        c.parentNode.insertBefore(wrap, c);
+        wrap.appendChild(c);
       });
       if (!manualZoom) {
         this.scrollEl.scrollTop = 0;
@@ -2994,6 +3017,7 @@ var PdfFullscreenView = class extends ItemView {
         this._currentPage = 1;
       }
     }
+    this._highlightThumbnail(cur);
     requestAnimationFrame(() => this._scrollToPage(cur));
   }
   _applyZoom() {
