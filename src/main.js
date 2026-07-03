@@ -3226,12 +3226,17 @@ class PdfFullscreenView extends ItemView {
       
       this._highlightThumbnail(cur);
     } else {
-      // 连续模式：恢复 scroll 并重置页码
+      // 连续模式：放大时双向可滚 + 翻页用按钮；非放大时只 Y 轴滚
+      const manualZoom = this._renderScaleLevel > 0;
       this.scrollEl.style.overflowY = 'auto';
-      this.scrollEl.style.overflowX = 'hidden';
-      this.pageInput.value = '1';
-      this._currentPage = 1;
-      this.scrollEl.scrollTop = 0;
+      this.scrollEl.style.overflowX = manualZoom ? 'auto' : 'hidden';
+      if (manualZoom) {
+        // 放大时保持当前页，不重置页码
+      } else {
+        this.pageInput.value = '1';
+        this._currentPage = 1;
+        this.scrollEl.scrollTop = 0;
+      }
     }
   }
 
@@ -3367,8 +3372,8 @@ class PdfFullscreenView extends ItemView {
     // 滚轮翻页（单页/双页模式），带节流
     this._wheelThrottle = false;
     this.scrollEl.onwheel = (e) => {
-      if (this._viewMode === 'continuous') return; // 连续模式用原生滚动
-      // 放大时让浏览器原生滚动（上下左右），不拦截为翻页
+      if (this._viewMode === 'continuous' && this._renderScaleLevel <= 0) return; // 非放大连续模式用原生滚动
+      // 放大时（任意模式）让浏览器原生滚动，不拦截为翻页；翻页用前后按钮
       if (this._renderScaleLevel > 0) return;
       e.preventDefault();
       if (this._wheelThrottle) return;
