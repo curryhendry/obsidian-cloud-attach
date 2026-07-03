@@ -2889,9 +2889,7 @@ var PdfFullscreenView = class extends ItemView {
   }
   _applyViewMode() {
     const oldWraps = this.scrollEl.querySelectorAll(".cloud-attach-snap-item");
-    oldWraps.forEach((w) => {
-      w.replaceWith(...w.childNodes);
-    });
+    oldWraps.forEach((w) => w.replaceWith(...w.childNodes));
     const canvases = this.scrollEl.querySelectorAll("canvas.cloud-attach-pdf-fullscreen-page");
     const cur = this._currentPage || 1;
     const manualZoom = this._renderScaleLevel > 0;
@@ -2904,25 +2902,17 @@ var PdfFullscreenView = class extends ItemView {
     this.scrollEl.style.padding = "0";
     if (this._viewMode === "single") {
       this.scrollEl.style.overflowY = "auto";
-      this.scrollEl.style.overflowX = manualZoom ? "auto" : "hidden";
+      this.scrollEl.style.overflowX = "hidden";
       this.scrollEl.style.scrollSnapType = "y mandatory";
       canvases.forEach((c) => {
         const wrap = document.createElement("div");
         wrap.className = "cloud-attach-snap-item";
         wrap.dataset.pageNum = c.dataset.pageNum;
-        if (manualZoom) {
-          wrap.style.cssText = `
-            display:flex; align-items:flex-start; justify-content:flex-start;
-            width:100%; flex-shrink:0;
-            scroll-snap-align:start;
-          `;
-        } else {
-          wrap.style.cssText = `
-            display:flex; align-items:center; justify-content:center;
-            width:100%; height:${scrollH}px; flex-shrink:0;
-            scroll-snap-align:start; overflow:hidden;
-          `;
-        }
+        wrap.style.cssText = `
+          display:flex; align-items:center; justify-content:center;
+          width:100%; height:${scrollH}px; flex-shrink:0;
+          scroll-snap-align:start; overflow:hidden;
+        `;
         c.style.margin = "0";
         c.style.position = "";
         c.style.transform = "";
@@ -2931,19 +2921,23 @@ var PdfFullscreenView = class extends ItemView {
           this._sizeCanvas(c, scrollW, scrollH);
         c.parentNode.insertBefore(wrap, c);
         wrap.appendChild(c);
-        if (!manualZoom && this._zoomMode === "fit-height") {
-          requestAnimationFrame(() => {
-            if (c.clientWidth > wrap.clientWidth) {
-              wrap.style.justifyContent = "flex-start";
-              wrap.style.overflow = "auto hidden";
-            }
-          });
-        }
+      });
+      requestAnimationFrame(() => {
+        canvases.forEach((c) => {
+          const wrap = c.parentNode;
+          if (!wrap || !wrap.classList.contains("cloud-attach-snap-item"))
+            return;
+          if (c.clientWidth > wrap.clientWidth || c.clientHeight > wrap.clientHeight) {
+            wrap.style.justifyContent = "flex-start";
+            wrap.style.alignItems = "flex-start";
+            wrap.style.overflow = "auto";
+          }
+        });
       });
     } else {
       this.scrollEl.style.overflowY = "auto";
-      this.scrollEl.style.overflowX = manualZoom ? "auto" : "hidden";
-      this.scrollEl.style.scrollSnapType = "y proximity";
+      this.scrollEl.style.overflowX = "hidden";
+      this.scrollEl.style.scrollSnapType = "none";
       canvases.forEach((c) => {
         c.style.margin = "0 auto 8px";
         c.style.position = "";
@@ -2952,31 +2946,25 @@ var PdfFullscreenView = class extends ItemView {
         const wrap = document.createElement("div");
         wrap.className = "cloud-attach-snap-item";
         wrap.dataset.pageNum = c.dataset.pageNum;
-        if (manualZoom) {
-          wrap.style.cssText = `
-            display:flex; align-items:flex-start; justify-content:flex-start;
-            width:100%; flex-shrink:0;
-            scroll-snap-align:start;
-          `;
-        } else {
-          wrap.style.cssText = `
-            display:flex; align-items:center; justify-content:center;
-            width:100%; flex-shrink:0;
-            scroll-snap-align:start; overflow:hidden;
-          `;
-        }
+        wrap.style.cssText = `
+          display:flex; align-items:flex-start; justify-content:flex-start;
+          width:100%; flex-shrink:0;
+        `;
         c.parentNode.insertBefore(wrap, c);
         wrap.appendChild(c);
         if (!manualZoom)
           this._sizeCanvas(c, scrollW, Infinity);
-        if (!manualZoom && this._zoomMode === "fit-height") {
-          requestAnimationFrame(() => {
-            if (c.clientWidth > wrap.clientWidth) {
-              wrap.style.justifyContent = "flex-start";
-              wrap.style.overflow = "auto hidden";
-            }
-          });
-        }
+      });
+      requestAnimationFrame(() => {
+        canvases.forEach((c) => {
+          const wrap = c.parentNode;
+          if (!wrap || !wrap.classList.contains("cloud-attach-snap-item"))
+            return;
+          if (c.clientWidth > wrap.clientWidth || c.clientHeight > wrap.clientHeight) {
+            wrap.style.justifyContent = "flex-start";
+            wrap.style.overflow = "auto";
+          }
+        });
       });
       if (!manualZoom) {
         this.scrollEl.scrollTop = 0;
@@ -3020,56 +3008,6 @@ var PdfFullscreenView = class extends ItemView {
       this._thumbnailPanel.style.background = "var(--background-primary)";
       this._thumbnailPanel.style.padding = "8px";
       this._renderThumbnails();
-      const resizeHandle = this._thumbnailPanelWrap.createEl("div");
-      resizeHandle.style.width = "10px";
-      resizeHandle.style.minWidth = "10px";
-      resizeHandle.style.cursor = "col-resize";
-      resizeHandle.style.background = "var(--background-modifier-border)";
-      resizeHandle.style.flexShrink = "0";
-      resizeHandle.style.alignSelf = "stretch";
-      resizeHandle.style.userSelect = "none";
-      resizeHandle.style.position = "relative";
-      resizeHandle.style.zIndex = "100";
-      resizeHandle.style.display = "flex";
-      resizeHandle.style.alignItems = "center";
-      resizeHandle.style.justifyContent = "center";
-      const gripLine = resizeHandle.createEl("div");
-      gripLine.style.width = "3px";
-      gripLine.style.height = "30px";
-      gripLine.style.borderRadius = "2px";
-      gripLine.style.background = "var(--text-muted)";
-      resizeHandle.onmouseenter = () => {
-        resizeHandle.style.background = "var(--background-modifier-border)";
-        gripLine.style.background = "var(--interactive-accent)";
-      };
-      resizeHandle.onmouseleave = () => {
-        resizeHandle.style.background = "var(--background-modifier-border)";
-        gripLine.style.background = "var(--text-muted)";
-      };
-      resizeHandle.onpointerdown = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        gripLine.style.background = "var(--interactive-accent)";
-        document.body.style.cursor = "col-resize";
-        document.body.style.userSelect = "none";
-        const startX = e.clientX;
-        const startW = parseInt(this._thumbnailPanel.style.width || "150", 10);
-        const onMove = (ev) => {
-          const newW = startW + (ev.clientX - startX);
-          if (newW >= 100 && newW <= 500) {
-            this._thumbnailPanel.style.width = newW + "px";
-          }
-        };
-        const onUp = () => {
-          gripLine.style.background = "var(--text-muted)";
-          document.body.style.cursor = "";
-          document.body.style.userSelect = "";
-          window.removeEventListener("pointermove", onMove);
-          window.removeEventListener("pointerup", onUp);
-        };
-        window.addEventListener("pointermove", onMove);
-        window.addEventListener("pointerup", onUp);
-      };
     }
     this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? "flex" : "none";
     if (!this._thumbnailVisible) {
@@ -3118,38 +3056,33 @@ var PdfFullscreenView = class extends ItemView {
   }
   _bindScroll() {
     this.scrollEl.onwheel = (e) => {
-      if (this._viewMode === "continuous" && this._renderScaleLevel <= 0)
+      if (this._viewMode === "continuous")
         return;
-      if (this._renderScaleLevel > 0) {
-        const target = e.target;
-        if (target !== this.scrollEl && target.classList.contains("cloud-attach-snap-item"))
-          return;
-        const atTop = this.scrollEl.scrollTop <= 0;
-        const atBottom = this.scrollEl.scrollTop + this.scrollEl.clientHeight >= this.scrollEl.scrollHeight - 2;
-        if (e.deltaY < 0 && atTop || e.deltaY > 0 && atBottom) {
-          e.preventDefault();
-          const step = 1;
-          const newPage = (this._currentPage || 1) + (e.deltaY > 0 ? step : -step);
-          const clampedPage = Math.max(1, Math.min(newPage, this._pdf?.numPages || 1));
-          if (clampedPage !== this._currentPage) {
-            this._scrollToPage(clampedPage);
-            this.scrollEl.scrollTop = 0;
-          }
+      if (this._renderScaleLevel <= 0)
+        return;
+      const atTop = this.scrollEl.scrollTop <= 0;
+      const atBottom = this.scrollEl.scrollTop + this.scrollEl.clientHeight >= this.scrollEl.scrollHeight - 2;
+      if (e.deltaY < 0 && atTop || e.deltaY > 0 && atBottom) {
+        e.preventDefault();
+        const newPage = (this._currentPage || 1) + (e.deltaY > 0 ? 1 : -1);
+        const clampedPage = Math.max(1, Math.min(newPage, this._pdf?.numPages || 1));
+        if (clampedPage !== this._currentPage) {
+          this._scrollToPage(clampedPage);
+          this.scrollEl.scrollTop = 0;
         }
-        return;
       }
     };
     this.scrollEl.onscroll = () => {
       if (!this._pdf)
         return;
       const snaps = this.scrollEl.querySelectorAll(".cloud-attach-snap-item");
-      const ch = this.scrollEl.clientHeight;
       const cr = this.scrollEl.getBoundingClientRect();
+      const ch = cr.height;
       let bestPage = null, bestDist = Infinity;
       for (const s of snaps) {
         const r = s.getBoundingClientRect();
         const top = r.top - cr.top;
-        if (top >= -r.height * 0.3 && top < ch * 0.7 && Math.abs(top) < bestDist) {
+        if (top >= -r.height * 0.5 && top < ch * 0.5 && Math.abs(top) < bestDist) {
           bestDist = Math.abs(top);
           bestPage = parseInt(s.dataset.pageNum, 10);
         }
