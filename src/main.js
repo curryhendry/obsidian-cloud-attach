@@ -3125,15 +3125,20 @@ class PdfFullscreenView extends ItemView {
         const wrap = document.createElement('div');
         wrap.className = 'cloud-attach-snap-item';
         wrap.dataset.pageNum = c.dataset.pageNum;
-        wrap.style.cssText = manualZoom ? `
-          display:flex; align-items:flex-start; justify-content:flex-start;
-          width:100%; min-height:${scrollH}px; flex-shrink:0;
-          scroll-snap-align:start; overflow:auto;
-        ` : `
-          display:flex; align-items:center; justify-content:center;
-          width:100%; height:${scrollH}px; flex-shrink:0;
-          scroll-snap-align:start; overflow:hidden;
-        `;
+        // 放大时 wrap 不设固定高度，让 canvas 自然撑开，由 scrollEl overflow-y 滚动
+        if (manualZoom) {
+          wrap.style.cssText = `
+            display:flex; align-items:flex-start; justify-content:flex-start;
+            width:100%; flex-shrink:0;
+            scroll-snap-align:start;
+          `;
+        } else {
+          wrap.style.cssText = `
+            display:flex; align-items:center; justify-content:center;
+            width:100%; height:${scrollH}px; flex-shrink:0;
+            scroll-snap-align:start; overflow:hidden;
+          `;
+        }
         c.style.margin = '0';
         c.style.position = '';
         c.style.transform = '';
@@ -3141,6 +3146,11 @@ class PdfFullscreenView extends ItemView {
         if (!manualZoom) this._sizeCanvas(c, scrollW, scrollH);
         c.parentNode.insertBefore(wrap, c);
         wrap.appendChild(c);
+        // fit-height 可能产生超宽 canvas，改为左对齐+横向滚动
+        if (!manualZoom && this._zoomMode === 'fit-height') {
+          wrap.style.justifyContent = 'flex-start';
+          wrap.style.overflow = 'auto hidden';
+        }
       });
       
     } else {
@@ -3157,17 +3167,27 @@ class PdfFullscreenView extends ItemView {
         const wrap = document.createElement('div');
         wrap.className = 'cloud-attach-snap-item';
         wrap.dataset.pageNum = c.dataset.pageNum;
-        wrap.style.cssText = manualZoom ? `
-          display:flex; align-items:flex-start; justify-content:flex-start;
-          width:100%; flex-shrink:0;
-          scroll-snap-align:start; overflow:auto;
-        ` : `
-          display:flex; align-items:center; justify-content:center;
-          width:100%; flex-shrink:0;
-          scroll-snap-align:start; overflow:hidden;
-        `;
+        // 放大时 wrap 不设 overflow，由 scrollEl overflow-y 统一滚动
+        if (manualZoom) {
+          wrap.style.cssText = `
+            display:flex; align-items:flex-start; justify-content:flex-start;
+            width:100%; flex-shrink:0;
+            scroll-snap-align:start;
+          `;
+        } else {
+          wrap.style.cssText = `
+            display:flex; align-items:center; justify-content:center;
+            width:100%; flex-shrink:0;
+            scroll-snap-align:start; overflow:hidden;
+          `;
+        }
         c.parentNode.insertBefore(wrap, c);
         wrap.appendChild(c);
+        // fit-height 可能产生超宽 canvas，改为左对齐+横向滚动
+        if (!manualZoom && this._zoomMode === 'fit-height') {
+          wrap.style.justifyContent = 'flex-start';
+          wrap.style.overflow = 'auto hidden';
+        }
       });
       if (!manualZoom) {
         this.scrollEl.scrollTop = 0;
@@ -3186,11 +3206,18 @@ class PdfFullscreenView extends ItemView {
       const tH = Math.min(maxH - 16, ch);
       c.style.height = tH + 'px';
       c.style.width = (tH * ratio) + 'px';
-      // 不限制 maxWidth，否则强制限宽会导致 canvas 变形
-      // 如果内容比容器宽，外层 wrap overflow:auto 让用户横向滚动
+      // 不限制 maxWidth，宽幅 PDF 允许横向滚动
     } else {
-      if (cw > maxW) { c.style.width = Math.min(maxW, cw) + 'px'; c.style.height = 'auto'; }
-      else { c.style.width = ''; c.style.height = ''; }
+      // fit-width：优先撑满宽度，等比算高度；超出最大高度则改为按高度适配
+      const computedH = maxW / ratio;
+      if (computedH > maxH) {
+        // 页面比容器高，按高度适配
+        c.style.height = maxH + 'px';
+        c.style.width = (maxH * ratio) + 'px';
+      } else {
+        c.style.width = Math.min(maxW, cw) + 'px';
+        c.style.height = 'auto';
+      }
     }
   }
 
