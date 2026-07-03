@@ -1,3 +1,8 @@
+## v0.4.158.dev - 2026-07-03
+
+- 修复: 单页/双页模式下放大后内容超出屏幕无法滚动, overflow:auto + 双向滚动
+- 修复: manifest.json 恢复为 latest release 版本号 0.4.089 (dev 不碰 manifest)
+
 ## v0.4.156.dev - 2026-07-01
 
 - 修复：标签页标题显示文件名（viewState 传递 pdfUrl/pdfName）

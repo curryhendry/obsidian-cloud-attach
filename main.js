@@ -2929,8 +2929,8 @@ var PdfFullscreenView = class extends ItemView {
     this.scrollEl.style.height = "";
     if (this._viewMode === "single") {
       this.scrollEl.style.position = "relative";
-      this.scrollEl.style.overflow = "hidden";
       const manualZoom = this._renderScaleLevel > 0;
+      this.scrollEl.style.overflow = manualZoom ? "auto" : "hidden";
       canvases.forEach((c) => {
         const pn = parseInt(c.dataset.pageNum, 10);
         c.style.position = "absolute";
@@ -2948,10 +2948,14 @@ var PdfFullscreenView = class extends ItemView {
         }
         const offset = pn - cur;
         if (manualZoom) {
-          const baseTransform = c.style.transform || "";
-          const scaleMatch = baseTransform.match(/scale\([^)]+\)/);
-          const scalePart = scaleMatch ? scaleMatch[0] : "";
-          c.style.transform = `${scalePart} translateY(${offset * 100}%)`;
+          if (offset === 0) {
+            const baseTransform = c.style.transform || "";
+            const scaleMatch = baseTransform.match(/scale\([^)]+\)/);
+            c.style.transform = scaleMatch ? scaleMatch[0] : "";
+            c.style.display = "block";
+          } else {
+            c.style.display = "none";
+          }
         } else {
           c.style.transform = `translateY(${offset * 100}%)`;
         }
@@ -2964,12 +2968,12 @@ var PdfFullscreenView = class extends ItemView {
       this.scrollEl.style.justifyContent = "center";
       this.scrollEl.style.alignItems = "center";
       this.scrollEl.style.gap = "4px";
-      this.scrollEl.style.overflow = "hidden";
+      const manualZoom = this._renderScaleLevel > 0;
+      this.scrollEl.style.overflow = manualZoom ? "auto" : "hidden";
       const startPage = cur % 2 === 1 ? cur : cur - 1;
       const scrollW = this.scrollEl.clientWidth;
       const scrollH = this.scrollEl.clientHeight;
       const halfW = scrollW / 2 - 8;
-      const manualZoom = this._renderScaleLevel > 0;
       canvases.forEach((c) => {
         const pn = parseInt(c.dataset.pageNum, 10);
         const pairIndex = Math.floor((pn - 1) / 2);
@@ -3119,6 +3123,8 @@ var PdfFullscreenView = class extends ItemView {
     this.scrollEl.onwheel = (e) => {
       if (this._viewMode === "continuous")
         return;
+      if (this._renderScaleLevel > 0)
+        return;
       e.preventDefault();
       if (this._wheelThrottle)
         return;
@@ -3163,12 +3169,27 @@ var PdfFullscreenView = class extends ItemView {
     this.pageInput.value = String(pageNum);
     this._currentPage = pageNum;
     this._highlightThumbnail(pageNum);
+    if (this._renderScaleLevel > 0) {
+      this.scrollEl.scrollTop = 0;
+      this.scrollEl.scrollLeft = 0;
+    }
     if (this._viewMode === "single") {
       const canvases = this.scrollEl.querySelectorAll("canvas.cloud-attach-pdf-fullscreen-page");
       canvases.forEach((c) => {
         const pn = parseInt(c.dataset.pageNum, 10);
         const offset = pn - pageNum;
-        c.style.transform = `translateY(${offset * 100}%)`;
+        if (this._renderScaleLevel > 0) {
+          if (offset === 0) {
+            const baseTransform = c.style.transform || "";
+            const scaleMatch = baseTransform.match(/scale\([^)]+\)/);
+            c.style.transform = scaleMatch ? scaleMatch[0] : "";
+            c.style.display = "block";
+          } else {
+            c.style.display = "none";
+          }
+        } else {
+          c.style.transform = `translateY(${offset * 100}%)`;
+        }
       });
     } else if (this._viewMode === "double") {
       this._applyViewMode();
