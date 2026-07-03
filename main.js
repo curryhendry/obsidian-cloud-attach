@@ -2846,12 +2846,8 @@ var PdfFullscreenView = class extends ItemView {
     const pageW = firstVp.width;
     const pageH = firstVp.height;
     let renderScale = 1;
-    let cssScale = 1;
     if (this._renderScaleLevel > 0) {
       renderScale = this._renderScaleLevel;
-      const containerW = this.scrollEl.clientWidth || this.containerEl.clientWidth;
-      const baseScale = containerW > 0 ? containerW / pageW : 1;
-      cssScale = baseScale / renderScale;
     } else {
       if (this._zoomMode === "fit-width") {
         const w = this.scrollEl.clientWidth || this.containerEl.clientWidth;
@@ -2868,10 +2864,6 @@ var PdfFullscreenView = class extends ItemView {
       canvas.className = "cloud-attach-pdf-fullscreen-page";
       canvas.style.display = "block";
       canvas.style.boxShadow = "0 1px 4px rgba(0,0,0,0.15)";
-      if (this._renderScaleLevel > 0) {
-        canvas.style.transformOrigin = "top center";
-        canvas.style.transform = `scale(${cssScale})`;
-      }
       canvas.width = viewport.width;
       canvas.height = viewport.height;
       canvas.dataset.pageNum = String(i);
@@ -2918,11 +2910,14 @@ var PdfFullscreenView = class extends ItemView {
         const wrap = document.createElement("div");
         wrap.className = "cloud-attach-snap-item";
         wrap.dataset.pageNum = c.dataset.pageNum;
-        const justifyContent = manualZoom ? "flex-start" : "center";
-        wrap.style.cssText = `
-          display:flex; align-items:center; justify-content:${justifyContent};
+        wrap.style.cssText = manualZoom ? `
+          display:flex; align-items:flex-start; justify-content:flex-start;
+          width:100%; min-height:${scrollH}px; flex-shrink:0;
+          scroll-snap-align:start; overflow:auto;
+        ` : `
+          display:flex; align-items:center; justify-content:center;
           width:100%; height:${scrollH}px; flex-shrink:0;
-          scroll-snap-align:start; overflow:${manualZoom ? "auto" : "hidden"};
+          scroll-snap-align:start; overflow:hidden;
         `;
         c.style.margin = "0";
         c.style.position = "";
@@ -2943,11 +2938,14 @@ var PdfFullscreenView = class extends ItemView {
         const wrap = document.createElement("div");
         wrap.className = "cloud-attach-snap-item";
         wrap.dataset.pageNum = c1.dataset.pageNum;
-        const justifyContentD = manualZoom ? "flex-start" : "center";
-        wrap.style.cssText = `
-          display:flex; align-items:center; justify-content:${justifyContentD}; gap:4px;
+        wrap.style.cssText = manualZoom ? `
+          display:flex; align-items:flex-start; justify-content:flex-start; gap:4px;
+          width:100%; min-height:${scrollH}px; flex-shrink:0;
+          scroll-snap-align:start; overflow:auto;
+        ` : `
+          display:flex; align-items:center; justify-content:center; gap:4px;
           width:100%; height:${scrollH}px; flex-shrink:0;
-          scroll-snap-align:start; overflow:${manualZoom ? "auto" : "hidden"};
+          scroll-snap-align:start; overflow:hidden;
         `;
         [c1, c2].filter(Boolean).forEach((c) => {
           c.style.position = "";
@@ -2973,11 +2971,14 @@ var PdfFullscreenView = class extends ItemView {
         const wrap = document.createElement("div");
         wrap.className = "cloud-attach-snap-item";
         wrap.dataset.pageNum = c.dataset.pageNum;
-        const justifyContentC = manualZoom ? "flex-start" : "center";
-        wrap.style.cssText = `
-          display:flex; align-items:center; justify-content:${justifyContentC};
+        wrap.style.cssText = manualZoom ? `
+          display:flex; align-items:flex-start; justify-content:flex-start;
           width:100%; flex-shrink:0;
-          scroll-snap-align:start; overflow:${manualZoom ? "auto" : "hidden"};
+          scroll-snap-align:start; overflow:auto;
+        ` : `
+          display:flex; align-items:center; justify-content:center;
+          width:100%; flex-shrink:0;
+          scroll-snap-align:start; overflow:hidden;
         `;
         c.parentNode.insertBefore(wrap, c);
         wrap.appendChild(c);

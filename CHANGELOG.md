@@ -1,3 +1,8 @@
+## v0.4.225.dev - 2026-07-03
+
+- 修复：放大/缩小效果异常 — 移除 CSS transform 缩放，直接按目标 scale 渲染
+- 修复：放大时 wrap 用 min-height + overflow:auto（代替固定高度裁剪导致内容丢失）
+
 ## v0.4.223.dev - 2026-07-03
 
 - 修复：双页+高度适应变形 — _sizeCanvas fit-height 移除 c.style.maxWidth 强制限宽
