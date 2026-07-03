@@ -1,3 +1,7 @@
+## v0.4.235.dev - 2026-07-04
+
+- 修复：单页放大时 Y 轴无法滚动 — wrap height→min-height + 超出时解封为 auto、去 snap、开横向
+
 ## v0.4.233.dev - 2026-07-04
 
 - 重构：_applyViewMode 统一为 post-render rAF 检测超出→左对齐（消除 manualZoom/zoomMode 分支判断）
