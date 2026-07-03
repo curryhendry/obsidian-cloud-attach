@@ -2999,11 +2999,15 @@ var PdfFullscreenView = class extends ItemView {
       });
       this._highlightThumbnail(cur);
     } else {
+      const manualZoom = this._renderScaleLevel > 0;
       this.scrollEl.style.overflowY = "auto";
-      this.scrollEl.style.overflowX = "hidden";
-      this.pageInput.value = "1";
-      this._currentPage = 1;
-      this.scrollEl.scrollTop = 0;
+      this.scrollEl.style.overflowX = manualZoom ? "auto" : "hidden";
+      if (manualZoom) {
+      } else {
+        this.pageInput.value = "1";
+        this._currentPage = 1;
+        this.scrollEl.scrollTop = 0;
+      }
     }
   }
   _applyZoom() {
@@ -3121,7 +3125,7 @@ var PdfFullscreenView = class extends ItemView {
   _bindScroll() {
     this._wheelThrottle = false;
     this.scrollEl.onwheel = (e) => {
-      if (this._viewMode === "continuous")
+      if (this._viewMode === "continuous" && this._renderScaleLevel <= 0)
         return;
       if (this._renderScaleLevel > 0)
         return;
