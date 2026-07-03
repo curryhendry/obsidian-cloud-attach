@@ -1,3 +1,9 @@
+## v0.4.211.dev - 2026-07-03
+
+- 回退: 插件代码回到 v0.4.156.dev 基线 (restore integer render + CSS transform)
+- 修复: 单页/双页模式下放大后 overflow:auto 支持双向滚动
+
+
 ## v0.4.210.dev - 2026-07-02
 
 - 全屏预览 overhaul：将 PdfFullscreenView 完整 UI 搬到 _showPdfOverlay 中
