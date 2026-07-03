@@ -3138,13 +3138,15 @@ var PdfFullscreenView = class extends ItemView {
       if (this._viewMode === "continuous" && this._renderScaleLevel <= 0)
         return;
       if (this._renderScaleLevel > 0) {
+        const absDY = Math.abs(e.deltaY);
+        if (absDY < 30)
+          return;
         const atTop = this.scrollEl.scrollTop <= 0;
         const atBottom = this.scrollEl.scrollTop + this.scrollEl.clientHeight >= this.scrollEl.scrollHeight - 2;
         if (e.deltaY < 0 && atTop || e.deltaY > 0 && atBottom) {
           e.preventDefault();
-          const delta2 = e.deltaY > 0 ? 1 : -1;
           const step2 = this._viewMode === "double" ? 2 : 1;
-          const newPage2 = (this._currentPage || 1) + delta2 * step2;
+          const newPage2 = (this._currentPage || 1) + (e.deltaY > 0 ? step2 : -step2);
           const clampedPage2 = Math.max(1, Math.min(newPage2, this._pdf?.numPages || 1));
           if (clampedPage2 !== this._currentPage)
             this._scrollToPage(clampedPage2);
