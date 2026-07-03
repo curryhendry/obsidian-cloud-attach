@@ -3132,8 +3132,10 @@ class PdfFullscreenView extends ItemView {
         const wrap = document.createElement('div');
         wrap.className = 'cloud-attach-snap-item';
         wrap.dataset.pageNum = c.dataset.pageNum;
+        // 放大时左对齐避免左侧内容被裁剪；正常缩放居中
+        const justifyContent = manualZoom ? 'flex-start' : 'center';
         wrap.style.cssText = `
-          display:flex; align-items:center; justify-content:center;
+          display:flex; align-items:center; justify-content:${justifyContent};
           width:100%; height:${scrollH}px; flex-shrink:0;
           scroll-snap-align:start; overflow:${manualZoom ? 'auto' : 'hidden'};
         `;
@@ -3158,8 +3160,10 @@ class PdfFullscreenView extends ItemView {
         const wrap = document.createElement('div');
         wrap.className = 'cloud-attach-snap-item';
         wrap.dataset.pageNum = c1.dataset.pageNum;
+        // 放大时左对齐避免左侧内容被裁剪；正常缩放居中
+        const justifyContentD = manualZoom ? 'flex-start' : 'center';
         wrap.style.cssText = `
-          display:flex; align-items:center; justify-content:center; gap:4px;
+          display:flex; align-items:center; justify-content:${justifyContentD}; gap:4px;
           width:100%; height:${scrollH}px; flex-shrink:0;
           scroll-snap-align:start; overflow:${manualZoom ? 'auto' : 'hidden'};
         `;
@@ -3188,8 +3192,10 @@ class PdfFullscreenView extends ItemView {
         const wrap = document.createElement('div');
         wrap.className = 'cloud-attach-snap-item';
         wrap.dataset.pageNum = c.dataset.pageNum;
+        // 放大时左对齐避免左侧内容被裁剪；正常缩放居中
+        const justifyContentC = manualZoom ? 'flex-start' : 'center';
         wrap.style.cssText = `
-          display:flex; align-items:center; justify-content:center;
+          display:flex; align-items:center; justify-content:${justifyContentC};
           width:100%; flex-shrink:0;
           scroll-snap-align:start; overflow:${manualZoom ? 'auto' : 'hidden'};
         `;
@@ -3213,7 +3219,8 @@ class PdfFullscreenView extends ItemView {
       const tH = Math.min(maxH - 16, ch);
       c.style.height = tH + 'px';
       c.style.width = (tH * ratio) + 'px';
-      c.style.maxWidth = maxW + 'px';
+      // 不限制 maxWidth，否则强制限宽会导致 canvas 变形
+      // 如果内容比容器宽，外层 wrap overflow:auto 让用户横向滚动
     } else {
       if (cw > maxW) { c.style.width = Math.min(maxW, cw) + 'px'; c.style.height = 'auto'; }
       else { c.style.width = ''; c.style.height = ''; }
