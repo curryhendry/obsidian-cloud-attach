@@ -1,3 +1,8 @@
+## v0.4.223.dev - 2026-07-03
+
+- 修复：双页+高度适应变形 — _sizeCanvas fit-height 移除 c.style.maxWidth 强制限宽
+- 修复：单页/连续模式放大后左侧内容丢失 — 放大时 justify-content:flex-start 左对齐
+
 ## v0.4.221.dev - 2026-07-03
 
 - 回退: 插件代码回到 v0.4.156.dev 基线 (restore integer render + CSS transform)

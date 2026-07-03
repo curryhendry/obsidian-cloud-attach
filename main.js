@@ -2918,8 +2918,9 @@ var PdfFullscreenView = class extends ItemView {
         const wrap = document.createElement("div");
         wrap.className = "cloud-attach-snap-item";
         wrap.dataset.pageNum = c.dataset.pageNum;
+        const justifyContent = manualZoom ? "flex-start" : "center";
         wrap.style.cssText = `
-          display:flex; align-items:center; justify-content:center;
+          display:flex; align-items:center; justify-content:${justifyContent};
           width:100%; height:${scrollH}px; flex-shrink:0;
           scroll-snap-align:start; overflow:${manualZoom ? "auto" : "hidden"};
         `;
@@ -2942,8 +2943,9 @@ var PdfFullscreenView = class extends ItemView {
         const wrap = document.createElement("div");
         wrap.className = "cloud-attach-snap-item";
         wrap.dataset.pageNum = c1.dataset.pageNum;
+        const justifyContentD = manualZoom ? "flex-start" : "center";
         wrap.style.cssText = `
-          display:flex; align-items:center; justify-content:center; gap:4px;
+          display:flex; align-items:center; justify-content:${justifyContentD}; gap:4px;
           width:100%; height:${scrollH}px; flex-shrink:0;
           scroll-snap-align:start; overflow:${manualZoom ? "auto" : "hidden"};
         `;
@@ -2971,8 +2973,9 @@ var PdfFullscreenView = class extends ItemView {
         const wrap = document.createElement("div");
         wrap.className = "cloud-attach-snap-item";
         wrap.dataset.pageNum = c.dataset.pageNum;
+        const justifyContentC = manualZoom ? "flex-start" : "center";
         wrap.style.cssText = `
-          display:flex; align-items:center; justify-content:center;
+          display:flex; align-items:center; justify-content:${justifyContentC};
           width:100%; flex-shrink:0;
           scroll-snap-align:start; overflow:${manualZoom ? "auto" : "hidden"};
         `;
@@ -2994,7 +2997,6 @@ var PdfFullscreenView = class extends ItemView {
       const tH = Math.min(maxH - 16, ch);
       c.style.height = tH + "px";
       c.style.width = tH * ratio + "px";
-      c.style.maxWidth = maxW + "px";
     } else {
       if (cw > maxW) {
         c.style.width = Math.min(maxW, cw) + "px";
