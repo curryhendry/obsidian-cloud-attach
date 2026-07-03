@@ -3384,15 +3384,16 @@ class PdfFullscreenView extends ItemView {
     this._wheelThrottle = false;
     this.scrollEl.onwheel = (e) => {
       if (this._viewMode === 'continuous' && this._renderScaleLevel <= 0) return; // 非放大连续模式用原生滚动
-      // 放大时：边界处翻页，中间区域原生滚动浏览
+      // 放大时：边界处翻页（需明显 deltaY），中间区域原生滚动浏览
       if (this._renderScaleLevel > 0) {
+        const absDY = Math.abs(e.deltaY);
+        if (absDY < 30) return; // 阈值：避免横向滚动/微小移动误触发翻页
         const atTop = this.scrollEl.scrollTop <= 0;
         const atBottom = this.scrollEl.scrollTop + this.scrollEl.clientHeight >= this.scrollEl.scrollHeight - 2;
         if ((e.deltaY < 0 && atTop) || (e.deltaY > 0 && atBottom)) {
           e.preventDefault();
-          const delta = e.deltaY > 0 ? 1 : -1;
           const step = (this._viewMode === 'double') ? 2 : 1;
-          const newPage = (this._currentPage || 1) + delta * step;
+          const newPage = (this._currentPage || 1) + (e.deltaY > 0 ? step : -step);
           const clampedPage = Math.max(1, Math.min(newPage, this._pdf?.numPages || 1));
           if (clampedPage !== this._currentPage) this._scrollToPage(clampedPage);
         }
