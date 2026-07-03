@@ -1,3 +1,9 @@
+## v0.4.233.dev - 2026-07-04
+
+- 重构：_applyViewMode 统一为 post-render rAF 检测超出→左对齐（消除 manualZoom/zoomMode 分支判断）
+- 重构：连续模式彻底去 snap（scrollSnapType:none + _bindScroll 不拦截），恢复自由滚动语义
+- 移除：缩略图面板拖拽调宽度功能（极简）
+
 ## v0.4.231.dev - 2026-07-03
 
 - 修复：适应高度全部居左 — 只对宽幅页面（canvas>容器）左对齐，普通页面保持居中
