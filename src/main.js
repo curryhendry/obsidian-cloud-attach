@@ -3146,10 +3146,14 @@ class PdfFullscreenView extends ItemView {
         if (!manualZoom) this._sizeCanvas(c, scrollW, scrollH);
         c.parentNode.insertBefore(wrap, c);
         wrap.appendChild(c);
-        // fit-height 可能产生超宽 canvas，改为左对齐+横向滚动
+        // fit-height 可能产生超宽 canvas，只有超出容器才左对齐
         if (!manualZoom && this._zoomMode === 'fit-height') {
-          wrap.style.justifyContent = 'flex-start';
-          wrap.style.overflow = 'auto hidden';
+          requestAnimationFrame(() => {
+            if (c.clientWidth > wrap.clientWidth) {
+              wrap.style.justifyContent = 'flex-start';
+              wrap.style.overflow = 'auto hidden';
+            }
+          });
         }
       });
       
@@ -3183,10 +3187,16 @@ class PdfFullscreenView extends ItemView {
         }
         c.parentNode.insertBefore(wrap, c);
         wrap.appendChild(c);
-        // fit-height 可能产生超宽 canvas，改为左对齐+横向滚动
+        // 连续模式也需 _sizeCanvas 保证尺寸统一
+        if (!manualZoom) this._sizeCanvas(c, scrollW, Infinity);
+        // fit-height 可能产生超宽 canvas，只有超出容器才左对齐
         if (!manualZoom && this._zoomMode === 'fit-height') {
-          wrap.style.justifyContent = 'flex-start';
-          wrap.style.overflow = 'auto hidden';
+          requestAnimationFrame(() => {
+            if (c.clientWidth > wrap.clientWidth) {
+              wrap.style.justifyContent = 'flex-start';
+              wrap.style.overflow = 'auto hidden';
+            }
+          });
         }
       });
       if (!manualZoom) {
@@ -3406,12 +3416,14 @@ class PdfFullscreenView extends ItemView {
     this._currentPage = pageNum;
     this._highlightThumbnail(pageNum);
 
-    const step = 1;
-    const idx = Math.floor((pageNum - 1) / step);
-    this.scrollEl.scrollTo({
-      top: this.scrollEl.clientHeight * idx,
-      behavior: 'smooth'
-    });
+    // 找到目标页的 snap-item，用真实坐标定位
+    const target = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);
+    if (target) {
+      const scrollRect = this.scrollEl.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+      const top = targetRect.top - scrollRect.top + this.scrollEl.scrollTop;
+      this.scrollEl.scrollTo({ top: Math.max(0, top - 4), behavior: 'smooth' });
+    }
   }
 
   _highlightThumbnail(pageNum) {
