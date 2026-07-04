@@ -3134,10 +3134,15 @@ class PdfFullscreenView extends ItemView {
     // Force GPU compositor flush (Electron bug: canvas pixels not committed after reboot)
     requestAnimationFrame(() => {
       const allCanvases = this.scrollEl.querySelectorAll('canvas.cloud-attach-pdf-fullscreen-page');
-      allCanvases.forEach(c => { c.style.transform = 'translateZ(0)'; });
+      // 读 1 像素强制 GPU→CPU 回读管线，触发 compositor 识别纹理已更新
+      allCanvases.forEach(c => {
+        try { c.getContext('2d').getImageData(0, 0, 1, 1); } catch(e) {}
+      });
+      // 强制浏览器重绘
       void this.scrollEl.offsetHeight;
+      this.scrollEl.style.opacity = '0.99';
       requestAnimationFrame(() => {
-        allCanvases.forEach(c => { c.style.transform = ''; });
+        this.scrollEl.style.opacity = '';
       });
     });
   }
