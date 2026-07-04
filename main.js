@@ -2916,20 +2916,6 @@ var PdfFullscreenView = class extends ItemView {
       canvases.forEach((c) => this._sizeCanvas(c, scrollW, mode === "single" ? scrollH : Infinity));
     }
     this._bindScroll();
-    requestAnimationFrame(() => {
-      const allCanvases = this.scrollEl.querySelectorAll("canvas.cloud-attach-pdf-fullscreen-page");
-      allCanvases.forEach((c) => {
-        try {
-          c.getContext("2d").getImageData(0, 0, 1, 1);
-        } catch (e) {
-        }
-      });
-      void this.scrollEl.offsetHeight;
-      this.scrollEl.style.opacity = "0.99";
-      requestAnimationFrame(() => {
-        this.scrollEl.style.opacity = "";
-      });
-    });
   }
   _reRender() {
     if (!this._pdf)
@@ -4708,7 +4694,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (containerW) {
       canvas.style.height = Math.round(viewport.height * (containerW / viewport.width)) + "px";
     }
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    const ctx = canvas.getContext("2d");
     await page.render({ canvasContext: ctx, viewport }).promise;
   }
   // 懒加载：渲染单页并替换占位符
