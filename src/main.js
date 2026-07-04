@@ -3130,21 +3130,6 @@ class PdfFullscreenView extends ItemView {
     }
 
     this._bindScroll();
-
-    // Force GPU compositor flush (Electron bug: canvas pixels not committed after reboot)
-    requestAnimationFrame(() => {
-      const allCanvases = this.scrollEl.querySelectorAll('canvas.cloud-attach-pdf-fullscreen-page');
-      // 读 1 像素强制 GPU→CPU 回读管线，触发 compositor 识别纹理已更新
-      allCanvases.forEach(c => {
-        try { c.getContext('2d').getImageData(0, 0, 1, 1); } catch(e) {}
-      });
-      // 强制浏览器重绘
-      void this.scrollEl.offsetHeight;
-      this.scrollEl.style.opacity = '0.99';
-      requestAnimationFrame(() => {
-        this.scrollEl.style.opacity = '';
-      });
-    });
   }
 
   _reRender() {
@@ -4997,7 +4982,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (containerW) {
       canvas.style.height = Math.round(viewport.height * (containerW / viewport.width)) + 'px';
     }
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const ctx = canvas.getContext('2d');
     await page.render({ canvasContext: ctx, viewport }).promise;
   }
 

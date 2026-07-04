@@ -1,6 +1,11 @@
+## v0.4.249.dev - 2026-07-04
+
+- 修复：内联 PDF 预览全白（切换桌面才显示）— _renderPdfPage 去掉 willReadFrequently，恢复 GPU 渲染路径
+- 清理：_renderAllPages 移除无效 compositor flush 代码（根因不在全屏预览）
+
 ## v0.4.246.dev - 2026-07-04
 
-- 修复：Electron canvas 不渲染 v2 — getImageData 强制 GPU→CPU 回读 + opacity 闪烁触发重绘
+- 修复：Electron canvas 不渲染 v2 — getImageData 强制 GPU→CPU 回读 + opacity 闪烁触发重绘（无效，根因是 willReadFrequently）
 
 ## v0.4.244.dev - 2026-07-04
 
