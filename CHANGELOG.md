@@ -1,3 +1,8 @@
+## v0.4.242.dev - 2026-07-04
+
+- 重构：_renderAllPages 合并结构与渲染 —— 先建 wrap+canvas DOM 再渲染（消除 reparent canvas 导致 Electron GPU 纹理丢失）
+- 移除：_applyViewMode（逻辑已内聚到 _renderAllPages，净减 90+ 行）
+
 ## v0.4.240.dev - 2026-07-04
 
 - 修复：Electron 切换桌面才能渲染 — _reRender/_loadPdf 加入 offsetHeight 强制 layout + 双 rAF 触发 paint

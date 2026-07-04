@@ -2924,7 +2924,7 @@ class PdfFullscreenView extends ItemView {
       Object.entries(modeOpts).forEach(([val, label]) => {
         menu.addItem(item => item.setTitle((this._viewMode === val ? '✓ ' : '') + label).onClick(() => {
           this._viewMode = val;
-          this._applyViewMode();
+          this._reRender();
         }));
       });
       menu.showAtMouseEvent(e);
@@ -3020,15 +3020,7 @@ class PdfFullscreenView extends ItemView {
       this.pageInput.value = '1';
       this._currentPage = 1;
 
-      this.scrollEl.empty();
-      this._renderAllPages().then(() => {
-        this._applyViewMode();
-        // 强制 layout + 双 rAF 触发 paint
-        void this.scrollEl.offsetHeight;
-        requestAnimationFrame(() => {
-          void this.scrollEl.offsetHeight;
-        });
-      });
+      this._renderAllPages(this._viewMode, this._renderScaleLevel, this._zoomMode);
     } catch (e) {
       console.error('[CloudAttach] PdfFullscreenView load error:', e);
       this.scrollEl.empty();
@@ -3039,7 +3031,7 @@ class PdfFullscreenView extends ItemView {
     }
   }
 
-  async _renderAllPages() {
+  async _renderAllPages(mode, scaleLevel, zoomMode) {
     if (!this._pdf) return;
     const totalPages = this._pdf.numPages;
     
@@ -3051,152 +3043,105 @@ class PdfFullscreenView extends ItemView {
     
     // 计算渲染 scale
     let renderScale = 1;
-    if (this._renderScaleLevel > 0) {
-      // 手动缩放：直接用指定倍数渲染，不做 CSS transform
-      // 外层 wrap overflow:auto 让用户滚动浏览超出视口的部分
-      renderScale = this._renderScaleLevel;
-    } else {
-      // 自动模式：按 fit 计算 scale
-      if (this._zoomMode === 'fit-width') {
-        const w = this.scrollEl.clientWidth || this.containerEl.clientWidth;
-        renderScale = w > 0 ? w / pageW : 1;
-      } else if (this._zoomMode === 'fit-height') {
-        const h = this.scrollEl.clientHeight || this.containerEl.clientHeight;
-        renderScale = h > 0 ? h / pageH : 1;
-      }
+    if (scaleLevel > 0) {
+      renderScale = scaleLevel;
+    } else if (zoomMode === 'fit-width') {
+      const w = this.scrollEl.clientWidth || this.containerEl.clientWidth;
+      renderScale = w > 0 ? w / pageW : 1;
+    } else if (zoomMode === 'fit-height') {
+      const h = this.scrollEl.clientHeight || this.containerEl.clientHeight;
+      renderScale = h > 0 ? h / pageH : 1;
     }
 
+    const scrollW = this.scrollEl.clientWidth;
+    const scrollH = this.scrollEl.clientHeight;
+    const zoomedIn = scaleLevel > 1;
+
+    // Reset scrollEl
+    this.scrollEl.style.cssText = `
+      flex:1; min-height:0; overflow:auto;
+      background:var(--background-secondary); padding:0;
+    `;
+    this.scrollEl.empty();
+
+    // 先建结构再渲染，避免 reparent canvas（Electron 不会迁移 GPU 纹理）
     for (let i = 1; i <= totalPages; i++) {
-      const page = await this._pdf.getPage(i);
-      const viewport = page.getViewport({ scale: renderScale });
+      // 构建 wrap
+      const wrap = document.createElement('div');
+      wrap.className = 'cloud-attach-snap-item';
+      wrap.dataset.pageNum = String(i);
+
       const canvas = document.createElement('canvas');
       canvas.className = 'cloud-attach-pdf-fullscreen-page';
       canvas.style.display = 'block';
       canvas.style.boxShadow = '0 1px 4px rgba(0,0,0,0.15)';
+      canvas.dataset.pageNum = String(i);
+
+      if (mode === 'single') {
+        if (zoomedIn) {
+          this.scrollEl.style.overflowX = 'auto';
+          this.scrollEl.style.scrollSnapType = 'none';
+          wrap.style.cssText = `
+            display:flex; align-items:flex-start; justify-content:flex-start;
+            width:100%; flex-shrink:0;
+          `;
+        } else {
+          this.scrollEl.style.overflowX = 'hidden';
+          this.scrollEl.style.scrollSnapType = 'y mandatory';
+          wrap.style.cssText = `
+            display:flex; align-items:center; justify-content:center;
+            width:100%; height:${scrollH}px; flex-shrink:0;
+            scroll-snap-align:start; overflow:hidden;
+          `;
+        }
+      } else {
+        // continuous
+        this.scrollEl.style.overflowX = 'hidden';
+        this.scrollEl.style.scrollSnapType = 'none';
+        canvas.style.margin = '0 auto 8px';
+        wrap.style.cssText = `
+          display:flex; align-items:flex-start; justify-content:flex-start;
+          width:100%; flex-shrink:0;
+        `;
+      }
+
+      wrap.appendChild(canvas);
+      this.scrollEl.appendChild(wrap);
+    }
+
+    // 渲染：canvas 已在最终父节点内
+    for (let i = 1; i <= totalPages; i++) {
+      const canvas = this.scrollEl.querySelector(`canvas.cloud-attach-pdf-fullscreen-page[data-page-num="${i}"]`);
+      if (!canvas) continue;
+      const page = await this._pdf.getPage(i);
+      const viewport = page.getViewport({ scale: renderScale });
       canvas.width = viewport.width;
       canvas.height = viewport.height;
-      canvas.dataset.pageNum = String(i);
-      this.scrollEl.appendChild(canvas);
-
       await page.render({
         canvasContext: canvas.getContext('2d'),
         viewport
       }).promise;
     }
-    
+
+    // CSS 尺寸调整（非放大时统一缩放）
+    if (!zoomedIn) {
+      const canvases = this.scrollEl.querySelectorAll('canvas.cloud-attach-pdf-fullscreen-page');
+      canvases.forEach(c => this._sizeCanvas(c, scrollW, mode === 'single' ? scrollH : Infinity));
+    }
+
     this._bindScroll();
   }
 
   _reRender() {
     if (!this._pdf) return;
     const savedPage = this._currentPage || 1;
-    this.scrollEl.empty();
-    this._renderAllPages().then(() => {
-      // 先插入 DOM 再调 _applyViewMode（需要 clientWidth/clientHeight）
-      this._applyViewMode();
-      // 强制 layout + 双 rAF 触发 paint（Electron 需要显式 yield 绘制线程）
-      void this.scrollEl.offsetHeight;
-      requestAnimationFrame(() => {
-        void this.scrollEl.offsetHeight;
-        requestAnimationFrame(() => {
-          this._scrollToPage(savedPage);
-        });
-      });
+    this._renderAllPages(this._viewMode, this._renderScaleLevel, this._zoomMode).then(() => {
+      this._scrollToPage(savedPage);
     }).catch(e => {
       console.error('[CloudAttach] _reRender error:', e);
     });
   }
 
-  _applyViewMode() {
-    // 清理旧 snap-item wrapper，恢复裸 canvas 到 scrollEl
-    const oldWraps = this.scrollEl.querySelectorAll('.cloud-attach-snap-item');
-    oldWraps.forEach(w => w.replaceWith(...w.childNodes));
-    
-    const canvases = this.scrollEl.querySelectorAll('canvas.cloud-attach-pdf-fullscreen-page');
-    const cur = this._currentPage || 1;
-    const scrollW = this.scrollEl.clientWidth;
-    const scrollH = this.scrollEl.clientHeight;
-    const zoomedIn = this._renderScaleLevel > 1;
-    
-    // Reset scrollEl
-    this.scrollEl.style.cssText = `
-      flex:1; min-height:0; overflow:auto;
-      background:var(--background-secondary); padding:0;
-    `;
-    
-    if (this._viewMode === 'single') {
-      if (zoomedIn) {
-        // 放大(>1x)：去 snap，scrollEl 直接滚动整页内容
-        this.scrollEl.style.overflowX = 'auto';
-        this.scrollEl.style.scrollSnapType = 'none';
-        canvases.forEach(c => {
-          c.style.margin = '0';
-          c.style.position = '';
-          c.style.transform = '';
-          // 不调 CSS 尺寸，canvas 自然像素渲染
-          const wrap = document.createElement('div');
-          wrap.className = 'cloud-attach-snap-item';
-          wrap.dataset.pageNum = c.dataset.pageNum;
-          wrap.style.cssText = `
-            display:flex; align-items:flex-start; justify-content:flex-start;
-            width:100%; flex-shrink:0;
-          `;
-          c.parentNode.insertBefore(wrap, c);
-          wrap.appendChild(c);
-        });
-      } else {
-        // 缩小/自适应：snap 逐页，_sizeCanvas 统一尺寸
-        this.scrollEl.style.overflowX = 'hidden';
-        this.scrollEl.style.scrollSnapType = 'y mandatory';
-        canvases.forEach(c => {
-          c.style.margin = '0';
-          c.style.position = '';
-          c.style.transform = '';
-          c.style.transition = '';
-          this._sizeCanvas(c, scrollW, scrollH);
-          const wrap = document.createElement('div');
-          wrap.className = 'cloud-attach-snap-item';
-          wrap.dataset.pageNum = c.dataset.pageNum;
-          wrap.style.cssText = `
-            display:flex; align-items:center; justify-content:center;
-            width:100%; height:${scrollH}px; flex-shrink:0;
-            scroll-snap-align:start; overflow:hidden;
-          `;
-          c.parentNode.insertBefore(wrap, c);
-          wrap.appendChild(c);
-        });
-      }
-    } else {
-      // 连续模式：永远自由滚动
-      this.scrollEl.style.overflowX = 'hidden';
-      this.scrollEl.style.scrollSnapType = 'none';
-      canvases.forEach(c => {
-        c.style.margin = '0 auto 8px';
-        c.style.position = '';
-        c.style.transform = '';
-        c.style.transition = '';
-        if (!zoomedIn) this._sizeCanvas(c, scrollW, Infinity);
-        const wrap = document.createElement('div');
-        wrap.className = 'cloud-attach-snap-item';
-        wrap.dataset.pageNum = c.dataset.pageNum;
-        wrap.style.cssText = `
-          display:flex; align-items:flex-start; justify-content:flex-start;
-          width:100%; flex-shrink:0;
-        `;
-        c.parentNode.insertBefore(wrap, c);
-        wrap.appendChild(c);
-      });
-      if (!zoomedIn) {
-        this.scrollEl.scrollTop = 0;
-        this.pageInput.value = '1';
-        this._currentPage = 1;
-      }
-    }
-    
-    this._highlightThumbnail(cur);
-    requestAnimationFrame(() => this._scrollToPage(cur));
-  }
-  
   _sizeCanvas(c, maxW, maxH) {
     const ratio = c.width / (c.height || 1);
     if (this._zoomMode === 'fit-height') {
