@@ -1,3 +1,7 @@
+## v0.4.246.dev - 2026-07-04
+
+- 修复：Electron canvas 不渲染 v2 — getImageData 强制 GPU→CPU 回读 + opacity 闪烁触发重绘
+
 ## v0.4.244.dev - 2026-07-04
 
 - 修复：Electron 重启后 canvas 不渲染 — _applyViewMode reparent 后强制 translateZ(0) 创建合成层 + offsetHeight flush，rAF 后回收 transform

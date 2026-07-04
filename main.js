@@ -2919,13 +2919,15 @@ var PdfFullscreenView = class extends ItemView {
     requestAnimationFrame(() => {
       const allCanvases = this.scrollEl.querySelectorAll("canvas.cloud-attach-pdf-fullscreen-page");
       allCanvases.forEach((c) => {
-        c.style.transform = "translateZ(0)";
+        try {
+          c.getContext("2d").getImageData(0, 0, 1, 1);
+        } catch (e) {
+        }
       });
       void this.scrollEl.offsetHeight;
+      this.scrollEl.style.opacity = "0.99";
       requestAnimationFrame(() => {
-        allCanvases.forEach((c) => {
-          c.style.transform = "";
-        });
+        this.scrollEl.style.opacity = "";
       });
     });
   }
