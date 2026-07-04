@@ -4549,15 +4549,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
         const TOOLBAR_HEIGHT = 28;
         container.style.setProperty("display", "block", "important");
         container.style.setProperty("overflow", "hidden", "important");
+        const placeholderWidth = imgEl.offsetWidth || imgEl.parentElement?.clientWidth || 800;
         const scrollArea = document.createElement("div");
         scrollArea.className = "cloudattach-pdf-scrollarea";
-        let touchDevice = false;
         scrollArea.style.overflowY = isTouchDevice ? "scroll" : "auto";
         scrollArea.style.overflowX = "hidden";
         scrollArea.style.position = "relative";
         container.appendChild(scrollArea);
-        imgEl.replaceWith(container);
-        const containerW = container.clientWidth || 800;
         const firstPage = await pdf.getPage(1);
         const firstViewport = firstPage.getViewport({ scale: FIXED_SCALE });
         const canvasW = firstViewport.width;
@@ -4568,9 +4566,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
         firstCanvas.style.userSelect = "none";
         firstCanvas.draggable = false;
         scrollArea.appendChild(firstCanvas);
-        await this._renderPdfPage(firstCanvas, pdf, 1, FIXED_SCALE, containerW);
-        const displayH = canvasH * (containerW / canvasW);
-        console.log("[CloudAttach] canvas WxH:", canvasW, "x", canvasH, "containerW:", containerW, "displayH:", displayH);
+        await this._renderPdfPage(firstCanvas, pdf, 1, FIXED_SCALE, placeholderWidth);
+        const displayH = canvasH * (placeholderWidth / canvasW);
         let finalContainerHeight;
         if (userHeightStr) {
           finalContainerHeight = userHeightStr;
@@ -4580,6 +4577,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
         container.style.setProperty("height", finalContainerHeight, "important");
         scrollArea.style.setProperty("height", "100%", "important");
         scrollArea.style.setProperty("padding-bottom", TOOLBAR_HEIGHT + "px", "important");
+        imgEl.replaceWith(container);
+        const containerW = container.clientWidth || placeholderWidth;
         const resizeObserver = new ResizeObserver(() => {
           const newW = container.clientWidth || 800;
           const newH = Math.round(canvasH * (newW / canvasW));
