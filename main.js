@@ -4560,13 +4560,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
         const firstViewport = firstPage.getViewport({ scale: FIXED_SCALE });
         const canvasW = firstViewport.width;
         const canvasH = firstViewport.height;
-        const firstCanvas = document.createElement("canvas");
-        firstCanvas.className = "cloudattach-pdf-page";
-        firstCanvas.dataset.pageNum = "1";
-        firstCanvas.style.userSelect = "none";
-        firstCanvas.draggable = false;
-        scrollArea.appendChild(firstCanvas);
-        await this._renderPdfPage(firstCanvas, pdf, 1, FIXED_SCALE, placeholderWidth);
+        const firstImg = await this._renderPdfPage(pdf, 1, FIXED_SCALE, placeholderWidth);
+        scrollArea.appendChild(firstImg);
         const displayH = canvasH * (placeholderWidth / canvasW);
         let finalContainerHeight;
         if (userHeightStr) {
@@ -4680,33 +4675,35 @@ module.exports = class CloudAttachPlugin extends Plugin {
     this._pdfRenderChain = renderPromise;
     return renderPromise;
   }
-  // 渲染指定页码的 PDF 页面到指定 canvas
-  // containerW: 容器实际显示宽度，用于计算 canvas CSS 高度以维护宽高比
-  async _renderPdfPage(canvas, pdf, pageNum, scale, containerW) {
+  // 渲染指定页码的 PDF 页面，返回 <img>（绕过 Electron canvas compositor 纹理提交 bug）
+  async _renderPdfPage(pdf, pageNum, scale, containerW) {
     const page = await pdf.getPage(pageNum);
     const viewport = page.getViewport({ scale });
+    const canvas = document.createElement("canvas");
     canvas.width = viewport.width;
     canvas.height = viewport.height;
-    canvas.style.width = "100%";
-    if (containerW) {
-      canvas.style.height = Math.round(viewport.height * (containerW / viewport.width)) + "px";
-    }
     const ctx = canvas.getContext("2d");
     await page.render({ canvasContext: ctx, viewport }).promise;
-    try {
-      ctx.getImageData(0, 0, 1, 1);
-    } catch (e) {
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+    const url = URL.createObjectURL(blob);
+    const img = document.createElement("img");
+    img.src = url;
+    img.className = "cloudattach-pdf-page";
+    img.dataset.pageNum = String(pageNum);
+    img.style.userSelect = "none";
+    img.draggable = false;
+    img.style.width = "100%";
+    img.style.display = "block";
+    if (containerW) {
+      img.style.height = Math.round(viewport.height * (containerW / viewport.width)) + "px";
     }
+    img.onload = () => URL.revokeObjectURL(url);
+    return img;
   }
   // 懒加载：渲染单页并替换占位符
   async _renderLazyPage(placeholder, pdf, pageNum, scale, containerW) {
-    const canvas = document.createElement("canvas");
-    canvas.className = "cloudattach-pdf-page";
-    canvas.dataset.pageNum = String(pageNum);
-    canvas.style.userSelect = "none";
-    canvas.draggable = false;
-    await this._renderPdfPage(canvas, pdf, pageNum, scale, containerW);
-    placeholder.replaceWith(canvas);
+    const img = await this._renderPdfPage(pdf, pageNum, scale, containerW);
+    placeholder.replaceWith(img);
     console.log("[CloudAttach] lazy page", pageNum, "rendered");
   }
   // 监听滚动更新当前页码（连续滚动模式，scroll 事件 + scrollTop/scrollHeight）
@@ -4717,14 +4714,14 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const onScroll = () => {
       if (container.dataset.scrollProgrammatic)
         return;
-      const canvases = scrollArea.querySelectorAll("canvas.cloudattach-pdf-page");
-      if (!canvases.length)
+      const pages = scrollArea.querySelectorAll(".cloudattach-pdf-page");
+      if (!pages.length)
         return;
       const scrollMid = scrollArea.scrollTop + scrollArea.clientHeight / 3;
       let pageNum = 1;
-      for (let i = 0; i < canvases.length; i++) {
-        if (canvases[i].offsetTop <= scrollMid) {
-          pageNum = parseInt(canvases[i].dataset.pageNum) || i + 1;
+      for (let i = 0; i < pages.length; i++) {
+        if (pages[i].offsetTop <= scrollMid) {
+          pageNum = parseInt(pages[i].dataset.pageNum) || i + 1;
         } else
           break;
       }
