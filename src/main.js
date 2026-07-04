@@ -4978,13 +4978,16 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const canvas = document.createElement('canvas');
     canvas.width = viewport.width;
     canvas.height = viewport.height;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
     await page.render({ canvasContext: ctx, viewport }).promise;
-    // canvas → PNG blob → <img>：绕过 Electron compositor 纹理异步上传 bug
-    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-    const url = URL.createObjectURL(blob);
+    // toDataURL 读回像素（同步 GPU flush，绕过 Electron compositor 纹理异步上传 bug）
+    const dataUrl = canvas.toDataURL('image/png');
     const img = document.createElement('img');
-    img.src = url;
+    img.src = dataUrl;
+    // 诊断：空图检测
+    if (dataUrl.length < 500) {
+      console.error('[CloudAttach] _renderPdfPage EMPTY PNG for page', pageNum, 'dataUrl len:', dataUrl.length);
+    }
     img.className = 'cloudattach-pdf-page';
     img.dataset.pageNum = String(pageNum);
     img.style.userSelect = 'none';
@@ -4994,7 +4997,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (containerW) {
       img.style.height = Math.round(viewport.height * (containerW / viewport.width)) + 'px';
     }
-    img.onload = () => URL.revokeObjectURL(url);
     return img;
   }
 
