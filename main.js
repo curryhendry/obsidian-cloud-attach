@@ -2749,7 +2749,7 @@ var PdfFullscreenView = class extends ItemView {
       Object.entries(modeOpts).forEach(([val, label]) => {
         menu.addItem((item) => item.setTitle((this._viewMode === val ? "\u2713 " : "") + label).onClick(() => {
           this._viewMode = val;
-          this._applyViewMode();
+          this._reRender();
         }));
       });
       menu.showAtMouseEvent(e);
@@ -2824,14 +2824,7 @@ var PdfFullscreenView = class extends ItemView {
       this.pageTotal.textContent = " / " + totalPages;
       this.pageInput.value = "1";
       this._currentPage = 1;
-      this.scrollEl.empty();
-      this._renderAllPages().then(() => {
-        this._applyViewMode();
-        void this.scrollEl.offsetHeight;
-        requestAnimationFrame(() => {
-          void this.scrollEl.offsetHeight;
-        });
-      });
+      this._renderAllPages(this._viewMode, this._renderScaleLevel, this._zoomMode);
     } catch (e) {
       console.error("[CloudAttach] PdfFullscreenView load error:", e);
       this.scrollEl.empty();
@@ -2841,7 +2834,7 @@ var PdfFullscreenView = class extends ItemView {
       });
     }
   }
-  async _renderAllPages() {
+  async _renderAllPages(mode, scaleLevel, zoomMode) {
     if (!this._pdf)
       return;
     const totalPages = this._pdf.numPages;
@@ -2850,32 +2843,77 @@ var PdfFullscreenView = class extends ItemView {
     const pageW = firstVp.width;
     const pageH = firstVp.height;
     let renderScale = 1;
-    if (this._renderScaleLevel > 0) {
-      renderScale = this._renderScaleLevel;
-    } else {
-      if (this._zoomMode === "fit-width") {
-        const w = this.scrollEl.clientWidth || this.containerEl.clientWidth;
-        renderScale = w > 0 ? w / pageW : 1;
-      } else if (this._zoomMode === "fit-height") {
-        const h = this.scrollEl.clientHeight || this.containerEl.clientHeight;
-        renderScale = h > 0 ? h / pageH : 1;
-      }
+    if (scaleLevel > 0) {
+      renderScale = scaleLevel;
+    } else if (zoomMode === "fit-width") {
+      const w = this.scrollEl.clientWidth || this.containerEl.clientWidth;
+      renderScale = w > 0 ? w / pageW : 1;
+    } else if (zoomMode === "fit-height") {
+      const h = this.scrollEl.clientHeight || this.containerEl.clientHeight;
+      renderScale = h > 0 ? h / pageH : 1;
     }
+    const scrollW = this.scrollEl.clientWidth;
+    const scrollH = this.scrollEl.clientHeight;
+    const zoomedIn = scaleLevel > 1;
+    this.scrollEl.style.cssText = `
+      flex:1; min-height:0; overflow:auto;
+      background:var(--background-secondary); padding:0;
+    `;
+    this.scrollEl.empty();
     for (let i = 1; i <= totalPages; i++) {
-      const page = await this._pdf.getPage(i);
-      const viewport = page.getViewport({ scale: renderScale });
+      const wrap = document.createElement("div");
+      wrap.className = "cloud-attach-snap-item";
+      wrap.dataset.pageNum = String(i);
       const canvas = document.createElement("canvas");
       canvas.className = "cloud-attach-pdf-fullscreen-page";
       canvas.style.display = "block";
       canvas.style.boxShadow = "0 1px 4px rgba(0,0,0,0.15)";
+      canvas.dataset.pageNum = String(i);
+      if (mode === "single") {
+        if (zoomedIn) {
+          this.scrollEl.style.overflowX = "auto";
+          this.scrollEl.style.scrollSnapType = "none";
+          wrap.style.cssText = `
+            display:flex; align-items:flex-start; justify-content:flex-start;
+            width:100%; flex-shrink:0;
+          `;
+        } else {
+          this.scrollEl.style.overflowX = "hidden";
+          this.scrollEl.style.scrollSnapType = "y mandatory";
+          wrap.style.cssText = `
+            display:flex; align-items:center; justify-content:center;
+            width:100%; height:${scrollH}px; flex-shrink:0;
+            scroll-snap-align:start; overflow:hidden;
+          `;
+        }
+      } else {
+        this.scrollEl.style.overflowX = "hidden";
+        this.scrollEl.style.scrollSnapType = "none";
+        canvas.style.margin = "0 auto 8px";
+        wrap.style.cssText = `
+          display:flex; align-items:flex-start; justify-content:flex-start;
+          width:100%; flex-shrink:0;
+        `;
+      }
+      wrap.appendChild(canvas);
+      this.scrollEl.appendChild(wrap);
+    }
+    for (let i = 1; i <= totalPages; i++) {
+      const canvas = this.scrollEl.querySelector(`canvas.cloud-attach-pdf-fullscreen-page[data-page-num="${i}"]`);
+      if (!canvas)
+        continue;
+      const page = await this._pdf.getPage(i);
+      const viewport = page.getViewport({ scale: renderScale });
       canvas.width = viewport.width;
       canvas.height = viewport.height;
-      canvas.dataset.pageNum = String(i);
-      this.scrollEl.appendChild(canvas);
       await page.render({
         canvasContext: canvas.getContext("2d"),
         viewport
       }).promise;
+    }
+    if (!zoomedIn) {
+      const canvases = this.scrollEl.querySelectorAll("canvas.cloud-attach-pdf-fullscreen-page");
+      canvases.forEach((c) => this._sizeCanvas(c, scrollW, mode === "single" ? scrollH : Infinity));
     }
     this._bindScroll();
   }
@@ -2883,99 +2921,11 @@ var PdfFullscreenView = class extends ItemView {
     if (!this._pdf)
       return;
     const savedPage = this._currentPage || 1;
-    this.scrollEl.empty();
-    this._renderAllPages().then(() => {
-      this._applyViewMode();
-      void this.scrollEl.offsetHeight;
-      requestAnimationFrame(() => {
-        void this.scrollEl.offsetHeight;
-        requestAnimationFrame(() => {
-          this._scrollToPage(savedPage);
-        });
-      });
+    this._renderAllPages(this._viewMode, this._renderScaleLevel, this._zoomMode).then(() => {
+      this._scrollToPage(savedPage);
     }).catch((e) => {
       console.error("[CloudAttach] _reRender error:", e);
     });
-  }
-  _applyViewMode() {
-    const oldWraps = this.scrollEl.querySelectorAll(".cloud-attach-snap-item");
-    oldWraps.forEach((w) => w.replaceWith(...w.childNodes));
-    const canvases = this.scrollEl.querySelectorAll("canvas.cloud-attach-pdf-fullscreen-page");
-    const cur = this._currentPage || 1;
-    const scrollW = this.scrollEl.clientWidth;
-    const scrollH = this.scrollEl.clientHeight;
-    const zoomedIn = this._renderScaleLevel > 1;
-    this.scrollEl.style.cssText = `
-      flex:1; min-height:0; overflow:auto;
-      background:var(--background-secondary); padding:0;
-    `;
-    if (this._viewMode === "single") {
-      if (zoomedIn) {
-        this.scrollEl.style.overflowX = "auto";
-        this.scrollEl.style.scrollSnapType = "none";
-        canvases.forEach((c) => {
-          c.style.margin = "0";
-          c.style.position = "";
-          c.style.transform = "";
-          const wrap = document.createElement("div");
-          wrap.className = "cloud-attach-snap-item";
-          wrap.dataset.pageNum = c.dataset.pageNum;
-          wrap.style.cssText = `
-            display:flex; align-items:flex-start; justify-content:flex-start;
-            width:100%; flex-shrink:0;
-          `;
-          c.parentNode.insertBefore(wrap, c);
-          wrap.appendChild(c);
-        });
-      } else {
-        this.scrollEl.style.overflowX = "hidden";
-        this.scrollEl.style.scrollSnapType = "y mandatory";
-        canvases.forEach((c) => {
-          c.style.margin = "0";
-          c.style.position = "";
-          c.style.transform = "";
-          c.style.transition = "";
-          this._sizeCanvas(c, scrollW, scrollH);
-          const wrap = document.createElement("div");
-          wrap.className = "cloud-attach-snap-item";
-          wrap.dataset.pageNum = c.dataset.pageNum;
-          wrap.style.cssText = `
-            display:flex; align-items:center; justify-content:center;
-            width:100%; height:${scrollH}px; flex-shrink:0;
-            scroll-snap-align:start; overflow:hidden;
-          `;
-          c.parentNode.insertBefore(wrap, c);
-          wrap.appendChild(c);
-        });
-      }
-    } else {
-      this.scrollEl.style.overflowX = "hidden";
-      this.scrollEl.style.scrollSnapType = "none";
-      canvases.forEach((c) => {
-        c.style.margin = "0 auto 8px";
-        c.style.position = "";
-        c.style.transform = "";
-        c.style.transition = "";
-        if (!zoomedIn)
-          this._sizeCanvas(c, scrollW, Infinity);
-        const wrap = document.createElement("div");
-        wrap.className = "cloud-attach-snap-item";
-        wrap.dataset.pageNum = c.dataset.pageNum;
-        wrap.style.cssText = `
-          display:flex; align-items:flex-start; justify-content:flex-start;
-          width:100%; flex-shrink:0;
-        `;
-        c.parentNode.insertBefore(wrap, c);
-        wrap.appendChild(c);
-      });
-      if (!zoomedIn) {
-        this.scrollEl.scrollTop = 0;
-        this.pageInput.value = "1";
-        this._currentPage = 1;
-      }
-    }
-    this._highlightThumbnail(cur);
-    requestAnimationFrame(() => this._scrollToPage(cur));
   }
   _sizeCanvas(c, maxW, maxH) {
     const ratio = c.width / (c.height || 1);
