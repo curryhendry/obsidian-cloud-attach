@@ -1,3 +1,7 @@
+## v0.4.244.dev - 2026-07-04
+
+- 修复：Electron 重启后 canvas 不渲染 — _applyViewMode reparent 后强制 translateZ(0) 创建合成层 + offsetHeight flush，rAF 后回收 transform
+
 ## v0.4.242.dev - 2026-07-04
 
 - 重构：_renderAllPages 合并结构与渲染 —— 先建 wrap+canvas DOM 再渲染（消除 reparent canvas 导致 Electron GPU 纹理丢失）

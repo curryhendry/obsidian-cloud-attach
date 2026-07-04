@@ -2916,6 +2916,18 @@ var PdfFullscreenView = class extends ItemView {
       canvases.forEach((c) => this._sizeCanvas(c, scrollW, mode === "single" ? scrollH : Infinity));
     }
     this._bindScroll();
+    requestAnimationFrame(() => {
+      const allCanvases = this.scrollEl.querySelectorAll("canvas.cloud-attach-pdf-fullscreen-page");
+      allCanvases.forEach((c) => {
+        c.style.transform = "translateZ(0)";
+      });
+      void this.scrollEl.offsetHeight;
+      requestAnimationFrame(() => {
+        allCanvases.forEach((c) => {
+          c.style.transform = "";
+        });
+      });
+    });
   }
   _reRender() {
     if (!this._pdf)
