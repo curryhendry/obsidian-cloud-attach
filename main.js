@@ -4693,6 +4693,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
     const ctx = canvas.getContext("2d");
     await page.render({ canvasContext: ctx, viewport }).promise;
+    try {
+      ctx.getImageData(0, 0, 1, 1);
+    } catch (e) {
+    }
   }
   // 懒加载：渲染单页并替换占位符
   async _renderLazyPage(placeholder, pdf, pageNum, scale, containerW) {

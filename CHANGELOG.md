@@ -1,3 +1,10 @@
+## v0.4.259.dev - 2026-07-04
+
+- 🔧 修复：内联 PDF 全白（第4次尝试，终于定位到 Chromium canvas 2D GPU 纹理异步上传）
+  - 根因：canvas 2D 渲染完成后 GPU 纹理上传是异步的，compositor 可能在纹理到达前评估图层→全白
+  - 修复：_renderPdfPage 渲染后 getImageData(0,0,1,1) 强制 GPU→CPU 同步回读管线，触发 compositor 确认纹理提交
+  - 参考：Chromium bug 334408 变体，切换桌面触发全屏 compositor 重建是唯一的外部修复手段
+
 ## v0.4.256.dev - 2026-07-04
 
 - 修复：内联 PDF 全白（第三次尝试，改为 DOM 外完整构建）— 容器先插入(高度0)→渲染→设高度 的多阶段 DOM 变更触发 Electron compositor 图层丢失
