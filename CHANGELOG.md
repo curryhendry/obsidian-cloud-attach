@@ -1,3 +1,14 @@
+## v0.4.252.dev - 2026-07-04
+
+- 修复：内联 PDF 全白（重启后不渲染）— 去掉 opacity:0→1 过渡，直接渲染可见
+  - 根因：Electron GPU 重启后 opacity:0 元素不分配 compositor 图层，后续设 opacity:1 时 GPU 不拾取已渲染 canvas 纹理
+  - 切换桌面触发全屏 compositor 重建才短暂恢复
+
+## v0.4.250.dev - 2026-07-04
+
+- 修复：_renderPdfPage 去掉 willReadFrequently 恢复 GPU 渲染（无效，根因是 opacity 过渡）
+- 清理：_renderAllPages 移除无效 compositor flush 代码
+
 ## v0.4.249.dev - 2026-07-04
 
 - 修复：内联 PDF 预览全白（切换桌面才显示）— _renderPdfPage 去掉 willReadFrequently，恢复 GPU 渲染路径

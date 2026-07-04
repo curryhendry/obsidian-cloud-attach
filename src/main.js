@@ -4838,7 +4838,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       imgEl.replaceWith(container);
       // 此时 layout 完整，clientWidth 读到的才是真实显示宽度
       const containerW = container.clientWidth || 800;
-      container.style.setProperty("opacity", "0", "important");
       const firstPage = await pdf.getPage(1);
       const firstViewport = firstPage.getViewport({ scale: FIXED_SCALE });
       const canvasW = firstViewport.width;
@@ -4862,7 +4861,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       container.style.setProperty("height", finalContainerHeight, "important");
       scrollArea.style.setProperty("height", "100%", "important");
       scrollArea.style.setProperty("padding-bottom", TOOLBAR_HEIGHT + "px", "important");
-      container.style.setProperty("opacity", "1", "important");
 
       // resize 监听：窗口大小变化时动态重算容器高度，保持宽高比
       const resizeObserver = new ResizeObserver(() => {
