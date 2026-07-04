@@ -1,4 +1,6 @@
-## v0.4.238.dev - 2026-07-04
+## v0.4.240.dev - 2026-07-04
+
+- 修复：Electron 切换桌面才能渲染 — _reRender/_loadPdf 加入 offsetHeight 强制 layout + 双 rAF 触发 paint
 
 - 重构：_applyViewMode 按 zoomedIn(>1x)/normal(≤1x) 双分支，放大→去包裹层 scrollEl 直接滚动，缩小→snap+_sizeCanvas
 - 重构：_sizeCanvas 简化为容器等比缩放（browser height:auto 自动等比），消除每页独立 cw/ch 导致的页大小不一
