@@ -4558,7 +4558,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
         container.appendChild(scrollArea);
         imgEl.replaceWith(container);
         const containerW = container.clientWidth || 800;
-        container.style.setProperty("opacity", "0", "important");
         const firstPage = await pdf.getPage(1);
         const firstViewport = firstPage.getViewport({ scale: FIXED_SCALE });
         const canvasW = firstViewport.width;
@@ -4581,7 +4580,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
         container.style.setProperty("height", finalContainerHeight, "important");
         scrollArea.style.setProperty("height", "100%", "important");
         scrollArea.style.setProperty("padding-bottom", TOOLBAR_HEIGHT + "px", "important");
-        container.style.setProperty("opacity", "1", "important");
         const resizeObserver = new ResizeObserver(() => {
           const newW = container.clientWidth || 800;
           const newH = Math.round(canvasH * (newW / canvasW));
