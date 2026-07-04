@@ -3130,6 +3130,16 @@ class PdfFullscreenView extends ItemView {
     }
 
     this._bindScroll();
+
+    // Force GPU compositor flush (Electron bug: canvas pixels not committed after reboot)
+    requestAnimationFrame(() => {
+      const allCanvases = this.scrollEl.querySelectorAll('canvas.cloud-attach-pdf-fullscreen-page');
+      allCanvases.forEach(c => { c.style.transform = 'translateZ(0)'; });
+      void this.scrollEl.offsetHeight;
+      requestAnimationFrame(() => {
+        allCanvases.forEach(c => { c.style.transform = ''; });
+      });
+    });
   }
 
   _reRender() {
