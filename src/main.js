@@ -4858,6 +4858,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
       imgEl.replaceWith(container);
       const containerW = container.clientWidth || placeholderWidth;
 
+      // DIAG: 打印容器和第一页 img 的实际尺寸，定位全白问题
+      console.log('[CloudAttach] DIAG after replaceWith — containerW:', containerW,
+        'containerH:', container.clientHeight, 'display:', getComputedStyle(container).display,
+        'firstImg natural:', firstImg?.naturalWidth, 'x', firstImg?.naturalHeight,
+        'firstImg display:', firstImg?.clientWidth, 'x', firstImg?.clientHeight,
+        'firstImg src:', firstImg?.src?.substring(0, 60));
+
       // resize 监听：窗口大小变化时动态重算容器高度，保持宽高比
       const resizeObserver = new ResizeObserver(() => {
         const newW = container.clientWidth || 800;

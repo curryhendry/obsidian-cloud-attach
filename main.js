@@ -4574,6 +4574,24 @@ module.exports = class CloudAttachPlugin extends Plugin {
         scrollArea.style.setProperty("padding-bottom", TOOLBAR_HEIGHT + "px", "important");
         imgEl.replaceWith(container);
         const containerW = container.clientWidth || placeholderWidth;
+        console.log(
+          "[CloudAttach] DIAG after replaceWith \u2014 containerW:",
+          containerW,
+          "containerH:",
+          container.clientHeight,
+          "display:",
+          getComputedStyle(container).display,
+          "firstImg natural:",
+          firstImg?.naturalWidth,
+          "x",
+          firstImg?.naturalHeight,
+          "firstImg display:",
+          firstImg?.clientWidth,
+          "x",
+          firstImg?.clientHeight,
+          "firstImg src:",
+          firstImg?.src?.substring(0, 60)
+        );
         const resizeObserver = new ResizeObserver(() => {
           const newW = container.clientWidth || 800;
           const newH = Math.round(canvasH * (newW / canvasW));
