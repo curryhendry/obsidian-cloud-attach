@@ -4983,6 +4983,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
     const ctx = canvas.getContext('2d');
     await page.render({ canvasContext: ctx, viewport }).promise;
+    // 强制 GPU→CPU 同步回读管线，确保 compositor 已收到 GPU 纹理提交
+    // Electron 重启后 canvas 2D GPU 纹理上传是异步的，compositor 可能在此之前评估图层→全白
+    // 切换桌面触发全屏 compositor 重建才能拾取：https://crbug.com/334408
+    try { ctx.getImageData(0, 0, 1, 1); } catch (e) { /* best-effort */ }
   }
 
   // 懒加载：渲染单页并替换占位符
