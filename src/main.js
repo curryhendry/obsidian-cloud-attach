@@ -4826,18 +4826,17 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const TOOLBAR_HEIGHT = 28;
       container.style.setProperty("display", "block", "important");
       container.style.setProperty("overflow", "hidden", "important");
-      // opacity:0 推迟到 container.clientWidth 读取之后
-      // 否则 opacity:0 下 clientWidth 返回父容器约束宽度而非实际显示宽度
+      // 关键修复：先读取 img 的占位宽度，在 DOM 外完整构建容器+渲染 canvas，
+      // 再一次 replaceWith 插入。避免容器先插入(高度0)→渲染→设高度 的多阶段 DOM 变更
+      // 触发 Electron compositor 图层丢失。
+      const placeholderWidth = imgEl.offsetWidth || imgEl.parentElement?.clientWidth || 800;
       const scrollArea = document.createElement("div");
       scrollArea.className = "cloudattach-pdf-scrollarea";
-      let touchDevice = false; // 已在上面定义
       scrollArea.style.overflowY = isTouchDevice ? "scroll" : "auto";
       scrollArea.style.overflowX = "hidden";
       scrollArea.style.position = "relative";
       container.appendChild(scrollArea);
-      imgEl.replaceWith(container);
-      // 此时 layout 完整，clientWidth 读到的才是真实显示宽度
-      const containerW = container.clientWidth || 800;
+      // 获取首页信息
       const firstPage = await pdf.getPage(1);
       const firstViewport = firstPage.getViewport({ scale: FIXED_SCALE });
       const canvasW = firstViewport.width;
@@ -4845,13 +4844,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const firstCanvas = document.createElement("canvas");
       firstCanvas.className = "cloudattach-pdf-page";
       firstCanvas.dataset.pageNum = "1";
-      // 阻止选中/拖拽
       firstCanvas.style.userSelect = 'none';
       firstCanvas.draggable = false;
       scrollArea.appendChild(firstCanvas);
-      await this._renderPdfPage(firstCanvas, pdf, 1, FIXED_SCALE, containerW);
-      const displayH = canvasH * (containerW / canvasW);
-      console.log("[CloudAttach] canvas WxH:", canvasW, "x", canvasH, "containerW:", containerW, "displayH:", displayH);
+      // 先渲染首页（此时整个容器仍在 DOM 外）
+      await this._renderPdfPage(firstCanvas, pdf, 1, FIXED_SCALE, placeholderWidth);
+      const displayH = canvasH * (placeholderWidth / canvasW);
       let finalContainerHeight;
       if (userHeightStr) {
         finalContainerHeight = userHeightStr;
@@ -4861,6 +4859,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
       container.style.setProperty("height", finalContainerHeight, "important");
       scrollArea.style.setProperty("height", "100%", "important");
       scrollArea.style.setProperty("padding-bottom", TOOLBAR_HEIGHT + "px", "important");
+      // 一次性插入 DOM：容器已完整构建，内容已渲染，尺寸已设定
+      imgEl.replaceWith(container);
+      const containerW = container.clientWidth || placeholderWidth;
 
       // resize 监听：窗口大小变化时动态重算容器高度，保持宽高比
       const resizeObserver = new ResizeObserver(() => {
