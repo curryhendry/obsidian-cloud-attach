@@ -1,3 +1,9 @@
+## v0.4.263.dev - 2026-07-04
+
+- 🔧 修复：内联 PDF 全白 — canvas→img 绕过 Electron compositor 纹理异步提交 bug
+  - _renderPdfPage 改渲染内部临时 canvas→toBlob(PNG)→返回 img，首次调用即显示
+  - 同步适配滚动监听（canvas→img 选择器）、懒加载
+
 ## v0.4.259.dev - 2026-07-04
 
 - 🔧 修复：内联 PDF 全白（第4次尝试，终于定位到 Chromium canvas 2D GPU 纹理异步上传）

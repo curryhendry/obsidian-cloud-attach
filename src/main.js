@@ -4841,14 +4841,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const firstViewport = firstPage.getViewport({ scale: FIXED_SCALE });
       const canvasW = firstViewport.width;
       const canvasH = firstViewport.height;
-      const firstCanvas = document.createElement("canvas");
-      firstCanvas.className = "cloudattach-pdf-page";
-      firstCanvas.dataset.pageNum = "1";
-      firstCanvas.style.userSelect = 'none';
-      firstCanvas.draggable = false;
-      scrollArea.appendChild(firstCanvas);
-      // 先渲染首页（此时整个容器仍在 DOM 外）
-      await this._renderPdfPage(firstCanvas, pdf, 1, FIXED_SCALE, placeholderWidth);
+      // 渲染首页为 <img>（绕过 Electron canvas compositor bug）
+      const firstImg = await this._renderPdfPage(pdf, 1, FIXED_SCALE, placeholderWidth);
+      scrollArea.appendChild(firstImg);
       const displayH = canvasH * (placeholderWidth / canvasW);
       let finalContainerHeight;
       if (userHeightStr) {
@@ -4969,35 +4964,37 @@ module.exports = class CloudAttachPlugin extends Plugin {
     return renderPromise;
   }
 
-  // 渲染指定页码的 PDF 页面到指定 canvas
-  // containerW: 容器实际显示宽度，用于计算 canvas CSS 高度以维护宽高比
-  async _renderPdfPage(canvas, pdf, pageNum, scale, containerW) {
+  // 渲染指定页码的 PDF 页面，返回 <img>（绕过 Electron canvas compositor 纹理提交 bug）
+  async _renderPdfPage(pdf, pageNum, scale, containerW) {
     const page = await pdf.getPage(pageNum);
     const viewport = page.getViewport({ scale });
+    const canvas = document.createElement('canvas');
     canvas.width = viewport.width;
     canvas.height = viewport.height;
-    canvas.style.width = '100%';
-    // <canvas> 的 height:auto 不维护宽高比，用数学计算正确 CSS 高度
-    if (containerW) {
-      canvas.style.height = Math.round(viewport.height * (containerW / viewport.width)) + 'px';
-    }
     const ctx = canvas.getContext('2d');
     await page.render({ canvasContext: ctx, viewport }).promise;
-    // 强制 GPU→CPU 同步回读管线，确保 compositor 已收到 GPU 纹理提交
-    // Electron 重启后 canvas 2D GPU 纹理上传是异步的，compositor 可能在此之前评估图层→全白
-    // 切换桌面触发全屏 compositor 重建才能拾取：https://crbug.com/334408
-    try { ctx.getImageData(0, 0, 1, 1); } catch (e) { /* best-effort */ }
+    // canvas → PNG blob → <img>：绕过 Electron compositor 纹理异步上传 bug
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    const url = URL.createObjectURL(blob);
+    const img = document.createElement('img');
+    img.src = url;
+    img.className = 'cloudattach-pdf-page';
+    img.dataset.pageNum = String(pageNum);
+    img.style.userSelect = 'none';
+    img.draggable = false;
+    img.style.width = '100%';
+    img.style.display = 'block';
+    if (containerW) {
+      img.style.height = Math.round(viewport.height * (containerW / viewport.width)) + 'px';
+    }
+    img.onload = () => URL.revokeObjectURL(url);
+    return img;
   }
 
   // 懒加载：渲染单页并替换占位符
   async _renderLazyPage(placeholder, pdf, pageNum, scale, containerW) {
-    const canvas = document.createElement("canvas");
-    canvas.className = "cloudattach-pdf-page";
-    canvas.dataset.pageNum = String(pageNum);
-    canvas.style.userSelect = 'none';
-    canvas.draggable = false;
-    await this._renderPdfPage(canvas, pdf, pageNum, scale, containerW);
-    placeholder.replaceWith(canvas);
+    const img = await this._renderPdfPage(pdf, pageNum, scale, containerW);
+    placeholder.replaceWith(img);
     console.log("[CloudAttach] lazy page", pageNum, "rendered");
   }
 
@@ -5007,14 +5004,14 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (!scrollArea) return;
     const onScroll = () => {
       if (container.dataset.scrollProgrammatic) return;
-      // 基于实际 canvas offsetTop 定位当前页（页高不均为比例估算漂移）
-      const canvases = scrollArea.querySelectorAll("canvas.cloudattach-pdf-page");
-      if (!canvases.length) return;
+      // 基于实际 img offsetTop 定位当前页
+      const pages = scrollArea.querySelectorAll(".cloudattach-pdf-page");
+      if (!pages.length) return;
       const scrollMid = scrollArea.scrollTop + scrollArea.clientHeight / 3;
       let pageNum = 1;
-      for (let i = 0; i < canvases.length; i++) {
-        if (canvases[i].offsetTop <= scrollMid) {
-          pageNum = parseInt(canvases[i].dataset.pageNum) || (i + 1);
+      for (let i = 0; i < pages.length; i++) {
+        if (pages[i].offsetTop <= scrollMid) {
+          pageNum = parseInt(pages[i].dataset.pageNum) || (i + 1);
         } else break;
       }
       if (container.dataset.currentPage !== String(pageNum)) {
