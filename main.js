@@ -2827,6 +2827,10 @@ var PdfFullscreenView = class extends ItemView {
       this.scrollEl.empty();
       this._renderAllPages().then(() => {
         this._applyViewMode();
+        void this.scrollEl.offsetHeight;
+        requestAnimationFrame(() => {
+          void this.scrollEl.offsetHeight;
+        });
       });
     } catch (e) {
       console.error("[CloudAttach] PdfFullscreenView load error:", e);
@@ -2882,7 +2886,13 @@ var PdfFullscreenView = class extends ItemView {
     this.scrollEl.empty();
     this._renderAllPages().then(() => {
       this._applyViewMode();
-      this._scrollToPage(savedPage);
+      void this.scrollEl.offsetHeight;
+      requestAnimationFrame(() => {
+        void this.scrollEl.offsetHeight;
+        requestAnimationFrame(() => {
+          this._scrollToPage(savedPage);
+        });
+      });
     }).catch((e) => {
       console.error("[CloudAttach] _reRender error:", e);
     });

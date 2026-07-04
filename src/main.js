@@ -3023,6 +3023,11 @@ class PdfFullscreenView extends ItemView {
       this.scrollEl.empty();
       this._renderAllPages().then(() => {
         this._applyViewMode();
+        // 强制 layout + 双 rAF 触发 paint
+        void this.scrollEl.offsetHeight;
+        requestAnimationFrame(() => {
+          void this.scrollEl.offsetHeight;
+        });
       });
     } catch (e) {
       console.error('[CloudAttach] PdfFullscreenView load error:', e);
@@ -3089,7 +3094,14 @@ class PdfFullscreenView extends ItemView {
     this._renderAllPages().then(() => {
       // 先插入 DOM 再调 _applyViewMode（需要 clientWidth/clientHeight）
       this._applyViewMode();
-      this._scrollToPage(savedPage);
+      // 强制 layout + 双 rAF 触发 paint（Electron 需要显式 yield 绘制线程）
+      void this.scrollEl.offsetHeight;
+      requestAnimationFrame(() => {
+        void this.scrollEl.offsetHeight;
+        requestAnimationFrame(() => {
+          this._scrollToPage(savedPage);
+        });
+      });
     }).catch(e => {
       console.error('[CloudAttach] _reRender error:', e);
     });
