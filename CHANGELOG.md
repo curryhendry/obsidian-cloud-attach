@@ -1,4 +1,4 @@
-## v0.4.264.dev - 2026-07-04
+## v0.4.265.dev - 2026-07-04
 
 - 🔧 修复：内联 PDF 全白 — canvas→img 绕过 Electron compositor 纹理异步提交 bug
   - _renderPdfPage 改渲染内部临时 canvas→toBlob(PNG)→返回 img，首次调用即显示
