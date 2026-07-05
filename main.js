@@ -2941,7 +2941,13 @@ var PdfFullscreenView = class extends ItemView {
     }
     this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? "flex" : "none";
     if (!this._thumbnailVisible) {
-      requestAnimationFrame(() => this._reRender());
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => this._reRender());
+      });
+    } else {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => this._reRender());
+      });
     }
   }
   async _renderThumbnails() {

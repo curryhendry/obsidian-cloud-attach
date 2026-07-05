@@ -3159,7 +3159,15 @@ class PdfFullscreenView extends ItemView {
     this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? 'flex' : 'none';
     if (!this._thumbnailVisible) {
       // 关侧边栏后 scrollEl 变宽，需要重渲染
-      requestAnimationFrame(() => this._reRender());
+      // 双重 RAF 确保 layout 完成后再取 clientWidth
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => this._reRender());
+      });
+    } else {
+      // 开侧边栏后 scrollEl 变窄，也需要重渲染
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => this._reRender());
+      });
     }
   }
 
