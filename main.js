@@ -2905,10 +2905,12 @@ var PdfFullscreenView = class extends ItemView {
     if (!this._pdf)
       return;
     const savedPage = this._currentPage || 1;
-    this._renderAllPages(this._viewMode, this._renderScaleLevel, this._zoomMode).then(() => {
-      this._scrollToPage(savedPage);
-    }).catch((e) => {
-      console.error("[CloudAttach] _reRender error:", e);
+    requestAnimationFrame(() => {
+      this._renderAllPages(this._viewMode, this._renderScaleLevel, this._zoomMode).then(() => {
+        this._scrollToPage(savedPage);
+      }).catch((e) => {
+        console.error("[CloudAttach] _reRender error:", e);
+      });
     });
   }
   _sizeCanvas(c, maxW, maxH) {
@@ -2940,7 +2942,9 @@ var PdfFullscreenView = class extends ItemView {
       this._renderThumbnails();
     }
     this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? "flex" : "none";
-    setTimeout(() => this._reRender(), 30);
+    if (!this._thumbnailVisible) {
+      requestAnimationFrame(() => this._reRender());
+    }
   }
   async _renderThumbnails() {
     if (!this._pdf || !this._thumbnailPanel)

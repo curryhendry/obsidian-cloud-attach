@@ -3118,10 +3118,12 @@ class PdfFullscreenView extends ItemView {
   _reRender() {
     if (!this._pdf) return;
     const savedPage = this._currentPage || 1;
-    this._renderAllPages(this._viewMode, this._renderScaleLevel, this._zoomMode).then(() => {
-      this._scrollToPage(savedPage);
-    }).catch(e => {
-      console.error('[CloudAttach] _reRender error:', e);
+    requestAnimationFrame(() => {
+      this._renderAllPages(this._viewMode, this._renderScaleLevel, this._zoomMode).then(() => {
+        this._scrollToPage(savedPage);
+      }).catch(e => {
+        console.error('[CloudAttach] _reRender error:', e);
+      });
     });
   }
 
@@ -3160,10 +3162,11 @@ class PdfFullscreenView extends ItemView {
       this._renderThumbnails();
     }
     // 侧边栏开关后重渲染（宽度变化）
-    // 用 setTimeout 代替 RAF：display:none/flex 后浏览器 layout 尚未完成，
-    // RAF 触发时 clientWidth 可能还是旧值，导致适应宽度/高度算错
     this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? 'flex' : 'none';
-    setTimeout(() => this._reRender(), 30);
+    if (!this._thumbnailVisible) {
+      // 关侧边栏后 scrollEl 变宽，需要重渲染
+      requestAnimationFrame(() => this._reRender());
+    }
   }
 
   async _renderThumbnails() {
