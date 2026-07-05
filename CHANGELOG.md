@@ -1,10 +1,7 @@
-## v0.4.271.dev - 2026-07-05
-- 🔧 用：全屏视图回退 v0.4.196 架构 — 纯 canvas 流式渲染（appendChild + render.promise），不经过 toDataURL→img 中间转换，解决逐页 await + base64 blob 导致的巨卡、渲染不出来
-- 🔧 用：视图切换菜单 — fit-width/fit-height + continuous/single 全部恢复可用
-- 🔧 修复：内联 PDF HEAD 请求 CORS 超时 — 加 AbortController 3 秒超时，自签 HTTPS 局域网服务器不再卡数秒
+## v0.4.273.dev - 2026-07-05
+- 🔧 修复：全屏 PDF 适应高度无效 — _sizeCanvas continuous 模式下 maxH 误传 scrollW 导致 fit-height 变 fit-width
+- 🔧 修复：全屏 PDF 逐页串行渲染导致界面假死 — 合并建结构+渲染为单循环，Promise.all 并行渲染所有页
 
-
-- 🔧 目录功能 → 设为灰色不可点击
 - 🔧 修复：内联 PDF 懒加载不触发
 
 ## v0.4.265.dev - 2026-07-04
