@@ -1,10 +1,8 @@
 ## v0.4.271.dev - 2026-07-05
-- 🔧 用：全屏视图 canvas→img — _renderAllPages 改为调用 _renderPdfPage 渲染为 &lt;img&gt;（内部 toDataURL 强制 GPU→CPU flush，绕过 Electron canvas compositor 纹理异步上传 bug），解决翻页后全白、切桌面才恢复的远古 bug
-- 🔧 用：视图切换下拉菜单 — continuous ↔ single 切换恢复可用；缩放（fit-width/fit-height）仍灰色敬请期待（_renderScaleLevel 未接线）
+- 🔧 用：全屏视图回退 v0.4.196 架构 — 纯 canvas 流式渲染（appendChild + render.promise），不经过 toDataURL→img 中间转换，解决逐页 await + base64 blob 导致的巨卡、渲染不出来
+- 🔧 用：视图切换菜单 — fit-width/fit-height + continuous/single 全部恢复可用
 - 🔧 修复：内联 PDF HEAD 请求 CORS 超时 — 加 AbortController 3 秒超时，自签 HTTPS 局域网服务器不再卡数秒
 
-
-## v0.4.268.dev - 2026-07-05
 
 - 🔧 目录功能 → 设为灰色不可点击
 - 🔧 修复：内联 PDF 懒加载不触发
