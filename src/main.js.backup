@@ -4721,12 +4721,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
       // （Alist /p/ sign URL 对大文件返回 HTML 下载页而非原始二进制，{ url } 模式会解析失败）
       let fetchInfo = "";
       let pdfData = null;
-      // HEAD 检测文件大小，超时 3s 避免 CORS 阻断（自签 HTTPS 局域网）
       try {
-        const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), 3000);
-        const resp = await fetch(url, { method: "HEAD", signal: ctrl.signal });
-        clearTimeout(timer);
+        const resp = await fetch(url, { method: "HEAD" });
         fetchInfo = "status=" + resp.status + " size=" + (resp.headers.get("content-length") || "?");
       } catch (fErr) {
         fetchInfo = "fetch_err:" + (fErr.message || fErr);

@@ -1,7 +1,5 @@
-## v0.4.269.dev - 2026-07-05
+## v0.4.270.dev - 2026-07-05
 
-- 🔧 用：全屏视图 canvas→img — _renderAllPages 改为调用 _renderPdfPage 渲染为 &lt;img&gt;（内部 toDataURL 强制 GPU→CPU flush，绕过 Electron canvas compositor 纹理异步上传 bug），解决全屏视图翻页后全白、切换桌面才显示的远古 bug
-- 🔧 用：视图切换下拉菜单 — continuous ↔ single 切换恢复可用；缩放（fit-width/fit-height）仍灰色敬请期待（_renderScaleLevel 未接线）
 - 🔧 修复：内联 PDF HEAD 请求 CORS 超时 — 加 AbortController 3 秒超时，自签 HTTPS 局域网服务器不再卡数秒
 
 ## v0.4.267.dev - 2026-07-05
