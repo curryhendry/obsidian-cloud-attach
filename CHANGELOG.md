@@ -1,10 +1,7 @@
-## v0.4.273.dev - 2026-07-05
-- 🔧 修复：全屏 PDF 适应高度无效 — _sizeCanvas continuous 模式下 maxH 误传 scrollW 导致 fit-height 变 fit-width
-- 🔧 修复：全屏 PDF 逐页串行渲染导致界面假死 — 合并建结构+渲染为单循环，Promise.all 并行渲染所有页
+## v0.4.275.dev - 2026-07-05
+- 🔧 修复：全屏视图切换菜单恢复 — 之前回退基线时保留了 v0.4.267 的「敬请期待」notice
+- 🔧 修复：_bindScroll 调用缺失 — 之前合并渲染循环时把 _bindScroll() 调用掉了，导致滚动时页码不更新
 
-- 🔧 修复：内联 PDF 懒加载不触发
-
-## v0.4.265.dev - 2026-07-04
 
 - 🔧 修复：内联 PDF 全白 — canvas→img 绕过 Electron compositor 纹理异步提交 bug
   - _renderPdfPage 改渲染内部临时 canvas→toBlob(PNG)→返回 img，首次调用即显示

@@ -2896,7 +2896,23 @@ class PdfFullscreenView extends ItemView {
     viewMenuBtn.style.padding = '2px';
     viewMenuBtn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
     viewMenuBtn.onclick = (e) => {
-      new Notice('缩放/视图切换功能敬请期待');
+      const menu = new Menu();
+      // 缩放
+      menu.addItem(item => item.setTitle((this._zoomMode === 'fit-width' ? '✓ ' : '') + '适应宽度').onClick(() => {
+        this._zoomMode = 'fit-width'; this._applyZoom();
+      }));
+      menu.addItem(item => item.setTitle((this._zoomMode === 'fit-height' ? '✓ ' : '') + '适应高度').onClick(() => {
+        this._zoomMode = 'fit-height'; this._applyZoom();
+      }));
+      menu.addSeparator();
+      // 滚动方式
+      menu.addItem(item => item.setTitle((this._viewMode === 'continuous' ? '✓ ' : '') + '连续滚动').onClick(() => {
+        this._viewMode = 'continuous'; this._applyZoom();
+      }));
+      menu.addItem(item => item.setTitle((this._viewMode === 'single' ? '✓ ' : '') + '单页翻页').onClick(() => {
+        this._viewMode = 'single'; this._applyZoom();
+      }));
+      menu.showAtMouseEvent(e);
     };
 
 
@@ -3096,6 +3112,7 @@ class PdfFullscreenView extends ItemView {
     // 并行渲染所有页
     await Promise.all(renderTasks);
 
+    this._bindScroll();
   }
 
   _reRender() {

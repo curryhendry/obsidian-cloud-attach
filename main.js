@@ -2723,7 +2723,25 @@ var PdfFullscreenView = class extends ItemView {
     viewMenuBtn.style.padding = "2px";
     viewMenuBtn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
     viewMenuBtn.onclick = (e) => {
-      new Notice("\u7F29\u653E/\u89C6\u56FE\u5207\u6362\u529F\u80FD\u656C\u8BF7\u671F\u5F85");
+      const menu = new Menu();
+      menu.addItem((item) => item.setTitle((this._zoomMode === "fit-width" ? "\u2713 " : "") + "\u9002\u5E94\u5BBD\u5EA6").onClick(() => {
+        this._zoomMode = "fit-width";
+        this._applyZoom();
+      }));
+      menu.addItem((item) => item.setTitle((this._zoomMode === "fit-height" ? "\u2713 " : "") + "\u9002\u5E94\u9AD8\u5EA6").onClick(() => {
+        this._zoomMode = "fit-height";
+        this._applyZoom();
+      }));
+      menu.addSeparator();
+      menu.addItem((item) => item.setTitle((this._viewMode === "continuous" ? "\u2713 " : "") + "\u8FDE\u7EED\u6EDA\u52A8").onClick(() => {
+        this._viewMode = "continuous";
+        this._applyZoom();
+      }));
+      menu.addItem((item) => item.setTitle((this._viewMode === "single" ? "\u2713 " : "") + "\u5355\u9875\u7FFB\u9875").onClick(() => {
+        this._viewMode = "single";
+        this._applyZoom();
+      }));
+      menu.showAtMouseEvent(e);
     };
     const right = toolbar.createEl("div");
     right.style.display = "flex";
@@ -2881,6 +2899,7 @@ var PdfFullscreenView = class extends ItemView {
       );
     }
     await Promise.all(renderTasks);
+    this._bindScroll();
   }
   _reRender() {
     if (!this._pdf)
