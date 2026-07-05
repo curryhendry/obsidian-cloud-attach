@@ -2905,12 +2905,10 @@ var PdfFullscreenView = class extends ItemView {
     if (!this._pdf)
       return;
     const savedPage = this._currentPage || 1;
-    requestAnimationFrame(() => {
-      this._renderAllPages(this._viewMode, this._renderScaleLevel, this._zoomMode).then(() => {
-        this._scrollToPage(savedPage);
-      }).catch((e) => {
-        console.error("[CloudAttach] _reRender error:", e);
-      });
+    this._renderAllPages(this._viewMode, this._renderScaleLevel, this._zoomMode).then(() => {
+      this._scrollToPage(savedPage);
+    }).catch((e) => {
+      console.error("[CloudAttach] _reRender error:", e);
     });
   }
   _sizeCanvas(c, maxW, maxH) {

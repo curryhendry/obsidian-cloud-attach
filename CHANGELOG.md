@@ -1,10 +1,6 @@
-## v0.4.283.dev - 2026-07-05
-- 🔧 修复：缩略图面板开关后适应宽度/高度错位 — _reRender 内包 requestAnimationFrame，等 layout commit 后再读 clientWidth（回溯 0.4.196 做法）
+## v0.4.285.dev - 2026-07-05
+- 🔧 回退到 0.4.275 基线，移除 _renderAllPages 重写和 _reRender RAF 改动
 
-- 修复：内联 PDF 全白（第三次尝试，改为 DOM 外完整构建）— 容器先插入(高度0)→渲染→设高度 的多阶段 DOM 变更触发 Electron compositor 图层丢失
-  - 修复：img.offsetWidth 预取宽度→DOM 外建完整容器+渲染首页+设高度→一次性 replaceWith
-
-## v0.4.252.dev - 2026-07-04
 
 - 修复：内联 PDF 全白（重启后不渲染）— 去掉 opacity:0→1 过渡，直接渲染可见
   - 根因：Electron GPU 重启后 opacity:0 元素不分配 compositor 图层，后续设 opacity:1 时 GPU 不拾取已渲染 canvas 纹理
