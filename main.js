@@ -4781,12 +4781,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const fullscreenBtn = document.createElement("span");
     fullscreenBtn.textContent = "\u26F6";
     fullscreenBtn.style.cursor = "pointer";
-    fullscreenBtn.title = "\u5168\u5C4F\u9884\u89C8\uFF08\u656C\u8BF7\u671F\u5F85\uFF09";
+    fullscreenBtn.title = "\u5168\u5C4F\u9884\u89C8";
     fullscreenBtn.dataset.role = "fullscreen";
     toolbar.appendChild(fullscreenBtn);
     fullscreenBtn.onclick = (e) => {
       e.stopPropagation();
-      new Notice("\u5168\u5C4F\u529F\u80FD\u656C\u8BF7\u671F\u5F85");
+      const url = container.dataset.pdfUrl;
+      this.openPdfFullscreen(url, cleanFileNameFromUrl(url));
     };
     const scrollArea = container.querySelector(".cloudattach-pdf-scrollarea");
     const scrollToPage = (pageNum) => {
