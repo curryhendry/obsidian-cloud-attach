@@ -2733,11 +2733,11 @@ var PdfFullscreenView = class extends ItemView {
         this._applyZoom();
       }));
       menu.addSeparator();
-      menu.addItem((item) => item.setTitle((this._viewMode === "continuous" ? "\u2713 " : "") + "\u8FDE\u7EED\u6EDA\u52A8").onClick(() => {
+      menu.addItem((item) => item.setTitle((this._viewMode === "continuous" ? "\u2713 " : "") + "\u8FDE\u7EED").onClick(() => {
         this._viewMode = "continuous";
         this._applyZoom();
       }));
-      menu.addItem((item) => item.setTitle((this._viewMode === "single" ? "\u2713 " : "") + "\u5355\u9875\u7FFB\u9875").onClick(() => {
+      menu.addItem((item) => item.setTitle((this._viewMode === "single" ? "\u2713 " : "") + "\u5355\u9875").onClick(() => {
         this._viewMode = "single";
         this._applyZoom();
       }));

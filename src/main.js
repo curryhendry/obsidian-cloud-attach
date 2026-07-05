@@ -2897,7 +2897,6 @@ class PdfFullscreenView extends ItemView {
     viewMenuBtn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
     viewMenuBtn.onclick = (e) => {
       const menu = new Menu();
-      // 缩放
       menu.addItem(item => item.setTitle((this._zoomMode === 'fit-width' ? '✓ ' : '') + '适应宽度').onClick(() => {
         this._zoomMode = 'fit-width'; this._applyZoom();
       }));
@@ -2905,11 +2904,10 @@ class PdfFullscreenView extends ItemView {
         this._zoomMode = 'fit-height'; this._applyZoom();
       }));
       menu.addSeparator();
-      // 滚动方式
-      menu.addItem(item => item.setTitle((this._viewMode === 'continuous' ? '✓ ' : '') + '连续滚动').onClick(() => {
+      menu.addItem(item => item.setTitle((this._viewMode === 'continuous' ? '✓ ' : '') + '连续').onClick(() => {
         this._viewMode = 'continuous'; this._applyZoom();
       }));
-      menu.addItem(item => item.setTitle((this._viewMode === 'single' ? '✓ ' : '') + '单页翻页').onClick(() => {
+      menu.addItem(item => item.setTitle((this._viewMode === 'single' ? '✓ ' : '') + '单页').onClick(() => {
         this._viewMode = 'single'; this._applyZoom();
       }));
       menu.showAtMouseEvent(e);
@@ -3049,7 +3047,7 @@ class PdfFullscreenView extends ItemView {
     `;
     this.scrollEl.empty();
 
-    // 预取所有页生成 canvas 节点
+    // 单循环：获取页面→建 canvas→进 DOM→收集 render promise
     const renderTasks = [];
     for (let i = 1; i <= totalPages; i++) {
       const page = await this._pdf.getPage(i);
@@ -3095,21 +3093,19 @@ class PdfFullscreenView extends ItemView {
         `;
       }
 
-      // CSS 尺寸调整（非放大时统一缩放）
+      // CSS 尺寸调整（非放大时，canvas 已有正确像素尺寸）
       if (!zoomedIn) {
         this._sizeCanvas(canvas, scrollW, scrollH);
       }
 
       wrap.appendChild(canvas);
       this.scrollEl.appendChild(wrap);
-
-      // 批量收集 render promise，节点已在 DOM 中
       renderTasks.push(
         page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise
       );
     }
 
-    // 并行渲染所有页
+    // 并行渲染
     await Promise.all(renderTasks);
 
     this._bindScroll();
