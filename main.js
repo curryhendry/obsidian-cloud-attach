@@ -2723,7 +2723,27 @@ var PdfFullscreenView = class extends ItemView {
     viewMenuBtn.style.padding = "2px";
     viewMenuBtn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
     viewMenuBtn.onclick = (e) => {
-      new Notice("\u7F29\u653E/\u89C6\u56FE\u5207\u6362\u529F\u80FD\u656C\u8BF7\u671F\u5F85");
+      const menu = new Menu();
+      menu.addItem((item) => {
+        item.setTitle(this._viewMode === "continuous" ? "\u2713 \u8FDE\u7EED\u6EDA\u52A8" : "\u8FDE\u7EED\u6EDA\u52A8").onClick(() => {
+          this._viewMode = "continuous";
+          this._reRender();
+        });
+      });
+      menu.addItem((item) => {
+        item.setTitle(this._viewMode === "single" ? "\u2713 \u5355\u9875\u7FFB\u9875" : "\u5355\u9875\u7FFB\u9875").onClick(() => {
+          this._viewMode = "single";
+          this._reRender();
+        });
+      });
+      menu.addSeparator();
+      menu.addItem((item) => {
+        item.setTitle(this._zoomMode === "fit-width" ? "\u2713 \u9002\u5E94\u5BBD\u5EA6" : "\u9002\u5E94\u5BBD\u5EA6").setDisabled(true);
+      });
+      menu.addItem((item) => {
+        item.setTitle(this._zoomMode === "fit-height" ? "\u2713 \u9002\u5E94\u9AD8\u5EA6" : "\u9002\u5E94\u9AD8\u5EA6").setDisabled(true);
+      });
+      menu.showAtMouseEvent(e);
     };
     const right = toolbar.createEl("div");
     right.style.display = "flex";
@@ -2835,11 +2855,10 @@ var PdfFullscreenView = class extends ItemView {
       const wrap = document.createElement("div");
       wrap.className = "cloud-attach-snap-item";
       wrap.dataset.pageNum = String(i);
-      const canvas = document.createElement("canvas");
-      canvas.className = "cloud-attach-pdf-fullscreen-page";
-      canvas.style.display = "block";
-      canvas.style.boxShadow = "0 1px 4px rgba(0,0,0,0.15)";
-      canvas.dataset.pageNum = String(i);
+      const placeholder = document.createElement("div");
+      placeholder.className = "cloud-attach-pdf-fullscreen-page";
+      placeholder.style.display = "block";
+      placeholder.dataset.pageNum = String(i);
       if (mode === "single") {
         if (zoomedIn) {
           this.scrollEl.style.overflowX = "auto";
@@ -2860,31 +2879,39 @@ var PdfFullscreenView = class extends ItemView {
       } else {
         this.scrollEl.style.overflowX = "hidden";
         this.scrollEl.style.scrollSnapType = "none";
-        canvas.style.margin = "0 auto 8px";
+        placeholder.style.boxShadow = "0 1px 4px rgba(0,0,0,0.15)";
+        placeholder.style.margin = "0 auto 8px";
         wrap.style.cssText = `
           display:flex; align-items:flex-start; justify-content:flex-start;
           width:100%; flex-shrink:0;
         `;
       }
-      wrap.appendChild(canvas);
+      wrap.appendChild(placeholder);
       this.scrollEl.appendChild(wrap);
+      try {
+        const img = await this.plugin._renderPdfPage(this._pdf, i, renderScale, scrollW);
+        if (wrap.isConnected) {
+          placeholder.replaceWith(img);
+        }
+      } catch (e) {
+        console.error("[CloudAttach] _renderAllPages page", i, "error:", e);
+        placeholder.textContent = "\u26A0 " + i;
+      }
     }
-    for (let i = 1; i <= totalPages; i++) {
-      const canvas = this.scrollEl.querySelector(`canvas.cloud-attach-pdf-fullscreen-page[data-page-num="${i}"]`);
-      if (!canvas)
-        continue;
-      const page = await this._pdf.getPage(i);
-      const viewport = page.getViewport({ scale: renderScale });
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      await page.render({
-        canvasContext: canvas.getContext("2d"),
-        viewport
-      }).promise;
+    if (mode === "continuous" && !zoomedIn) {
+      const imgs = this.scrollEl.querySelectorAll("img.cloud-attach-pdf-page");
+      imgs.forEach((img) => {
+        img.style.width = "100%";
+        img.style.height = "auto";
+      });
     }
-    if (!zoomedIn) {
-      const canvases = this.scrollEl.querySelectorAll("canvas.cloud-attach-pdf-fullscreen-page");
-      canvases.forEach((c) => this._sizeCanvas(c, scrollW, mode === "single" ? scrollH : Infinity));
+    if (mode === "single" && !zoomedIn) {
+      const imgs = this.scrollEl.querySelectorAll("img.cloud-attach-pdf-page");
+      imgs.forEach((img) => {
+        img.style.maxHeight = "100%";
+        img.style.width = "auto";
+        img.style.objectFit = "contain";
+      });
     }
     this._bindScroll();
   }
@@ -4446,7 +4473,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
         let fetchInfo = "";
         let pdfData = null;
         try {
-          const resp = await fetch(url, { method: "HEAD" });
+          const ctrl = new AbortController();
+          const timer = setTimeout(() => ctrl.abort(), 3e3);
+          const resp = await fetch(url, { method: "HEAD", signal: ctrl.signal });
+          clearTimeout(timer);
           fetchInfo = "status=" + resp.status + " size=" + (resp.headers.get("content-length") || "?");
         } catch (fErr) {
           fetchInfo = "fetch_err:" + (fErr.message || fErr);

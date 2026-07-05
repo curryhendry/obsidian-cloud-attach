@@ -2896,7 +2896,25 @@ class PdfFullscreenView extends ItemView {
     viewMenuBtn.style.padding = '2px';
     viewMenuBtn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
     viewMenuBtn.onclick = (e) => {
-      new Notice('缩放/视图切换功能敬请期待');
+      const menu = new Menu();
+      menu.addItem(item => {
+        item.setTitle(this._viewMode === 'continuous' ? '✓ 连续滚动' : '连续滚动')
+          .onClick(() => { this._viewMode = 'continuous'; this._reRender(); });
+      });
+      menu.addItem(item => {
+        item.setTitle(this._viewMode === 'single' ? '✓ 单页翻页' : '单页翻页')
+          .onClick(() => { this._viewMode = 'single'; this._reRender(); });
+      });
+      menu.addSeparator();
+      menu.addItem(item => {
+        item.setTitle(this._zoomMode === 'fit-width' ? '✓ 适应宽度' : '适应宽度')
+          .setDisabled(true);
+      });
+      menu.addItem(item => {
+        item.setTitle(this._zoomMode === 'fit-height' ? '✓ 适应高度' : '适应高度')
+          .setDisabled(true);
+      });
+      menu.showAtMouseEvent(e);
     };
 
 
@@ -3033,18 +3051,18 @@ class PdfFullscreenView extends ItemView {
     `;
     this.scrollEl.empty();
 
-    // 先建结构再渲染，避免 reparent canvas（Electron 不会迁移 GPU 纹理）
+    // 先建结构，再用 _renderPdfPage 渲染为 <img>
+    // （_renderPdfPage 内部 toDataURL flush GPU→CPU，绕过 Electron canvas compositor bug）
     for (let i = 1; i <= totalPages; i++) {
-      // 构建 wrap
       const wrap = document.createElement('div');
       wrap.className = 'cloud-attach-snap-item';
       wrap.dataset.pageNum = String(i);
 
-      const canvas = document.createElement('canvas');
-      canvas.className = 'cloud-attach-pdf-fullscreen-page';
-      canvas.style.display = 'block';
-      canvas.style.boxShadow = '0 1px 4px rgba(0,0,0,0.15)';
-      canvas.dataset.pageNum = String(i);
+      // 占位 div（_renderPdfPage 返回 <img> 后会 replaceWith）
+      const placeholder = document.createElement('div');
+      placeholder.className = 'cloud-attach-pdf-fullscreen-page';
+      placeholder.style.display = 'block';
+      placeholder.dataset.pageNum = String(i);
 
       if (mode === 'single') {
         if (zoomedIn) {
@@ -3067,35 +3085,45 @@ class PdfFullscreenView extends ItemView {
         // continuous
         this.scrollEl.style.overflowX = 'hidden';
         this.scrollEl.style.scrollSnapType = 'none';
-        canvas.style.margin = '0 auto 8px';
+        placeholder.style.boxShadow = '0 1px 4px rgba(0,0,0,0.15)';
+        placeholder.style.margin = '0 auto 8px';
         wrap.style.cssText = `
           display:flex; align-items:flex-start; justify-content:flex-start;
           width:100%; flex-shrink:0;
         `;
       }
 
-      wrap.appendChild(canvas);
+      wrap.appendChild(placeholder);
       this.scrollEl.appendChild(wrap);
+
+      // 渲染到 <img> 代替 placeholder（绕过 Electron GPU bug）
+      try {
+        const img = await this.plugin._renderPdfPage(this._pdf, i, renderScale, scrollW);
+        if (wrap.isConnected) {
+          placeholder.replaceWith(img);
+        }
+      } catch (e) {
+        console.error('[CloudAttach] _renderAllPages page', i, 'error:', e);
+        placeholder.textContent = '⚠ ' + i;
+      }
     }
 
-    // 渲染：canvas 已在最终父节点内
-    for (let i = 1; i <= totalPages; i++) {
-      const canvas = this.scrollEl.querySelector(`canvas.cloud-attach-pdf-fullscreen-page[data-page-num="${i}"]`);
-      if (!canvas) continue;
-      const page = await this._pdf.getPage(i);
-      const viewport = page.getViewport({ scale: renderScale });
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      await page.render({
-        canvasContext: canvas.getContext('2d'),
-        viewport
-      }).promise;
+    // continuous 模式下统一宽度
+    if (mode === 'continuous' && !zoomedIn) {
+      const imgs = this.scrollEl.querySelectorAll('img.cloud-attach-pdf-page');
+      imgs.forEach(img => {
+        img.style.width = '100%';
+        img.style.height = 'auto';
+      });
     }
-
-    // CSS 尺寸调整（非放大时统一缩放）
-    if (!zoomedIn) {
-      const canvases = this.scrollEl.querySelectorAll('canvas.cloud-attach-pdf-fullscreen-page');
-      canvases.forEach(c => this._sizeCanvas(c, scrollW, mode === 'single' ? scrollH : Infinity));
+    // single 模式下统一高度
+    if (mode === 'single' && !zoomedIn) {
+      const imgs = this.scrollEl.querySelectorAll('img.cloud-attach-pdf-page');
+      imgs.forEach(img => {
+        img.style.maxHeight = '100%';
+        img.style.width = 'auto';
+        img.style.objectFit = 'contain';
+      });
     }
 
     this._bindScroll();
@@ -4721,8 +4749,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
       // （Alist /p/ sign URL 对大文件返回 HTML 下载页而非原始二进制，{ url } 模式会解析失败）
       let fetchInfo = "";
       let pdfData = null;
+      // HEAD 检测文件大小，超时 3s 避免 CORS 阻断（自签 HTTPS 局域网）
       try {
-        const resp = await fetch(url, { method: "HEAD" });
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 3000);
+        const resp = await fetch(url, { method: "HEAD", signal: ctrl.signal });
+        clearTimeout(timer);
         fetchInfo = "status=" + resp.status + " size=" + (resp.headers.get("content-length") || "?");
       } catch (fErr) {
         fetchInfo = "fetch_err:" + (fErr.message || fErr);
