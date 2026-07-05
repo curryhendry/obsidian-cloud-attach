@@ -2695,11 +2695,9 @@ var PdfFullscreenView = class extends ItemView {
         this._thumbnailVisible = true;
         this._toggleThumbnailPanel();
       }));
-      menu.addItem((item) => item.setTitle(this._panelMode === "outline" ? "\u2713 \u76EE\u5F55" : "\u76EE\u5F55").onClick(() => {
-        this._panelMode = "outline";
-        this._thumbnailVisible = true;
-        new Notice("\u76EE\u5F55\u529F\u80FD\u5F00\u53D1\u4E2D");
-      }));
+      menu.addItem((item) => {
+        item.setTitle("\u76EE\u5F55").setDisabled(true);
+      });
       menu.showAtMouseEvent(e);
     };
     this._viewMode = "continuous";
@@ -2711,48 +2709,21 @@ var PdfFullscreenView = class extends ItemView {
     zoomOutBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
     this._renderScaleLevel = 0;
     zoomOutBtn.onclick = () => {
-      const levels = [0.1, 0.25, 0.5, 0.75, 0, 1.5, 2, 3, 4, 5];
-      const idx = levels.indexOf(this._renderScaleLevel);
-      if (idx > 0) {
-        this._renderScaleLevel = levels[idx - 1];
-        this._applyZoom();
-      }
+      new Notice("\u7F29\u653E\u529F\u80FD\u656C\u8BF7\u671F\u5F85");
     };
     const zoomInBtn = left.createEl("button");
     zoomInBtn.className = "clickable-icon";
     zoomInBtn.setAttribute("aria-label", "\u653E\u5927");
     zoomInBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
     zoomInBtn.onclick = () => {
-      const levels = [0.1, 0.25, 0.5, 0.75, 0, 1.5, 2, 3, 4, 5];
-      const idx = levels.indexOf(this._renderScaleLevel);
-      if (idx < levels.length - 1) {
-        this._renderScaleLevel = levels[idx + 1];
-        this._applyZoom();
-      }
+      new Notice("\u7F29\u653E\u529F\u80FD\u656C\u8BF7\u671F\u5F85");
     };
     const viewMenuBtn = left.createEl("button");
     viewMenuBtn.className = "clickable-icon";
     viewMenuBtn.style.padding = "2px";
     viewMenuBtn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
     viewMenuBtn.onclick = (e) => {
-      const menu = new Menu();
-      const zoomOpts = { "fit-width": "\u9002\u5E94\u5BBD\u5EA6", "fit-height": "\u9002\u5E94\u9AD8\u5EA6" };
-      Object.entries(zoomOpts).forEach(([val, label]) => {
-        menu.addItem((item) => item.setTitle((this._zoomMode === val && this._renderScaleLevel <= 0 ? "\u2713 " : "") + label).onClick(() => {
-          this._zoomMode = val;
-          this._renderScaleLevel = 0;
-          this._applyZoom();
-        }));
-      });
-      menu.addSeparator();
-      const modeOpts = { "continuous": "\u8FDE\u7EED", "single": "\u5355\u9875" };
-      Object.entries(modeOpts).forEach(([val, label]) => {
-        menu.addItem((item) => item.setTitle((this._viewMode === val ? "\u2713 " : "") + label).onClick(() => {
-          this._viewMode = val;
-          this._reRender();
-        }));
-      });
-      menu.showAtMouseEvent(e);
+      new Notice("\u7F29\u653E/\u89C6\u56FE\u5207\u6362\u529F\u80FD\u656C\u8BF7\u671F\u5F85");
     };
     const right = toolbar.createEl("div");
     right.style.display = "flex";
@@ -4642,7 +4613,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
                 lazyObserver.unobserve(ph);
               }
             });
-          }, { rootMargin: "200px" });
+          }, { root: scrollArea, rootMargin: "200px" });
           pagePlaceholders.forEach((ph) => lazyObserver.observe(ph));
           if (!this._pdfLazyObservers)
             this._pdfLazyObservers = /* @__PURE__ */ new Set();
@@ -4815,8 +4786,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     toolbar.appendChild(fullscreenBtn);
     fullscreenBtn.onclick = (e) => {
       e.stopPropagation();
-      const url = container.dataset.pdfUrl;
-      this.openPdfFullscreen(url, cleanFileNameFromUrl(url));
+      new Notice("\u5168\u5C4F\u529F\u80FD\u656C\u8BF7\u671F\u5F85");
     };
     const scrollArea = container.querySelector(".cloudattach-pdf-scrollarea");
     const scrollToPage = (pageNum) => {

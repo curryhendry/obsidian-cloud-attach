@@ -2858,11 +2858,9 @@ class PdfFullscreenView extends ItemView {
         this._thumbnailVisible = true;
         this._toggleThumbnailPanel();
       }));
-      menu.addItem(item => item.setTitle(this._panelMode === 'outline' ? '✓ 目录' : '目录').onClick(() => {
-        this._panelMode = 'outline';
-        this._thumbnailVisible = true;
-        new Notice('目录功能开发中');
-      }));
+      menu.addItem(item => {
+        item.setTitle('目录').setDisabled(true);
+      });
       menu.showAtMouseEvent(e);
     };
 
@@ -2880,12 +2878,7 @@ class PdfFullscreenView extends ItemView {
     this._renderScaleLevel = 0;
 
     zoomOutBtn.onclick = () => {
-      const levels = [0.1, 0.25, 0.5, 0.75, 0, 1.5, 2, 3, 4, 5];
-      const idx = levels.indexOf(this._renderScaleLevel);
-      if (idx > 0) {
-        this._renderScaleLevel = levels[idx - 1];
-        this._applyZoom();
-      }
+      new Notice('缩放功能敬请期待');
     };
 
     // 放大按钮
@@ -2894,12 +2887,7 @@ class PdfFullscreenView extends ItemView {
     zoomInBtn.setAttribute('aria-label', '放大');
     zoomInBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
     zoomInBtn.onclick = () => {
-      const levels = [0.1, 0.25, 0.5, 0.75, 0, 1.5, 2, 3, 4, 5];
-      const idx = levels.indexOf(this._renderScaleLevel);
-      if (idx < levels.length - 1) {
-        this._renderScaleLevel = levels[idx + 1];
-        this._applyZoom();
-      }
+      new Notice('缩放功能敬请期待');
     };
 
     // 下拉菜单按钮
@@ -2908,26 +2896,7 @@ class PdfFullscreenView extends ItemView {
     viewMenuBtn.style.padding = '2px';
     viewMenuBtn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
     viewMenuBtn.onclick = (e) => {
-      const menu = new Menu();
-      // 缩放部分
-      const zoomOpts = { 'fit-width': '适应宽度', 'fit-height': '适应高度' };
-      Object.entries(zoomOpts).forEach(([val, label]) => {
-        menu.addItem(item => item.setTitle((this._zoomMode === val && this._renderScaleLevel <= 0 ? '✓ ' : '') + label).onClick(() => {
-          this._zoomMode = val;
-          this._renderScaleLevel = 0; // 切回自动
-          this._applyZoom();
-        }));
-      });
-      menu.addSeparator();
-      // 滚动方式部分
-      const modeOpts = { 'continuous': '连续', 'single': '单页' };
-      Object.entries(modeOpts).forEach(([val, label]) => {
-        menu.addItem(item => item.setTitle((this._viewMode === val ? '✓ ' : '') + label).onClick(() => {
-          this._viewMode = val;
-          this._reRender();
-        }));
-      });
-      menu.showAtMouseEvent(e);
+      new Notice('缩放/视图切换功能敬请期待');
     };
 
 
@@ -4916,7 +4885,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
               lazyObserver.unobserve(ph);
             }
           });
-        }, { rootMargin: "200px" });
+        }, { root: scrollArea, rootMargin: "200px" });
         pagePlaceholders.forEach(ph => lazyObserver.observe(ph));
         if (!this._pdfLazyObservers) this._pdfLazyObservers = new Set();
         this._pdfLazyObservers.add(lazyObserver);
@@ -5095,8 +5064,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     toolbar.appendChild(fullscreenBtn);
     fullscreenBtn.onclick = (e) => {
       e.stopPropagation();
-      const url = container.dataset.pdfUrl;
-      this.openPdfFullscreen(url, cleanFileNameFromUrl(url));
+      new Notice('全屏功能敬请期待');
     };
     const scrollArea = container.querySelector(".cloudattach-pdf-scrollarea");
     const scrollToPage = (pageNum) => {
