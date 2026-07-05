@@ -1,10 +1,6 @@
-## v0.4.279.dev - 2026-07-05
-- 🔧 修复：缩略图面板开关后渲染尺寸不正确 — 双重 requestAnimationFrame 确保 layout 完成后再重渲染
+## v0.4.281.dev - 2026-07-05
+- 🔧 修复：缩略图面板开关后适应宽度/高度错位 — requestAnimationFrame→setTimeout 30ms，确保 display 变更后 layout 完成再取 clientWidth
 
-
-- 🔧 修复：内联 PDF 全白（第4次尝试，终于定位到 Chromium canvas 2D GPU 纹理异步上传）
-  - 根因：canvas 2D 渲染完成后 GPU 纹理上传是异步的，compositor 可能在纹理到达前评估图层→全白
-  - 修复：_renderPdfPage 渲染后 getImageData(0,0,1,1) 强制 GPU→CPU 同步回读管线，触发 compositor 确认纹理提交
   - 参考：Chromium bug 334408 变体，切换桌面触发全屏 compositor 重建是唯一的外部修复手段
 
 ## v0.4.256.dev - 2026-07-04
