@@ -2983,6 +2983,22 @@ var PdfFullscreenView = class extends ItemView {
     }
   }
   _bindScroll() {
+    this.scrollEl.tabIndex = 0;
+    this.scrollEl.style.outline = "none";
+    this.scrollEl.addEventListener("pointerdown", () => this.scrollEl.focus());
+    this.scrollEl.onkeydown = (e) => {
+      if (this._viewMode === "continuous")
+        return;
+      if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+        e.preventDefault();
+        e.stopPropagation();
+        const cur = this._currentPage || 1;
+        const dir = e.key === "ArrowDown" ? 1 : -1;
+        const newPage = Math.max(1, Math.min(cur + dir, this._pdf?.numPages || 1));
+        if (newPage !== cur)
+          this._scrollToPage(newPage);
+      }
+    };
     this.scrollEl.onwheel = (e) => {
       if (this._viewMode === "continuous")
         return;
