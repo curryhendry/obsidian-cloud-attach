@@ -2946,7 +2946,7 @@ var PdfFullscreenView = class extends ItemView {
     this._scrollToPage(this._currentPage || 1);
   }
   _applyZoom() {
-    this._reRender();
+    this._resizeAllCanvases();
   }
   _toggleThumbnailPanel() {
     if (!this._thumbnailPanelWrap) {

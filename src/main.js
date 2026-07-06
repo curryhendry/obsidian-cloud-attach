@@ -3168,7 +3168,8 @@ class PdfFullscreenView extends ItemView {
   }
 
   _applyZoom() {
-    this._reRender();
+    // 仅重算 CSS 尺寸，不重建 canvas（iOS 上 empty+重建导致内存峰值 crash）
+    this._resizeAllCanvases();
   }
 
   _toggleThumbnailPanel() {
