@@ -3121,6 +3121,12 @@ class PdfFullscreenView extends ItemView {
   _reRender() {
     if (!this._pdf) return;
     const savedPage = this._currentPage || 1;
+    // 释放旧 canvas GPU 显存再 empty，避免 iOS 内存峰值
+    this.scrollEl.querySelectorAll('canvas').forEach(c => {
+      const ctx = c.getContext('2d');
+      if (ctx) ctx.clearRect(0, 0, c.width, c.height);
+    });
+    this.scrollEl.empty();
     this._renderAllPages(this._viewMode, this._renderScaleLevel, this._zoomMode).then(() => {
       this._scrollToPage(savedPage);
     }).catch(e => {
@@ -3168,8 +3174,7 @@ class PdfFullscreenView extends ItemView {
   }
 
   _applyZoom() {
-    // 仅重算 CSS 尺寸，不重建 canvas（iOS 上 empty+重建导致内存峰值 crash）
-    this._resizeAllCanvases();
+    this._reRender();
   }
 
   _toggleThumbnailPanel() {

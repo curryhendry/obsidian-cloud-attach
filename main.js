@@ -2907,6 +2907,12 @@ var PdfFullscreenView = class extends ItemView {
     if (!this._pdf)
       return;
     const savedPage = this._currentPage || 1;
+    this.scrollEl.querySelectorAll("canvas").forEach((c) => {
+      const ctx = c.getContext("2d");
+      if (ctx)
+        ctx.clearRect(0, 0, c.width, c.height);
+    });
+    this.scrollEl.empty();
     this._renderAllPages(this._viewMode, this._renderScaleLevel, this._zoomMode).then(() => {
       this._scrollToPage(savedPage);
     }).catch((e) => {
@@ -2946,7 +2952,7 @@ var PdfFullscreenView = class extends ItemView {
     this._scrollToPage(this._currentPage || 1);
   }
   _applyZoom() {
-    this._resizeAllCanvases();
+    this._reRender();
   }
   _toggleThumbnailPanel() {
     if (!this._thumbnailPanelWrap) {
