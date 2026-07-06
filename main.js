@@ -2876,8 +2876,8 @@ var PdfFullscreenView = class extends ItemView {
           this.scrollEl.style.scrollSnapType = "y mandatory";
           wrap.style.cssText = `
             display:flex; align-items:center; justify-content:center;
-            width:100%; height:${scrollH}px; flex-shrink:0;
-            scroll-snap-align:start; overflow:hidden;
+            width:100%; min-height:${scrollH}px; flex-shrink:0;
+            scroll-snap-align:start; overflow:visible;
           `;
         }
       } else {
@@ -2922,6 +2922,26 @@ var PdfFullscreenView = class extends ItemView {
       c.style.height = "auto";
     }
   }
+  _resizeAllCanvases() {
+    if (!this._pdf)
+      return;
+    const snaps = this.scrollEl.querySelectorAll(".cloud-attach-snap-item");
+    const scrollW = this.scrollEl.clientWidth;
+    const scrollH = this.scrollEl.clientHeight;
+    const zoomedIn = this._renderScaleLevel > 1;
+    snaps.forEach((wrap) => {
+      const canvas = wrap.querySelector("canvas");
+      if (!canvas)
+        return;
+      if (this._viewMode === "single" && !zoomedIn) {
+        wrap.style.minHeight = scrollH + "px";
+      }
+      if (!zoomedIn) {
+        this._sizeCanvas(canvas, scrollW, scrollH);
+      }
+    });
+    this._scrollToPage(this._currentPage || 1);
+  }
   _applyZoom() {
     this._reRender();
   }
@@ -2940,7 +2960,7 @@ var PdfFullscreenView = class extends ItemView {
       this._renderThumbnails();
     }
     this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? "flex" : "none";
-    requestAnimationFrame(() => this._reRender());
+    requestAnimationFrame(() => this._resizeAllCanvases());
   }
   async _renderThumbnails() {
     if (!this._pdf || !this._thumbnailPanel)

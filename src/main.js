@@ -3080,8 +3080,8 @@ class PdfFullscreenView extends ItemView {
           this.scrollEl.style.scrollSnapType = 'y mandatory';
           wrap.style.cssText = `
             display:flex; align-items:center; justify-content:center;
-            width:100%; height:${scrollH}px; flex-shrink:0;
-            scroll-snap-align:start; overflow:hidden;
+            width:100%; min-height:${scrollH}px; flex-shrink:0;
+            scroll-snap-align:start; overflow:visible;
           `;
         }
       } else {
@@ -3138,6 +3138,32 @@ class PdfFullscreenView extends ItemView {
     }
   }
 
+  _resizeAllCanvases() {
+    if (!this._pdf) return;
+    const snaps = this.scrollEl.querySelectorAll('.cloud-attach-snap-item');
+    const scrollW = this.scrollEl.clientWidth;
+    const scrollH = this.scrollEl.clientHeight;
+    const zoomedIn = this._renderScaleLevel > 1;
+    
+    snaps.forEach(wrap => {
+      const canvas = wrap.querySelector('canvas');
+      if (!canvas) return;
+      
+      // 更新 wrap 高度（单页模式）
+      if (this._viewMode === 'single' && !zoomedIn) {
+        wrap.style.minHeight = scrollH + 'px';
+      }
+      
+      // 重算 canvas CSS 尺寸
+      if (!zoomedIn) {
+        this._sizeCanvas(canvas, scrollW, scrollH);
+      }
+    });
+    
+    // 更新当前页位置
+    this._scrollToPage(this._currentPage || 1);
+  }
+
   _applyZoom() {
     this._reRender();
   }
@@ -3159,9 +3185,9 @@ class PdfFullscreenView extends ItemView {
       this._thumbnailPanel.style.padding = '8px';
       this._renderThumbnails();
     }
-    // 侧边栏开关后重渲染（宽度变化）
+    // 侧边栏开关后只重算 CSS 尺寸，不重新下载 PDF
     this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? 'flex' : 'none';
-    requestAnimationFrame(() => this._reRender());
+    requestAnimationFrame(() => this._resizeAllCanvases());
   }
 
   async _renderThumbnails() {
