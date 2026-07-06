@@ -528,7 +528,7 @@ function t(key, params = {}) {
   return str;
 }
 var OpenListClient = class {
-  constructor(account, app) {
+  constructor(account, app2) {
     this.serverUrl = account.url.replace(/\/$/, "");
     this.baseUrl = this.serverUrl;
     this.webdavPath = (account.webdavPath || "").replace(/\/$/, "");
@@ -536,7 +536,7 @@ var OpenListClient = class {
     this.username = account.username;
     this.password = account.password;
     this.publicUrl = account.publicUrl?.replace(/\/$/, "") || "";
-    this.app = app;
+    this.app = app2;
   }
   /**
    * 对 URL 路径部分做安全解码：把 %XX 编码的中文还原为原文，但保留空格等必须编码的字符。
@@ -1338,8 +1338,8 @@ var OpenListClient = class {
   }
 };
 var S3Client = class {
-  constructor(account, app) {
-    this.app = app;
+  constructor(account, app2) {
+    this.app = app2;
     this.endpoint = account.endpoint?.replace(/\/$/, "") || "";
     this.bucket = account.bucket || "";
     this.region = account.region || "";
@@ -2813,6 +2813,7 @@ var PdfFullscreenView = class extends ItemView {
       this.pageTotal.textContent = " / " + totalPages;
       this.pageInput.value = "1";
       this._currentPage = 1;
+      await new Promise((r) => requestAnimationFrame(r));
       this._renderAllPages(this._viewMode, this._renderScaleLevel, this._zoomMode);
     } catch (e) {
       console.error("[CloudAttach] PdfFullscreenView load error:", e);
@@ -3082,8 +3083,8 @@ var PdfFullscreenView = class extends ItemView {
   }
 };
 var AddAccountModal = class extends Modal {
-  constructor(app, plugin, onSave, account = null) {
-    super(app);
+  constructor(app2, plugin, onSave, account = null) {
+    super(app2);
     this.plugin = plugin;
     this.onSave = onSave;
     this.account = account;
@@ -3607,8 +3608,8 @@ var CloudAttachSettingTab = class extends PluginSettingTab {
   }
 };
 var AdvancedSettingModal = class extends Modal {
-  constructor(app, plugin) {
-    super(app);
+  constructor(app2, plugin) {
+    super(app2);
     this.plugin = plugin;
   }
   async onOpen() {
@@ -3833,8 +3834,8 @@ var AdvancedSettingModal = class extends Modal {
   }
 };
 var CloudAttachSuggest = class extends EditorSuggest {
-  constructor(app, plugin) {
-    super(app);
+  constructor(app2, plugin) {
+    super(app2);
     this.plugin = plugin;
     this.limit = 100;
   }
@@ -4358,6 +4359,14 @@ module.exports = class CloudAttachPlugin extends Plugin {
       name = cleanFileNameFromUrl(url);
     this._pendingPdfUrl = url;
     this._pendingPdfName = name;
+    const doc = app.workspace.activeLeaf?.view?.containerEl?.ownerDocument || document;
+    doc.querySelectorAll('.cloudattach-pdf-container, img[data-cloudattach-processed="done"]').forEach((el) => {
+      el.querySelectorAll("canvas").forEach((c) => c.remove());
+      el.dataset.cloudattachProcessed = "";
+    });
+    if (this._renderedPdfUrlsByMode) {
+      Object.values(this._renderedPdfUrlsByMode).forEach((s) => s instanceof Set && s.clear());
+    }
     let leaf;
     try {
       leaf = workspace.openPopoutLeaf();
@@ -4873,8 +4882,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const current = parseInt(container.dataset.currentPage);
       const { Modal: Modal2, Setting } = require("obsidian");
       class PageJumpModal extends Modal2 {
-        constructor(app, cur, total, onSubmit) {
-          super(app);
+        constructor(app2, cur, total, onSubmit) {
+          super(app2);
           this.cur = cur;
           this.total = total;
           this.onSubmit = onSubmit;

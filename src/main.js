@@ -3005,6 +3005,8 @@ class PdfFullscreenView extends ItemView {
       this.pageInput.value = '1';
       this._currentPage = 1;
 
+      // 等容器 layout 完成后再渲染（避免 clientWidth/Height=0 导致的 crash）
+      await new Promise(r => requestAnimationFrame(r));
       this._renderAllPages(this._viewMode, this._renderScaleLevel, this._zoomMode);
     } catch (e) {
       console.error('[CloudAttach] PdfFullscreenView load error:', e);
@@ -4633,6 +4635,16 @@ module.exports = class CloudAttachPlugin extends Plugin {
     // store 到实例上，onOpen 会读取
     this._pendingPdfUrl = url;
     this._pendingPdfName = name;
+    
+    // 释放笔记内联 PDF canvas 减少内存峰值（iOS 内存受限时避免 crash）
+    const doc = app.workspace.activeLeaf?.view?.containerEl?.ownerDocument || document;
+    doc.querySelectorAll('.cloudattach-pdf-container, img[data-cloudattach-processed="done"]').forEach(el => {
+      el.querySelectorAll('canvas').forEach(c => c.remove());
+      el.dataset.cloudattachProcessed = '';
+    });
+    if (this._renderedPdfUrlsByMode) {
+      Object.values(this._renderedPdfUrlsByMode).forEach(s => s instanceof Set && s.clear());
+    }
     // 优先 popout 窗口（真·全屏），fallback 到 split
     let leaf;
     try {
