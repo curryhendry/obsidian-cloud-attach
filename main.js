@@ -2756,8 +2756,10 @@ var PdfFullscreenView = class extends ItemView {
     pageWrap.style.display = "flex";
     pageWrap.style.alignItems = "center";
     pageWrap.style.gap = "2px";
-    this.pageInput = pageWrap.createEl("input", { type: "number", value: "1" });
-    this.pageInput.style.width = "40px";
+    this.pageInput = pageWrap.createEl("input", { type: "text", value: "1" });
+    this.pageInput.setAttribute("inputmode", "numeric");
+    this.pageInput.setAttribute("pattern", "[0-9]*");
+    this.pageInput.style.width = "32px";
     this.pageInput.style.fontSize = "13px";
     this.pageInput.style.textAlign = "center";
     this.pageInput.style.border = "1px solid var(--background-modifier-border)";
@@ -2832,14 +2834,15 @@ var PdfFullscreenView = class extends ItemView {
     const pageW = firstVp.width;
     const pageH = firstVp.height;
     let renderScale = 1;
+    const dpr = window.devicePixelRatio || 1;
     if (scaleLevel > 0) {
       renderScale = scaleLevel;
     } else if (zoomMode === "fit-width") {
       const w = this.scrollEl.clientWidth || this.containerEl.clientWidth;
-      renderScale = w > 0 ? w / pageW : 1;
+      renderScale = (w > 0 ? w / pageW : 1) * dpr;
     } else if (zoomMode === "fit-height") {
       const h = this.scrollEl.clientHeight || this.containerEl.clientHeight;
-      renderScale = h > 0 ? h / pageH : 1;
+      renderScale = (h > 0 ? h / pageH : 1) * dpr;
     }
     const scrollW = this.scrollEl.clientWidth;
     const scrollH = this.scrollEl.clientHeight;
@@ -2898,7 +2901,10 @@ var PdfFullscreenView = class extends ItemView {
         page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise
       );
     }
-    await Promise.all(renderTasks);
+    for (const task of renderTasks) {
+      await task;
+    }
+    renderTasks.length = 0;
     this._bindScroll();
   }
   _reRender() {
@@ -2916,7 +2922,8 @@ var PdfFullscreenView = class extends ItemView {
     if (this._zoomMode === "fit-height") {
       const tH = Math.min(maxH, c.height);
       c.style.height = tH + "px";
-      c.style.width = tH * ratio + "px";
+      c.style.width = "auto";
+      c.style.maxWidth = maxW + "px";
     } else {
       c.style.width = maxW + "px";
       c.style.height = "auto";

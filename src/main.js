@@ -2935,8 +2935,10 @@ class PdfFullscreenView extends ItemView {
     pageWrap.style.display = 'flex';
     pageWrap.style.alignItems = 'center';
     pageWrap.style.gap = '2px';
-    this.pageInput = pageWrap.createEl('input', { type: 'number', value: '1' });
-    this.pageInput.style.width = '40px';
+    this.pageInput = pageWrap.createEl('input', { type: 'text', value: '1' });
+    this.pageInput.setAttribute('inputmode', 'numeric');
+    this.pageInput.setAttribute('pattern', '[0-9]*');
+    this.pageInput.style.width = '32px';
     this.pageInput.style.fontSize = '13px';
     this.pageInput.style.textAlign = 'center';
     this.pageInput.style.border = '1px solid var(--background-modifier-border)';
@@ -3026,16 +3028,17 @@ class PdfFullscreenView extends ItemView {
     const pageW = firstVp.width;
     const pageH = firstVp.height;
     
-    // 计算渲染 scale
+    // 计算渲染 scale（乘 dpr 适配高 DPI 屏幕）
     let renderScale = 1;
+    const dpr = window.devicePixelRatio || 1;
     if (scaleLevel > 0) {
       renderScale = scaleLevel;
     } else if (zoomMode === 'fit-width') {
       const w = this.scrollEl.clientWidth || this.containerEl.clientWidth;
-      renderScale = w > 0 ? w / pageW : 1;
+      renderScale = (w > 0 ? w / pageW : 1) * dpr;
     } else if (zoomMode === 'fit-height') {
       const h = this.scrollEl.clientHeight || this.containerEl.clientHeight;
-      renderScale = h > 0 ? h / pageH : 1;
+      renderScale = (h > 0 ? h / pageH : 1) * dpr;
     }
 
     const scrollW = this.scrollEl.clientWidth;
@@ -3109,8 +3112,11 @@ class PdfFullscreenView extends ItemView {
       );
     }
 
-    // 并行渲染所有页
-    await Promise.all(renderTasks);
+    // 串行渲染所有页（iOS 并行渲染内存爆炸导致 crash）
+    for (const task of renderTasks) {
+      await task;
+    }
+    renderTasks.length = 0;
 
     this._bindScroll();
   }
@@ -3130,9 +3136,9 @@ class PdfFullscreenView extends ItemView {
     if (this._zoomMode === 'fit-height') {
       const tH = Math.min(maxH, c.height);
       c.style.height = tH + 'px';
-      c.style.width = (tH * ratio) + 'px';
+      c.style.width = 'auto';
+      c.style.maxWidth = maxW + 'px';
     } else {
-      // fit-width：按容器宽度等比缩放
       c.style.width = maxW + 'px';
       c.style.height = 'auto';
     }
