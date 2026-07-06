@@ -3026,16 +3026,17 @@ class PdfFullscreenView extends ItemView {
     const pageW = firstVp.width;
     const pageH = firstVp.height;
     
-    // 计算渲染 scale
+    // 计算渲染 scale（乘 dpr 适配高 DPI，上限 2 避免 iOS 内存爆炸）
     let renderScale = 1;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
     if (scaleLevel > 0) {
       renderScale = scaleLevel;
     } else if (zoomMode === 'fit-width') {
       const w = this.scrollEl.clientWidth || this.containerEl.clientWidth;
-      renderScale = w > 0 ? w / pageW : 1;
+      renderScale = (w > 0 ? w / pageW : 1) * dpr;
     } else if (zoomMode === 'fit-height') {
       const h = this.scrollEl.clientHeight || this.containerEl.clientHeight;
-      renderScale = h > 0 ? h / pageH : 1;
+      renderScale = (h > 0 ? h / pageH : 1) * dpr;
     }
 
     const scrollW = this.scrollEl.clientWidth;

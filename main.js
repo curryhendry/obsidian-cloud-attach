@@ -2832,14 +2832,15 @@ var PdfFullscreenView = class extends ItemView {
     const pageW = firstVp.width;
     const pageH = firstVp.height;
     let renderScale = 1;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
     if (scaleLevel > 0) {
       renderScale = scaleLevel;
     } else if (zoomMode === "fit-width") {
       const w = this.scrollEl.clientWidth || this.containerEl.clientWidth;
-      renderScale = w > 0 ? w / pageW : 1;
+      renderScale = (w > 0 ? w / pageW : 1) * dpr;
     } else if (zoomMode === "fit-height") {
       const h = this.scrollEl.clientHeight || this.containerEl.clientHeight;
-      renderScale = h > 0 ? h / pageH : 1;
+      renderScale = (h > 0 ? h / pageH : 1) * dpr;
     }
     const scrollW = this.scrollEl.clientWidth;
     const scrollH = this.scrollEl.clientHeight;
