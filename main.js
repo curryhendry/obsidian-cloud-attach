@@ -2940,9 +2940,7 @@ var PdfFullscreenView = class extends ItemView {
       this._renderThumbnails();
     }
     this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? "flex" : "none";
-    if (!this._thumbnailVisible) {
-      requestAnimationFrame(() => this._reRender());
-    }
+    requestAnimationFrame(() => this._reRender());
   }
   async _renderThumbnails() {
     if (!this._pdf || !this._thumbnailPanel)
