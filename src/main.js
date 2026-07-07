@@ -3090,9 +3090,11 @@ class PdfFullscreenView extends ItemView {
       } else {
         this.scrollEl.style.overflowX = 'hidden';
         this.scrollEl.style.scrollSnapType = 'none';
+        // 用预估高度撑开，避免所有页堆叠在同一位置被 IO 一次性触发
+        const estH = (pageH / (pageW || 1)) * (scrollW || 375);
         wrap.style.cssText = `
           display:flex; align-items:flex-start; justify-content:flex-start;
-          width:100%; flex-shrink:0;
+          width:100%; flex-shrink:0; min-height:${Math.round(estH)}px;
         `;
       }
 
@@ -6254,7 +6256,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
         continue;
       }
       // 上传文件
+      console.log('[CloudAttach] doUpload: calling uploadFile', att.localPath, '=>', remotePath);
       const result = await client.uploadFile(att.localPath, remotePath);
+      console.log('[CloudAttach] doUpload: uploadFile result', JSON.stringify({ok: result.ok, remotePath: result.remotePath, error: result.error}));
       if (result.ok) {
         results.success++;
         replacements.push({

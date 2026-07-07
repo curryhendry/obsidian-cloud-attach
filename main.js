@@ -2887,9 +2887,10 @@ var PdfFullscreenView = class extends ItemView {
       } else {
         this.scrollEl.style.overflowX = "hidden";
         this.scrollEl.style.scrollSnapType = "none";
+        const estH = pageH / (pageW || 1) * (scrollW || 375);
         wrap.style.cssText = `
           display:flex; align-items:flex-start; justify-content:flex-start;
-          width:100%; flex-shrink:0;
+          width:100%; flex-shrink:0; min-height:${Math.round(estH)}px;
         `;
       }
       this.scrollEl.appendChild(wrap);
@@ -5912,7 +5913,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
         results.skipped++;
         continue;
       }
+      console.log("[CloudAttach] doUpload: calling uploadFile", att.localPath, "=>", remotePath);
       const result = await client.uploadFile(att.localPath, remotePath);
+      console.log("[CloudAttach] doUpload: uploadFile result", JSON.stringify({ ok: result.ok, remotePath: result.remotePath, error: result.error }));
       if (result.ok) {
         results.success++;
         replacements.push({
