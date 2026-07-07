@@ -1652,7 +1652,7 @@ class S3Client {
         headers: { 'Content-Type': this.getMimeType(fileName) },
         body: content
       });
-      console.log('[CloudAttach] S3 upload response:', response.status, response.ok, typeof response.text === 'function' ? '[text fn]' : String(response.text || '').substring(0, 200));
+      console.log('[CloudAttach] S3 upload response:', response.status, response.ok, 'error:', response.error, typeof response.text === 'function' ? '[text fn]' : String(response.text || '').substring(0, 200));
 
       if (response.ok || response.status === 200) {
         const url = this.getFileUrl(remotePath);
@@ -3081,7 +3081,7 @@ class PdfFullscreenView extends ItemView {
             width:100%; flex-shrink:0;
           `;
         } else {
-          this.scrollEl.style.overflowX = 'hidden';
+          this.scrollEl.style.overflowX = (zoomMode === 'fit-height') ? 'auto' : 'hidden';
           this.scrollEl.style.scrollSnapType = 'y mandatory';
           wrap.style.cssText = `
             display:flex; align-items:center; justify-content:center;
