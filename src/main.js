@@ -4958,8 +4958,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       // 渲染首页为 <img>（绕过 Electron canvas compositor bug）
       const firstImg = await this._renderPdfPage(pdf, 1, FIXED_SCALE, placeholderWidth);
       scrollArea.appendChild(firstImg);
-      // 阻止点击渲染后的 img 触发 Obsidian 原生图片预览（不影响 toolbar 按钮）
-      firstImg.addEventListener('click', (e) => { e.stopPropagation(); }, true);
       const displayH = canvasH * (placeholderWidth / canvasW);
       let finalContainerHeight;
       if (userHeightStr) {
@@ -5110,8 +5108,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     img.draggable = false;
     img.style.width = '100%';
     img.style.display = 'block';
-    // 阻止点击 img 触发 Obsidian 原生图片预览
-    img.addEventListener('click', (e) => { e.stopPropagation(); }, true);
+    img.style.pointerEvents = 'none';
     if (containerW) {
       img.style.height = Math.round(viewport.height * (containerW / viewport.width)) + 'px';
     }
