@@ -2879,7 +2879,7 @@ var PdfFullscreenView = class extends ItemView {
             width:100%; flex-shrink:0;
           `;
         } else {
-          this.scrollEl.style.overflowX = "hidden";
+          this.scrollEl.style.overflowX = zoomMode === "fit-height" ? "auto" : "hidden";
           this.scrollEl.style.scrollSnapType = "y mandatory";
           wrap.style.cssText = `
             display:flex; align-items:center; justify-content:center;
