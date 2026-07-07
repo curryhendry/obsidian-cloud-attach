@@ -2832,7 +2832,7 @@ var PdfFullscreenView = class extends ItemView {
       });
     }
   }
-  async _renderAllPages(mode, scaleLevel, zoomMode) {
+  async _renderAllPages(mode, scaleLevel, zoomMode, savedH) {
     if (!this._pdf)
       return;
     if (this._fullscreenObserver) {
@@ -2855,8 +2855,8 @@ var PdfFullscreenView = class extends ItemView {
       const h = this.scrollEl.clientHeight || this.containerEl.clientHeight;
       renderScale = (h > 0 ? h / pageH : 1) * dpr;
     }
-    const scrollW = this.scrollEl.clientWidth;
-    const scrollH = this.scrollEl.clientHeight;
+    const scrollW = this.scrollEl.clientWidth || this.containerEl.clientWidth;
+    const scrollH = savedH || this.scrollEl.clientHeight || this.containerEl.clientHeight;
     const zoomedIn = scaleLevel > 1;
     const canvasW = Math.round(pageW * renderScale);
     const canvasH = Math.round(pageH * renderScale);
@@ -2930,12 +2930,12 @@ var PdfFullscreenView = class extends ItemView {
       console.error("[CloudAttach] lazy render page 1:", e);
     }
     const lazyQueue2 = [];
-    let lazyBusy = false;
+    let lazyBusy2 = false;
     const MAX_QUEUE = 3;
     const processQueue2 = async () => {
-      if (lazyBusy || lazyQueue2.length === 0)
+      if (lazyBusy2 || lazyQueue2.length === 0)
         return;
-      lazyBusy = true;
+      lazyBusy2 = true;
       const pageNum = lazyQueue2.shift();
       try {
         await new Promise((r) => requestAnimationFrame(r));
@@ -2943,7 +2943,7 @@ var PdfFullscreenView = class extends ItemView {
       } catch (e) {
         console.error("[CloudAttach] lazy render page", pageNum, ":", e);
       }
-      lazyBusy = false;
+      lazyBusy2 = false;
       setTimeout(() => processQueue2(), 100);
     };
     this._fullscreenObserver = new IntersectionObserver((entries) => {
@@ -2981,14 +2981,11 @@ var PdfFullscreenView = class extends ItemView {
     });
     this.scrollEl.scrollTop = 0;
     this.scrollEl.empty();
-    this.scrollEl.style.minHeight = savedH + "px";
     requestAnimationFrame(() => {
-      this._renderAllPages(this._viewMode, this._renderScaleLevel, this._zoomMode).then(() => {
+      this._renderAllPages(this._viewMode, this._renderScaleLevel, this._zoomMode, savedH).then(() => {
         this._scrollToPage(savedPage);
-        this.scrollEl.style.minHeight = "";
       }).catch((e) => {
         console.error("[CloudAttach] _reRender error:", e);
-        this.scrollEl.style.minHeight = "";
       });
     });
   }
@@ -4728,11 +4725,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
         }
         if (pagePlaceholders.length > 0) {
           const lazyQueue2 = [];
-          let lazyBusy = false;
+          let lazyBusy2 = false;
           const processQueue2 = async () => {
-            if (lazyBusy || lazyQueue2.length === 0)
+            if (lazyBusy2 || lazyQueue2.length === 0)
               return;
-            lazyBusy = true;
+            lazyBusy2 = true;
             const ph = lazyQueue2.shift();
             const pageNum = parseInt(ph.dataset.pageNum);
             try {
@@ -4740,7 +4737,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
             } catch (e) {
               console.error("[CloudAttach] lazy page render failed:", e);
             }
-            lazyBusy = false;
+            lazyBusy2 = false;
             processQueue2();
           };
           const lazyObserver = new IntersectionObserver((entries) => {
@@ -4773,6 +4770,33 @@ module.exports = class CloudAttachPlugin extends Plugin {
             }
           });
         }, { passive: true });
+        requestAnimationFrame(() => {
+          scrollArea.querySelectorAll(".cloudattach-pdf-placeholder:not([data-rendered])").forEach((ph) => {
+            const rect = ph.getBoundingClientRect();
+            const scrollRect = scrollArea.getBoundingClientRect();
+            if (rect.top < scrollRect.bottom && rect.bottom > scrollRect.top) {
+              ph.dataset.rendered = "true";
+              lazyQueue.push(ph);
+              processQueue();
+            }
+          });
+        });
+        let lazyStuckTimer = null;
+        const safeProcess = () => {
+          if (lazyStuckTimer)
+            clearTimeout(lazyStuckTimer);
+          lazyStuckTimer = setTimeout(() => {
+            if (lazyBusy && lazyQueue.length === 0) {
+              lazyBusy = false;
+              console.log("[CloudAttach] lazyBusy reset (stuck guard)");
+            }
+          }, 1e4);
+        };
+        const origProcessQueue = processQueue;
+        processQueue = async () => {
+          safeProcess();
+          await origProcessQueue();
+        };
         imgEl.dataset.cloudattachProcessed = "done";
         renderedSet.add(url);
         console.log("[CloudAttach] ALL DONE, pages:", pdf.numPages);

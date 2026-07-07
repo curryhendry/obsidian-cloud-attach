@@ -3027,7 +3027,7 @@ class PdfFullscreenView extends ItemView {
     }
   }
 
-  async _renderAllPages(mode, scaleLevel, zoomMode) {
+  async _renderAllPages(mode, scaleLevel, zoomMode, savedH) {
     if (!this._pdf) return;
     
     // 清理旧的 lazy observer
@@ -3052,8 +3052,8 @@ class PdfFullscreenView extends ItemView {
       renderScale = (h > 0 ? h / pageH : 1) * dpr;
     }
 
-    const scrollW = this.scrollEl.clientWidth;
-    const scrollH = this.scrollEl.clientHeight;
+    const scrollW = this.scrollEl.clientWidth || this.containerEl.clientWidth;
+    const scrollH = savedH || this.scrollEl.clientHeight || this.containerEl.clientHeight;
     const zoomedIn = scaleLevel > 1;
 
     // 预计算 canvas 尺寸（所有页相同比例，不需要逐页 getPage）
@@ -3191,15 +3191,12 @@ class PdfFullscreenView extends ItemView {
     });
     this.scrollEl.scrollTop = 0;
     this.scrollEl.empty();
-    this.scrollEl.style.minHeight = savedH + 'px';
     // 等一帧让浏览器回收旧 canvas GPU 资源，再建新页
     requestAnimationFrame(() => {
-      this._renderAllPages(this._viewMode, this._renderScaleLevel, this._zoomMode).then(() => {
+      this._renderAllPages(this._viewMode, this._renderScaleLevel, this._zoomMode, savedH).then(() => {
         this._scrollToPage(savedPage);
-        this.scrollEl.style.minHeight = '';
       }).catch(e => {
         console.error('[CloudAttach] _reRender error:', e);
-        this.scrollEl.style.minHeight = '';
       });
     });
   }
@@ -5040,7 +5037,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         if (!this._pdfLazyObservers) this._pdfLazyObservers = new Set();
         this._pdfLazyObservers.add(lazyObserver);
       }
-      // 滚动 fallback：切标签回来 IntersectionObserver 可能不触发，滚动时扫描未渲染占位符
+      // 滚动 fallback：切标签回来 IntersectionObserver 可能不触发
       scrollArea.addEventListener('scroll', () => {
         const unreached = scrollArea.querySelectorAll('.cloudattach-pdf-placeholder:not([data-rendered])');
         unreached.forEach(ph => {
@@ -5053,6 +5050,34 @@ module.exports = class CloudAttachPlugin extends Plugin {
           }
         });
       }, { passive: true });
+      // 初始可见占位符立即渲染（IntersectionObserver 可能因 layout 时序漏掉）
+      requestAnimationFrame(() => {
+        scrollArea.querySelectorAll('.cloudattach-pdf-placeholder:not([data-rendered])').forEach(ph => {
+          const rect = ph.getBoundingClientRect();
+          const scrollRect = scrollArea.getBoundingClientRect();
+          if (rect.top < scrollRect.bottom && rect.bottom > scrollRect.top) {
+            ph.dataset.rendered = 'true';
+            lazyQueue.push(ph);
+            processQueue();
+          }
+        });
+      });
+      // 安全阀：lazyBusy 卡死 10s 后强制复位
+      let lazyStuckTimer = null;
+      const safeProcess = () => {
+        if (lazyStuckTimer) clearTimeout(lazyStuckTimer);
+        lazyStuckTimer = setTimeout(() => {
+          if (lazyBusy && lazyQueue.length === 0) {
+            lazyBusy = false;
+            console.log('[CloudAttach] lazyBusy reset (stuck guard)');
+          }
+        }, 10000);
+      };
+      const origProcessQueue = processQueue;
+      processQueue = async () => {
+        safeProcess();
+        await origProcessQueue();
+      };
       // 渲染成功后清除 pending 标记，记录去重
       imgEl.dataset.cloudattachProcessed = 'done';
       renderedSet.add(url);
