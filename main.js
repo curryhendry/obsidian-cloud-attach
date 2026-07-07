@@ -1881,6 +1881,10 @@ var CloudAttachView = class extends ItemView {
     this.render();
   }
   async onClose() {
+    if (this._fullscreenObserver) {
+      this._fullscreenObserver.disconnect();
+      this._fullscreenObserver = null;
+    }
   }
   async render() {
     try {
@@ -2827,6 +2831,10 @@ var PdfFullscreenView = class extends ItemView {
   async _renderAllPages(mode, scaleLevel, zoomMode) {
     if (!this._pdf)
       return;
+    if (this._fullscreenObserver) {
+      this._fullscreenObserver.disconnect();
+      this._fullscreenObserver = null;
+    }
     const totalPages = this._pdf.numPages;
     const firstPg = await this._pdf.getPage(1);
     const firstVp = firstPg.getViewport({ scale: 1 });
@@ -2851,11 +2859,8 @@ var PdfFullscreenView = class extends ItemView {
       background:var(--background-secondary); padding:0;
     `;
     this.scrollEl.empty();
-    await new Promise((r) => requestAnimationFrame(r));
-    const renderTasks = [];
     for (let i = 1; i <= totalPages; i++) {
-      const page = await this._pdf.getPage(i);
-      const viewport = page.getViewport({ scale: renderScale });
+      const viewport = await this._pdf.getPage(i).then((p) => p.getViewport({ scale: renderScale }));
       const wrap = document.createElement("div");
       wrap.className = "cloud-attach-snap-item";
       wrap.dataset.pageNum = String(i);
@@ -2897,11 +2902,60 @@ var PdfFullscreenView = class extends ItemView {
       }
       wrap.appendChild(canvas);
       this.scrollEl.appendChild(wrap);
-      renderTasks.push(
-        page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise
-      );
     }
-    await Promise.all(renderTasks);
+    const renderPage = async (pageNum) => {
+      const wrap = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);
+      if (!wrap || wrap.dataset.rendered)
+        return;
+      wrap.dataset.rendered = "1";
+      const canvas = wrap.querySelector("canvas");
+      if (!canvas)
+        return;
+      const page = await this._pdf.getPage(pageNum);
+      const viewport = page.getViewport({ scale: renderScale });
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      if (!zoomedIn) {
+        this._sizeCanvas(canvas, scrollW, scrollH);
+      }
+      await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+    };
+    try {
+      await renderPage(1);
+    } catch (e) {
+      console.error("[CloudAttach] lazy render page 1:", e);
+    }
+    const lazyQueue = [];
+    let lazyBusy = false;
+    const processQueue = async () => {
+      if (lazyBusy || lazyQueue.length === 0)
+        return;
+      lazyBusy = true;
+      const pageNum = lazyQueue.shift();
+      try {
+        await renderPage(pageNum);
+      } catch (e) {
+        console.error("[CloudAttach] lazy render page", pageNum, ":", e);
+      }
+      lazyBusy = false;
+      processQueue();
+    };
+    this._fullscreenObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          const wrap = entry.target;
+          if (wrap.dataset.rendered)
+            return;
+          const pageNum = parseInt(wrap.dataset.pageNum);
+          lazyQueue.push(pageNum);
+          processQueue();
+          this._fullscreenObserver.unobserve(wrap);
+        }
+      });
+    }, { root: this.scrollEl, rootMargin: "300px" });
+    this.scrollEl.querySelectorAll(".cloud-attach-snap-item").forEach((w) => {
+      this._fullscreenObserver.observe(w);
+    });
     this._bindScroll();
   }
   _reRender() {
