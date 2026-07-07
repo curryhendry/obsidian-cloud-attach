@@ -2921,7 +2921,9 @@ var PdfFullscreenView = class extends ItemView {
         this._sizeCanvas(canvas, scrollW, scrollH);
       }
       wrap.appendChild(canvas);
-      wrap.style.minHeight = "";
+      if (mode === "continuous") {
+        wrap.style.minHeight = "";
+      }
       await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
     };
     try {
@@ -4740,7 +4742,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
             lazyBusy2 = false;
             processQueue2();
           };
-          const lazyObserver = new IntersectionObserver((entries) => {
+          const lazyObserver2 = new IntersectionObserver((entries) => {
             entries.forEach((entry) => {
               if (entry.isIntersecting) {
                 const ph = entry.target;
@@ -4749,14 +4751,14 @@ module.exports = class CloudAttachPlugin extends Plugin {
                 ph.dataset.rendered = "true";
                 lazyQueue2.push(ph);
                 processQueue2();
-                lazyObserver.unobserve(ph);
+                lazyObserver2.unobserve(ph);
               }
             });
           }, { root: scrollArea, rootMargin: "200px" });
-          pagePlaceholders.forEach((ph) => lazyObserver.observe(ph));
+          pagePlaceholders.forEach((ph) => lazyObserver2.observe(ph));
           if (!this._pdfLazyObservers)
             this._pdfLazyObservers = /* @__PURE__ */ new Set();
-          this._pdfLazyObservers.add(lazyObserver);
+          this._pdfLazyObservers.add(lazyObserver2);
         }
         scrollArea.addEventListener("scroll", () => {
           const unreached = scrollArea.querySelectorAll(".cloudattach-pdf-placeholder:not([data-rendered])");
@@ -4797,6 +4799,27 @@ module.exports = class CloudAttachPlugin extends Plugin {
           safeProcess();
           await origProcessQueue();
         };
+        const reconnectObserver = new MutationObserver(() => {
+          if (container.isConnected && !lazyObserver.connected) {
+            lazyObserver.connected = true;
+            scrollArea.querySelectorAll(".cloudattach-pdf-placeholder:not([data-rendered])").forEach((ph) => {
+              lazyObserver.observe(ph);
+            });
+            scrollArea.querySelectorAll(".cloudattach-pdf-placeholder:not([data-rendered])").forEach((ph) => {
+              const rect = ph.getBoundingClientRect();
+              const sr = scrollArea.getBoundingClientRect();
+              if (rect.top < sr.bottom && rect.bottom > sr.top) {
+                ph.dataset.rendered = "true";
+                lazyQueue.push(ph);
+                processQueue();
+              }
+            });
+          }
+        });
+        reconnectObserver.observe(container.parentElement || document.body, { childList: true, subtree: true });
+        if (!this._pdfLazyObservers)
+          this._pdfLazyObservers = /* @__PURE__ */ new Set();
+        this._pdfLazyObservers.add(reconnectObserver);
         imgEl.dataset.cloudattachProcessed = "done";
         renderedSet.add(url);
         console.log("[CloudAttach] ALL DONE, pages:", pdf.numPages);

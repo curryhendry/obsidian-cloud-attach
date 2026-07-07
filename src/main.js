@@ -3131,8 +3131,10 @@ class PdfFullscreenView extends ItemView {
       }
       
       wrap.appendChild(canvas);
-      // 清除 placeholder min-height，让 canvas 实际尺寸决定容器高度
-      wrap.style.minHeight = '';
+      // 单页模式保持 min-height 撑满视口以维持 snap 分页
+      if (mode === 'continuous') {
+        wrap.style.minHeight = '';
+      }
       await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
     };
 
@@ -5078,7 +5080,28 @@ module.exports = class CloudAttachPlugin extends Plugin {
         safeProcess();
         await origProcessQueue();
       };
-      // 渲染成功后清除 pending 标记，记录去重
+      // 切标签回来 container 可能被 Obsidian 重新挂载，observer 失效
+      const reconnectObserver = new MutationObserver(() => {
+        if (container.isConnected && !lazyObserver.connected) {
+          lazyObserver.connected = true;
+          scrollArea.querySelectorAll('.cloudattach-pdf-placeholder:not([data-rendered])').forEach(ph => {
+            lazyObserver.observe(ph);
+          });
+          // 立即扫描可见占位符
+          scrollArea.querySelectorAll('.cloudattach-pdf-placeholder:not([data-rendered])').forEach(ph => {
+            const rect = ph.getBoundingClientRect();
+            const sr = scrollArea.getBoundingClientRect();
+            if (rect.top < sr.bottom && rect.bottom > sr.top) {
+              ph.dataset.rendered = 'true';
+              lazyQueue.push(ph);
+              processQueue();
+            }
+          });
+        }
+      });
+      reconnectObserver.observe(container.parentElement || document.body, { childList: true, subtree: true });
+      if (!this._pdfLazyObservers) this._pdfLazyObservers = new Set();
+      this._pdfLazyObservers.add(reconnectObserver);
       imgEl.dataset.cloudattachProcessed = 'done';
       renderedSet.add(url);
       console.log("[CloudAttach] ALL DONE, pages:", pdf.numPages);
