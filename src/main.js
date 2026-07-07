@@ -3052,6 +3052,9 @@ class PdfFullscreenView extends ItemView {
     `;
     this.scrollEl.empty();
 
+    // iOS：等一帧让 WebKit 释放旧 canvas GPU 显存，避免内存峰值 crash
+    await new Promise(r => requestAnimationFrame(r));
+
     // 预取所有页生成 canvas 节点
     const renderTasks = [];
     for (let i = 1; i <= totalPages; i++) {

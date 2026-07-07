@@ -2851,6 +2851,7 @@ var PdfFullscreenView = class extends ItemView {
       background:var(--background-secondary); padding:0;
     `;
     this.scrollEl.empty();
+    await new Promise((r) => requestAnimationFrame(r));
     const renderTasks = [];
     for (let i = 1; i <= totalPages; i++) {
       const page = await this._pdf.getPage(i);
