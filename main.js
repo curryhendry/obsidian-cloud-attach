@@ -1475,11 +1475,13 @@ var S3Client = class {
       const signedQuery = await this.signQuery(params, objectKey, "PUT", { "content-type": mimeType });
       const encodedKey = encodeURIComponent(objectKey);
       const uploadUrl = `${this.endpoint}/${this.bucket}/${encodedKey}?${signedQuery}`;
+      console.log("[CloudAttach] S3 upload URL:", uploadUrl.substring(0, 120));
       const response = await this.requestViaObsidian(uploadUrl, {
         method: "PUT",
         headers: { "Content-Type": this.getMimeType(fileName) },
         body: content
       });
+      console.log("[CloudAttach] S3 upload response:", response.status, response.ok, typeof response.text === "function" ? "[text fn]" : String(response.text || "").substring(0, 200));
       if (response.ok || response.status === 200) {
         const url = this.getFileUrl(remotePath);
         return { ok: true, remotePath, url };
