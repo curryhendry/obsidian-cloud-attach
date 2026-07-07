@@ -1524,6 +1524,7 @@ class S3Client {
         const errStr = e.message || String(e);
         const statusMatch = errStr.match(/status\s+(\d+)/i);
         const status = statusMatch ? parseInt(statusMatch[1], 10) : (e.status || 0);
+        console.error('[CloudAttach] requestViaObsidian error:', status, errStr);
         return { ok: false, status, error: errStr, text: '' };
       }
     }
@@ -3092,7 +3093,7 @@ class PdfFullscreenView extends ItemView {
         }
       } else {
         this.scrollEl.style.overflowY = 'auto';
-        this.scrollEl.style.overflowX = 'auto';  // fit-height 时 canvas 宽于屏幕，需要横滚
+        this.scrollEl.style.overflowX = (zoomMode === 'fit-height') ? 'auto' : 'hidden';
         this.scrollEl.style.scrollSnapType = 'none';
         // 用预估高度撑开，避免所有页堆叠在同一位置被 IO 一次性触发
         const estH = (pageH / (pageW || 1)) * (scrollW || 375);

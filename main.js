@@ -1375,6 +1375,7 @@ var S3Client = class {
         const errStr = e.message || String(e);
         const statusMatch = errStr.match(/status\s+(\d+)/i);
         const status = statusMatch ? parseInt(statusMatch[1], 10) : e.status || 0;
+        console.error("[CloudAttach] requestViaObsidian error:", status, errStr);
         return { ok: false, status, error: errStr, text: "" };
       }
     }
@@ -2889,7 +2890,7 @@ var PdfFullscreenView = class extends ItemView {
         }
       } else {
         this.scrollEl.style.overflowY = "auto";
-        this.scrollEl.style.overflowX = "auto";
+        this.scrollEl.style.overflowX = zoomMode === "fit-height" ? "auto" : "hidden";
         this.scrollEl.style.scrollSnapType = "none";
         const estH = pageH / (pageW || 1) * (scrollW || 375);
         wrap.style.cssText = `
