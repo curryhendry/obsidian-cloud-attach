@@ -3081,12 +3081,13 @@ class PdfFullscreenView extends ItemView {
             width:100%; flex-shrink:0;
           `;
         } else {
-          this.scrollEl.style.overflowX = (zoomMode === 'fit-height') ? 'auto' : 'hidden';
+          this.scrollEl.style.overflowX = 'hidden';
           this.scrollEl.style.scrollSnapType = 'y mandatory';
           wrap.style.cssText = `
             display:flex; align-items:center; justify-content:center;
             width:100%; min-height:${scrollH}px; flex-shrink:0;
-            scroll-snap-align:start; overflow:visible;
+            scroll-snap-align:start;
+            overflow-x:${zoomMode === 'fit-height' ? 'auto' : 'hidden'};
           `;
         }
       } else {
@@ -3129,6 +3130,8 @@ class PdfFullscreenView extends ItemView {
       }
       
       wrap.appendChild(canvas);
+      // 清除 placeholder min-height，让 canvas 实际尺寸决定容器高度
+      wrap.style.minHeight = '';
       await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
     };
 
