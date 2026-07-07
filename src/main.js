@@ -1660,6 +1660,7 @@ class S3Client {
       }
     } catch (e) {
       console.error('[CloudAttach] S3 uploadFile error:', e);
+      new Notice(`❌ S3上传失败: ${e.message}`, 6000);
       return { ok: false, error: e.message };
     }
   }
@@ -3030,12 +3031,12 @@ class PdfFullscreenView extends ItemView {
     if (this._fullscreenObserver) { this._fullscreenObserver.disconnect(); this._fullscreenObserver = null; }
     
     const totalPages = this._pdf.numPages;
+    // 只用第1页 viewport 计算尺寸（不调 getPage(i) for i>1，避免 PDF.js 缓存所有页面撑爆内存）
     const firstPg = await this._pdf.getPage(1);
     const firstVp = firstPg.getViewport({ scale: 1 });
     const pageW = firstVp.width;
     const pageH = firstVp.height;
     
-    // 计算渲染 scale（乘 dpr 适配高 DPI，上限 2 避免 iOS 内存爆炸）
     let renderScale = 1;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     if (scaleLevel > 0) {
@@ -3052,28 +3053,22 @@ class PdfFullscreenView extends ItemView {
     const scrollH = this.scrollEl.clientHeight;
     const zoomedIn = scaleLevel > 1;
 
-    // Reset scrollEl
+    // 预计算 canvas 尺寸（所有页相同比例，不需要逐页 getPage）
+    const canvasW = Math.round(pageW * renderScale);
+    const canvasH = Math.round(pageH * renderScale);
+
     this.scrollEl.style.cssText = `
       flex:1; min-height:0; overflow:auto;
       background:var(--background-secondary); padding:0;
     `;
     this.scrollEl.empty();
 
-    // 一次性创建所有页的 canvas 节点（不渲染像素），首屏立即渲染
+    // 用轻量 div 占位（无 canvas），首屏再懒创建并渲染
     for (let i = 1; i <= totalPages; i++) {
-      const viewport = await this._pdf.getPage(i).then(p => p.getViewport({ scale: renderScale }));
-
       const wrap = document.createElement('div');
       wrap.className = 'cloud-attach-snap-item';
       wrap.dataset.pageNum = String(i);
-
-      const canvas = document.createElement('canvas');
-      canvas.className = 'cloud-attach-pdf-fullscreen-page';
-      canvas.style.display = 'block';
-      canvas.style.boxShadow = '0 1px 4px rgba(0,0,0,0.15)';
-      canvas.dataset.pageNum = String(i);
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
+      wrap.style.position = 'relative';
 
       if (mode === 'single') {
         if (zoomedIn) {
@@ -3093,60 +3088,56 @@ class PdfFullscreenView extends ItemView {
           `;
         }
       } else {
-        // continuous
         this.scrollEl.style.overflowX = 'hidden';
         this.scrollEl.style.scrollSnapType = 'none';
-        canvas.style.margin = '0 auto 8px';
         wrap.style.cssText = `
           display:flex; align-items:flex-start; justify-content:flex-start;
           width:100%; flex-shrink:0;
         `;
       }
 
-      // CSS 尺寸调整（非放大时统一缩放）
-      if (!zoomedIn) {
-        this._sizeCanvas(canvas, scrollW, scrollH);
-      }
-
-      wrap.appendChild(canvas);
       this.scrollEl.appendChild(wrap);
     }
 
-    // 首屏立即渲染第1页（视觉反馈），其余页懒加载
+    // 渲染单页（创建 canvas + 绘制像素）
     const renderPage = async (pageNum) => {
       const wrap = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);
       if (!wrap || wrap.dataset.rendered) return;
       wrap.dataset.rendered = '1';
       
-      const canvas = wrap.querySelector('canvas');
-      if (!canvas) return;
-      
       const page = await this._pdf.getPage(pageNum);
       const viewport = page.getViewport({ scale: renderScale });
-      // canvas 尺寸已在循环中设置，这里直接渲染
+      
+      const canvas = document.createElement('canvas');
+      canvas.className = 'cloud-attach-pdf-fullscreen-page';
+      canvas.style.display = 'block';
+      canvas.style.boxShadow = '0 1px 4px rgba(0,0,0,0.15)';
+      canvas.dataset.pageNum = String(pageNum);
       canvas.width = viewport.width;
       canvas.height = viewport.height;
+      
+      if (mode === 'continuous') {
+        canvas.style.margin = '0 auto 8px';
+      }
       if (!zoomedIn) {
         this._sizeCanvas(canvas, scrollW, scrollH);
       }
+      
+      wrap.appendChild(canvas);
       await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
     };
 
     // 渲染首页
     try { await renderPage(1); } catch(e) { console.error('[CloudAttach] lazy render page 1:', e); }
 
-    // 剩余页用 IntersectionObserver 懒加载
+    // 剩余页懒加载
     const lazyQueue = [];
     let lazyBusy = false;
     const processQueue = async () => {
       if (lazyBusy || lazyQueue.length === 0) return;
       lazyBusy = true;
       const pageNum = lazyQueue.shift();
-      try {
-        await renderPage(pageNum);
-      } catch (e) {
-        console.error('[CloudAttach] lazy render page', pageNum, ':', e);
-      }
+      try { await renderPage(pageNum); } catch (e) { console.error('[CloudAttach] lazy render page', pageNum, ':', e); }
       lazyBusy = false;
       processQueue();
     };

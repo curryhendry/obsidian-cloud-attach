@@ -1488,6 +1488,7 @@ var S3Client = class {
       }
     } catch (e) {
       console.error("[CloudAttach] S3 uploadFile error:", e);
+      new Notice(`\u274C S3\u4E0A\u4F20\u5931\u8D25: ${e.message}`, 6e3);
       return { ok: false, error: e.message };
     }
   }
@@ -2854,23 +2855,18 @@ var PdfFullscreenView = class extends ItemView {
     const scrollW = this.scrollEl.clientWidth;
     const scrollH = this.scrollEl.clientHeight;
     const zoomedIn = scaleLevel > 1;
+    const canvasW = Math.round(pageW * renderScale);
+    const canvasH = Math.round(pageH * renderScale);
     this.scrollEl.style.cssText = `
       flex:1; min-height:0; overflow:auto;
       background:var(--background-secondary); padding:0;
     `;
     this.scrollEl.empty();
     for (let i = 1; i <= totalPages; i++) {
-      const viewport = await this._pdf.getPage(i).then((p) => p.getViewport({ scale: renderScale }));
       const wrap = document.createElement("div");
       wrap.className = "cloud-attach-snap-item";
       wrap.dataset.pageNum = String(i);
-      const canvas = document.createElement("canvas");
-      canvas.className = "cloud-attach-pdf-fullscreen-page";
-      canvas.style.display = "block";
-      canvas.style.boxShadow = "0 1px 4px rgba(0,0,0,0.15)";
-      canvas.dataset.pageNum = String(i);
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
+      wrap.style.position = "relative";
       if (mode === "single") {
         if (zoomedIn) {
           this.scrollEl.style.overflowX = "auto";
@@ -2891,16 +2887,11 @@ var PdfFullscreenView = class extends ItemView {
       } else {
         this.scrollEl.style.overflowX = "hidden";
         this.scrollEl.style.scrollSnapType = "none";
-        canvas.style.margin = "0 auto 8px";
         wrap.style.cssText = `
           display:flex; align-items:flex-start; justify-content:flex-start;
           width:100%; flex-shrink:0;
         `;
       }
-      if (!zoomedIn) {
-        this._sizeCanvas(canvas, scrollW, scrollH);
-      }
-      wrap.appendChild(canvas);
       this.scrollEl.appendChild(wrap);
     }
     const renderPage = async (pageNum) => {
@@ -2908,16 +2899,22 @@ var PdfFullscreenView = class extends ItemView {
       if (!wrap || wrap.dataset.rendered)
         return;
       wrap.dataset.rendered = "1";
-      const canvas = wrap.querySelector("canvas");
-      if (!canvas)
-        return;
       const page = await this._pdf.getPage(pageNum);
       const viewport = page.getViewport({ scale: renderScale });
+      const canvas = document.createElement("canvas");
+      canvas.className = "cloud-attach-pdf-fullscreen-page";
+      canvas.style.display = "block";
+      canvas.style.boxShadow = "0 1px 4px rgba(0,0,0,0.15)";
+      canvas.dataset.pageNum = String(pageNum);
       canvas.width = viewport.width;
       canvas.height = viewport.height;
+      if (mode === "continuous") {
+        canvas.style.margin = "0 auto 8px";
+      }
       if (!zoomedIn) {
         this._sizeCanvas(canvas, scrollW, scrollH);
       }
+      wrap.appendChild(canvas);
       await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
     };
     try {
