@@ -2929,14 +2929,14 @@ var PdfFullscreenView = class extends ItemView {
     } catch (e) {
       console.error("[CloudAttach] lazy render page 1:", e);
     }
-    const lazyQueue = [];
+    const lazyQueue2 = [];
     let lazyBusy = false;
     const MAX_QUEUE = 3;
-    const processQueue = async () => {
-      if (lazyBusy || lazyQueue.length === 0)
+    const processQueue2 = async () => {
+      if (lazyBusy || lazyQueue2.length === 0)
         return;
       lazyBusy = true;
-      const pageNum = lazyQueue.shift();
+      const pageNum = lazyQueue2.shift();
       try {
         await new Promise((r) => requestAnimationFrame(r));
         await renderPage(pageNum);
@@ -2944,7 +2944,7 @@ var PdfFullscreenView = class extends ItemView {
         console.error("[CloudAttach] lazy render page", pageNum, ":", e);
       }
       lazyBusy = false;
-      setTimeout(() => processQueue(), 100);
+      setTimeout(() => processQueue2(), 100);
     };
     this._fullscreenObserver = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
@@ -2953,10 +2953,10 @@ var PdfFullscreenView = class extends ItemView {
           if (wrap.dataset.rendered)
             return;
           const pageNum = parseInt(wrap.dataset.pageNum);
-          if (lazyQueue.length < MAX_QUEUE) {
-            lazyQueue.push(pageNum);
+          if (lazyQueue2.length < MAX_QUEUE) {
+            lazyQueue2.push(pageNum);
           }
-          processQueue();
+          processQueue2();
           this._fullscreenObserver.unobserve(wrap);
         }
       });
@@ -2970,6 +2970,7 @@ var PdfFullscreenView = class extends ItemView {
     if (!this._pdf)
       return;
     const savedPage = this._currentPage || 1;
+    const savedH = this.scrollEl.clientHeight;
     this.scrollEl.querySelectorAll("canvas").forEach((c) => {
       const ctx = c.getContext("2d");
       if (ctx)
@@ -2980,11 +2981,14 @@ var PdfFullscreenView = class extends ItemView {
     });
     this.scrollEl.scrollTop = 0;
     this.scrollEl.empty();
+    this.scrollEl.style.minHeight = savedH + "px";
     requestAnimationFrame(() => {
       this._renderAllPages(this._viewMode, this._renderScaleLevel, this._zoomMode).then(() => {
         this._scrollToPage(savedPage);
+        this.scrollEl.style.minHeight = "";
       }).catch((e) => {
         console.error("[CloudAttach] _reRender error:", e);
+        this.scrollEl.style.minHeight = "";
       });
     });
   }
@@ -4723,13 +4727,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
           pagePlaceholders.push(placeholder);
         }
         if (pagePlaceholders.length > 0) {
-          const lazyQueue = [];
+          const lazyQueue2 = [];
           let lazyBusy = false;
-          const processQueue = async () => {
-            if (lazyBusy || lazyQueue.length === 0)
+          const processQueue2 = async () => {
+            if (lazyBusy || lazyQueue2.length === 0)
               return;
             lazyBusy = true;
-            const ph = lazyQueue.shift();
+            const ph = lazyQueue2.shift();
             const pageNum = parseInt(ph.dataset.pageNum);
             try {
               await this._renderLazyPage(ph, pdf, pageNum, FIXED_SCALE, containerW);
@@ -4737,7 +4741,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
               console.error("[CloudAttach] lazy page render failed:", e);
             }
             lazyBusy = false;
-            processQueue();
+            processQueue2();
           };
           const lazyObserver = new IntersectionObserver((entries) => {
             entries.forEach((entry) => {
@@ -4746,8 +4750,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
                 if (ph.dataset.rendered)
                   return;
                 ph.dataset.rendered = "true";
-                lazyQueue.push(ph);
-                processQueue();
+                lazyQueue2.push(ph);
+                processQueue2();
                 lazyObserver.unobserve(ph);
               }
             });
@@ -4757,6 +4761,18 @@ module.exports = class CloudAttachPlugin extends Plugin {
             this._pdfLazyObservers = /* @__PURE__ */ new Set();
           this._pdfLazyObservers.add(lazyObserver);
         }
+        scrollArea.addEventListener("scroll", () => {
+          const unreached = scrollArea.querySelectorAll(".cloudattach-pdf-placeholder:not([data-rendered])");
+          unreached.forEach((ph) => {
+            const rect = ph.getBoundingClientRect();
+            const scrollRect = scrollArea.getBoundingClientRect();
+            if (rect.top < scrollRect.bottom + 200 && rect.bottom > scrollRect.top) {
+              ph.dataset.rendered = "true";
+              lazyQueue.push(ph);
+              processQueue();
+            }
+          });
+        }, { passive: true });
         imgEl.dataset.cloudattachProcessed = "done";
         renderedSet.add(url);
         console.log("[CloudAttach] ALL DONE, pages:", pdf.numPages);

@@ -3180,6 +3180,8 @@ class PdfFullscreenView extends ItemView {
   _reRender() {
     if (!this._pdf) return;
     const savedPage = this._currentPage || 1;
+    // 记下当前高度（empty 后 flex 子元素高度归零，单页模式会读到 0）
+    const savedH = this.scrollEl.clientHeight;
     // 释放旧 canvas GPU 显存再 empty，避免 iOS 内存峰值
     this.scrollEl.querySelectorAll('canvas').forEach(c => {
       const ctx = c.getContext('2d');
@@ -3189,12 +3191,15 @@ class PdfFullscreenView extends ItemView {
     });
     this.scrollEl.scrollTop = 0;
     this.scrollEl.empty();
+    this.scrollEl.style.minHeight = savedH + 'px';
     // 等一帧让浏览器回收旧 canvas GPU 资源，再建新页
     requestAnimationFrame(() => {
       this._renderAllPages(this._viewMode, this._renderScaleLevel, this._zoomMode).then(() => {
         this._scrollToPage(savedPage);
+        this.scrollEl.style.minHeight = '';
       }).catch(e => {
         console.error('[CloudAttach] _reRender error:', e);
+        this.scrollEl.style.minHeight = '';
       });
     });
   }
@@ -5035,6 +5040,19 @@ module.exports = class CloudAttachPlugin extends Plugin {
         if (!this._pdfLazyObservers) this._pdfLazyObservers = new Set();
         this._pdfLazyObservers.add(lazyObserver);
       }
+      // 滚动 fallback：切标签回来 IntersectionObserver 可能不触发，滚动时扫描未渲染占位符
+      scrollArea.addEventListener('scroll', () => {
+        const unreached = scrollArea.querySelectorAll('.cloudattach-pdf-placeholder:not([data-rendered])');
+        unreached.forEach(ph => {
+          const rect = ph.getBoundingClientRect();
+          const scrollRect = scrollArea.getBoundingClientRect();
+          if (rect.top < scrollRect.bottom + 200 && rect.bottom > scrollRect.top) {
+            ph.dataset.rendered = 'true';
+            lazyQueue.push(ph);
+            processQueue();
+          }
+        });
+      }, { passive: true });
       // 渲染成功后清除 pending 标记，记录去重
       imgEl.dataset.cloudattachProcessed = 'done';
       renderedSet.add(url);
