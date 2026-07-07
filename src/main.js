@@ -3142,13 +3142,17 @@ class PdfFullscreenView extends ItemView {
     // 剩余页懒加载
     const lazyQueue = [];
     let lazyBusy = false;
+    const MAX_QUEUE = 3;  // 限制排队数，避免 iOS 滚动高峰时内存爆炸
     const processQueue = async () => {
       if (lazyBusy || lazyQueue.length === 0) return;
       lazyBusy = true;
       const pageNum = lazyQueue.shift();
-      try { await renderPage(pageNum); } catch (e) { console.error('[CloudAttach] lazy render page', pageNum, ':', e); }
+      try {
+        await new Promise(r => requestAnimationFrame(r));  // 每页间等一帧释放 GPU
+        await renderPage(pageNum);
+      } catch (e) { console.error('[CloudAttach] lazy render page', pageNum, ':', e); }
       lazyBusy = false;
-      processQueue();
+      setTimeout(() => processQueue(), 100);  // 延迟下一帧，给浏览器喘息
     };
 
     this._fullscreenObserver = new IntersectionObserver((entries) => {
@@ -3157,7 +3161,9 @@ class PdfFullscreenView extends ItemView {
           const wrap = entry.target;
           if (wrap.dataset.rendered) return;
           const pageNum = parseInt(wrap.dataset.pageNum);
-          lazyQueue.push(pageNum);
+          if (lazyQueue.length < MAX_QUEUE) {
+            lazyQueue.push(pageNum);
+          }
           processQueue();
           this._fullscreenObserver.unobserve(wrap);
         }
@@ -4709,13 +4715,17 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (this._renderedPdfUrlsByMode) {
       Object.values(this._renderedPdfUrlsByMode).forEach(s => s instanceof Set && s.clear());
     }
-    // 优先 popout 窗口（真·全屏），fallback 到 split
+    // 手机端：直接 split 避免 openPopoutLeaf 抛"仅桌面端"提示
+    const isMobile = navigator.maxTouchPoints > 0 && window.innerWidth < 768;
     let leaf;
-    try {
-      leaf = workspace.openPopoutLeaf();
-    } catch (e) {
-      console.log('[CloudAttach] openPopoutLeaf failed, fallback to split:', e);
+    if (isMobile) {
       leaf = workspace.getLeaf('split', 'vertical');
+    } else {
+      try {
+        leaf = workspace.openPopoutLeaf();
+      } catch (e) {
+        leaf = workspace.getLeaf('split', 'vertical');
+      }
     }
     await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true, state: { pdfUrl: url, pdfName: name } });
     workspace.revealLeaf(leaf);
@@ -4959,6 +4969,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
       scrollArea.style.setProperty("padding-bottom", TOOLBAR_HEIGHT + "px", "important");
       // 一次性插入 DOM：容器已完整构建，内容已渲染，尺寸已设定
       imgEl.replaceWith(container);
+      // 拦截点击事件：阻止 Obsidian 弹出原生图片预览
+      container.addEventListener('click', (e) => { e.stopPropagation(); }, true);
+      container.addEventListener('dblclick', (e) => { e.stopPropagation(); }, true);
       const containerW = container.clientWidth || placeholderWidth;
 
       // DIAG: 打印容器和第一页 img 的实际尺寸，定位全白问题

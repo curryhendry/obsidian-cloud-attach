@@ -2931,18 +2931,20 @@ var PdfFullscreenView = class extends ItemView {
     }
     const lazyQueue = [];
     let lazyBusy = false;
+    const MAX_QUEUE = 3;
     const processQueue = async () => {
       if (lazyBusy || lazyQueue.length === 0)
         return;
       lazyBusy = true;
       const pageNum = lazyQueue.shift();
       try {
+        await new Promise((r) => requestAnimationFrame(r));
         await renderPage(pageNum);
       } catch (e) {
         console.error("[CloudAttach] lazy render page", pageNum, ":", e);
       }
       lazyBusy = false;
-      processQueue();
+      setTimeout(() => processQueue(), 100);
     };
     this._fullscreenObserver = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
@@ -2951,7 +2953,9 @@ var PdfFullscreenView = class extends ItemView {
           if (wrap.dataset.rendered)
             return;
           const pageNum = parseInt(wrap.dataset.pageNum);
-          lazyQueue.push(pageNum);
+          if (lazyQueue.length < MAX_QUEUE) {
+            lazyQueue.push(pageNum);
+          }
           processQueue();
           this._fullscreenObserver.unobserve(wrap);
         }
@@ -4436,12 +4440,16 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (this._renderedPdfUrlsByMode) {
       Object.values(this._renderedPdfUrlsByMode).forEach((s) => s instanceof Set && s.clear());
     }
+    const isMobile = navigator.maxTouchPoints > 0 && window.innerWidth < 768;
     let leaf;
-    try {
-      leaf = workspace.openPopoutLeaf();
-    } catch (e) {
-      console.log("[CloudAttach] openPopoutLeaf failed, fallback to split:", e);
+    if (isMobile) {
       leaf = workspace.getLeaf("split", "vertical");
+    } else {
+      try {
+        leaf = workspace.openPopoutLeaf();
+      } catch (e) {
+        leaf = workspace.getLeaf("split", "vertical");
+      }
     }
     await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true, state: { pdfUrl: url, pdfName: name } });
     workspace.revealLeaf(leaf);
@@ -4674,6 +4682,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
         scrollArea.style.setProperty("height", "100%", "important");
         scrollArea.style.setProperty("padding-bottom", TOOLBAR_HEIGHT + "px", "important");
         imgEl.replaceWith(container);
+        container.addEventListener("click", (e) => {
+          e.stopPropagation();
+        }, true);
+        container.addEventListener("dblclick", (e) => {
+          e.stopPropagation();
+        }, true);
         const containerW = container.clientWidth || placeholderWidth;
         console.log(
           "[CloudAttach] DIAG after replaceWith \u2014 containerW:",
