@@ -2973,12 +2973,10 @@ var PdfFullscreenView = class extends ItemView {
     });
   }
   _sizeCanvas(c, maxW, maxH) {
-    const ratio = c.width / (c.height || 1);
     if (this._zoomMode === "fit-height") {
       const tH = Math.min(maxH, c.height);
       c.style.height = tH + "px";
       c.style.width = "auto";
-      c.style.maxWidth = maxW + "px";
     } else {
       c.style.width = maxW + "px";
       c.style.height = "auto";

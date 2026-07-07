@@ -3181,12 +3181,11 @@ class PdfFullscreenView extends ItemView {
   }
 
   _sizeCanvas(c, maxW, maxH) {
-    const ratio = c.width / (c.height || 1);
     if (this._zoomMode === 'fit-height') {
       const tH = Math.min(maxH, c.height);
       c.style.height = tH + 'px';
       c.style.width = 'auto';
-      c.style.maxWidth = maxW + 'px';
+      // 不设 maxWidth，避免压窄破坏比例；超出屏幕由 scrollEl overflow-x:auto 处理
     } else {
       c.style.width = maxW + 'px';
       c.style.height = 'auto';
