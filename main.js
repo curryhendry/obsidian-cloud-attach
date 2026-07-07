@@ -4440,7 +4440,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (this._renderedPdfUrlsByMode) {
       Object.values(this._renderedPdfUrlsByMode).forEach((s) => s instanceof Set && s.clear());
     }
-    const isMobile = navigator.maxTouchPoints > 0 && window.innerWidth < 768;
+    const isMobile = window.innerWidth < 768;
     let leaf;
     if (isMobile) {
       leaf = workspace.getLeaf("split", "vertical");

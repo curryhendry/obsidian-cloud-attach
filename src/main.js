@@ -4716,7 +4716,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
       Object.values(this._renderedPdfUrlsByMode).forEach(s => s instanceof Set && s.clear());
     }
     // 手机端：直接 split 避免 openPopoutLeaf 抛"仅桌面端"提示
-    const isMobile = navigator.maxTouchPoints > 0 && window.innerWidth < 768;
+    // 仅判断屏幕宽度（Mac 触控板也有 maxTouchPoints > 0）
+    const isMobile = window.innerWidth < 768;
     let leaf;
     if (isMobile) {
       leaf = workspace.getLeaf('split', 'vertical');
