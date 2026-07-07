@@ -1442,7 +1442,7 @@ var S3Client = class {
       const cleanPath = remotePath.replace(/^\/+/, "");
       const params = new URLSearchParams({ "X-Amz-Expires": expires.toString() });
       const signedQuery = await this.signQuery(params, cleanPath);
-      const objectKey = encodeURIComponent(cleanPath);
+      const objectKey = cleanPath.split("/").map(encodeURIComponent).join("/");
       return `${this.endpoint}/${this.bucket}/${objectKey}?${signedQuery}`;
     } catch (e) {
       console.error("[CloudAttach] S3 getSignedUrl error:", e);
@@ -1473,7 +1473,7 @@ var S3Client = class {
       const mimeType = this.getMimeType(fileName);
       const params = new URLSearchParams({ "X-Amz-Expires": "3600" });
       const signedQuery = await this.signQuery(params, objectKey, "PUT", { "content-type": mimeType });
-      const encodedKey = encodeURIComponent(objectKey);
+      const encodedKey = objectKey.split("/").map(encodeURIComponent).join("/");
       const uploadUrl = `${this.endpoint}/${this.bucket}/${encodedKey}?${signedQuery}`;
       console.log("[CloudAttach] S3 upload URL:", uploadUrl.substring(0, 120));
       const response = await this.requestViaObsidian(uploadUrl, {
@@ -1749,7 +1749,7 @@ var S3Client = class {
           }
         } else {
           const signedQuery = await this.signQuery(new URLSearchParams({ "X-Amz-Expires": "3600" }), objectKey, "DELETE", {});
-          const encodedKey = encodeURIComponent(objectKey);
+          const encodedKey = objectKey.split("/").map(encodeURIComponent).join("/");
           const deleteUrl = `${this.endpoint}/${this.bucket}/${encodedKey}?${signedQuery}`;
           const r = await this.requestViaObsidian(deleteUrl, { method: "DELETE" });
           if (r.ok)
@@ -1844,7 +1844,7 @@ var S3Client = class {
     try {
       const params = new URLSearchParams({ "X-Amz-Expires": "3600" });
       const signedQuery = await this.signQuery(params, objectKey, "PUT", { "content-type": "application/octet-stream" });
-      const uploadUrl = `${this.endpoint}/${this.bucket}/${encodeURIComponent(objectKey)}?${signedQuery}`;
+      const uploadUrl = `${this.endpoint}/${this.bucket}/${objectKey.split("/").map(encodeURIComponent).join("/")}?${signedQuery}`;
       const response = await this.requestViaObsidian(uploadUrl, {
         method: "PUT",
         headers: { "Content-Type": "application/octet-stream" },
@@ -2887,7 +2887,8 @@ var PdfFullscreenView = class extends ItemView {
           `;
         }
       } else {
-        this.scrollEl.style.overflowX = "hidden";
+        this.scrollEl.style.overflowY = "auto";
+        this.scrollEl.style.overflowX = "auto";
         this.scrollEl.style.scrollSnapType = "none";
         const estH = pageH / (pageW || 1) * (scrollW || 375);
         wrap.style.cssText = `
@@ -2966,12 +2967,18 @@ var PdfFullscreenView = class extends ItemView {
       const ctx = c.getContext("2d");
       if (ctx)
         ctx.clearRect(0, 0, c.width, c.height);
+      c.width = 0;
+      c.height = 0;
+      c.remove();
     });
+    this.scrollEl.scrollTop = 0;
     this.scrollEl.empty();
-    this._renderAllPages(this._viewMode, this._renderScaleLevel, this._zoomMode).then(() => {
-      this._scrollToPage(savedPage);
-    }).catch((e) => {
-      console.error("[CloudAttach] _reRender error:", e);
+    requestAnimationFrame(() => {
+      this._renderAllPages(this._viewMode, this._renderScaleLevel, this._zoomMode).then(() => {
+        this._scrollToPage(savedPage);
+      }).catch((e) => {
+        console.error("[CloudAttach] _reRender error:", e);
+      });
     });
   }
   _sizeCanvas(c, maxW, maxH) {

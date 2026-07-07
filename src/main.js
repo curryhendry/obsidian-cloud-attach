@@ -1607,8 +1607,8 @@ class S3Client {
       const cleanPath = remotePath.replace(/^\/+/, '');
       const params = new URLSearchParams({ 'X-Amz-Expires': expires.toString() });
       const signedQuery = await this.signQuery(params, cleanPath);
-      // S3 路径必须保持编码，中文不能解码（签名依赖路径编码）
-      const objectKey = encodeURIComponent(cleanPath);
+      // S3 路径逐段编码，保留 / 分隔符（签名与 URL 必须一致）
+      const objectKey = cleanPath.split('/').map(encodeURIComponent).join('/');
       return `${this.endpoint}/${this.bucket}/${objectKey}?${signedQuery}`;
     } catch (e) {
       console.error('[CloudAttach] S3 getSignedUrl error:', e);
@@ -1643,7 +1643,7 @@ class S3Client {
       const mimeType = this.getMimeType(fileName);
       const params = new URLSearchParams({ 'X-Amz-Expires': '3600' });
       const signedQuery = await this.signQuery(params, objectKey, 'PUT', { 'content-type': mimeType });
-      const encodedKey = encodeURIComponent(objectKey);
+      const encodedKey = objectKey.split('/').map(encodeURIComponent).join('/');
       const uploadUrl = `${this.endpoint}/${this.bucket}/${encodedKey}?${signedQuery}`;
 
       console.log('[CloudAttach] S3 upload URL:', uploadUrl.substring(0, 120));
@@ -1949,7 +1949,7 @@ class S3Client {
           }
         } else {
           const signedQuery = await this.signQuery(new URLSearchParams({'X-Amz-Expires':'3600'}), objectKey, 'DELETE', {});
-          const encodedKey = encodeURIComponent(objectKey);
+          const encodedKey = objectKey.split('/').map(encodeURIComponent).join('/');
           const deleteUrl = `${this.endpoint}/${this.bucket}/${encodedKey}?${signedQuery}`;
           const r = await this.requestViaObsidian(deleteUrl, { method: 'DELETE' });
           if (r.ok) results.success.push(fullPath);
@@ -2054,7 +2054,7 @@ class S3Client {
     try {
       const params = new URLSearchParams({ 'X-Amz-Expires': '3600' });
       const signedQuery = await this.signQuery(params, objectKey, 'PUT', { 'content-type': 'application/octet-stream' });
-      const uploadUrl = `${this.endpoint}/${this.bucket}/${encodeURIComponent(objectKey)}?${signedQuery}`;
+      const uploadUrl = `${this.endpoint}/${this.bucket}/${objectKey.split('/').map(encodeURIComponent).join('/')}?${signedQuery}`;
       const response = await this.requestViaObsidian(uploadUrl, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/octet-stream' },
@@ -3090,7 +3090,8 @@ class PdfFullscreenView extends ItemView {
           `;
         }
       } else {
-        this.scrollEl.style.overflowX = 'hidden';
+        this.scrollEl.style.overflowY = 'auto';
+        this.scrollEl.style.overflowX = 'auto';  // fit-height 时 canvas 宽于屏幕，需要横滚
         this.scrollEl.style.scrollSnapType = 'none';
         // 用预估高度撑开，避免所有页堆叠在同一位置被 IO 一次性触发
         const estH = (pageH / (pageW || 1)) * (scrollW || 375);
@@ -3173,12 +3174,18 @@ class PdfFullscreenView extends ItemView {
     this.scrollEl.querySelectorAll('canvas').forEach(c => {
       const ctx = c.getContext('2d');
       if (ctx) ctx.clearRect(0, 0, c.width, c.height);
+      c.width = 0; c.height = 0;  // 释放 GPU buffer
+      c.remove();
     });
+    this.scrollEl.scrollTop = 0;
     this.scrollEl.empty();
-    this._renderAllPages(this._viewMode, this._renderScaleLevel, this._zoomMode).then(() => {
-      this._scrollToPage(savedPage);
-    }).catch(e => {
-      console.error('[CloudAttach] _reRender error:', e);
+    // 等一帧让浏览器回收旧 canvas GPU 资源，再建新页
+    requestAnimationFrame(() => {
+      this._renderAllPages(this._viewMode, this._renderScaleLevel, this._zoomMode).then(() => {
+        this._scrollToPage(savedPage);
+      }).catch(e => {
+        console.error('[CloudAttach] _reRender error:', e);
+      });
     });
   }
 
