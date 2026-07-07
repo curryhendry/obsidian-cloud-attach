@@ -4671,6 +4671,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
         const canvasH = firstViewport.height;
         const firstImg = await this._renderPdfPage(pdf, 1, FIXED_SCALE, placeholderWidth);
         scrollArea.appendChild(firstImg);
+        firstImg.addEventListener("click", (e) => {
+          e.stopPropagation();
+        }, true);
         const displayH = canvasH * (placeholderWidth / canvasW);
         let finalContainerHeight;
         if (userHeightStr) {
@@ -4682,12 +4685,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
         scrollArea.style.setProperty("height", "100%", "important");
         scrollArea.style.setProperty("padding-bottom", TOOLBAR_HEIGHT + "px", "important");
         imgEl.replaceWith(container);
-        container.addEventListener("click", (e) => {
-          e.stopPropagation();
-        }, true);
-        container.addEventListener("dblclick", (e) => {
-          e.stopPropagation();
-        }, true);
         const containerW = container.clientWidth || placeholderWidth;
         console.log(
           "[CloudAttach] DIAG after replaceWith \u2014 containerW:",
@@ -4829,6 +4826,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
     img.draggable = false;
     img.style.width = "100%";
     img.style.display = "block";
+    img.addEventListener("click", (e) => {
+      e.stopPropagation();
+    }, true);
     if (containerW) {
       img.style.height = Math.round(viewport.height * (containerW / viewport.width)) + "px";
     }
