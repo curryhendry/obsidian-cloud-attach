@@ -2510,10 +2510,6 @@ class CloudAttachView extends ItemView {
     modal.open();
     input.focus();
     input.select();
-    content.appendChild(btnRow);
-    modal.open();
-    input.focus();
-    input.select();
   }
   /**
    * 执行重命名
@@ -4894,7 +4890,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       // 关键修复：先读取 img 的占位宽度，在 DOM 外完整构建容器+渲染 canvas，
       // 再一次 replaceWith 插入。避免容器先插入(高度0)→渲染→设高度 的多阶段 DOM 变更
       // 触发 Electron compositor 图层丢失。
-      const placeholderWidth = imgEl.offsetWidth || imgEl.parentElement?.clientWidth || 800;
+      const placeholderWidth = imgEl.offsetWidth || imgEl.parentElement?.clientWidth || Math.min(window.innerWidth, 800);
       const scrollArea = document.createElement("div");
       scrollArea.className = "cloudattach-pdf-scrollarea";
       scrollArea.style.overflowY = isTouchDevice ? "scroll" : "auto";
@@ -5855,7 +5851,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     return {
       ok: true,
       client: this.createClient(view.accountId),
-      remotePath: view.currentPath,
+      remotePath,
       account: this.getAccount(view.accountId)
     };
   }

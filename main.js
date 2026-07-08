@@ -2320,10 +2320,6 @@ var CloudAttachView = class extends ItemView {
     modal.open();
     input.focus();
     input.select();
-    content.appendChild(btnRow);
-    modal.open();
-    input.focus();
-    input.select();
   }
   /**
    * 执行重命名
@@ -4647,7 +4643,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         const TOOLBAR_HEIGHT = 28;
         container.style.setProperty("display", "block", "important");
         container.style.setProperty("overflow", "hidden", "important");
-        const placeholderWidth = imgEl.offsetWidth || imgEl.parentElement?.clientWidth || 800;
+        const placeholderWidth = imgEl.offsetWidth || imgEl.parentElement?.clientWidth || Math.min(window.innerWidth, 800);
         const scrollArea = document.createElement("div");
         scrollArea.className = "cloudattach-pdf-scrollarea";
         scrollArea.style.overflowY = isTouchDevice ? "scroll" : "auto";
@@ -5575,7 +5571,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     return {
       ok: true,
       client: this.createClient(view.accountId),
-      remotePath: view.currentPath,
+      remotePath,
       account: this.getAccount(view.accountId)
     };
   }
