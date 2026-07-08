@@ -3069,6 +3069,7 @@ class PdfFullscreenView extends ItemView {
     this.scrollEl.style.padding = '0';
     this.scrollEl.style.overflowY = isSingle ? 'hidden' : 'auto';
     this.scrollEl.style.overflowX = 'hidden';
+    this.scrollEl.style.position = isSingle ? 'relative' : '';
     this.scrollEl.onscroll = null; // 解绑旧监听
     this.scrollEl.onwheel = null;  // 解绑旧监听
     this.scrollEl.scrollTop = 0;
@@ -3083,7 +3084,12 @@ class PdfFullscreenView extends ItemView {
       wrap.style.flexShrink = '0';
       wrap.style.width = '100%';
       if (isSingle) {
-        wrap.style.height = scrollH + 'px';
+        wrap.style.position = 'absolute';
+        wrap.style.top = '0';
+        wrap.style.left = '0';
+        wrap.style.width = '100%';
+        wrap.style.height = '100%';
+        wrap.style.transition = 'opacity 0.25s ease';
         // canvas < 屏幕则整体居中（规则5）；canvas > 屏幕则内部可滚动
         wrap.style.display = 'flex';
         wrap.style.alignItems = 'center';
@@ -3130,10 +3136,12 @@ class PdfFullscreenView extends ItemView {
       }
     };
 
-    // ---- 单页模式：首页显示，其余隐藏 ----
+    // ---- 单页模式：首页显示，其余淡出 ----
     if (isSingle) {
       this.scrollEl.querySelectorAll('.cloud-attach-snap-item').forEach((w, idx) => {
-        w.style.display = (idx === 0) ? 'flex' : 'none';
+        const show = idx === 0;
+        w.style.opacity = show ? '1' : '0';
+        w.style.pointerEvents = show ? 'auto' : 'none';
       });
     }
 
@@ -3345,9 +3353,11 @@ class PdfFullscreenView extends ItemView {
     this._highlightThumbnail(pageNum);
 
     if (this._viewMode === 'single') {
-      // 单页：显示目标 wrap 并触发懒渲染
+      // 单页：淡入目标 wrap + 懒渲染
       this.scrollEl.querySelectorAll('.cloud-attach-snap-item').forEach((w, idx) => {
-        w.style.display = (idx === pageNum - 1) ? 'flex' : 'none';
+        const show = idx === pageNum - 1;
+        w.style.opacity = show ? '1' : '0';
+        w.style.pointerEvents = show ? 'auto' : 'none';
       });
       // 触发懒渲染（若该页未渲染则加入队列）
       const wrap = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);

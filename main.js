@@ -2869,6 +2869,7 @@ var PdfFullscreenView = class extends ItemView {
     this.scrollEl.style.padding = "0";
     this.scrollEl.style.overflowY = isSingle ? "hidden" : "auto";
     this.scrollEl.style.overflowX = "hidden";
+    this.scrollEl.style.position = isSingle ? "relative" : "";
     this.scrollEl.onscroll = null;
     this.scrollEl.onwheel = null;
     this.scrollEl.scrollTop = 0;
@@ -2881,7 +2882,12 @@ var PdfFullscreenView = class extends ItemView {
       wrap.style.flexShrink = "0";
       wrap.style.width = "100%";
       if (isSingle) {
-        wrap.style.height = scrollH + "px";
+        wrap.style.position = "absolute";
+        wrap.style.top = "0";
+        wrap.style.left = "0";
+        wrap.style.width = "100%";
+        wrap.style.height = "100%";
+        wrap.style.transition = "opacity 0.25s ease";
         wrap.style.display = "flex";
         wrap.style.alignItems = "center";
         wrap.style.justifyContent = "center";
@@ -2922,7 +2928,9 @@ var PdfFullscreenView = class extends ItemView {
     };
     if (isSingle) {
       this.scrollEl.querySelectorAll(".cloud-attach-snap-item").forEach((w, idx) => {
-        w.style.display = idx === 0 ? "flex" : "none";
+        const show = idx === 0;
+        w.style.opacity = show ? "1" : "0";
+        w.style.pointerEvents = show ? "auto" : "none";
       });
     }
     try {
@@ -3149,7 +3157,9 @@ var PdfFullscreenView = class extends ItemView {
     this._highlightThumbnail(pageNum);
     if (this._viewMode === "single") {
       this.scrollEl.querySelectorAll(".cloud-attach-snap-item").forEach((w, idx) => {
-        w.style.display = idx === pageNum - 1 ? "flex" : "none";
+        const show = idx === pageNum - 1;
+        w.style.opacity = show ? "1" : "0";
+        w.style.pointerEvents = show ? "auto" : "none";
       });
       const wrap = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);
       if (wrap && !wrap.dataset.rendered) {
