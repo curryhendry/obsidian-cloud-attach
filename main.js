@@ -2741,7 +2741,7 @@ var PdfFullscreenView = class extends ItemView {
         this._viewMode = "continuous";
         this._applyZoom();
       }));
-      menu.addItem((item) => item.setTitle((this._viewMode === "single" ? "\u2713 " : "") + "\u5355\u9875\u7FFB\u9875").onClick(() => {
+      menu.addItem((item) => item.setTitle((this._viewMode === "single" ? "\u2713 " : "") + "\u5355\u9875").onClick(() => {
         this._viewMode = "single";
         this._applyZoom();
       }));
@@ -2817,7 +2817,7 @@ var PdfFullscreenView = class extends ItemView {
       this.pageTotal.textContent = " / " + totalPages;
       this.pageInput.value = "1";
       this._currentPage = 1;
-      await new Promise((r) => requestAnimationFrame(r));
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       this._renderAllPages();
     } catch (e) {
       console.error("[CloudAttach] PdfFullscreenView load error:", e);
@@ -3080,8 +3080,11 @@ var PdfFullscreenView = class extends ItemView {
           this._scrollToPage(newPage);
       }
     };
+    this._wheelThrottle = false;
     this.scrollEl.onwheel = (e) => {
       if (this._viewMode === "continuous")
+        return;
+      if (this._wheelThrottle)
         return;
       const cur = this._currentPage || 1;
       const wrap = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${cur}"]`);
@@ -3092,9 +3095,13 @@ var PdfFullscreenView = class extends ItemView {
           return;
       }
       e.preventDefault();
+      this._wheelThrottle = true;
       const newPage = Math.max(1, Math.min((this._currentPage || 1) + (e.deltaY > 0 ? 1 : -1), this._pdf?.numPages || 1));
       if (newPage !== (this._currentPage || 1))
         this._scrollToPage(newPage);
+      setTimeout(() => {
+        this._wheelThrottle = false;
+      }, 300);
     };
     this.scrollEl.onscroll = () => {
       if (!this._pdf || this._viewMode !== "continuous")
@@ -4601,6 +4608,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
           throw docErr;
         }
         let imgWidth = imgEl.dataset.cloudattachWidth || imgEl.getAttribute("width") || imgEl.style.width || "";
+        if (!imgWidth)
+          imgWidth = imgEl.offsetWidth || "";
         console.log("[CloudAttach] _renderPdfAsCanvas width \u2014 dataset:", imgEl.dataset.cloudattachWidth, "attr:", imgEl.getAttribute("width"), "style:", imgEl.style.width, "final:", imgWidth);
         let imgHeight = imgEl.getAttribute("height") || imgEl.style.height || "";
         let imgStyleMaxWidth = imgEl.style.maxWidth;
@@ -4710,7 +4719,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         if (pagePlaceholders.length > 0) {
           const lazyQueue2 = [];
           let lazyBusy2 = false;
-          const processQueue2 = async () => {
+          let processQueue2 = async () => {
             if (lazyBusy2 || lazyQueue2.length === 0)
               return;
             lazyBusy2 = true;

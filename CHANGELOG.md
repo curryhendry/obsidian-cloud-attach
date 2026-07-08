@@ -1,3 +1,10 @@
+## v0.4.317.dev - 2026-07-08
+- 修复：内联 PDF width 检测为空（`_renderPdfAsCanvas`）— `imgEl.offsetWidth` 兜底
+- 修复：`processQueue is not defined` — `const` 改 `let` 允许后续包装
+- 修复：全屏 PDF 切换高度/宽度不加载 — `_loadPdf` 双 rAF 等 layout+paint
+- 修复：单页模式滚轮翻页太快 — 加 300ms 节流
+- 优化：菜单项「单页翻页」改「单页」
+
 ## v0.4.315.dev - 2026-07-08
 - 🔧 回退到 0.4.275 基线，移除 _renderAllPages 重写和 _reRender RAF 改动
 

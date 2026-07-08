@@ -2914,7 +2914,7 @@ class PdfFullscreenView extends ItemView {
       menu.addItem(item => item.setTitle((this._viewMode === 'continuous' ? '✓ ' : '') + '连续滚动').onClick(() => {
         this._viewMode = 'continuous'; this._applyZoom();
       }));
-      menu.addItem(item => item.setTitle((this._viewMode === 'single' ? '✓ ' : '') + '单页翻页').onClick(() => {
+      menu.addItem(item => item.setTitle((this._viewMode === 'single' ? '✓ ' : '') + '单页').onClick(() => {
         this._viewMode = 'single'; this._applyZoom();
       }));
       menu.showAtMouseEvent(e);
@@ -3011,7 +3011,8 @@ class PdfFullscreenView extends ItemView {
       this._currentPage = 1;
 
       // 等容器 layout 完成后再渲染（避免 clientWidth/Height=0 导致的 crash）
-      await new Promise(r => requestAnimationFrame(r));
+      // 双 rAF：等 layout + paint 都完成
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
       this._renderAllPages();
     } catch (e) {
       console.error('[CloudAttach] PdfFullscreenView load error:', e);
@@ -3275,8 +3276,10 @@ class PdfFullscreenView extends ItemView {
     };
 
     // 滚轮：单页翻页（规则4: Y 轴滚动不触发翻页——翻页靠 scrollEl 整体翻，wrap 内部滚动不管）
+    this._wheelThrottle = false;
     this.scrollEl.onwheel = (e) => {
       if (this._viewMode === 'continuous') return;
+      if (this._wheelThrottle) return;
       // 单页：翻页。检查当前 wrap 能否内部滚动
       const cur = this._currentPage || 1;
       const wrap = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${cur}"]`);
@@ -3287,8 +3290,10 @@ class PdfFullscreenView extends ItemView {
         if ((e.deltaY > 0 && canScrollDown) || (e.deltaY < 0 && canScrollUp)) return;
       }
       e.preventDefault();
+      this._wheelThrottle = true;
       const newPage = Math.max(1, Math.min((this._currentPage || 1) + (e.deltaY > 0 ? 1 : -1), this._pdf?.numPages || 1));
       if (newPage !== (this._currentPage || 1)) this._scrollToPage(newPage);
+      setTimeout(() => { this._wheelThrottle = false; }, 300);
     };
 
     // 页码跟踪 — 仅连续模式（单页 overflow:hidden 不会触发 scroll）
@@ -4844,6 +4849,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
         throw docErr;
       }
       let imgWidth = imgEl.dataset.cloudattachWidth || imgEl.getAttribute("width") || imgEl.style.width || "";
+      // 兜底：取 imgEl 的实际渲染宽度（新 <img> 渲染模式无 width 属性）
+      if (!imgWidth) imgWidth = imgEl.offsetWidth || "";
       console.log('[CloudAttach] _renderPdfAsCanvas width — dataset:', imgEl.dataset.cloudattachWidth, 'attr:', imgEl.getAttribute('width'), 'style:', imgEl.style.width, 'final:', imgWidth);
       let imgHeight = imgEl.getAttribute("height") || imgEl.style.height || "";
       let imgStyleMaxWidth = imgEl.style.maxWidth;
@@ -4953,7 +4960,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (pagePlaceholders.length > 0) {
         const lazyQueue = [];
         let lazyBusy = false;
-        const processQueue = async () => {
+        let processQueue = async () => {
           if (lazyBusy || lazyQueue.length === 0) return;
           lazyBusy = true;
           const ph = lazyQueue.shift();
