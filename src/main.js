@@ -3028,12 +3028,12 @@ class PdfFullscreenView extends ItemView {
   }
 
   // ---- 规则引擎 - 计算 display scale（CSS 尺寸，非 canvas 像素）----
-  _calcScale(zoomMode, scaleLevel) {
+  // 接受可选 w/h 避免调用方已取值后内部重复读取（layout 半帧差异）
+  _calcScale(zoomMode, scaleLevel, w, h) {
     if (scaleLevel > 0) return scaleLevel;
     const firstPg = this._pdf; if (!firstPg) return 1;
-    // pageW/H 由调用方传入
-    const w = this.scrollEl.clientWidth || this.containerEl.clientWidth || 800;
-    const h = this.scrollEl.clientHeight || this.containerEl.clientHeight || 600;
+    w = w || this.scrollEl.clientWidth || this.containerEl.clientWidth || 800;
+    h = h || this.scrollEl.clientHeight || this.containerEl.clientHeight || 600;
     return zoomMode === 'fit-width' ? w / this._pageW : h / this._pageH;
   }
 
@@ -3051,20 +3051,26 @@ class PdfFullscreenView extends ItemView {
     const scaleLevel = this._renderScaleLevel;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
+    // 先行取值 scrollW/scrollH 传给 _calcScale，避免内部重复取值差一帧
+    const scrollW = this.scrollEl.clientWidth || this.containerEl.clientWidth || 800;
+    const scrollH = this.scrollEl.clientHeight || this.containerEl.clientHeight || 600;
+
     // CSS 显示尺寸
-    const displayScale = this._calcScale(zoomMode, scaleLevel);
+    const displayScale = this._calcScale(zoomMode, scaleLevel, scrollW, scrollH);
     const displayW = Math.round(this._pageW * displayScale);
     const displayH = Math.round(this._pageH * displayScale);
     // canvas 像素
     const renderScale = displayScale * dpr;
-
-    const scrollW = this.scrollEl.clientWidth || this.containerEl.clientWidth || 800;
-    const scrollH = this.scrollEl.clientHeight || this.containerEl.clientHeight || 600;
     const isSingle = mode === 'single';
 
     // ---- 重置 scrollEl ----
     this.scrollEl.style.cssText = `flex:1; min-height:0; background:var(--background-secondary); padding:0;`;
-    this.scrollEl.style.overflow = 'hidden';
+    if (isSingle) {
+      this.scrollEl.style.overflow = 'hidden';
+    } else {
+      this.scrollEl.style.overflowY = 'auto';
+      this.scrollEl.style.overflowX = 'hidden';
+    }
     this.scrollEl.empty();
 
     // ---- 构建占位 wrap ----
@@ -3183,7 +3189,7 @@ class PdfFullscreenView extends ItemView {
     const scrollW = this.scrollEl.clientWidth;
     const scrollH = this.scrollEl.clientHeight;
     if (!scrollW || !scrollH) return;
-    const displayScale = this._calcScale(this._zoomMode, this._renderScaleLevel);
+    const displayScale = this._calcScale(this._zoomMode, this._renderScaleLevel, scrollW, scrollH);
     const displayW = Math.round(this._pageW * displayScale);
     const displayH = Math.round(this._pageH * displayScale);
     const isSingle = this._viewMode === 'single';
@@ -3227,7 +3233,10 @@ class PdfFullscreenView extends ItemView {
       this._renderThumbnails();
     }
     this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? 'flex' : 'none';
-    requestAnimationFrame(() => this._resizeAllCanvases());
+    // 双 rAF：等缩略图面板 DOM 插入并 layout 完成后，再重新计算主画布尺寸
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => this._resizeAllCanvases());
+    });
   }
 
   async _renderThumbnails() {
@@ -3286,7 +3295,7 @@ class PdfFullscreenView extends ItemView {
       if (newPage !== (this._currentPage || 1)) this._scrollToPage(newPage);
     };
 
-    // 页码跟踪
+    // 页码跟踪 — 仅连续模式（单页 overflow:hidden 不会触发 scroll）
     this.scrollEl.onscroll = () => {
       if (!this._pdf || this._viewMode !== 'continuous') return;
       const snaps = this.scrollEl.querySelectorAll('.cloud-attach-snap-item');

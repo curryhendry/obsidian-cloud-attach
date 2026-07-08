@@ -2833,14 +2833,15 @@ var PdfFullscreenView = class extends ItemView {
     }
   }
   // ---- 规则引擎 - 计算 display scale（CSS 尺寸，非 canvas 像素）----
-  _calcScale(zoomMode, scaleLevel) {
+  // 接受可选 w/h 避免调用方已取值后内部重复读取（layout 半帧差异）
+  _calcScale(zoomMode, scaleLevel, w, h) {
     if (scaleLevel > 0)
       return scaleLevel;
     const firstPg = this._pdf;
     if (!firstPg)
       return 1;
-    const w = this.scrollEl.clientWidth || this.containerEl.clientWidth || 800;
-    const h = this.scrollEl.clientHeight || this.containerEl.clientHeight || 600;
+    w = w || this.scrollEl.clientWidth || this.containerEl.clientWidth || 800;
+    h = h || this.scrollEl.clientHeight || this.containerEl.clientHeight || 600;
     return zoomMode === "fit-width" ? w / this._pageW : h / this._pageH;
   }
   async _renderAllPages() {
@@ -2857,15 +2858,20 @@ var PdfFullscreenView = class extends ItemView {
     const zoomMode = this._zoomMode;
     const scaleLevel = this._renderScaleLevel;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const displayScale = this._calcScale(zoomMode, scaleLevel);
+    const scrollW = this.scrollEl.clientWidth || this.containerEl.clientWidth || 800;
+    const scrollH = this.scrollEl.clientHeight || this.containerEl.clientHeight || 600;
+    const displayScale = this._calcScale(zoomMode, scaleLevel, scrollW, scrollH);
     const displayW = Math.round(this._pageW * displayScale);
     const displayH = Math.round(this._pageH * displayScale);
     const renderScale = displayScale * dpr;
-    const scrollW = this.scrollEl.clientWidth || this.containerEl.clientWidth || 800;
-    const scrollH = this.scrollEl.clientHeight || this.containerEl.clientHeight || 600;
     const isSingle = mode === "single";
     this.scrollEl.style.cssText = `flex:1; min-height:0; background:var(--background-secondary); padding:0;`;
-    this.scrollEl.style.overflow = "hidden";
+    if (isSingle) {
+      this.scrollEl.style.overflow = "hidden";
+    } else {
+      this.scrollEl.style.overflowY = "auto";
+      this.scrollEl.style.overflowX = "hidden";
+    }
     this.scrollEl.empty();
     for (let i = 1; i <= totalPages; i++) {
       const wrap = document.createElement("div");
@@ -2984,7 +2990,7 @@ var PdfFullscreenView = class extends ItemView {
     const scrollH = this.scrollEl.clientHeight;
     if (!scrollW || !scrollH)
       return;
-    const displayScale = this._calcScale(this._zoomMode, this._renderScaleLevel);
+    const displayScale = this._calcScale(this._zoomMode, this._renderScaleLevel, scrollW, scrollH);
     const displayW = Math.round(this._pageW * displayScale);
     const displayH = Math.round(this._pageH * displayScale);
     const isSingle = this._viewMode === "single";
@@ -3026,7 +3032,9 @@ var PdfFullscreenView = class extends ItemView {
       this._renderThumbnails();
     }
     this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? "flex" : "none";
-    requestAnimationFrame(() => this._resizeAllCanvases());
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => this._resizeAllCanvases());
+    });
   }
   async _renderThumbnails() {
     if (!this._pdf || !this._thumbnailPanel)
