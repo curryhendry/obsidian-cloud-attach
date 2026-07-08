@@ -3036,6 +3036,7 @@ class PdfFullscreenView extends ItemView {
 
   async _renderAllPages() {
     if (!this._pdf) return;
+    console.log('[CloudAttach] _renderAllPages mode=', this._viewMode, 'scrollW=', this.scrollEl.clientWidth, 'scrollH=', this.scrollEl.clientHeight);
     this._fullscreenObserver?.disconnect(); this._fullscreenObserver = null;
 
     const totalPages = this._pdf.numPages;
@@ -3173,6 +3174,7 @@ class PdfFullscreenView extends ItemView {
     this.scrollEl.querySelectorAll('.cloud-attach-snap-item').forEach(w => this._fullscreenObserver.observe(w));
 
     this._bindScroll(displayH, scrollH);
+    console.log('[CloudAttach] _renderAllPages done totalPages=', totalPages, 'displayW=', displayW, 'displayH=', displayH);
   }
 
   _reRender() {
@@ -3242,7 +3244,8 @@ class PdfFullscreenView extends ItemView {
       this._renderThumbnails();
     }
     this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? 'flex' : 'none';
-    // 完全重渲染：_resizeAllCanvases 只改 CSS 尺寸不改 canvas 像素，比例会失真
+    // 完全重渲染
+    console.log('[CloudAttach] _toggleThumbnailPanel _reRender visible=', this._thumbnailVisible);
     // 缩略图面板改变 viewport 宽度，canvas 必须用新 renderScale 重新绘制
     requestAnimationFrame(() => {
       requestAnimationFrame(() => this._reRender());
@@ -3335,6 +3338,7 @@ class PdfFullscreenView extends ItemView {
   }
 
   _scrollToPage(pageNum) {
+    console.log('[CloudAttach] _scrollToPage', pageNum, 'mode=', this._viewMode);
     if (!this._pdf || pageNum < 1 || pageNum > this._pdf.numPages) return;
     this.pageInput.value = String(pageNum);
     this._currentPage = pageNum;

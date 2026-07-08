@@ -2843,6 +2843,7 @@ var PdfFullscreenView = class extends ItemView {
   async _renderAllPages() {
     if (!this._pdf)
       return;
+    console.log("[CloudAttach] _renderAllPages mode=", this._viewMode, "scrollW=", this.scrollEl.clientWidth, "scrollH=", this.scrollEl.clientHeight);
     this._fullscreenObserver?.disconnect();
     this._fullscreenObserver = null;
     const totalPages = this._pdf.numPages;
@@ -2966,6 +2967,7 @@ var PdfFullscreenView = class extends ItemView {
     }, { root: this.scrollEl, rootMargin: "300px" });
     this.scrollEl.querySelectorAll(".cloud-attach-snap-item").forEach((w) => this._fullscreenObserver.observe(w));
     this._bindScroll(displayH, scrollH);
+    console.log("[CloudAttach] _renderAllPages done totalPages=", totalPages, "displayW=", displayW, "displayH=", displayH);
   }
   _reRender() {
     if (!this._pdf)
@@ -3037,6 +3039,7 @@ var PdfFullscreenView = class extends ItemView {
       this._renderThumbnails();
     }
     this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? "flex" : "none";
+    console.log("[CloudAttach] _toggleThumbnailPanel _reRender visible=", this._thumbnailVisible);
     requestAnimationFrame(() => {
       requestAnimationFrame(() => this._reRender());
     });
@@ -3138,6 +3141,7 @@ var PdfFullscreenView = class extends ItemView {
     };
   }
   _scrollToPage(pageNum) {
+    console.log("[CloudAttach] _scrollToPage", pageNum, "mode=", this._viewMode);
     if (!this._pdf || pageNum < 1 || pageNum > this._pdf.numPages)
       return;
     this.pageInput.value = String(pageNum);
