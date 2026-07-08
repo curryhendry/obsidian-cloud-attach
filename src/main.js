@@ -3068,6 +3068,9 @@ class PdfFullscreenView extends ItemView {
     this.scrollEl.style.padding = '0';
     this.scrollEl.style.overflowY = isSingle ? 'hidden' : 'auto';
     this.scrollEl.style.overflowX = 'hidden';
+    this.scrollEl.onscroll = null; // 解绑旧监听
+    this.scrollEl.onwheel = null;  // 解绑旧监听
+    this.scrollEl.scrollTop = 0;
     this.scrollEl.empty();
 
     // ---- 构建占位 wrap ----
@@ -3147,6 +3150,11 @@ class PdfFullscreenView extends ItemView {
       catch (e) { console.error('[CloudAttach] lazy render page', n, ':', e); }
       lazyBusy = false;
       setTimeout(() => processQueue(), 100);
+    };
+    // 暴露给 _scrollToPage 用于单页懒渲染
+    this._lazyQueueAdd = (n) => {
+      if (lazyQueue.length < MAX_Q && !lazyQueue.includes(n)) lazyQueue.push(n);
+      processQueue();
     };
 
     this._fullscreenObserver = new IntersectionObserver((entries) => {
@@ -3333,10 +3341,15 @@ class PdfFullscreenView extends ItemView {
     this._highlightThumbnail(pageNum);
 
     if (this._viewMode === 'single') {
-      // 单页：显示/隐藏 wrap（overflow:hidden 下 scrollTo 不可靠）
+      // 单页：显示目标 wrap 并触发懒渲染
       this.scrollEl.querySelectorAll('.cloud-attach-snap-item').forEach((w, idx) => {
         w.style.display = (idx === pageNum - 1) ? 'flex' : 'none';
       });
+      // 触发懒渲染（若该页未渲染则加入队列）
+      const wrap = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);
+      if (wrap && !wrap.dataset.rendered) {
+        if (this._lazyQueueAdd) this._lazyQueueAdd(pageNum);
+      }
     } else {
       // 连续：定位到 wrap top
       const target = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);

@@ -2868,6 +2868,9 @@ var PdfFullscreenView = class extends ItemView {
     this.scrollEl.style.padding = "0";
     this.scrollEl.style.overflowY = isSingle ? "hidden" : "auto";
     this.scrollEl.style.overflowX = "hidden";
+    this.scrollEl.onscroll = null;
+    this.scrollEl.onwheel = null;
+    this.scrollEl.scrollTop = 0;
     this.scrollEl.empty();
     for (let i = 1; i <= totalPages; i++) {
       const wrap = document.createElement("div");
@@ -2941,6 +2944,11 @@ var PdfFullscreenView = class extends ItemView {
       }
       lazyBusy = false;
       setTimeout(() => processQueue(), 100);
+    };
+    this._lazyQueueAdd = (n) => {
+      if (lazyQueue.length < MAX_Q && !lazyQueue.includes(n))
+        lazyQueue.push(n);
+      processQueue();
     };
     this._fullscreenObserver = new IntersectionObserver((entries) => {
       entries.forEach((e) => {
@@ -3139,6 +3147,11 @@ var PdfFullscreenView = class extends ItemView {
       this.scrollEl.querySelectorAll(".cloud-attach-snap-item").forEach((w, idx) => {
         w.style.display = idx === pageNum - 1 ? "flex" : "none";
       });
+      const wrap = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);
+      if (wrap && !wrap.dataset.rendered) {
+        if (this._lazyQueueAdd)
+          this._lazyQueueAdd(pageNum);
+      }
     } else {
       const target = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);
       if (target) {
