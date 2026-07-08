@@ -4676,7 +4676,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         scrollArea.style.setProperty("height", "100%", "important");
         scrollArea.style.setProperty("padding-bottom", TOOLBAR_HEIGHT + "px", "important");
         imgEl.replaceWith(container);
-        const containerW = container.clientWidth || placeholderWidth;
+        const containerW = container.clientWidth || placeholderWidth || 800;
         console.log(
           "[CloudAttach] DIAG after replaceWith \u2014 containerW:",
           containerW,

@@ -4924,7 +4924,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       scrollArea.style.setProperty("padding-bottom", TOOLBAR_HEIGHT + "px", "important");
       // 一次性插入 DOM：容器已完整构建，内容已渲染，尺寸已设定
       imgEl.replaceWith(container);
-      const containerW = container.clientWidth || placeholderWidth;
+      const containerW = container.clientWidth || placeholderWidth || 800;
 
       // DIAG: 打印容器和第一页 img 的实际尺寸，定位全白问题
       console.log('[CloudAttach] DIAG after replaceWith — containerW:', containerW,

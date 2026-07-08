@@ -1,8 +1,11 @@
-## v0.4.317.dev - 2026-07-08
+## v0.4.318.dev - 2026-07-08
 - 修复：内联 PDF width 检测为空（`_renderPdfAsCanvas`）— `imgEl.offsetWidth` 兜底
 - 修复：`processQueue is not defined` — `const` 改 `let` 允许后续包装
+- 修复：内联 PDF `containerW` 为 0 导致后续页面不加载 — 加固兜底 800
 - 修复：全屏 PDF 切换高度/宽度不加载 — `_loadPdf` 双 rAF 等 layout+paint
 - 修复：单页模式滚轮翻页太快 — 加 300ms 节流
+- Bug#3 `lazyQueue is not defined` — 当前代码已不引用 `lazyQueue`，无需修复
+- 问题#2 全屏第一页不全 — 双 rAF 修复覆盖
 - 优化：菜单项「单页翻页」改「单页」
 
 ## v0.4.315.dev - 2026-07-08
