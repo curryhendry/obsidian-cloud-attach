@@ -4850,7 +4850,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
       let imgWidth = imgEl.dataset.cloudattachWidth || imgEl.getAttribute("width") || imgEl.style.width || "";
       // 兜底：取 imgEl 的实际渲染宽度（新 <img> 渲染模式无 width 属性）
-      if (!imgWidth) imgWidth = imgEl.offsetWidth || "";
+      if (!imgWidth) imgWidth = String(imgEl.offsetWidth || "");
       console.log('[CloudAttach] _renderPdfAsCanvas width — dataset:', imgEl.dataset.cloudattachWidth, 'attr:', imgEl.getAttribute('width'), 'style:', imgEl.style.width, 'final:', imgWidth);
       let imgHeight = imgEl.getAttribute("height") || imgEl.style.height || "";
       let imgStyleMaxWidth = imgEl.style.maxWidth;

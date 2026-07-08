@@ -4609,7 +4609,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
         }
         let imgWidth = imgEl.dataset.cloudattachWidth || imgEl.getAttribute("width") || imgEl.style.width || "";
         if (!imgWidth)
-          imgWidth = imgEl.offsetWidth || "";
+          imgWidth = String(imgEl.offsetWidth || "");
         console.log("[CloudAttach] _renderPdfAsCanvas width \u2014 dataset:", imgEl.dataset.cloudattachWidth, "attr:", imgEl.getAttribute("width"), "style:", imgEl.style.width, "final:", imgWidth);
         let imgHeight = imgEl.getAttribute("height") || imgEl.style.height || "";
         let imgStyleMaxWidth = imgEl.style.maxWidth;
