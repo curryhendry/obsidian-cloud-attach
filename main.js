@@ -2822,7 +2822,7 @@ var PdfFullscreenView = class extends ItemView {
       this.pageInput.value = "1";
       this._currentPage = 1;
       await new Promise((r) => requestAnimationFrame(r));
-      this._renderAllPages(this._viewMode, this._renderScaleLevel, this._zoomMode);
+      this._renderAllPages();
     } catch (e) {
       console.error("[CloudAttach] PdfFullscreenView load error:", e);
       this.scrollEl.empty();
@@ -2832,71 +2832,60 @@ var PdfFullscreenView = class extends ItemView {
       });
     }
   }
-  async _renderAllPages(mode, scaleLevel, zoomMode, savedH) {
+  // ---- 规则引擎 - 计算 display scale（CSS 尺寸，非 canvas 像素）----
+  _calcScale(zoomMode, scaleLevel) {
+    if (scaleLevel > 0)
+      return scaleLevel;
+    const firstPg = this._pdf;
+    if (!firstPg)
+      return 1;
+    const w = this.scrollEl.clientWidth || this.containerEl.clientWidth || 800;
+    const h = this.scrollEl.clientHeight || this.containerEl.clientHeight || 600;
+    return zoomMode === "fit-width" ? w / this._pageW : h / this._pageH;
+  }
+  async _renderAllPages() {
     if (!this._pdf)
       return;
-    if (this._fullscreenObserver) {
-      this._fullscreenObserver.disconnect();
-      this._fullscreenObserver = null;
-    }
+    this._fullscreenObserver?.disconnect();
+    this._fullscreenObserver = null;
     const totalPages = this._pdf.numPages;
-    const firstPg = await this._pdf.getPage(1);
-    const firstVp = firstPg.getViewport({ scale: 1 });
-    const pageW = firstVp.width;
-    const pageH = firstVp.height;
-    let renderScale = 1;
+    const pg = await this._pdf.getPage(1);
+    const vp = pg.getViewport({ scale: 1 });
+    this._pageW = vp.width;
+    this._pageH = vp.height;
+    const mode = this._viewMode;
+    const zoomMode = this._zoomMode;
+    const scaleLevel = this._renderScaleLevel;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    if (scaleLevel > 0) {
-      renderScale = scaleLevel;
-    } else if (zoomMode === "fit-width") {
-      const w = this.scrollEl.clientWidth || this.containerEl.clientWidth;
-      renderScale = (w > 0 ? w / pageW : 1) * dpr;
-    } else if (zoomMode === "fit-height") {
-      const h = this.scrollEl.clientHeight || this.containerEl.clientHeight;
-      renderScale = (h > 0 ? h / pageH : 1) * dpr;
-    }
-    const scrollW = this.scrollEl.clientWidth || this.containerEl.clientWidth;
-    const scrollH = savedH || this.scrollEl.clientHeight || this.containerEl.clientHeight;
-    const zoomedIn = scaleLevel > 1;
-    const canvasW = Math.round(pageW * renderScale);
-    const canvasH = Math.round(pageH * renderScale);
-    this.scrollEl.style.cssText = `
-      flex:1; min-height:0; overflow:auto;
-      background:var(--background-secondary); padding:0;
-    `;
+    const displayScale = this._calcScale(zoomMode, scaleLevel);
+    const displayW = Math.round(this._pageW * displayScale);
+    const displayH = Math.round(this._pageH * displayScale);
+    const renderScale = displayScale * dpr;
+    const scrollW = this.scrollEl.clientWidth || this.containerEl.clientWidth || 800;
+    const scrollH = this.scrollEl.clientHeight || this.containerEl.clientHeight || 600;
+    const isSingle = mode === "single";
+    this.scrollEl.style.cssText = `flex:1; min-height:0; background:var(--background-secondary); padding:0;`;
+    this.scrollEl.style.overflow = "hidden";
     this.scrollEl.empty();
     for (let i = 1; i <= totalPages; i++) {
       const wrap = document.createElement("div");
       wrap.className = "cloud-attach-snap-item";
       wrap.dataset.pageNum = String(i);
       wrap.style.position = "relative";
-      if (mode === "single") {
-        if (zoomedIn) {
-          this.scrollEl.style.overflowX = "auto";
-          this.scrollEl.style.scrollSnapType = "none";
-          wrap.style.cssText = `
-            display:flex; align-items:flex-start; justify-content:flex-start;
-            width:100%; flex-shrink:0;
-          `;
-        } else {
-          this.scrollEl.style.overflowX = zoomMode === "fit-height" ? "auto" : "hidden";
-          this.scrollEl.style.scrollSnapType = "y mandatory";
-          wrap.style.cssText = `
-            display:flex; align-items:center; justify-content:center;
-            width:100%; min-height:${scrollH}px; flex-shrink:0;
-            scroll-snap-align:start;
-            overflow-x:${zoomMode === "fit-height" ? "auto" : "hidden"};
-          `;
-        }
+      wrap.style.flexShrink = "0";
+      wrap.style.width = "100%";
+      if (isSingle) {
+        wrap.style.height = scrollH + "px";
+        wrap.style.display = "flex";
+        wrap.style.alignItems = "center";
+        wrap.style.justifyContent = "center";
+        wrap.style.overflow = displayH > scrollH || displayW > scrollW ? "auto" : "hidden";
       } else {
-        this.scrollEl.style.overflowY = "auto";
-        this.scrollEl.style.overflowX = zoomMode === "fit-height" ? "auto" : "hidden";
-        this.scrollEl.style.scrollSnapType = "none";
-        const estH = pageH / (pageW || 1) * (scrollW || 375);
-        wrap.style.cssText = `
-          display:flex; align-items:flex-start; justify-content:flex-start;
-          width:100%; flex-shrink:0; min-height:${Math.round(estH)}px;
-        `;
+        wrap.style.minHeight = displayH + "px";
+        wrap.style.display = "flex";
+        wrap.style.justifyContent = "center";
+        wrap.style.alignItems = "flex-start";
+        wrap.style.overflow = "hidden";
       }
       this.scrollEl.appendChild(wrap);
     }
@@ -2914,65 +2903,59 @@ var PdfFullscreenView = class extends ItemView {
       canvas.dataset.pageNum = String(pageNum);
       canvas.width = viewport.width;
       canvas.height = viewport.height;
+      canvas.style.width = displayW + "px";
+      canvas.style.height = displayH + "px";
       if (mode === "continuous") {
-        canvas.style.margin = "0 auto 8px";
-      }
-      if (!zoomedIn) {
-        this._sizeCanvas(canvas, scrollW, scrollH);
+        canvas.style.marginBottom = "8px";
       }
       wrap.appendChild(canvas);
-      if (mode === "continuous") {
-        wrap.style.minHeight = "";
-      }
       await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+      if (scaleLevel > 0 && displayH > scrollH && isSingle) {
+        wrap.scrollTop = Math.max(0, (displayH - scrollH) / 2);
+      }
     };
     try {
       await renderPage(1);
     } catch (e) {
       console.error("[CloudAttach] lazy render page 1:", e);
     }
-    const lazyQueue2 = [];
+    const lazyQueue2 = [], MAX_Q = 3;
     let lazyBusy2 = false;
-    const MAX_QUEUE = 3;
     const processQueue2 = async () => {
       if (lazyBusy2 || lazyQueue2.length === 0)
         return;
       lazyBusy2 = true;
-      const pageNum = lazyQueue2.shift();
+      const n = lazyQueue2.shift();
       try {
         await new Promise((r) => requestAnimationFrame(r));
-        await renderPage(pageNum);
+        await renderPage(n);
       } catch (e) {
-        console.error("[CloudAttach] lazy render page", pageNum, ":", e);
+        console.error("[CloudAttach] lazy render page", n, ":", e);
       }
       lazyBusy2 = false;
       setTimeout(() => processQueue2(), 100);
     };
     this._fullscreenObserver = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          const wrap = entry.target;
-          if (wrap.dataset.rendered)
+      entries.forEach((e) => {
+        if (e.isIntersecting) {
+          const w = e.target;
+          if (w.dataset.rendered)
             return;
-          const pageNum = parseInt(wrap.dataset.pageNum);
-          if (lazyQueue2.length < MAX_QUEUE) {
-            lazyQueue2.push(pageNum);
-          }
+          const n = parseInt(w.dataset.pageNum);
+          if (lazyQueue2.length < MAX_Q)
+            lazyQueue2.push(n);
           processQueue2();
-          this._fullscreenObserver.unobserve(wrap);
+          this._fullscreenObserver.unobserve(w);
         }
       });
     }, { root: this.scrollEl, rootMargin: "300px" });
-    this.scrollEl.querySelectorAll(".cloud-attach-snap-item").forEach((w) => {
-      this._fullscreenObserver.observe(w);
-    });
-    this._bindScroll();
+    this.scrollEl.querySelectorAll(".cloud-attach-snap-item").forEach((w) => this._fullscreenObserver.observe(w));
+    this._bindScroll(displayH, scrollH);
   }
   _reRender() {
     if (!this._pdf)
       return;
     const savedPage = this._currentPage || 1;
-    const savedH = this.scrollEl.clientHeight;
     this.scrollEl.querySelectorAll("canvas").forEach((c) => {
       const ctx = c.getContext("2d");
       if (ctx)
@@ -2984,42 +2967,46 @@ var PdfFullscreenView = class extends ItemView {
     this.scrollEl.scrollTop = 0;
     this.scrollEl.empty();
     requestAnimationFrame(() => {
-      this._renderAllPages(this._viewMode, this._renderScaleLevel, this._zoomMode, savedH).then(() => {
-        this._scrollToPage(savedPage);
-      }).catch((e) => {
-        console.error("[CloudAttach] _reRender error:", e);
-      });
+      this._renderAllPages().then(() => {
+        const h = this.scrollEl.clientHeight;
+        if (this._viewMode === "single" && h > 0) {
+          this.scrollEl.scrollTop = (savedPage - 1) * h;
+        } else {
+          this._scrollToPage(savedPage);
+        }
+      }).catch((e) => console.error("[CloudAttach] _reRender error:", e));
     });
-  }
-  _sizeCanvas(c, maxW, maxH) {
-    if (this._zoomMode === "fit-height") {
-      const tH = Math.min(maxH, c.height);
-      c.style.height = tH + "px";
-      c.style.width = "auto";
-    } else {
-      c.style.width = maxW + "px";
-      c.style.height = "auto";
-    }
   }
   _resizeAllCanvases() {
     if (!this._pdf)
       return;
-    const snaps = this.scrollEl.querySelectorAll(".cloud-attach-snap-item");
     const scrollW = this.scrollEl.clientWidth;
     const scrollH = this.scrollEl.clientHeight;
-    const zoomedIn = this._renderScaleLevel > 1;
-    snaps.forEach((wrap) => {
+    if (!scrollW || !scrollH)
+      return;
+    const displayScale = this._calcScale(this._zoomMode, this._renderScaleLevel);
+    const displayW = Math.round(this._pageW * displayScale);
+    const displayH = Math.round(this._pageH * displayScale);
+    const isSingle = this._viewMode === "single";
+    this.scrollEl.querySelectorAll(".cloud-attach-snap-item").forEach((wrap) => {
       const canvas = wrap.querySelector("canvas");
       if (!canvas)
         return;
-      if (this._viewMode === "single" && !zoomedIn) {
-        wrap.style.minHeight = scrollH + "px";
-      }
-      if (!zoomedIn) {
-        this._sizeCanvas(canvas, scrollW, scrollH);
+      canvas.style.width = displayW + "px";
+      canvas.style.height = displayH + "px";
+      if (isSingle) {
+        wrap.style.height = scrollH + "px";
+        wrap.style.overflow = displayH > scrollH || displayW > scrollW ? "auto" : "hidden";
+        if (this._renderScaleLevel > 0 && displayH > scrollH) {
+          wrap.scrollTop = Math.max(0, (displayH - scrollH) / 2);
+        }
+      } else {
+        wrap.style.minHeight = displayH + "px";
       }
     });
-    this._scrollToPage(this._currentPage || 1);
+    if (isSingle) {
+      this._scrollToPage(this._currentPage || 1);
+    }
   }
   _applyZoom() {
     this._reRender();
@@ -3059,8 +3046,7 @@ var PdfFullscreenView = class extends ItemView {
       wrap.dataset.pageNum = String(i);
       wrap.onclick = () => {
         this._scrollToPage(i);
-        this._thumbnailPanel.querySelectorAll("div[data-page-num]").forEach((d) => d.style.borderColor = "transparent");
-        wrap.style.borderColor = "var(--interactive-accent)";
+        this._highlightThumbnail(i);
       };
       const canvas = wrap.createEl("canvas");
       canvas.style.width = "100%";
@@ -3069,19 +3055,11 @@ var PdfFullscreenView = class extends ItemView {
       canvas.width = viewport.width;
       canvas.height = viewport.height;
       await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
-      const pageNumEl = wrap.createEl("div", { text: String(i) });
-      pageNumEl.style.position = "absolute";
-      pageNumEl.style.bottom = "4px";
-      pageNumEl.style.right = "4px";
-      pageNumEl.style.background = "rgba(var(--background-primary-rgb, 255,255,255), 0.85)";
-      pageNumEl.style.color = "var(--text-muted)";
-      pageNumEl.style.fontSize = "10px";
-      pageNumEl.style.padding = "1px 5px";
-      pageNumEl.style.borderRadius = "8px";
-      pageNumEl.style.boxShadow = "0 1px 2px rgba(0,0,0,0.1)";
+      const label = wrap.createEl("div", { text: String(i) });
+      label.style.cssText = "position:absolute;bottom:4px;right:4px;background:rgba(255,255,255,0.85);color:var(--text-muted);font-size:10px;padding:1px 5px;border-radius:8px;box-shadow:0 1px 2px rgba(0,0,0,0.1)";
     }
   }
-  _bindScroll() {
+  _bindScroll(displayH, scrollH) {
     this.scrollEl.tabIndex = 0;
     this.scrollEl.style.outline = "none";
     this.scrollEl.addEventListener("pointerdown", () => this.scrollEl.focus());
@@ -3101,30 +3079,29 @@ var PdfFullscreenView = class extends ItemView {
     this.scrollEl.onwheel = (e) => {
       if (this._viewMode === "continuous")
         return;
-      if (this._renderScaleLevel <= 1)
-        return;
-      const atTop = this.scrollEl.scrollTop <= 0;
-      const atBottom = this.scrollEl.scrollTop + this.scrollEl.clientHeight >= this.scrollEl.scrollHeight - 2;
-      if (e.deltaY < 0 && atTop || e.deltaY > 0 && atBottom) {
-        e.preventDefault();
-        const newPage = (this._currentPage || 1) + (e.deltaY > 0 ? 1 : -1);
-        const clampedPage = Math.max(1, Math.min(newPage, this._pdf?.numPages || 1));
-        if (clampedPage !== this._currentPage) {
-          this._scrollToPage(clampedPage);
-        }
+      const cur = this._currentPage || 1;
+      const wrap = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${cur}"]`);
+      if (wrap) {
+        const canScrollDown = wrap.scrollTop + wrap.clientHeight < wrap.scrollHeight - 2;
+        const canScrollUp = wrap.scrollTop > 1;
+        if (e.deltaY > 0 && canScrollDown || e.deltaY < 0 && canScrollUp)
+          return;
       }
+      e.preventDefault();
+      const newPage = Math.max(1, Math.min((this._currentPage || 1) + (e.deltaY > 0 ? 1 : -1), this._pdf?.numPages || 1));
+      if (newPage !== (this._currentPage || 1))
+        this._scrollToPage(newPage);
     };
     this.scrollEl.onscroll = () => {
-      if (!this._pdf)
+      if (!this._pdf || this._viewMode !== "continuous")
         return;
       const snaps = this.scrollEl.querySelectorAll(".cloud-attach-snap-item");
       const cr = this.scrollEl.getBoundingClientRect();
-      const ch = cr.height;
       let bestPage = null, bestDist = Infinity;
       for (const s of snaps) {
         const r = s.getBoundingClientRect();
         const top = r.top - cr.top;
-        if (top >= -r.height * 0.5 && top < ch * 0.5 && Math.abs(top) < bestDist) {
+        if (top >= -r.height * 0.5 && top < cr.height * 0.5 && Math.abs(top) < bestDist) {
           bestDist = Math.abs(top);
           bestPage = parseInt(s.dataset.pageNum, 10);
         }
@@ -3142,12 +3119,13 @@ var PdfFullscreenView = class extends ItemView {
     this.pageInput.value = String(pageNum);
     this._currentPage = pageNum;
     this._highlightThumbnail(pageNum);
-    const target = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);
-    if (target) {
-      const scrollRect = this.scrollEl.getBoundingClientRect();
-      const targetRect = target.getBoundingClientRect();
-      const top = targetRect.top - scrollRect.top + this.scrollEl.scrollTop;
-      this.scrollEl.scrollTo({ top: Math.max(0, top - 4), behavior: "smooth" });
+    if (this._viewMode === "single") {
+      this.scrollEl.scrollTop = (pageNum - 1) * this.scrollEl.clientHeight;
+    } else {
+      const target = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);
+      if (target) {
+        this.scrollEl.scrollTo({ top: target.offsetTop - 4, behavior: "smooth" });
+      }
     }
   }
   _highlightThumbnail(pageNum) {
