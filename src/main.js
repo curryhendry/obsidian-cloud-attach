@@ -3061,13 +3061,13 @@ class PdfFullscreenView extends ItemView {
     const isSingle = mode === 'single';
 
     // ---- 重置 scrollEl ----
-    this.scrollEl.style.cssText = `flex:1; min-height:0; background:var(--background-secondary); padding:0;`;
-    if (isSingle) {
-      this.scrollEl.style.overflow = 'hidden';
-    } else {
-      this.scrollEl.style.overflowY = 'auto';
-      this.scrollEl.style.overflowX = 'hidden';
-    }
+    this.scrollEl.style.display = 'block';
+    this.scrollEl.style.flex = '1';
+    this.scrollEl.style.minHeight = '0';
+    this.scrollEl.style.background = 'var(--background-secondary)';
+    this.scrollEl.style.padding = '0';
+    this.scrollEl.style.overflowY = isSingle ? 'hidden' : 'auto';
+    this.scrollEl.style.overflowX = 'hidden';
     this.scrollEl.empty();
 
     // ---- 构建占位 wrap ----
@@ -3230,9 +3230,10 @@ class PdfFullscreenView extends ItemView {
       this._renderThumbnails();
     }
     this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? 'flex' : 'none';
-    // 双 rAF：等缩略图面板 DOM 插入并 layout 完成后，再重新计算主画布尺寸
+    // 完全重渲染：_resizeAllCanvases 只改 CSS 尺寸不改 canvas 像素，比例会失真
+    // 缩略图面板改变 viewport 宽度，canvas 必须用新 renderScale 重新绘制
     requestAnimationFrame(() => {
-      requestAnimationFrame(() => this._resizeAllCanvases());
+      requestAnimationFrame(() => this._reRender());
     });
   }
 
@@ -3280,6 +3281,8 @@ class PdfFullscreenView extends ItemView {
     this.scrollEl.onwheel = (e) => {
       if (this._viewMode === 'continuous') return;
       if (this._wheelThrottle) return;
+      // 忽略水平滚动（触控板横向滑动）
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
       // 单页：翻页。检查当前 wrap 能否内部滚动
       const cur = this._currentPage || 1;
       const wrap = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${cur}"]`);
@@ -3290,8 +3293,10 @@ class PdfFullscreenView extends ItemView {
         if ((e.deltaY > 0 && canScrollDown) || (e.deltaY < 0 && canScrollUp)) return;
       }
       e.preventDefault();
+      e.stopPropagation();
       this._wheelThrottle = true;
-      const newPage = Math.max(1, Math.min((this._currentPage || 1) + (e.deltaY > 0 ? 1 : -1), this._pdf?.numPages || 1));
+      const dir = e.deltaY > 0 ? 1 : -1;
+      const newPage = Math.max(1, Math.min((this._currentPage || 1) + dir, this._pdf?.numPages || 1));
       if (newPage !== (this._currentPage || 1)) this._scrollToPage(newPage);
       setTimeout(() => { this._wheelThrottle = false; }, 300);
     };
@@ -3324,8 +3329,8 @@ class PdfFullscreenView extends ItemView {
     this._highlightThumbnail(pageNum);
 
     if (this._viewMode === 'single') {
-      // 单页：直接跳转（每页高度 = scrollEl.clientHeight）
-      this.scrollEl.scrollTop = (pageNum - 1) * this.scrollEl.clientHeight;
+      // 单页：scrollTo 代替 scrollTop（overflow:hidden 下 scrollTop 可能被忽略）
+      this.scrollEl.scrollTo({ top: (pageNum - 1) * this.scrollEl.clientHeight, behavior: 'instant' });
     } else {
       // 连续：定位到 wrap top
       const target = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);

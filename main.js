@@ -2861,13 +2861,13 @@ var PdfFullscreenView = class extends ItemView {
     const displayH = Math.round(this._pageH * displayScale);
     const renderScale = displayScale * dpr;
     const isSingle = mode === "single";
-    this.scrollEl.style.cssText = `flex:1; min-height:0; background:var(--background-secondary); padding:0;`;
-    if (isSingle) {
-      this.scrollEl.style.overflow = "hidden";
-    } else {
-      this.scrollEl.style.overflowY = "auto";
-      this.scrollEl.style.overflowX = "hidden";
-    }
+    this.scrollEl.style.display = "block";
+    this.scrollEl.style.flex = "1";
+    this.scrollEl.style.minHeight = "0";
+    this.scrollEl.style.background = "var(--background-secondary)";
+    this.scrollEl.style.padding = "0";
+    this.scrollEl.style.overflowY = isSingle ? "hidden" : "auto";
+    this.scrollEl.style.overflowX = "hidden";
     this.scrollEl.empty();
     for (let i = 1; i <= totalPages; i++) {
       const wrap = document.createElement("div");
@@ -3029,7 +3029,7 @@ var PdfFullscreenView = class extends ItemView {
     }
     this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? "flex" : "none";
     requestAnimationFrame(() => {
-      requestAnimationFrame(() => this._resizeAllCanvases());
+      requestAnimationFrame(() => this._reRender());
     });
   }
   async _renderThumbnails() {
@@ -3086,6 +3086,8 @@ var PdfFullscreenView = class extends ItemView {
         return;
       if (this._wheelThrottle)
         return;
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY))
+        return;
       const cur = this._currentPage || 1;
       const wrap = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${cur}"]`);
       if (wrap) {
@@ -3095,8 +3097,10 @@ var PdfFullscreenView = class extends ItemView {
           return;
       }
       e.preventDefault();
+      e.stopPropagation();
       this._wheelThrottle = true;
-      const newPage = Math.max(1, Math.min((this._currentPage || 1) + (e.deltaY > 0 ? 1 : -1), this._pdf?.numPages || 1));
+      const dir = e.deltaY > 0 ? 1 : -1;
+      const newPage = Math.max(1, Math.min((this._currentPage || 1) + dir, this._pdf?.numPages || 1));
       if (newPage !== (this._currentPage || 1))
         this._scrollToPage(newPage);
       setTimeout(() => {
@@ -3131,7 +3135,7 @@ var PdfFullscreenView = class extends ItemView {
     this._currentPage = pageNum;
     this._highlightThumbnail(pageNum);
     if (this._viewMode === "single") {
-      this.scrollEl.scrollTop = (pageNum - 1) * this.scrollEl.clientHeight;
+      this.scrollEl.scrollTo({ top: (pageNum - 1) * this.scrollEl.clientHeight, behavior: "instant" });
     } else {
       const target = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);
       if (target) {
