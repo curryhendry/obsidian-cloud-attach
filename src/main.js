@@ -4955,10 +4955,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
         pagePlaceholders.push(placeholder);
       }
       // IntersectionObserver + 串行队列（一次一页，避免 iOS 并发渲染内存爆炸）
+      const lazyQueue = [];
+      let lazyBusy = false;
+      let processQueue = () => {};
+      let lazyObserver = null;
       if (pagePlaceholders.length > 0) {
-        const lazyQueue = [];
-        let lazyBusy = false;
-        let processQueue = async () => {
+        processQueue = async () => {
           if (lazyBusy || lazyQueue.length === 0) return;
           lazyBusy = true;
           const ph = lazyQueue.shift();
@@ -4971,7 +4973,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
           lazyBusy = false;
           processQueue();
         };
-        const lazyObserver = new IntersectionObserver((entries) => {
+        lazyObserver = new IntersectionObserver((entries) => {
           entries.forEach(entry => {
             if (entry.isIntersecting) {
               const ph = entry.target;
@@ -5030,7 +5032,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       };
       // 切标签回来 container 可能被 Obsidian 重新挂载，observer 失效
       const reconnectObserver = new MutationObserver(() => {
-        if (container.isConnected && !lazyObserver.connected) {
+        if (container.isConnected && lazyObserver && !lazyObserver.connected) {
           lazyObserver.connected = true;
           scrollArea.querySelectorAll('.cloudattach-pdf-placeholder:not([data-rendered])').forEach(ph => {
             lazyObserver.observe(ph);

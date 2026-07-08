@@ -2921,21 +2921,21 @@ var PdfFullscreenView = class extends ItemView {
     } catch (e) {
       console.error("[CloudAttach] lazy render page 1:", e);
     }
-    const lazyQueue2 = [], MAX_Q = 3;
-    let lazyBusy2 = false;
-    const processQueue2 = async () => {
-      if (lazyBusy2 || lazyQueue2.length === 0)
+    const lazyQueue = [], MAX_Q = 3;
+    let lazyBusy = false;
+    const processQueue = async () => {
+      if (lazyBusy || lazyQueue.length === 0)
         return;
-      lazyBusy2 = true;
-      const n = lazyQueue2.shift();
+      lazyBusy = true;
+      const n = lazyQueue.shift();
       try {
         await new Promise((r) => requestAnimationFrame(r));
         await renderPage(n);
       } catch (e) {
         console.error("[CloudAttach] lazy render page", n, ":", e);
       }
-      lazyBusy2 = false;
-      setTimeout(() => processQueue2(), 100);
+      lazyBusy = false;
+      setTimeout(() => processQueue(), 100);
     };
     this._fullscreenObserver = new IntersectionObserver((entries) => {
       entries.forEach((e) => {
@@ -2944,9 +2944,9 @@ var PdfFullscreenView = class extends ItemView {
           if (w.dataset.rendered)
             return;
           const n = parseInt(w.dataset.pageNum);
-          if (lazyQueue2.length < MAX_Q)
-            lazyQueue2.push(n);
-          processQueue2();
+          if (lazyQueue.length < MAX_Q)
+            lazyQueue.push(n);
+          processQueue();
           this._fullscreenObserver.unobserve(w);
         }
       });
@@ -4714,40 +4714,43 @@ module.exports = class CloudAttachPlugin extends Plugin {
           scrollArea.appendChild(placeholder);
           pagePlaceholders.push(placeholder);
         }
+        const lazyQueue = [];
+        let lazyBusy = false;
+        let processQueue = () => {
+        };
+        let lazyObserver = null;
         if (pagePlaceholders.length > 0) {
-          const lazyQueue2 = [];
-          let lazyBusy2 = false;
-          let processQueue2 = async () => {
-            if (lazyBusy2 || lazyQueue2.length === 0)
+          processQueue = async () => {
+            if (lazyBusy || lazyQueue.length === 0)
               return;
-            lazyBusy2 = true;
-            const ph = lazyQueue2.shift();
+            lazyBusy = true;
+            const ph = lazyQueue.shift();
             const pageNum = parseInt(ph.dataset.pageNum);
             try {
               await this._renderLazyPage(ph, pdf, pageNum, FIXED_SCALE, containerW);
             } catch (e) {
               console.error("[CloudAttach] lazy page render failed:", e);
             }
-            lazyBusy2 = false;
-            processQueue2();
+            lazyBusy = false;
+            processQueue();
           };
-          const lazyObserver2 = new IntersectionObserver((entries) => {
+          lazyObserver = new IntersectionObserver((entries) => {
             entries.forEach((entry) => {
               if (entry.isIntersecting) {
                 const ph = entry.target;
                 if (ph.dataset.rendered)
                   return;
                 ph.dataset.rendered = "true";
-                lazyQueue2.push(ph);
-                processQueue2();
-                lazyObserver2.unobserve(ph);
+                lazyQueue.push(ph);
+                processQueue();
+                lazyObserver.unobserve(ph);
               }
             });
           }, { root: scrollArea, rootMargin: "200px" });
-          pagePlaceholders.forEach((ph) => lazyObserver2.observe(ph));
+          pagePlaceholders.forEach((ph) => lazyObserver.observe(ph));
           if (!this._pdfLazyObservers)
             this._pdfLazyObservers = /* @__PURE__ */ new Set();
-          this._pdfLazyObservers.add(lazyObserver2);
+          this._pdfLazyObservers.add(lazyObserver);
         }
         scrollArea.addEventListener("scroll", () => {
           const unreached = scrollArea.querySelectorAll(".cloudattach-pdf-placeholder:not([data-rendered])");
@@ -4789,7 +4792,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
           await origProcessQueue();
         };
         const reconnectObserver = new MutationObserver(() => {
-          if (container.isConnected && !lazyObserver.connected) {
+          if (container.isConnected && lazyObserver && !lazyObserver.connected) {
             lazyObserver.connected = true;
             scrollArea.querySelectorAll(".cloudattach-pdf-placeholder:not([data-rendered])").forEach((ph) => {
               lazyObserver.observe(ph);
