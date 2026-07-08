@@ -2916,6 +2916,11 @@ var PdfFullscreenView = class extends ItemView {
         wrap.scrollTop = Math.max(0, (displayH - scrollH) / 2);
       }
     };
+    if (isSingle) {
+      this.scrollEl.querySelectorAll(".cloud-attach-snap-item").forEach((w, idx) => {
+        w.style.display = idx === 0 ? "flex" : "none";
+      });
+    }
     try {
       await renderPage(1);
     } catch (e) {
@@ -3131,7 +3136,9 @@ var PdfFullscreenView = class extends ItemView {
     this._currentPage = pageNum;
     this._highlightThumbnail(pageNum);
     if (this._viewMode === "single") {
-      this.scrollEl.scrollTo({ top: (pageNum - 1) * this.scrollEl.clientHeight, behavior: "instant" });
+      this.scrollEl.querySelectorAll(".cloud-attach-snap-item").forEach((w, idx) => {
+        w.style.display = idx === pageNum - 1 ? "flex" : "none";
+      });
     } else {
       const target = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);
       if (target) {

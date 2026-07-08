@@ -3126,6 +3126,13 @@ class PdfFullscreenView extends ItemView {
       }
     };
 
+    // ---- 单页模式：首页显示，其余隐藏 ----
+    if (isSingle) {
+      this.scrollEl.querySelectorAll('.cloud-attach-snap-item').forEach((w, idx) => {
+        w.style.display = (idx === 0) ? 'flex' : 'none';
+      });
+    }
+
     // ---- 渲染首页 ----
     try { await renderPage(1); } catch (e) { console.error('[CloudAttach] lazy render page 1:', e); }
 
@@ -3326,8 +3333,10 @@ class PdfFullscreenView extends ItemView {
     this._highlightThumbnail(pageNum);
 
     if (this._viewMode === 'single') {
-      // 单页：scrollTo 代替 scrollTop（overflow:hidden 下 scrollTop 可能被忽略）
-      this.scrollEl.scrollTo({ top: (pageNum - 1) * this.scrollEl.clientHeight, behavior: 'instant' });
+      // 单页：显示/隐藏 wrap（overflow:hidden 下 scrollTo 不可靠）
+      this.scrollEl.querySelectorAll('.cloud-attach-snap-item').forEach((w, idx) => {
+        w.style.display = (idx === pageNum - 1) ? 'flex' : 'none';
+      });
     } else {
       // 连续：定位到 wrap top
       const target = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);
