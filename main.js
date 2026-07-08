@@ -2966,17 +2966,13 @@ var PdfFullscreenView = class extends ItemView {
       c.height = 0;
       c.remove();
     });
-    this.scrollEl.scrollTop = 0;
     this.scrollEl.empty();
     requestAnimationFrame(() => {
-      this._renderAllPages().then(() => {
-        const h = this.scrollEl.clientHeight;
-        if (this._viewMode === "single" && h > 0) {
-          this.scrollEl.scrollTop = (savedPage - 1) * h;
-        } else {
+      requestAnimationFrame(() => {
+        this._renderAllPages().then(() => {
           this._scrollToPage(savedPage);
-        }
-      }).catch((e) => console.error("[CloudAttach] _reRender error:", e));
+        }).catch((e) => console.error("[CloudAttach] _reRender error:", e));
+      });
     });
   }
   _resizeAllCanvases() {
@@ -3081,7 +3077,7 @@ var PdfFullscreenView = class extends ItemView {
       }
     };
     this._wheelThrottle = false;
-    this.scrollEl.onwheel = (e) => {
+    this.scrollEl.addEventListener("wheel", (e) => {
       if (this._viewMode === "continuous")
         return;
       if (this._wheelThrottle)
@@ -3106,7 +3102,7 @@ var PdfFullscreenView = class extends ItemView {
       setTimeout(() => {
         this._wheelThrottle = false;
       }, 300);
-    };
+    }, { passive: false });
     this.scrollEl.onscroll = () => {
       if (!this._pdf || this._viewMode !== "continuous")
         return;

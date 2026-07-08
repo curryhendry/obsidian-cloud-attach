@@ -3167,17 +3167,14 @@ class PdfFullscreenView extends ItemView {
       const ctx = c.getContext('2d'); if (ctx) ctx.clearRect(0, 0, c.width, c.height);
       c.width = 0; c.height = 0; c.remove();
     });
-    this.scrollEl.scrollTop = 0;
     this.scrollEl.empty();
+    // 双 rAF 等缩略图面板展开/切换后 layout 完成再渲染（clientWidth 变化）
     requestAnimationFrame(() => {
-      this._renderAllPages().then(() => {
-        const h = this.scrollEl.clientHeight;
-        if (this._viewMode === 'single' && h > 0) {
-          this.scrollEl.scrollTop = (savedPage - 1) * h;
-        } else {
+      requestAnimationFrame(() => {
+        this._renderAllPages().then(() => {
           this._scrollToPage(savedPage);
-        }
-      }).catch(e => console.error('[CloudAttach] _reRender error:', e));
+        }).catch(e => console.error('[CloudAttach] _reRender error:', e));
+      });
     });
   }
 
@@ -3278,7 +3275,7 @@ class PdfFullscreenView extends ItemView {
 
     // 滚轮：单页翻页（规则4: Y 轴滚动不触发翻页——翻页靠 scrollEl 整体翻，wrap 内部滚动不管）
     this._wheelThrottle = false;
-    this.scrollEl.onwheel = (e) => {
+    this.scrollEl.addEventListener('wheel', (e) => {
       if (this._viewMode === 'continuous') return;
       if (this._wheelThrottle) return;
       // 忽略水平滚动（触控板横向滑动）
@@ -3299,7 +3296,7 @@ class PdfFullscreenView extends ItemView {
       const newPage = Math.max(1, Math.min((this._currentPage || 1) + dir, this._pdf?.numPages || 1));
       if (newPage !== (this._currentPage || 1)) this._scrollToPage(newPage);
       setTimeout(() => { this._wheelThrottle = false; }, 300);
-    };
+    }, { passive: false });
 
     // 页码跟踪 — 仅连续模式（单页 overflow:hidden 不会触发 scroll）
     this.scrollEl.onscroll = () => {
