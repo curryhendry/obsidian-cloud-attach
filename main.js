@@ -2965,8 +2965,12 @@ var PdfFullscreenView = class extends ItemView {
     this.scrollEl.querySelectorAll(".cloud-attach-snap-item").forEach((w) => this._fullscreenObserver.observe(w));
     this._bindScroll(displayH, scrollH);
     console.log("[CloudAttach] _renderAllPages done totalPages=", totalPages, "displayW=", displayW, "displayH=", displayH);
+    void this.scrollEl.offsetHeight;
     requestAnimationFrame(() => {
-      this.scrollEl.style.transform = "translateZ(0)";
+      this.scrollEl.style.transform = "scale(1.0001)";
+    });
+    requestAnimationFrame(() => {
+      this.scrollEl.style.transform = "scale(1)";
     });
     requestAnimationFrame(() => {
       this.scrollEl.style.transform = "";

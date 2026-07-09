@@ -3169,9 +3169,11 @@ class PdfFullscreenView extends ItemView {
 
     this._bindScroll(displayH, scrollH);
     console.log('[CloudAttach] _renderAllPages done totalPages=', totalPages, 'displayW=', displayW, 'displayH=', displayH);
-    // 强制合成器重绘：Electron/Chromium 已知 bug，canvas 渲染完但 GPU 不提交帧，
-    // 直到 visibility change（切换桌面）才 flush。读 offsetHeight + rAF 强制 layout→paint 链路。
-    requestAnimationFrame(() => { this.scrollEl.style.transform = 'translateZ(0)'; });
+    // 强制合成器重绘：Electron/Chromium canvas GPU 提交 bug——渲染完不 composite，
+    // 直到 visibility change（切换桌面）才 flush。scale 变形不可优化，三次 rAF 强制 layout→paint→composite。
+    void this.scrollEl.offsetHeight;
+    requestAnimationFrame(() => { this.scrollEl.style.transform = 'scale(1.0001)'; });
+    requestAnimationFrame(() => { this.scrollEl.style.transform = 'scale(1)'; });
     requestAnimationFrame(() => { this.scrollEl.style.transform = ''; });
   }
 
