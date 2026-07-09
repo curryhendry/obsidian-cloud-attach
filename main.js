@@ -2918,6 +2918,7 @@ var PdfFullscreenView = class extends ItemView {
       }
       wrap.appendChild(canvas);
       await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+      canvas.getContext("2d").getImageData(0, 0, 1, 1);
       if (scaleLevel > 0 && displayH > scrollH && isSingle) {
         wrap.scrollTop = Math.max(0, (displayH - scrollH) / 2);
       }

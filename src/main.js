@@ -3124,6 +3124,9 @@ class PdfFullscreenView extends ItemView {
       }
       wrap.appendChild(canvas);
       await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+      // 强制 GPU flush：Chromium bug 导致 canvas 渲染完不提交帧需切换桌面才显示
+      // getImageData 读回 1px 强制 GPU 完成渲染并提交像素到合成器
+      canvas.getContext('2d').getImageData(0, 0, 1, 1);
 
       // 手动缩放时：初始 Y 居中（规则3）
       if (scaleLevel > 0 && displayH > scrollH && isSingle) {
