@@ -3092,10 +3092,10 @@ class PdfFullscreenView extends ItemView {
         wrap.style.overflow = (displayH > scrollH || displayW > scrollW) ? 'auto' : 'hidden';
       } else {
         wrap.style.minHeight = displayH + 'px';
+        wrap.style.minWidth = displayW + 'px';
         wrap.style.display = 'flex';
-        wrap.style.justifyContent = 'center'; // 规则6: X 始终居中
+        wrap.style.justifyContent = 'center';
         wrap.style.alignItems = 'flex-start';
-        wrap.style.overflow = 'hidden';
       }
       this.scrollEl.appendChild(wrap);
     }
