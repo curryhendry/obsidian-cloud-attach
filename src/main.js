@@ -3067,7 +3067,8 @@ class PdfFullscreenView extends ItemView {
     this.scrollEl.style.background = 'var(--background-secondary)';
     this.scrollEl.style.padding = '0';
     this.scrollEl.style.overflowY = 'auto';
-    this.scrollEl.style.overflowX = 'hidden';
+    this.scrollEl.style.overflowX = isSingle ? 'hidden' : 'auto';
+    this.scrollEl.style.WebkitOverflowScrolling = 'touch'; // iOS 必须
     this.scrollEl.style.scrollSnapType = isSingle ? 'y mandatory' : 'none';
     this.scrollEl.onscroll = null; // 解绑旧监听
     this.scrollEl.onwheel = null;  // 解绑旧监听
