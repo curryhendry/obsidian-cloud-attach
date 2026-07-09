@@ -1,4 +1,4 @@
-## v0.4.334.dev - 2026-07-09
+## v0.4.335.dev - 2026-07-09
 - 修复：内联 PDF width 检测为空（`_renderPdfAsCanvas`）— `imgEl.offsetWidth` 兜底
 - 修复：`processQueue is not defined` — `const` 改 `let` 允许后续包装
 - 修复：内联 PDF `containerW` 为 0 导致后续页面不加载 — 加固兜底 800
