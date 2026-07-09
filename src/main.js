@@ -3066,9 +3066,9 @@ class PdfFullscreenView extends ItemView {
     this.scrollEl.style.minHeight = '0';
     this.scrollEl.style.background = 'var(--background-secondary)';
     this.scrollEl.style.padding = '0';
-    this.scrollEl.style.overflowY = isSingle ? 'hidden' : 'auto';
+    this.scrollEl.style.overflowY = 'auto';
     this.scrollEl.style.overflowX = 'hidden';
-    this.scrollEl.style.position = isSingle ? 'relative' : '';
+    this.scrollEl.style.scrollSnapType = isSingle ? 'y mandatory' : 'none';
     this.scrollEl.onscroll = null; // 解绑旧监听
     this.scrollEl.onwheel = null;  // 解绑旧监听
     this.scrollEl.scrollTop = 0;
@@ -3083,13 +3083,8 @@ class PdfFullscreenView extends ItemView {
       wrap.style.flexShrink = '0';
       wrap.style.width = '100%';
       if (isSingle) {
-        wrap.style.position = 'absolute';
-        wrap.style.top = '0';
-        wrap.style.left = '0';
-        wrap.style.width = '100%';
-        wrap.style.height = '100%';
-        wrap.style.transition = 'opacity 0.25s ease';
-        // canvas < 屏幕则整体居中（规则5）；canvas > 屏幕则内部可滚动
+        wrap.style.height = (scrollH || 600) + 'px';
+        wrap.style.scrollSnapAlign = 'start';
         wrap.style.display = 'flex';
         wrap.style.alignItems = 'center';
         wrap.style.justifyContent = 'center';
@@ -3134,15 +3129,6 @@ class PdfFullscreenView extends ItemView {
         wrap.scrollTop = Math.max(0, (displayH - scrollH) / 2);
       }
     };
-
-    // ---- 单页模式：首页显示，其余淡出 ----
-    if (isSingle) {
-      this.scrollEl.querySelectorAll('.cloud-attach-snap-item').forEach((w, idx) => {
-        const show = idx === 0;
-        w.style.opacity = show ? '1' : '0';
-        w.style.pointerEvents = show ? 'auto' : 'none';
-      });
-    }
 
     // ---- 渲染首页 ----
     try { await renderPage(1); } catch (e) { console.error('[CloudAttach] lazy render page 1:', e); }
@@ -3288,9 +3274,14 @@ class PdfFullscreenView extends ItemView {
     this._onPointerDown = () => this.scrollEl.focus();
     this.scrollEl.addEventListener('pointerdown', this._onPointerDown);
 
-    // 键盘：单页翻页
+    // 滚轮：单页 scroll-snap 由浏览器原生处理，不需要手动拦截
+    if (this._onWheel) {
+      this._contentWrap.removeEventListener('wheel', this._onWheel);
+      this._onWheel = null;
+    }
+
+    // 键盘翻页（单页 & 连续通用）
     this.scrollEl.onkeydown = (e) => {
-      if (this._viewMode === 'continuous') return;
       if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
         e.preventDefault(); e.stopPropagation();
         const cur = this._currentPage || 1;
@@ -3300,29 +3291,9 @@ class PdfFullscreenView extends ItemView {
       }
     };
 
-    // 滚轮：单页翻页 — 事件挂在 _contentWrap 而非 scrollEl
-    // scrollEl 单页模式下 overflow:hidden，浏览器可能不向其投递 wheel 事件
-    this._wheelThrottle = false;
-    if (this._onWheel) this._contentWrap.removeEventListener('wheel', this._onWheel);
-    this._onWheel = (e) => {
-      if (this._viewMode === 'continuous') return;
-      if (this._wheelThrottle) return;
-      // 忽略水平滚动 + 对角线小幅度（触控板横向滑动）
-      if (Math.abs(e.deltaX) > Math.abs(e.deltaY) * 0.8) return;
-      if (Math.abs(e.deltaY) < 10) return;
-      e.preventDefault();
-      e.stopPropagation();
-      this._wheelThrottle = true;
-      const dir = e.deltaY > 0 ? 1 : -1;
-      const newPage = Math.max(1, Math.min((this._currentPage || 1) + dir, this._pdf?.numPages || 1));
-      if (newPage !== (this._currentPage || 1)) this._scrollToPage(newPage);
-      setTimeout(() => { this._wheelThrottle = false; }, 300);
-    };
-    this._contentWrap.addEventListener('wheel', this._onWheel, { passive: false });
-
-    // 页码跟踪 — 仅连续模式（单页 overflow:hidden 不会触发 scroll）
+    // 页码跟踪（通用）
     this.scrollEl.onscroll = () => {
-      if (!this._pdf || this._viewMode !== 'continuous') return;
+      if (!this._pdf) return;
       const snaps = this.scrollEl.querySelectorAll('.cloud-attach-snap-item');
       const cr = this.scrollEl.getBoundingClientRect();
       let bestPage = null, bestDist = Infinity;
@@ -3349,17 +3320,12 @@ class PdfFullscreenView extends ItemView {
     this._highlightThumbnail(pageNum);
 
     if (this._viewMode === 'single') {
-      // 单页：淡入目标 wrap + 懒渲染
-      this.scrollEl.querySelectorAll('.cloud-attach-snap-item').forEach((w, idx) => {
-        const show = idx === pageNum - 1;
-        w.style.opacity = show ? '1' : '0';
-        w.style.pointerEvents = show ? 'auto' : 'none';
-      });
-      // 触发懒渲染（若该页未渲染则加入队列）
+      // scroll-snap: 直接 scrollTop 定位，浏览器自动吸附到目标页
       const wrap = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);
       if (wrap && !wrap.dataset.rendered) {
         if (this._lazyQueueAdd) this._lazyQueueAdd(pageNum);
       }
+      this.scrollEl.scrollTo({ top: (pageNum - 1) * this.scrollEl.clientHeight, behavior: 'smooth' });
     } else {
       // 连续：定位到 wrap top
       const target = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);
