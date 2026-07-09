@@ -3300,23 +3300,16 @@ class PdfFullscreenView extends ItemView {
       }
     };
 
-    // 滚轮：单页翻页
+    // 滚轮：单页翻页 — 事件挂在 _contentWrap 而非 scrollEl
+    // scrollEl 单页模式下 overflow:hidden，浏览器可能不向其投递 wheel 事件
     this._wheelThrottle = false;
-    if (this._onWheel) this.scrollEl.removeEventListener('wheel', this._onWheel);
+    if (this._onWheel) this._contentWrap.removeEventListener('wheel', this._onWheel);
     this._onWheel = (e) => {
       if (this._viewMode === 'continuous') return;
       if (this._wheelThrottle) return;
-      // 忽略水平滚动（触控板横向滑动）
-      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
-      // 单页：翻页。检查当前 wrap 能否内部滚动
-      const cur = this._currentPage || 1;
-      const wrap = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${cur}"]`);
-      if (wrap) {
-        const canScrollDown = wrap.scrollTop + wrap.clientHeight < wrap.scrollHeight - 2;
-        const canScrollUp = wrap.scrollTop > 1;
-        // wrap 内部还有滚动空间，且用户滚向那个方向 → 不翻页
-        if ((e.deltaY > 0 && canScrollDown) || (e.deltaY < 0 && canScrollUp)) return;
-      }
+      // 忽略水平滚动 + 对角线小幅度（触控板横向滑动）
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY) * 0.8) return;
+      if (Math.abs(e.deltaY) < 10) return;
       e.preventDefault();
       e.stopPropagation();
       this._wheelThrottle = true;
@@ -3325,7 +3318,7 @@ class PdfFullscreenView extends ItemView {
       if (newPage !== (this._currentPage || 1)) this._scrollToPage(newPage);
       setTimeout(() => { this._wheelThrottle = false; }, 300);
     };
-    this.scrollEl.addEventListener('wheel', this._onWheel, { passive: false });
+    this._contentWrap.addEventListener('wheel', this._onWheel, { passive: false });
 
     // 页码跟踪 — 仅连续模式（单页 overflow:hidden 不会触发 scroll）
     this.scrollEl.onscroll = () => {
@@ -3375,6 +3368,10 @@ class PdfFullscreenView extends ItemView {
         const tr = target.getBoundingClientRect();
         const top = tr.top - sr.top + this.scrollEl.scrollTop;
         this.scrollEl.scrollTo({ top, behavior: 'smooth' });
+        // 触发懒渲染：跳远页时 wrap 可能不在视口，observer 来不及
+        if (!target.dataset.rendered && this._lazyQueueAdd) {
+          this._lazyQueueAdd(pageNum);
+        }
       }
     }
   }

@@ -3104,22 +3104,16 @@ var PdfFullscreenView = class extends ItemView {
     };
     this._wheelThrottle = false;
     if (this._onWheel)
-      this.scrollEl.removeEventListener("wheel", this._onWheel);
+      this._contentWrap.removeEventListener("wheel", this._onWheel);
     this._onWheel = (e) => {
       if (this._viewMode === "continuous")
         return;
       if (this._wheelThrottle)
         return;
-      if (Math.abs(e.deltaX) > Math.abs(e.deltaY))
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY) * 0.8)
         return;
-      const cur = this._currentPage || 1;
-      const wrap = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${cur}"]`);
-      if (wrap) {
-        const canScrollDown = wrap.scrollTop + wrap.clientHeight < wrap.scrollHeight - 2;
-        const canScrollUp = wrap.scrollTop > 1;
-        if (e.deltaY > 0 && canScrollDown || e.deltaY < 0 && canScrollUp)
-          return;
-      }
+      if (Math.abs(e.deltaY) < 10)
+        return;
       e.preventDefault();
       e.stopPropagation();
       this._wheelThrottle = true;
@@ -3131,7 +3125,7 @@ var PdfFullscreenView = class extends ItemView {
         this._wheelThrottle = false;
       }, 300);
     };
-    this.scrollEl.addEventListener("wheel", this._onWheel, { passive: false });
+    this._contentWrap.addEventListener("wheel", this._onWheel, { passive: false });
     this.scrollEl.onscroll = () => {
       if (!this._pdf || this._viewMode !== "continuous")
         return;
@@ -3178,6 +3172,9 @@ var PdfFullscreenView = class extends ItemView {
         const tr = target.getBoundingClientRect();
         const top = tr.top - sr.top + this.scrollEl.scrollTop;
         this.scrollEl.scrollTo({ top, behavior: "smooth" });
+        if (!target.dataset.rendered && this._lazyQueueAdd) {
+          this._lazyQueueAdd(pageNum);
+        }
       }
     }
   }
