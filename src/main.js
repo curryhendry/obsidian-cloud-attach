@@ -3062,8 +3062,7 @@ class PdfFullscreenView extends ItemView {
     const isSingle = mode === 'single';
 
     // ---- 重置 scrollEl ----
-    this.scrollEl.style.display = 'block';
-    this.scrollEl.style.flex = '1';
+    this.scrollEl.style.display = '';
     this.scrollEl.style.minHeight = '0';
     this.scrollEl.style.background = 'var(--background-secondary)';
     this.scrollEl.style.padding = '0';
@@ -3285,7 +3284,9 @@ class PdfFullscreenView extends ItemView {
   _bindScroll(displayH, scrollH) {
     this.scrollEl.tabIndex = 0;
     this.scrollEl.style.outline = 'none';
-    this.scrollEl.addEventListener('pointerdown', () => this.scrollEl.focus());
+    if (this._onPointerDown) this.scrollEl.removeEventListener('pointerdown', this._onPointerDown);
+    this._onPointerDown = () => this.scrollEl.focus();
+    this.scrollEl.addEventListener('pointerdown', this._onPointerDown);
 
     // 键盘：单页翻页
     this.scrollEl.onkeydown = (e) => {
@@ -3299,9 +3300,10 @@ class PdfFullscreenView extends ItemView {
       }
     };
 
-    // 滚轮：单页翻页（规则4: Y 轴滚动不触发翻页——翻页靠 scrollEl 整体翻，wrap 内部滚动不管）
+    // 滚轮：单页翻页
     this._wheelThrottle = false;
-    this.scrollEl.addEventListener('wheel', (e) => {
+    if (this._onWheel) this.scrollEl.removeEventListener('wheel', this._onWheel);
+    this._onWheel = (e) => {
       if (this._viewMode === 'continuous') return;
       if (this._wheelThrottle) return;
       // 忽略水平滚动（触控板横向滑动）
@@ -3322,7 +3324,8 @@ class PdfFullscreenView extends ItemView {
       const newPage = Math.max(1, Math.min((this._currentPage || 1) + dir, this._pdf?.numPages || 1));
       if (newPage !== (this._currentPage || 1)) this._scrollToPage(newPage);
       setTimeout(() => { this._wheelThrottle = false; }, 300);
-    }, { passive: false });
+    };
+    this.scrollEl.addEventListener('wheel', this._onWheel, { passive: false });
 
     // 页码跟踪 — 仅连续模式（单页 overflow:hidden 不会触发 scroll）
     this.scrollEl.onscroll = () => {
@@ -3368,7 +3371,10 @@ class PdfFullscreenView extends ItemView {
       // 连续：定位到 wrap top
       const target = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);
       if (target) {
-        this.scrollEl.scrollTo({ top: target.offsetTop - 4, behavior: 'smooth' });
+        const sr = this.scrollEl.getBoundingClientRect();
+        const tr = target.getBoundingClientRect();
+        const top = tr.top - sr.top + this.scrollEl.scrollTop;
+        this.scrollEl.scrollTo({ top, behavior: 'smooth' });
       }
     }
   }

@@ -2862,8 +2862,7 @@ var PdfFullscreenView = class extends ItemView {
     const displayH = Math.round(this._pageH * displayScale);
     const renderScale = displayScale * dpr;
     const isSingle = mode === "single";
-    this.scrollEl.style.display = "block";
-    this.scrollEl.style.flex = "1";
+    this.scrollEl.style.display = "";
     this.scrollEl.style.minHeight = "0";
     this.scrollEl.style.background = "var(--background-secondary)";
     this.scrollEl.style.padding = "0";
@@ -3086,7 +3085,10 @@ var PdfFullscreenView = class extends ItemView {
   _bindScroll(displayH, scrollH) {
     this.scrollEl.tabIndex = 0;
     this.scrollEl.style.outline = "none";
-    this.scrollEl.addEventListener("pointerdown", () => this.scrollEl.focus());
+    if (this._onPointerDown)
+      this.scrollEl.removeEventListener("pointerdown", this._onPointerDown);
+    this._onPointerDown = () => this.scrollEl.focus();
+    this.scrollEl.addEventListener("pointerdown", this._onPointerDown);
     this.scrollEl.onkeydown = (e) => {
       if (this._viewMode === "continuous")
         return;
@@ -3101,7 +3103,9 @@ var PdfFullscreenView = class extends ItemView {
       }
     };
     this._wheelThrottle = false;
-    this.scrollEl.addEventListener("wheel", (e) => {
+    if (this._onWheel)
+      this.scrollEl.removeEventListener("wheel", this._onWheel);
+    this._onWheel = (e) => {
       if (this._viewMode === "continuous")
         return;
       if (this._wheelThrottle)
@@ -3126,7 +3130,8 @@ var PdfFullscreenView = class extends ItemView {
       setTimeout(() => {
         this._wheelThrottle = false;
       }, 300);
-    }, { passive: false });
+    };
+    this.scrollEl.addEventListener("wheel", this._onWheel, { passive: false });
     this.scrollEl.onscroll = () => {
       if (!this._pdf || this._viewMode !== "continuous")
         return;
@@ -3169,7 +3174,10 @@ var PdfFullscreenView = class extends ItemView {
     } else {
       const target = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);
       if (target) {
-        this.scrollEl.scrollTo({ top: target.offsetTop - 4, behavior: "smooth" });
+        const sr = this.scrollEl.getBoundingClientRect();
+        const tr = target.getBoundingClientRect();
+        const top = tr.top - sr.top + this.scrollEl.scrollTop;
+        this.scrollEl.scrollTo({ top, behavior: "smooth" });
       }
     }
   }
