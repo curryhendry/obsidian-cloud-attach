@@ -3172,6 +3172,15 @@ class PdfFullscreenView extends ItemView {
 
     this._bindScroll(displayH, scrollH);
     console.log('[CloudAttach] _renderAllPages done totalPages=', totalPages, 'displayW=', displayW, 'displayH=', displayH);
+    // 强制合成器重绘：Chromium GPU 提交 bug，需切换桌面才显示。
+    // detach 一个已渲染的 wrap → reflow → re-attach 模拟合成树重建。
+    const firstWrap = this.scrollEl.firstElementChild;
+    if (firstWrap) {
+      const next = firstWrap.nextSibling;
+      this.scrollEl.removeChild(firstWrap);
+      void this.scrollEl.offsetHeight;
+      this.scrollEl.insertBefore(firstWrap, next);
+    }
   }
 
   _reRender() {
