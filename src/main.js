@@ -3034,10 +3034,11 @@ class PdfFullscreenView extends ItemView {
     return zoomMode === 'fit-width' ? w / this._pageW : h / this._pageH;
   }
 
+  // ---- 全量同步渲染：全部 canvas 先入 DOM → 并行 render ----
+  // 懒加载/Observer 会导致 Chromium GPU 不提交帧（白屏），必须全量入 DOM
   async _renderAllPages() {
     if (!this._pdf) return;
-    console.log('[CloudAttach] _renderAllPages mode=', this._viewMode, 'scrollW=', this.scrollEl.clientWidth, 'scrollH=', this.scrollEl.clientHeight);
-    this._fullscreenObserver?.disconnect(); this._fullscreenObserver = null;
+    console.log('[CloudAttach] _renderAllPages mode=', this._viewMode, 'scrollW=', this.scrollEl?.clientWidth, 'scrollH=', this.scrollEl?.clientHeight);
 
     const totalPages = this._pdf.numPages;
     const pg = await this._pdf.getPage(1);
@@ -3049,128 +3050,81 @@ class PdfFullscreenView extends ItemView {
     const scaleLevel = this._renderScaleLevel;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
-    // 先行取值 scrollW/scrollH 传给 _calcScale，避免内部重复取值差一帧
     const scrollW = this.scrollEl.clientWidth || this.containerEl.clientWidth || 800;
     const scrollH = this.scrollEl.clientHeight || this.containerEl.clientHeight || 600;
-
-    // CSS 显示尺寸
     const displayScale = this._calcScale(zoomMode, scaleLevel, scrollW, scrollH);
     const displayW = Math.round(this._pageW * displayScale);
     const displayH = Math.round(this._pageH * displayScale);
-    // canvas 像素
     const renderScale = displayScale * dpr;
     const isSingle = mode === 'single';
 
     // ---- 重置 scrollEl ----
-    this.scrollEl.style.display = '';
-    this.scrollEl.style.minHeight = '0';
-    this.scrollEl.style.background = 'var(--background-secondary)';
-    this.scrollEl.style.padding = '0';
-    this.scrollEl.style.overflowY = 'auto';
-    this.scrollEl.style.overflowX = isSingle ? 'hidden' : 'auto';
-    this.scrollEl.style.WebkitOverflowScrolling = 'touch'; // iOS 必须
-    this.scrollEl.style.scrollSnapType = isSingle ? 'y mandatory' : 'none';
-    this.scrollEl.onscroll = null; // 解绑旧监听
-    this.scrollEl.onwheel = null;  // 解绑旧监听
+    this.scrollEl.style.cssText = `
+      flex:1; min-height:0; overflow-y:auto;
+      overflow-x:${isSingle ? 'hidden' : 'auto'};
+      -webkit-overflow-scrolling:touch;
+      background:var(--background-secondary); padding:0;
+      scroll-snap-type:${isSingle ? 'y mandatory' : 'none'};
+    `;
+    this.scrollEl.onscroll = null;
+    this.scrollEl.onwheel = null;
     this.scrollEl.scrollTop = 0;
     this.scrollEl.empty();
 
-    // ---- 构建占位 wrap ----
+    // ---- 全部 canvas 先入 DOM，再并行渲染（Chromium 需完整 DOM 才提交合成帧）----
+    const renderTasks = [];
     for (let i = 1; i <= totalPages; i++) {
+      const page = await this._pdf.getPage(i);
+      const viewport = page.getViewport({ scale: renderScale });
+
       const wrap = document.createElement('div');
       wrap.className = 'cloud-attach-snap-item';
       wrap.dataset.pageNum = String(i);
       wrap.style.position = 'relative';
-      wrap.style.flexShrink = '0';
-      wrap.style.width = '100%';
-      if (isSingle) {
-        wrap.style.height = (scrollH || 600) + 'px';
-        wrap.style.scrollSnapAlign = 'start';
-        wrap.style.display = 'flex';
-        wrap.style.alignItems = 'center';
-        wrap.style.justifyContent = 'center';
-        wrap.style.overflow = (displayH > scrollH || displayW > scrollW) ? 'auto' : 'hidden';
-      } else {
-        wrap.style.minHeight = displayH + 'px';
-        wrap.style.minWidth = displayW + 'px';
-        wrap.style.display = 'flex';
-        wrap.style.justifyContent = 'center';
-        wrap.style.alignItems = 'flex-start';
-      }
-      this.scrollEl.appendChild(wrap);
-    }
-
-    // ---- 渲染单页 ----
-    const renderPage = async (pageNum) => {
-      const wrap = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);
-      if (!wrap || wrap.dataset.rendered) return;
-      wrap.dataset.rendered = '1';
-
-      const page = await this._pdf.getPage(pageNum);
-      const viewport = page.getViewport({ scale: renderScale });
 
       const canvas = document.createElement('canvas');
       canvas.className = 'cloud-attach-pdf-fullscreen-page';
       canvas.style.display = 'block';
       canvas.style.boxShadow = '0 1px 4px rgba(0,0,0,0.15)';
-      canvas.dataset.pageNum = String(pageNum);
+      canvas.dataset.pageNum = String(i);
       canvas.width = viewport.width;
       canvas.height = viewport.height;
-      // CSS显示尺寸：等比
       canvas.style.width = displayW + 'px';
       canvas.style.height = displayH + 'px';
-      if (mode === 'continuous') {
-        canvas.style.marginBottom = '8px';
-      }
-      wrap.appendChild(canvas);
-      await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-      // 强制 GPU flush：Chromium bug 导致 canvas 渲染完不提交帧需切换桌面才显示
-      // getImageData 读回 1px 强制 GPU 完成渲染并提交像素到合成器
-      canvas.getContext('2d').getImageData(0, 0, 1, 1);
 
-      // 手动缩放时：初始 Y 居中（规则3）
-      if (scaleLevel > 0 && displayH > scrollH && isSingle) {
-        wrap.scrollTop = Math.max(0, (displayH - scrollH) / 2);
-      }
-    };
-
-    // ---- 渲染首页 ----
-    try { await renderPage(1); } catch (e) { console.error('[CloudAttach] lazy render page 1:', e); }
-
-    // ---- 剩余页懒加载 ----
-    const lazyQueue = [], MAX_Q = 3;
-    let lazyBusy = false;
-    const processQueue = async () => {
-      if (lazyBusy || lazyQueue.length === 0) return;
-      lazyBusy = true;
-      const n = lazyQueue.shift();
-      try { await new Promise(r => requestAnimationFrame(r)); await renderPage(n); }
-      catch (e) { console.error('[CloudAttach] lazy render page', n, ':', e); }
-      lazyBusy = false;
-      setTimeout(() => processQueue(), 100);
-    };
-    // 暴露给 _scrollToPage 用于单页懒渲染
-    this._lazyQueueAdd = (n) => {
-      if (lazyQueue.length < MAX_Q && !lazyQueue.includes(n)) lazyQueue.push(n);
-      processQueue();
-    };
-
-    this._fullscreenObserver = new IntersectionObserver((entries) => {
-      entries.forEach(e => {
-        if (e.isIntersecting) {
-          const w = e.target;
-          if (w.dataset.rendered) return;
-          const n = parseInt(w.dataset.pageNum);
-          if (lazyQueue.length < MAX_Q) lazyQueue.push(n);
-          processQueue();
-          this._fullscreenObserver.unobserve(w);
+      if (isSingle) {
+        if (scaleLevel > 1) {
+          wrap.style.cssText = `
+            display:flex; align-items:flex-start; justify-content:flex-start;
+            width:100%; flex-shrink:0;
+          `;
+        } else {
+          wrap.style.cssText = `
+            display:flex; align-items:center; justify-content:center;
+            width:100%; height:${scrollH}px; flex-shrink:0;
+            scroll-snap-align:start;
+            overflow:${(displayH > scrollH || displayW > scrollW) ? 'auto' : 'hidden'};
+          `;
         }
-      });
-    }, { root: this.scrollEl, rootMargin: '300px' });
+      } else {
+        canvas.style.margin = '0 auto 8px';
+        wrap.style.cssText = `
+          display:flex; align-items:flex-start; justify-content:flex-start;
+          width:100%; flex-shrink:0;
+        `;
+      }
 
-    this.scrollEl.querySelectorAll('.cloud-attach-snap-item').forEach(w => this._fullscreenObserver.observe(w));
+      wrap.appendChild(canvas);
+      this.scrollEl.appendChild(wrap);
 
-    this._bindScroll(displayH, scrollH);
+      renderTasks.push(
+        page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise
+          .then(() => { canvas.getContext('2d').getImageData(0, 0, 1, 1); }) // GPU flush
+      );
+    }
+
+    await Promise.all(renderTasks);
+    this._bindScroll();
     console.log('[CloudAttach] _renderAllPages done totalPages=', totalPages, 'displayW=', displayW, 'displayH=', displayH);
   }
 
@@ -3182,7 +3136,6 @@ class PdfFullscreenView extends ItemView {
       c.width = 0; c.height = 0; c.remove();
     });
     this.scrollEl.empty();
-    // 双 rAF 等缩略图面板展开/切换后 layout 完成再渲染（clientWidth 变化）
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         this._renderAllPages().then(() => {
@@ -3210,7 +3163,6 @@ class PdfFullscreenView extends ItemView {
       if (isSingle) {
         wrap.style.height = scrollH + 'px';
         wrap.style.overflow = (displayH > scrollH || displayW > scrollW) ? 'auto' : 'hidden';
-        // 手动缩放 + Y 超出：恢复居中（规则3）
         if (this._renderScaleLevel > 0 && displayH > scrollH) {
           wrap.scrollTop = Math.max(0, (displayH - scrollH) / 2);
         }
@@ -3241,12 +3193,7 @@ class PdfFullscreenView extends ItemView {
       this._renderThumbnails();
     }
     this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? 'flex' : 'none';
-    // 完全重渲染
-    console.log('[CloudAttach] _toggleThumbnailPanel _reRender visible=', this._thumbnailVisible);
-    // 缩略图面板改变 viewport 宽度，canvas 必须用新 renderScale 重新绘制
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => this._reRender());
-    });
+    requestAnimationFrame(() => this._reRender());
   }
 
   async _renderThumbnails() {
@@ -3271,20 +3218,17 @@ class PdfFullscreenView extends ItemView {
     }
   }
 
-  _bindScroll(displayH, scrollH) {
+  _bindScroll() {
     this.scrollEl.tabIndex = 0;
     this.scrollEl.style.outline = 'none';
     if (this._onPointerDown) this.scrollEl.removeEventListener('pointerdown', this._onPointerDown);
     this._onPointerDown = () => this.scrollEl.focus();
     this.scrollEl.addEventListener('pointerdown', this._onPointerDown);
 
-    // 滚轮：单页 scroll-snap 由浏览器原生处理，不需要手动拦截
-    if (this._onWheel) {
-      this._contentWrap.removeEventListener('wheel', this._onWheel);
-      this._onWheel = null;
-    }
+    if (this._onWheel) this._contentWrap.removeEventListener('wheel', this._onWheel);
+    this._onWheel = null;
 
-    // 键盘翻页（单页 & 连续通用）
+    // 键盘翻页
     this.scrollEl.onkeydown = (e) => {
       if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
         e.preventDefault(); e.stopPropagation();
@@ -3295,7 +3239,7 @@ class PdfFullscreenView extends ItemView {
       }
     };
 
-    // 页码跟踪（通用）
+    // 页码跟踪
     this.scrollEl.onscroll = () => {
       if (!this._pdf) return;
       const snaps = this.scrollEl.querySelectorAll('.cloud-attach-snap-item');
@@ -3317,32 +3261,17 @@ class PdfFullscreenView extends ItemView {
   }
 
   _scrollToPage(pageNum) {
-    console.log('[CloudAttach] _scrollToPage', pageNum, 'mode=', this._viewMode);
     if (!this._pdf || pageNum < 1 || pageNum > this._pdf.numPages) return;
     this.pageInput.value = String(pageNum);
     this._currentPage = pageNum;
     this._highlightThumbnail(pageNum);
 
-    if (this._viewMode === 'single') {
-      // scroll-snap: 直接 scrollTop 定位，浏览器自动吸附到目标页
-      const wrap = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);
-      if (wrap && !wrap.dataset.rendered) {
-        if (this._lazyQueueAdd) this._lazyQueueAdd(pageNum);
-      }
-      this.scrollEl.scrollTo({ top: (pageNum - 1) * this.scrollEl.clientHeight, behavior: 'smooth' });
-    } else {
-      // 连续：定位到 wrap top
-      const target = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);
-      if (target) {
-        const sr = this.scrollEl.getBoundingClientRect();
-        const tr = target.getBoundingClientRect();
-        const top = tr.top - sr.top + this.scrollEl.scrollTop;
-        this.scrollEl.scrollTo({ top, behavior: 'smooth' });
-        // 触发懒渲染：跳远页时 wrap 可能不在视口，observer 来不及
-        if (!target.dataset.rendered && this._lazyQueueAdd) {
-          this._lazyQueueAdd(pageNum);
-        }
-      }
+    const target = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);
+    if (target) {
+      const sr = this.scrollEl.getBoundingClientRect();
+      const tr = target.getBoundingClientRect();
+      const top = tr.top - sr.top + this.scrollEl.scrollTop;
+      this.scrollEl.scrollTo({ top: Math.max(0, top - 4), behavior: 'smooth' });
     }
   }
 

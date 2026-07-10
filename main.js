@@ -2840,12 +2840,12 @@ var PdfFullscreenView = class extends ItemView {
     h = h || this.scrollEl.clientHeight || this.containerEl.clientHeight || 600;
     return zoomMode === "fit-width" ? w / this._pageW : h / this._pageH;
   }
+  // ---- 全量同步渲染：全部 canvas 先入 DOM → 并行 render ----
+  // 懒加载/Observer 会导致 Chromium GPU 不提交帧（白屏），必须全量入 DOM
   async _renderAllPages() {
     if (!this._pdf)
       return;
-    console.log("[CloudAttach] _renderAllPages mode=", this._viewMode, "scrollW=", this.scrollEl.clientWidth, "scrollH=", this.scrollEl.clientHeight);
-    this._fullscreenObserver?.disconnect();
-    this._fullscreenObserver = null;
+    console.log("[CloudAttach] _renderAllPages mode=", this._viewMode, "scrollW=", this.scrollEl?.clientWidth, "scrollH=", this.scrollEl?.clientHeight);
     const totalPages = this._pdf.numPages;
     const pg = await this._pdf.getPage(1);
     const vp = pg.getViewport({ scale: 1 });
@@ -2862,109 +2862,66 @@ var PdfFullscreenView = class extends ItemView {
     const displayH = Math.round(this._pageH * displayScale);
     const renderScale = displayScale * dpr;
     const isSingle = mode === "single";
-    this.scrollEl.style.display = "";
-    this.scrollEl.style.minHeight = "0";
-    this.scrollEl.style.background = "var(--background-secondary)";
-    this.scrollEl.style.padding = "0";
-    this.scrollEl.style.overflowY = "auto";
-    this.scrollEl.style.overflowX = isSingle ? "hidden" : "auto";
-    this.scrollEl.style.WebkitOverflowScrolling = "touch";
-    this.scrollEl.style.scrollSnapType = isSingle ? "y mandatory" : "none";
+    this.scrollEl.style.cssText = `
+      flex:1; min-height:0; overflow-y:auto;
+      overflow-x:${isSingle ? "hidden" : "auto"};
+      -webkit-overflow-scrolling:touch;
+      background:var(--background-secondary); padding:0;
+      scroll-snap-type:${isSingle ? "y mandatory" : "none"};
+    `;
     this.scrollEl.onscroll = null;
     this.scrollEl.onwheel = null;
     this.scrollEl.scrollTop = 0;
     this.scrollEl.empty();
+    const renderTasks = [];
     for (let i = 1; i <= totalPages; i++) {
+      const page = await this._pdf.getPage(i);
+      const viewport = page.getViewport({ scale: renderScale });
       const wrap = document.createElement("div");
       wrap.className = "cloud-attach-snap-item";
       wrap.dataset.pageNum = String(i);
       wrap.style.position = "relative";
-      wrap.style.flexShrink = "0";
-      wrap.style.width = "100%";
-      if (isSingle) {
-        wrap.style.height = (scrollH || 600) + "px";
-        wrap.style.scrollSnapAlign = "start";
-        wrap.style.display = "flex";
-        wrap.style.alignItems = "center";
-        wrap.style.justifyContent = "center";
-        wrap.style.overflow = displayH > scrollH || displayW > scrollW ? "auto" : "hidden";
-      } else {
-        wrap.style.minHeight = displayH + "px";
-        wrap.style.minWidth = displayW + "px";
-        wrap.style.display = "flex";
-        wrap.style.justifyContent = "center";
-        wrap.style.alignItems = "flex-start";
-      }
-      this.scrollEl.appendChild(wrap);
-    }
-    const renderPage = async (pageNum) => {
-      const wrap = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);
-      if (!wrap || wrap.dataset.rendered)
-        return;
-      wrap.dataset.rendered = "1";
-      const page = await this._pdf.getPage(pageNum);
-      const viewport = page.getViewport({ scale: renderScale });
       const canvas = document.createElement("canvas");
       canvas.className = "cloud-attach-pdf-fullscreen-page";
       canvas.style.display = "block";
       canvas.style.boxShadow = "0 1px 4px rgba(0,0,0,0.15)";
-      canvas.dataset.pageNum = String(pageNum);
+      canvas.dataset.pageNum = String(i);
       canvas.width = viewport.width;
       canvas.height = viewport.height;
       canvas.style.width = displayW + "px";
       canvas.style.height = displayH + "px";
-      if (mode === "continuous") {
-        canvas.style.marginBottom = "8px";
+      if (isSingle) {
+        if (scaleLevel > 1) {
+          wrap.style.cssText = `
+            display:flex; align-items:flex-start; justify-content:flex-start;
+            width:100%; flex-shrink:0;
+          `;
+        } else {
+          wrap.style.cssText = `
+            display:flex; align-items:center; justify-content:center;
+            width:100%; height:${scrollH}px; flex-shrink:0;
+            scroll-snap-align:start;
+            overflow:${displayH > scrollH || displayW > scrollW ? "auto" : "hidden"};
+          `;
+        }
+      } else {
+        canvas.style.margin = "0 auto 8px";
+        wrap.style.cssText = `
+          display:flex; align-items:flex-start; justify-content:flex-start;
+          width:100%; flex-shrink:0;
+        `;
       }
       wrap.appendChild(canvas);
-      await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
-      canvas.getContext("2d").getImageData(0, 0, 1, 1);
-      if (scaleLevel > 0 && displayH > scrollH && isSingle) {
-        wrap.scrollTop = Math.max(0, (displayH - scrollH) / 2);
-      }
-    };
-    try {
-      await renderPage(1);
-    } catch (e) {
-      console.error("[CloudAttach] lazy render page 1:", e);
+      this.scrollEl.appendChild(wrap);
+      renderTasks.push(
+        page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise.then(() => {
+          canvas.getContext("2d").getImageData(0, 0, 1, 1);
+        })
+        // GPU flush
+      );
     }
-    const lazyQueue = [], MAX_Q = 3;
-    let lazyBusy = false;
-    const processQueue = async () => {
-      if (lazyBusy || lazyQueue.length === 0)
-        return;
-      lazyBusy = true;
-      const n = lazyQueue.shift();
-      try {
-        await new Promise((r) => requestAnimationFrame(r));
-        await renderPage(n);
-      } catch (e) {
-        console.error("[CloudAttach] lazy render page", n, ":", e);
-      }
-      lazyBusy = false;
-      setTimeout(() => processQueue(), 100);
-    };
-    this._lazyQueueAdd = (n) => {
-      if (lazyQueue.length < MAX_Q && !lazyQueue.includes(n))
-        lazyQueue.push(n);
-      processQueue();
-    };
-    this._fullscreenObserver = new IntersectionObserver((entries) => {
-      entries.forEach((e) => {
-        if (e.isIntersecting) {
-          const w = e.target;
-          if (w.dataset.rendered)
-            return;
-          const n = parseInt(w.dataset.pageNum);
-          if (lazyQueue.length < MAX_Q)
-            lazyQueue.push(n);
-          processQueue();
-          this._fullscreenObserver.unobserve(w);
-        }
-      });
-    }, { root: this.scrollEl, rootMargin: "300px" });
-    this.scrollEl.querySelectorAll(".cloud-attach-snap-item").forEach((w) => this._fullscreenObserver.observe(w));
-    this._bindScroll(displayH, scrollH);
+    await Promise.all(renderTasks);
+    this._bindScroll();
     console.log("[CloudAttach] _renderAllPages done totalPages=", totalPages, "displayW=", displayW, "displayH=", displayH);
   }
   _reRender() {
@@ -3037,10 +2994,7 @@ var PdfFullscreenView = class extends ItemView {
       this._renderThumbnails();
     }
     this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? "flex" : "none";
-    console.log("[CloudAttach] _toggleThumbnailPanel _reRender visible=", this._thumbnailVisible);
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => this._reRender());
-    });
+    requestAnimationFrame(() => this._reRender());
   }
   async _renderThumbnails() {
     if (!this._pdf || !this._thumbnailPanel)
@@ -3073,17 +3027,16 @@ var PdfFullscreenView = class extends ItemView {
       label.style.cssText = "position:absolute;bottom:4px;right:4px;background:rgba(255,255,255,0.85);color:var(--text-muted);font-size:10px;padding:1px 5px;border-radius:8px;box-shadow:0 1px 2px rgba(0,0,0,0.1)";
     }
   }
-  _bindScroll(displayH, scrollH) {
+  _bindScroll() {
     this.scrollEl.tabIndex = 0;
     this.scrollEl.style.outline = "none";
     if (this._onPointerDown)
       this.scrollEl.removeEventListener("pointerdown", this._onPointerDown);
     this._onPointerDown = () => this.scrollEl.focus();
     this.scrollEl.addEventListener("pointerdown", this._onPointerDown);
-    if (this._onWheel) {
+    if (this._onWheel)
       this._contentWrap.removeEventListener("wheel", this._onWheel);
-      this._onWheel = null;
-    }
+    this._onWheel = null;
     this.scrollEl.onkeydown = (e) => {
       if (e.key === "ArrowUp" || e.key === "ArrowDown") {
         e.preventDefault();
@@ -3117,30 +3070,17 @@ var PdfFullscreenView = class extends ItemView {
     };
   }
   _scrollToPage(pageNum) {
-    console.log("[CloudAttach] _scrollToPage", pageNum, "mode=", this._viewMode);
     if (!this._pdf || pageNum < 1 || pageNum > this._pdf.numPages)
       return;
     this.pageInput.value = String(pageNum);
     this._currentPage = pageNum;
     this._highlightThumbnail(pageNum);
-    if (this._viewMode === "single") {
-      const wrap = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);
-      if (wrap && !wrap.dataset.rendered) {
-        if (this._lazyQueueAdd)
-          this._lazyQueueAdd(pageNum);
-      }
-      this.scrollEl.scrollTo({ top: (pageNum - 1) * this.scrollEl.clientHeight, behavior: "smooth" });
-    } else {
-      const target = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);
-      if (target) {
-        const sr = this.scrollEl.getBoundingClientRect();
-        const tr = target.getBoundingClientRect();
-        const top = tr.top - sr.top + this.scrollEl.scrollTop;
-        this.scrollEl.scrollTo({ top, behavior: "smooth" });
-        if (!target.dataset.rendered && this._lazyQueueAdd) {
-          this._lazyQueueAdd(pageNum);
-        }
-      }
+    const target = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);
+    if (target) {
+      const sr = this.scrollEl.getBoundingClientRect();
+      const tr = target.getBoundingClientRect();
+      const top = tr.top - sr.top + this.scrollEl.scrollTop;
+      this.scrollEl.scrollTo({ top: Math.max(0, top - 4), behavior: "smooth" });
     }
   }
   _highlightThumbnail(pageNum) {
