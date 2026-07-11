@@ -2817,8 +2817,15 @@ var PdfFullscreenView = class extends ItemView {
       this.pageTotal.textContent = " / " + totalPages;
       this.pageInput.value = "1";
       this._currentPage = 1;
-      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-      this._renderAllPages();
+      const obs = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            obs.disconnect();
+            this._renderAllPages();
+          }
+        });
+      });
+      obs.observe(this.scrollEl);
     } catch (e) {
       console.error("[CloudAttach] PdfFullscreenView load error:", e);
       this.scrollEl.empty();
@@ -2930,7 +2937,6 @@ var PdfFullscreenView = class extends ItemView {
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
       canvas.getContext("2d").getImageData(0, 0, 1, 1);
-      canvas.style.transform = "translateZ(0)";
       if (scaleLevel > 0 && displayH > scrollH && isSingle) {
         wrap.scrollTop = Math.max(0, (displayH - scrollH) / 2);
       }
@@ -2978,6 +2984,9 @@ var PdfFullscreenView = class extends ItemView {
     this.scrollEl.querySelectorAll(".cloud-attach-snap-item").forEach((w) => this._fullscreenObserver.observe(w));
     this._bindScroll(displayH, scrollH);
     console.log("[CloudAttach] _renderAllPages done totalPages=", totalPages, "displayW=", displayW, "displayH=", displayH);
+    this.scrollEl.style.display = "none";
+    this.scrollEl.offsetHeight;
+    this.scrollEl.style.display = "";
   }
   _reRender() {
     if (!this._pdf)
