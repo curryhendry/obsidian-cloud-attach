@@ -3026,11 +3026,21 @@ class PdfFullscreenView extends ItemView {
       this.pageInput.value = '1';
       this._currentPage = 1;
 
-      // popout 窗口 GPU compositor 初始化慢，延迟渲染
-      // 等 500ms 确保 compositor BeginFrame 已启动
-      await new Promise(r => setTimeout(r, 500));
-      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      // macOS popout 被分配到新 Space 后 compositor 停止
+      // setVisibleOnAllWorkspaces 强制当前 Space 可见 → compositor 跑一帧
+      let bw = null;
+      try {
+        bw = require('@electron/remote').getCurrentWindow();
+        bw.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+      } catch (e) { console.error('[CloudAttach] setVisibleOnAll:', e); }
+
+      await new Promise(r => requestAnimationFrame(r));
       this._renderAllPages();
+
+      // 渲染完成后恢复，像素已在 GPU texture 中不会丢失
+      if (bw) setTimeout(() => {
+        try { bw.setVisibleOnAllWorkspaces(false); } catch (e) {}
+      }, 200);
     } catch (e) {
       console.error('[CloudAttach] PdfFullscreenView load error:', e);
       this.scrollEl.empty();
