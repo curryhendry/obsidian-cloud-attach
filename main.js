@@ -2979,18 +2979,9 @@ var PdfFullscreenView = class extends ItemView {
     this._bindScroll(displayH, scrollH);
     console.log("[CloudAttach] _renderAllPages done totalPages=", totalPages, "displayW=", displayW, "displayH=", displayH);
     try {
-      const { app: app2 } = require("@electron/remote");
       const bw = require("@electron/remote").getCurrentWindow();
-      const prevFocused = require("@electron/remote").BrowserWindow.getFocusedWindow();
-      bw.show();
-      bw.focus();
-      setTimeout(() => {
-        if (prevFocused && !prevFocused.isDestroyed()) {
-          prevFocused.focus();
-        } else {
-          app2.focus();
-        }
-      }, 100);
+      bw.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+      bw.setVisibleOnAllWorkspaces(false);
     } catch (e) {
       console.error("[CloudAttach] repaint:", e);
     }

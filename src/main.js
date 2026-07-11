@@ -3186,22 +3186,12 @@ class PdfFullscreenView extends ItemView {
     this._bindScroll(displayH, scrollH);
     console.log('[CloudAttach] _renderAllPages done totalPages=', totalPages, 'displayW=', displayW, 'displayH=', displayH);
 
-    // 桌面端 popout 窗口不在当前 macOS 桌面时 compositor 不跑
-    // 短暂聚焦 popout 窗口触发 compositor 合成，然后切回 Obsidian
+    // popout 窗口被 macOS 分配到不同 Space，compositor 不跑
+    // setVisibleOnAllWorkspaces 强制拉到当前 Space
     try {
-      const { app } = require('@electron/remote');
       const bw = require('@electron/remote').getCurrentWindow();
-      const prevFocused = require('@electron/remote').BrowserWindow.getFocusedWindow();
-      bw.show();
-      bw.focus();
-      // 等 compositor 处理一帧，然后切回 Obsidian
-      setTimeout(() => {
-        if (prevFocused && !prevFocused.isDestroyed()) {
-          prevFocused.focus();
-        } else {
-          app.focus();
-        }
-      }, 100);
+      bw.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+      bw.setVisibleOnAllWorkspaces(false);
     } catch (e) { console.error('[CloudAttach] repaint:', e); }
   }
 
