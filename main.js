@@ -2979,10 +2979,14 @@ var PdfFullscreenView = class extends ItemView {
     this._bindScroll(displayH, scrollH);
     console.log("[CloudAttach] _renderAllPages done totalPages=", totalPages, "displayW=", displayW, "displayH=", displayH);
     try {
-      const bw = require("@electron/remote").getCurrentWindow();
-      const [w, h] = bw.getSize();
-      bw.setSize(w + 1, h);
-      requestAnimationFrame(() => bw.setSize(w, h));
+      const s = document.createElement("style");
+      s.textContent = "@keyframes cca{from{opacity:.999}to{opacity:1}}";
+      document.head.appendChild(s);
+      this.scrollEl.style.animation = "cca 0.016s";
+      requestAnimationFrame(() => {
+        this.scrollEl.style.animation = "";
+        s.remove();
+      });
     } catch (e) {
       console.error("[CloudAttach] repaint:", e);
     }

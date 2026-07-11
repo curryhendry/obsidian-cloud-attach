@@ -3186,13 +3186,17 @@ class PdfFullscreenView extends ItemView {
     this._bindScroll(displayH, scrollH);
     console.log('[CloudAttach] _renderAllPages done totalPages=', totalPages, 'displayW=', displayW, 'displayH=', displayH);
 
-    // 桌面端 popout 窗口 GPU compositor 未启动 BeginFrame
-    // resize 触发 window-server 级重绘（比 invalidate/setOpacity 更强）
+    // 桌面端 popout 窗口 compositor 第一帧后停止出帧
+    // CSS animation 强制 compositor 继续合成，拾取 canvas 内容
     try {
-      const bw = require('@electron/remote').getCurrentWindow();
-      const [w, h] = bw.getSize();
-      bw.setSize(w + 1, h);
-      requestAnimationFrame(() => bw.setSize(w, h));
+      const s = document.createElement('style');
+      s.textContent = '@keyframes cca{from{opacity:.999}to{opacity:1}}';
+      document.head.appendChild(s);
+      this.scrollEl.style.animation = 'cca 0.016s';
+      requestAnimationFrame(() => {
+        this.scrollEl.style.animation = '';
+        s.remove();
+      });
     } catch (e) { console.error('[CloudAttach] repaint:', e); }
   }
 
