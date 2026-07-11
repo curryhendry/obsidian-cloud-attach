@@ -2664,10 +2664,6 @@ var PdfFullscreenView = class extends ItemView {
     return "file-text";
   }
   async onOpen() {
-    try {
-      require("@electron/remote").getCurrentWindow().setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-    } catch (e) {
-    }
     const container = this.containerEl.children[1];
     container.empty();
     if (!this.pdfUrl && this.plugin._pendingPdfUrl) {
@@ -4463,13 +4459,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
     this._pendingPdfUrl = url;
     this._pendingPdfName = name;
-    let leaf;
-    try {
-      leaf = workspace.openPopoutLeaf();
-    } catch (e) {
-      console.log("[CloudAttach] openPopoutLeaf failed, fallback to split:", e);
-      leaf = workspace.getLeaf("split", "vertical");
-    }
+    const leaf = workspace.getLeaf("split", "vertical");
     await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true });
     workspace.revealLeaf(leaf);
   }

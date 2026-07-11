@@ -2821,13 +2821,6 @@ class PdfFullscreenView extends ItemView {
   getIcon() { return 'file-text'; }
 
   async onOpen() {
-    // macOS popout 窗口默认分配到新 Space → compositor 不跑
-    // 在窗口刚创建时就设为所有 Space 可见，防止被隔离
-    try {
-      require('@electron/remote').getCurrentWindow()
-        .setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-    } catch (e) {}
-
     const container = this.containerEl.children[1];
     container.empty();
 
@@ -4708,14 +4701,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
 
     this._pendingPdfUrl = url;
     this._pendingPdfName = name;
-    // 优先 popout 独立窗口，fallback 到 split
-    let leaf;
-    try {
-      leaf = workspace.openPopoutLeaf();
-    } catch (e) {
-      console.log('[CloudAttach] openPopoutLeaf failed, fallback to split:', e);
-      leaf = workspace.getLeaf('split', 'vertical');
-    }
+    const leaf = workspace.getLeaf('split', 'vertical');
     await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true });
     workspace.revealLeaf(leaf);
   }
