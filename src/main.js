@@ -2930,6 +2930,7 @@ var PdfFullscreenView = class extends ItemView {
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
       canvas.getContext("2d").getImageData(0, 0, 1, 1);
+      canvas.style.transform = "translateZ(0)";
       if (scaleLevel > 0 && displayH > scrollH && isSingle) {
         wrap.scrollTop = Math.max(0, (displayH - scrollH) / 2);
       }
