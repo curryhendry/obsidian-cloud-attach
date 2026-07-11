@@ -4249,29 +4249,30 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const { workspace } = this.app;
     if (!name)
       name = cleanFileNameFromUrl(url);
+    const existing = workspace.getLeavesOfType(VIEW_TYPE_PDF_FULLSCREEN);
+    if (existing.length > 0) {
+      workspace.revealLeaf(existing[0]);
+      const view = existing[0].view;
+      if (view instanceof PdfFullscreenView) {
+        view.pdfUrl = url;
+        view.pdfName = name;
+        view._loadPdf();
+      }
+      return;
+    }
     this._pendingPdfUrl = url;
     this._pendingPdfName = name;
-    const doc = app.workspace.activeLeaf?.view?.containerEl?.ownerDocument || document;
-    doc.querySelectorAll('.cloudattach-pdf-container, img[data-cloudattach-processed="done"]').forEach((el) => {
-      el.querySelectorAll("canvas").forEach((c) => c.remove());
-      el.dataset.cloudattachProcessed = "";
-    });
-    if (this._renderedPdfUrlsByMode) {
-      Object.values(this._renderedPdfUrlsByMode).forEach((s) => s instanceof Set && s.clear());
-    }
-    const isMobile = window.innerWidth < 768;
     let leaf;
-    if (isMobile) {
+    try {
+      leaf = workspace.openPopoutLeaf();
+    } catch (e) {
+      console.log("[CloudAttach] openPopoutLeaf failed, fallback to split:", e);
       leaf = workspace.getLeaf("split", "vertical");
-    } else {
-      try {
-        leaf = workspace.openPopoutLeaf();
-      } catch (e) {
-        leaf = workspace.getLeaf("split", "vertical");
-      }
     }
-    await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true, state: { pdfUrl: url, pdfName: name } });
+    await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true });
     workspace.revealLeaf(leaf);
+    delete this._pendingPdfUrl;
+    delete this._pendingPdfName;
   }
   // ============================================================
   // PDF.js 内联预览（v0.3.026）
