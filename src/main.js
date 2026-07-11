@@ -1523,6 +1523,7 @@ class S3Client {
           method: options.method || 'GET',
           headers: options.headers || {},
           body: options.body || undefined,
+          throw: false,
         });
         return {
           status: result.status,
