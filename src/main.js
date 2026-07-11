@@ -1434,6 +1434,15 @@ class OpenListClient {
   async createDirectory(parentDir, folderName) {
     const normalizedParent = parentDir.endsWith('/') ? parentDir : parentDir + '/';
     const remotePath = normalizedParent + folderName;
+    // 检查重名
+    try {
+      const existing = await this.listDirectory(normalizedParent);
+      if (existing.some(f => f.name === folderName && f.isDirectory)) {
+        return { ok: false, error: `文件夹 "${folderName}" 已存在` };
+      }
+    } catch {
+      // listDirectory 失败不阻塞，交给实际创建去报错
+    }
     // 优先使用原生 API
     try {
       const apiUrl = `${this.serverUrl}/api/fs/mkdir`;
@@ -1653,7 +1662,11 @@ class S3Client {
         headers: { 'Content-Type': this.getMimeType(fileName) },
         body: content
       });
-      console.log('[CloudAttach] S3 upload response:', response.status, response.ok, 'error:', response.error, typeof response.text === 'function' ? '[text fn]' : String(response.text || '').substring(0, 200));
+      console.log('[CloudAttach] S3 upload response:', response.status, response.ok);
+      if (!response.ok && response.status !== 200) {
+        const fullBody = typeof response.text === 'function' ? await response.text() : String(response.text || '');
+        console.log('[CloudAttach] S3 upload error body:', fullBody);
+      }
 
       if (response.ok || response.status === 200) {
         const url = this.getFileUrl(remotePath);
