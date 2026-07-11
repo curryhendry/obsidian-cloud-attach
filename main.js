@@ -2677,33 +2677,8 @@ var PdfFullscreenView = class extends ItemView {
     left.style.color = "var(--text-normal)";
     this._thumbnailVisible = false;
     this._panelMode = "thumbnail";
-    const thumbBtnWrap = left.createEl("div");
-    thumbBtnWrap.style.display = "flex";
-    thumbBtnWrap.style.alignItems = "center";
-    const thumbBtn = thumbBtnWrap.createEl("button");
-    thumbBtn.className = "clickable-icon";
-    thumbBtn.setAttribute("aria-label", "\u9762\u677F");
-    thumbBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>';
-    thumbBtn.onclick = () => {
-      this._thumbnailVisible = !this._thumbnailVisible;
-      this._toggleThumbnailPanel();
-    };
-    const arrowBtn = thumbBtnWrap.createEl("button");
-    arrowBtn.className = "clickable-icon";
-    arrowBtn.style.padding = "2px";
-    arrowBtn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
-    arrowBtn.onclick = (e) => {
-      const menu = new Menu();
-      menu.addItem((item) => item.setTitle(this._panelMode === "thumbnail" ? "\u2713 \u7F29\u7565\u56FE" : "\u7F29\u7565\u56FE").onClick(() => {
-        this._panelMode = "thumbnail";
-        this._thumbnailVisible = true;
-        this._toggleThumbnailPanel();
-      }));
-      menu.addItem((item) => {
-        item.setTitle("\u76EE\u5F55").setDisabled(true);
-      });
-      menu.showAtMouseEvent(e);
-    };
+    const verBadge = left.createEl("span", { text: "099" });
+    verBadge.style.cssText = "font-size:10px;color:var(--text-muted);background:var(--background-modifier-hover);padding:1px 4px;border-radius:3px";
     this._viewMode = "continuous";
     this._zoomMode = "fit-width";
     this._zoomLevel = 0;
@@ -2791,18 +2766,12 @@ var PdfFullscreenView = class extends ItemView {
     closeBtn.setAttribute("aria-label", "\u5173\u95ED");
     closeBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
     closeBtn.onclick = () => this.leaf.detach();
-    this._contentWrap = container.createEl("div");
-    this._contentWrap.style.flex = "1";
-    this._contentWrap.style.display = "flex";
-    this._contentWrap.style.overflow = "hidden";
-    this._contentWrap.style.minHeight = "0";
-    this.scrollEl = this._contentWrap.createEl("div");
+    this.scrollEl = container.createEl("div");
     this.scrollEl.style.flex = "1";
-    this.scrollEl.style.minHeight = "0";
     this.scrollEl.style.overflowY = "auto";
     this.scrollEl.style.overflowX = "hidden";
     this.scrollEl.style.background = "var(--background-secondary)";
-    this.scrollEl.style.padding = "0";
+    this.scrollEl.style.padding = "8px 0";
     this._loadPdf();
   }
   async _loadPdf() {
