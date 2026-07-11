@@ -2664,6 +2664,10 @@ var PdfFullscreenView = class extends ItemView {
     return "file-text";
   }
   async onOpen() {
+    try {
+      require("@electron/remote").getCurrentWindow().setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    } catch (e) {
+    }
     const container = this.containerEl.children[1];
     container.empty();
     if (!this.pdfUrl && this.plugin._pendingPdfUrl) {
@@ -2830,22 +2834,8 @@ var PdfFullscreenView = class extends ItemView {
       this.pageTotal.textContent = " / " + totalPages;
       this.pageInput.value = "1";
       this._currentPage = 1;
-      let bw = null;
-      try {
-        bw = require("@electron/remote").getCurrentWindow();
-        bw.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-      } catch (e) {
-        console.error("[CloudAttach] setVisibleOnAll:", e);
-      }
       await new Promise((r) => requestAnimationFrame(r));
       this._renderAllPages();
-      if (bw)
-        setTimeout(() => {
-          try {
-            bw.setVisibleOnAllWorkspaces(false);
-          } catch (e) {
-          }
-        }, 200);
     } catch (e) {
       console.error("[CloudAttach] PdfFullscreenView load error:", e);
       this.scrollEl.empty();

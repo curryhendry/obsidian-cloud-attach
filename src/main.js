@@ -2821,6 +2821,13 @@ class PdfFullscreenView extends ItemView {
   getIcon() { return 'file-text'; }
 
   async onOpen() {
+    // macOS popout 窗口默认分配到新 Space → compositor 不跑
+    // 在窗口刚创建时就设为所有 Space 可见，防止被隔离
+    try {
+      require('@electron/remote').getCurrentWindow()
+        .setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    } catch (e) {}
+
     const container = this.containerEl.children[1];
     container.empty();
 
@@ -3026,21 +3033,8 @@ class PdfFullscreenView extends ItemView {
       this.pageInput.value = '1';
       this._currentPage = 1;
 
-      // macOS popout 被分配到新 Space 后 compositor 停止
-      // setVisibleOnAllWorkspaces 强制当前 Space 可见 → compositor 跑一帧
-      let bw = null;
-      try {
-        bw = require('@electron/remote').getCurrentWindow();
-        bw.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-      } catch (e) { console.error('[CloudAttach] setVisibleOnAll:', e); }
-
       await new Promise(r => requestAnimationFrame(r));
       this._renderAllPages();
-
-      // 渲染完成后恢复，像素已在 GPU texture 中不会丢失
-      if (bw) setTimeout(() => {
-        try { bw.setVisibleOnAllWorkspaces(false); } catch (e) {}
-      }, 200);
     } catch (e) {
       console.error('[CloudAttach] PdfFullscreenView load error:', e);
       this.scrollEl.empty();
