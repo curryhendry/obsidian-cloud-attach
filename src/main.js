@@ -2843,6 +2843,15 @@ var PdfFullscreenView = class extends ItemView {
   async _renderAllPages() {
     if (!this._pdf)
       return;
+    const rawW = this.scrollEl.clientWidth || this.containerEl.clientWidth;
+    const rawH = this.scrollEl.clientHeight || this.containerEl.clientHeight;
+    if (!rawW || !rawH) {
+      console.log("[CloudAttach] _renderAllPages deferred, container=", rawW, "x", rawH);
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      if (!this._pdf)
+        return;
+      return this._renderAllPages();
+    }
     console.log("[CloudAttach] _renderAllPages mode=", this._viewMode, "scrollW=", this.scrollEl.clientWidth, "scrollH=", this.scrollEl.clientHeight);
     this._fullscreenObserver?.disconnect();
     this._fullscreenObserver = null;
