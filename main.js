@@ -1481,7 +1481,7 @@ var S3Client = class {
       const remotePath = `${normalizedDir}${fileName}`;
       const mimeType = this.getMimeType(fileName);
       const params = new URLSearchParams({ "X-Amz-Expires": "3600" });
-      const signedQuery = await this.signQuery(params, objectKey, "PUT", { "content-type": mimeType });
+      const signedQuery = await this.signQuery(params, objectKey, "PUT");
       const encodedKey = objectKey.split("/").map(encodeURIComponent).join("/");
       const uploadUrl = `${this.endpoint}/${this.bucket}/${encodedKey}?${signedQuery}`;
       console.log("[CloudAttach] S3 upload URL:", uploadUrl.substring(0, 120));
