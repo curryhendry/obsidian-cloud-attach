@@ -3185,6 +3185,12 @@ class PdfFullscreenView extends ItemView {
 
     this._bindScroll(displayH, scrollH);
     console.log('[CloudAttach] _renderAllPages done totalPages=', totalPages, 'displayW=', displayW, 'displayH=', displayH);
+
+    // 桌面端 popout 窗口 GPU compositor 可能尚未就绪，强制重绘
+    try {
+      const w = require('@electron/remote').getCurrentWindow();
+      if (w && w.webContents) w.webContents.invalidate();
+    } catch (e) { /* @electron/remote 不可用时忽略 */ }
   }
 
   _reRender() {
@@ -4675,16 +4681,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
    */
   async openPdfFullscreen(url, name) {
     const { workspace } = this.app;
-    // 桌面端暂不支持全屏预览
-    if (!Platform.isMobile) {
-      new Notice('全屏预览（敬请期待）');
-      return;
-    }
     if (!name) name = cleanFileNameFromUrl(url);
-    this._pendingPdfUrl = url;
-    this._pendingPdfName = name;
     
-    // 释放笔记内联 PDF canvas 减少内存峰值（iOS 内存受限时避免 crash）
+    // 释放笔记内联 PDF canvas 减少内存峰值
     const doc = app.workspace.activeLeaf?.view?.containerEl?.ownerDocument || document;
     doc.querySelectorAll('.cloudattach-pdf-container, img[data-cloudattach-processed="done"]').forEach(el => {
       el.querySelectorAll('canvas').forEach(c => c.remove());
@@ -4693,11 +4692,32 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (this._renderedPdfUrlsByMode) {
       Object.values(this._renderedPdfUrlsByMode).forEach(s => s instanceof Set && s.clear());
     }
-    const leaf = workspace.getLeaf('split', 'vertical');
-    await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true, state: { pdfUrl: url, pdfName: name } });
+
+    // 检查是否已存在
+    const existing = workspace.getLeavesOfType(VIEW_TYPE_PDF_FULLSCREEN);
+    if (existing.length > 0) {
+      workspace.revealLeaf(existing[0]);
+      const view = existing[0].view;
+      if (view instanceof PdfFullscreenView) {
+        view.pdfUrl = url;
+        view.pdfName = name;
+        view._loadPdf();
+      }
+      return;
+    }
+
+    this._pendingPdfUrl = url;
+    this._pendingPdfName = name;
+    // 优先 popout 独立窗口，fallback 到 split
+    let leaf;
+    try {
+      leaf = workspace.openPopoutLeaf();
+    } catch (e) {
+      console.log('[CloudAttach] openPopoutLeaf failed, fallback to split:', e);
+      leaf = workspace.getLeaf('split', 'vertical');
+    }
+    await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true });
     workspace.revealLeaf(leaf);
-    // 不 delete _pendingPdfUrl，onOpen 是 async 的，setViewState 返回时 onOpen 可能还没执行
-    // _pendingPdfUrl 在 onOpen 读取后被下一次 openPdfFullscreen 覆盖即可
   }
 
   // ============================================================

@@ -2978,6 +2978,12 @@ var PdfFullscreenView = class extends ItemView {
     this.scrollEl.querySelectorAll(".cloud-attach-snap-item").forEach((w) => this._fullscreenObserver.observe(w));
     this._bindScroll(displayH, scrollH);
     console.log("[CloudAttach] _renderAllPages done totalPages=", totalPages, "displayW=", displayW, "displayH=", displayH);
+    try {
+      const w = require("@electron/remote").getCurrentWindow();
+      if (w && w.webContents)
+        w.webContents.invalidate();
+    } catch (e) {
+    }
   }
   _reRender() {
     if (!this._pdf)
@@ -4436,14 +4442,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
    */
   async openPdfFullscreen(url, name) {
     const { workspace } = this.app;
-    if (!Platform.isMobile) {
-      new Notice("\u5168\u5C4F\u9884\u89C8\uFF08\u656C\u8BF7\u671F\u5F85\uFF09");
-      return;
-    }
     if (!name)
       name = cleanFileNameFromUrl(url);
-    this._pendingPdfUrl = url;
-    this._pendingPdfName = name;
     const doc = app.workspace.activeLeaf?.view?.containerEl?.ownerDocument || document;
     doc.querySelectorAll('.cloudattach-pdf-container, img[data-cloudattach-processed="done"]').forEach((el) => {
       el.querySelectorAll("canvas").forEach((c) => c.remove());
@@ -4452,8 +4452,27 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (this._renderedPdfUrlsByMode) {
       Object.values(this._renderedPdfUrlsByMode).forEach((s) => s instanceof Set && s.clear());
     }
-    const leaf = workspace.getLeaf("split", "vertical");
-    await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true, state: { pdfUrl: url, pdfName: name } });
+    const existing = workspace.getLeavesOfType(VIEW_TYPE_PDF_FULLSCREEN);
+    if (existing.length > 0) {
+      workspace.revealLeaf(existing[0]);
+      const view = existing[0].view;
+      if (view instanceof PdfFullscreenView) {
+        view.pdfUrl = url;
+        view.pdfName = name;
+        view._loadPdf();
+      }
+      return;
+    }
+    this._pendingPdfUrl = url;
+    this._pendingPdfName = name;
+    let leaf;
+    try {
+      leaf = workspace.openPopoutLeaf();
+    } catch (e) {
+      console.log("[CloudAttach] openPopoutLeaf failed, fallback to split:", e);
+      leaf = workspace.getLeaf("split", "vertical");
+    }
+    await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true });
     workspace.revealLeaf(leaf);
   }
   // ============================================================
