@@ -2927,7 +2927,7 @@ var PdfFullscreenView = class extends ItemView {
       }
       wrap.appendChild(canvas);
       canvas.offsetHeight;
-      await new Promise((r) => requestAnimationFrame(r));
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
       if (scaleLevel > 0 && displayH > scrollH && isSingle) {
         wrap.scrollTop = Math.max(0, (displayH - scrollH) / 2);
