@@ -4677,7 +4677,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const { workspace } = this.app;
     // 桌面端暂不支持全屏预览
     if (!Platform.isMobile) {
-      new Notice('PDF 全屏浏览仅支持手机端');
+      new Notice('缩放功能敬请期待');
       return;
     }
     if (!name) name = cleanFileNameFromUrl(url);

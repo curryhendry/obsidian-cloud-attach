@@ -4437,7 +4437,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
   async openPdfFullscreen(url, name) {
     const { workspace } = this.app;
     if (!Platform.isMobile) {
-      new Notice("PDF \u5168\u5C4F\u6D4F\u89C8\u4EC5\u652F\u6301\u624B\u673A\u7AEF");
+      new Notice("\u7F29\u653E\u529F\u80FD\u656C\u8BF7\u671F\u5F85");
       return;
     }
     if (!name)
