@@ -33,23 +33,25 @@ done
 # 预检：禁止 manifest.json 版本号包含 .dev
 # ----------------------------------------------------------
 MANIFEST_VERSION=$(node -e "console.log(require('./manifest.json').version)")
-if echo "$MANIFEST_VERSION" | grep -q '\\.dev'; then
-  echo ""
-  echo "⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔"
-  echo "⛔  禁止执行！manifest.json 版本号为 $MANIFEST_VERSION"
-  echo "⛔"
-  echo "⛔  规范不允许写入 .dev 版本号到 manifest.json。"
-  echo "⛔  AI 助手：请回到源码目录修改 src/main.js，"
-  echo "⛔  只改源码 + npm run build + 再执行 deploy.sh。"
-  echo "⛔  禁止手动修改 manifest.json 的版本号。"
-  echo "⛔  deploy.sh 会自动管理版本号，不要越权。"
-  echo "⛔  详细规则见 Garry Personal Skill："
-  echo "⛔  ~/.qclaw/skills/garry-personal/SKILL.md"
-  echo "⛔  1.3 deploy 规范 + 1.4 版本号"
-  echo "⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔"
-  echo ""
-  exit 1
-fi
+case "$MANIFEST_VERSION" in
+  *.dev*)
+    cat >&2 <<'BLOCKED'
+⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔
+⛔  禁止！manifest.json 是 .dev 版本
+⛔
+⛔  AI 助手请按以下步骤操作：
+⛔  1. 修改 src/main.js → 只改源码
+⛔  2. npm run build
+⛔  3. 执行 deploy.sh → 脚本自动管理版本号
+⛔
+⛔  禁止手动改 manifest.json 版本号
+⛔  规则：~/.qclaw/skills/garry-personal/SKILL.md
+⛔  → §1.3 deploy 规范 + §1.4 版本号
+⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔⛔
+BLOCKED
+    exit 1
+    ;;
+esac
 
 echo "==> 模式: $MODE"
 
