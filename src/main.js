@@ -2899,7 +2899,7 @@ class PdfFullscreenView extends ItemView {
     this._renderScaleLevel = 0;
 
     zoomOutBtn.onclick = () => {
-      new Notice('缩放功能敬请期待');
+      new Notice('全屏预览（敬请期待）');
     };
 
     // 放大按钮
@@ -2908,7 +2908,7 @@ class PdfFullscreenView extends ItemView {
     zoomInBtn.setAttribute('aria-label', '放大');
     zoomInBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
     zoomInBtn.onclick = () => {
-      new Notice('缩放功能敬请期待');
+      new Notice('全屏预览（敬请期待）');
     };
 
     // 下拉菜单按钮
@@ -4677,7 +4677,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const { workspace } = this.app;
     // 桌面端暂不支持全屏预览
     if (!Platform.isMobile) {
-      new Notice('缩放功能敬请期待');
+      new Notice('全屏预览（敬请期待）');
       return;
     }
     if (!name) name = cleanFileNameFromUrl(url);

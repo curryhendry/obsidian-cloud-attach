@@ -2726,14 +2726,14 @@ var PdfFullscreenView = class extends ItemView {
     zoomOutBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
     this._renderScaleLevel = 0;
     zoomOutBtn.onclick = () => {
-      new Notice("\u7F29\u653E\u529F\u80FD\u656C\u8BF7\u671F\u5F85");
+      new Notice("\u5168\u5C4F\u9884\u89C8\uFF08\u656C\u8BF7\u671F\u5F85\uFF09");
     };
     const zoomInBtn = left.createEl("button");
     zoomInBtn.className = "clickable-icon";
     zoomInBtn.setAttribute("aria-label", "\u653E\u5927");
     zoomInBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
     zoomInBtn.onclick = () => {
-      new Notice("\u7F29\u653E\u529F\u80FD\u656C\u8BF7\u671F\u5F85");
+      new Notice("\u5168\u5C4F\u9884\u89C8\uFF08\u656C\u8BF7\u671F\u5F85\uFF09");
     };
     const viewMenuBtn = left.createEl("button");
     viewMenuBtn.className = "clickable-icon";
@@ -4437,7 +4437,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
   async openPdfFullscreen(url, name) {
     const { workspace } = this.app;
     if (!Platform.isMobile) {
-      new Notice("\u7F29\u653E\u529F\u80FD\u656C\u8BF7\u671F\u5F85");
+      new Notice("\u5168\u5C4F\u9884\u89C8\uFF08\u656C\u8BF7\u671F\u5F85\uFF09");
       return;
     }
     if (!name)
