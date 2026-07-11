@@ -3186,11 +3186,13 @@ class PdfFullscreenView extends ItemView {
     this._bindScroll(displayH, scrollH);
     console.log('[CloudAttach] _renderAllPages done totalPages=', totalPages, 'displayW=', displayW, 'displayH=', displayH);
 
-    // 桌面端 popout 窗口 GPU compositor 可能尚未就绪，强制重绘
+    // 桌面端 popout 窗口 GPU compositor 可能尚未就绪
+    // invalidate() 不生效，改用 opacity 微调强制 compositor 重绘（仿桌面切换效果）
     try {
-      const w = require('@electron/remote').getCurrentWindow();
-      if (w && w.webContents) w.webContents.invalidate();
-    } catch (e) { /* @electron/remote 不可用时忽略 */ }
+      const bw = require('@electron/remote').getCurrentWindow();
+      bw.setOpacity(0.99);
+      requestAnimationFrame(() => bw.setOpacity(1));
+    } catch (e) { console.error('[CloudAttach] repaint:', e); }
   }
 
   _reRender() {
