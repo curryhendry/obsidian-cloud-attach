@@ -5,7 +5,7 @@
 
 'use strict';
 
-const { Plugin, Notice, Menu, Modal, PluginSettingTab, MarkdownView, ItemView, EditorSuggest } = require('obsidian');
+const { Plugin, Notice, Menu, Modal, Platform, PluginSettingTab, MarkdownView, ItemView, EditorSuggest } = require('obsidian');
 // heic2any 动态加载，遇 HEIC 图时才 require('./heic2any.bundle.js')
 
 const VIEW_TYPE_CLOUDATTACH = 'cloud-attach-view';
@@ -4675,10 +4675,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
    */
   async openPdfFullscreen(url, name) {
     const { workspace } = this.app;
+    // 桌面端暂不支持全屏预览
+    if (!Platform.isMobile) {
+      new Notice('PDF 全屏浏览仅支持手机端');
+      return;
+    }
     if (!name) name = cleanFileNameFromUrl(url);
-    // 检查是否已存在
-    // 每次创建新 leaf，不关闭旧的
-    // store 到实例上，onOpen 会读取
     this._pendingPdfUrl = url;
     this._pendingPdfName = name;
     
@@ -4691,19 +4693,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (this._renderedPdfUrlsByMode) {
       Object.values(this._renderedPdfUrlsByMode).forEach(s => s instanceof Set && s.clear());
     }
-    // 手机端：直接 split 避免 openPopoutLeaf 抛"仅桌面端"提示
-    // 仅判断屏幕宽度（Mac 触控板也有 maxTouchPoints > 0）
-    const isMobile = window.innerWidth < 768;
-    let leaf;
-    if (isMobile) {
-      leaf = workspace.getLeaf('split', 'vertical');
-    } else {
-      try {
-        leaf = workspace.openPopoutLeaf();
-      } catch (e) {
-        leaf = workspace.getLeaf('split', 'vertical');
-      }
-    }
+    const leaf = workspace.getLeaf('split', 'vertical');
     await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true, state: { pdfUrl: url, pdfName: name } });
     workspace.revealLeaf(leaf);
     // 不 delete _pendingPdfUrl，onOpen 是 async 的，setViewState 返回时 onOpen 可能还没执行

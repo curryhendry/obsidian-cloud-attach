@@ -2,7 +2,7 @@
 "use strict";
 
 // src/main.js
-var { Plugin, Notice, Menu, Modal, PluginSettingTab, MarkdownView, ItemView, EditorSuggest } = require("obsidian");
+var { Plugin, Notice, Menu, Modal, Platform, PluginSettingTab, MarkdownView, ItemView, EditorSuggest } = require("obsidian");
 var VIEW_TYPE_CLOUDATTACH = "cloud-attach-view";
 var VIEW_TYPE_PDF_FULLSCREEN = "cloud-attach-pdf-fullscreen";
 var I18n = {
@@ -4436,6 +4436,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
    */
   async openPdfFullscreen(url, name) {
     const { workspace } = this.app;
+    if (!Platform.isMobile) {
+      new Notice("PDF \u5168\u5C4F\u6D4F\u89C8\u4EC5\u652F\u6301\u624B\u673A\u7AEF");
+      return;
+    }
     if (!name)
       name = cleanFileNameFromUrl(url);
     this._pendingPdfUrl = url;
@@ -4448,17 +4452,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     if (this._renderedPdfUrlsByMode) {
       Object.values(this._renderedPdfUrlsByMode).forEach((s) => s instanceof Set && s.clear());
     }
-    const isMobile = window.innerWidth < 768;
-    let leaf;
-    if (isMobile) {
-      leaf = workspace.getLeaf("split", "vertical");
-    } else {
-      try {
-        leaf = workspace.openPopoutLeaf();
-      } catch (e) {
-        leaf = workspace.getLeaf("split", "vertical");
-      }
-    }
+    const leaf = workspace.getLeaf("split", "vertical");
     await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true, state: { pdfUrl: url, pdfName: name } });
     workspace.revealLeaf(leaf);
   }
