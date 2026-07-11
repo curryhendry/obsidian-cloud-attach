@@ -1641,6 +1641,7 @@ var S3Client = class {
     const canonicalHeaders = sortedHeaderEntries.map(([k, v]) => `${k.toLowerCase()}:${v.trim()}`).join("\n") + "\n";
     const canonicalRequest = [method.toUpperCase(), canonicalUri, canonicalQueryString, canonicalHeaders, signedHeaderNames, "UNSIGNED-PAYLOAD"].join("\n");
     const canonicalHash = await this.sha256(canonicalRequest);
+    console.log("[CloudAttach] signQuery canonicalHash:", canonicalHash, "canonicalRequest:", JSON.stringify(canonicalRequest));
     const stringToSign = [`AWS4-HMAC-SHA256`, dateStr, `${dateOnly}/${this.region}/s3/aws4_request`, canonicalHash].join("\n");
     const kDate = await this.hmacSha256(`AWS4${this.secretKey}`, dateOnly);
     const kRegion = await this.hmacSha256(kDate, this.region);
