@@ -1302,6 +1302,13 @@ var OpenListClient = class {
     const normalizedParent = parentDir.endsWith("/") ? parentDir : parentDir + "/";
     const remotePath = normalizedParent + folderName;
     try {
+      const existing = await this.listDirectory(normalizedParent);
+      if (existing.some((f) => f.name === folderName && f.isDirectory)) {
+        return { ok: false, error: `\u6587\u4EF6\u5939 "${folderName}" \u5DF2\u5B58\u5728` };
+      }
+    } catch {
+    }
+    try {
       const apiUrl = `${this.serverUrl}/api/fs/mkdir`;
       const response = await this.authFetch("/api/fs/mkdir", {
         method: "POST",
@@ -1482,7 +1489,11 @@ var S3Client = class {
         headers: { "Content-Type": this.getMimeType(fileName) },
         body: content
       });
-      console.log("[CloudAttach] S3 upload response:", response.status, response.ok, "error:", response.error, typeof response.text === "function" ? "[text fn]" : String(response.text || "").substring(0, 200));
+      console.log("[CloudAttach] S3 upload response:", response.status, response.ok);
+      if (!response.ok && response.status !== 200) {
+        const fullBody = typeof response.text === "function" ? await response.text() : String(response.text || "");
+        console.log("[CloudAttach] S3 upload error body:", fullBody);
+      }
       if (response.ok || response.status === 200) {
         const url = this.getFileUrl(remotePath);
         return { ok: true, remotePath, url };
