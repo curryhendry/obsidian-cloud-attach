@@ -1636,7 +1636,8 @@ var S3Client = class {
     };
     const sortedParams = Object.entries(params).sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0);
     const canonicalQueryString = sortedParams.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join("&");
-    const canonicalUri = objectKey ? encodeURIComponent(`/${this.bucket}/${objectKey}`).replace(/%2F/g, "/") : encodeURIComponent(`/${this.bucket}`).replace(/%2F/g, "/");
+    let canonicalUri = objectKey ? encodeURIComponent(`/${this.bucket}/${objectKey}`).replace(/%2F/g, "/") : encodeURIComponent(`/${this.bucket}`).replace(/%2F/g, "/");
+    canonicalUri = canonicalUri.replace(/\(/g, "%28").replace(/\)/g, "%29");
     const sortedHeaderEntries = Object.entries(allSignedHeaders).sort((a, b) => a[0].localeCompare(b[0]));
     const canonicalHeaders = sortedHeaderEntries.map(([k, v]) => `${k.toLowerCase()}:${v.trim()}`).join("\n") + "\n";
     const canonicalRequest = [method.toUpperCase(), canonicalUri, canonicalQueryString, canonicalHeaders, signedHeaderNames, "UNSIGNED-PAYLOAD"].join("\n");
