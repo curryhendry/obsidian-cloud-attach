@@ -2875,6 +2875,7 @@ var PdfFullscreenView = class extends ItemView {
       if (i === 1)
         this._bindScroll();
     }
+    await new Promise((r) => requestAnimationFrame(r));
   }
   _reRender() {
     if (!this._pdf)
