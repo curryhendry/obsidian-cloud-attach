@@ -3186,17 +3186,22 @@ class PdfFullscreenView extends ItemView {
     this._bindScroll(displayH, scrollH);
     console.log('[CloudAttach] _renderAllPages done totalPages=', totalPages, 'displayW=', displayW, 'displayH=', displayH);
 
-    // 桌面端 popout 窗口 compositor 第一帧后停止出帧
-    // CSS animation 强制 compositor 继续合成，拾取 canvas 内容
+    // 桌面端 popout 窗口不在当前 macOS 桌面时 compositor 不跑
+    // 短暂聚焦 popout 窗口触发 compositor 合成，然后切回 Obsidian
     try {
-      const s = document.createElement('style');
-      s.textContent = '@keyframes cca{from{opacity:.999}to{opacity:1}}';
-      document.head.appendChild(s);
-      this.scrollEl.style.animation = 'cca 0.016s';
-      requestAnimationFrame(() => {
-        this.scrollEl.style.animation = '';
-        s.remove();
-      });
+      const { app } = require('@electron/remote');
+      const bw = require('@electron/remote').getCurrentWindow();
+      const prevFocused = require('@electron/remote').BrowserWindow.getFocusedWindow();
+      bw.show();
+      bw.focus();
+      // 等 compositor 处理一帧，然后切回 Obsidian
+      setTimeout(() => {
+        if (prevFocused && !prevFocused.isDestroyed()) {
+          prevFocused.focus();
+        } else {
+          app.focus();
+        }
+      }, 100);
     } catch (e) { console.error('[CloudAttach] repaint:', e); }
   }
 
