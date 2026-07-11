@@ -3026,8 +3026,9 @@ class PdfFullscreenView extends ItemView {
       this.pageInput.value = '1';
       this._currentPage = 1;
 
-      // 等容器 layout 完成后再渲染（避免 clientWidth/Height=0 导致的 crash）
-      // 双 rAF：等 layout + paint 都完成
+      // popout 窗口 GPU compositor 初始化慢，延迟渲染
+      // 等 500ms 确保 compositor BeginFrame 已启动
+      await new Promise(r => setTimeout(r, 500));
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
       this._renderAllPages();
     } catch (e) {
@@ -3186,13 +3187,6 @@ class PdfFullscreenView extends ItemView {
     this._bindScroll(displayH, scrollH);
     console.log('[CloudAttach] _renderAllPages done totalPages=', totalPages, 'displayW=', displayW, 'displayH=', displayH);
 
-    // popout 窗口被 macOS 分配到不同 Space，compositor 不跑
-    // setVisibleOnAllWorkspaces 强制拉到当前 Space
-    try {
-      const bw = require('@electron/remote').getCurrentWindow();
-      bw.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-      bw.setVisibleOnAllWorkspaces(false);
-    } catch (e) { console.error('[CloudAttach] repaint:', e); }
   }
 
   _reRender() {

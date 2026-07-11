@@ -2830,6 +2830,7 @@ var PdfFullscreenView = class extends ItemView {
       this.pageTotal.textContent = " / " + totalPages;
       this.pageInput.value = "1";
       this._currentPage = 1;
+      await new Promise((r) => setTimeout(r, 500));
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       this._renderAllPages();
     } catch (e) {
@@ -2978,13 +2979,6 @@ var PdfFullscreenView = class extends ItemView {
     this.scrollEl.querySelectorAll(".cloud-attach-snap-item").forEach((w) => this._fullscreenObserver.observe(w));
     this._bindScroll(displayH, scrollH);
     console.log("[CloudAttach] _renderAllPages done totalPages=", totalPages, "displayW=", displayW, "displayH=", displayH);
-    try {
-      const bw = require("@electron/remote").getCurrentWindow();
-      bw.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-      bw.setVisibleOnAllWorkspaces(false);
-    } catch (e) {
-      console.error("[CloudAttach] repaint:", e);
-    }
   }
   _reRender() {
     if (!this._pdf)
