@@ -4462,6 +4462,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const leaf = workspace.getLeaf("split", "vertical");
     await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true });
     workspace.revealLeaf(leaf);
+    setTimeout(() => {
+      try {
+        this.app.commands.executeCommandById("workspace:toggle-maximize-leaf");
+      } catch (e) {
+      }
+    }, 800);
   }
   // ============================================================
   // PDF.js 内联预览（v0.3.026）
