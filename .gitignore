@@ -8,4 +8,3 @@ node_modules/
 # PDF.js - 用户本地下载，不提交
 libs/pdfjs/
 src/pdf.min.mjs
-_fix_dup.py
