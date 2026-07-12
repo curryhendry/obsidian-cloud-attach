@@ -5,6 +5,8 @@ data.json
 node_modules/
 .DS_Store
 
+deploy.sh
+
 # PDF.js - 用户本地下载，不提交
 libs/pdfjs/
 src/pdf.min.mjs
