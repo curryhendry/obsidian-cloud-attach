@@ -3118,7 +3118,7 @@ class PdfFullscreenView extends ItemView {
       canvas.width = viewport.width;
       canvas.height = viewport.height;
       await page.render({
-        canvasContext: canvas.getContext('2d'),
+        canvasContext: canvas.getContext('2d', { willReadFrequently: true }),
         viewport
       }).promise;
     }
@@ -3211,7 +3211,7 @@ class PdfFullscreenView extends ItemView {
       canvas.style.display = 'block';
       canvas.width = viewport.width;
       canvas.height = viewport.height;
-      await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+      await page.render({ canvasContext: canvas.getContext('2d', { willReadFrequently: true }), viewport }).promise;
       // 悬浮页码（右下角更小巧透明）
       const pageNumEl = wrap.createEl('div', { text: String(i) });
       pageNumEl.style.position = 'absolute';

@@ -2907,7 +2907,7 @@ var PdfFullscreenView = class extends ItemView {
       canvas.width = viewport.width;
       canvas.height = viewport.height;
       await page.render({
-        canvasContext: canvas.getContext("2d"),
+        canvasContext: canvas.getContext("2d", { willReadFrequently: true }),
         viewport
       }).promise;
     }
@@ -2987,7 +2987,7 @@ var PdfFullscreenView = class extends ItemView {
       canvas.style.display = "block";
       canvas.width = viewport.width;
       canvas.height = viewport.height;
-      await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+      await page.render({ canvasContext: canvas.getContext("2d", { willReadFrequently: true }), viewport }).promise;
       const pageNumEl = wrap.createEl("div", { text: String(i) });
       pageNumEl.style.position = "absolute";
       pageNumEl.style.bottom = "4px";
