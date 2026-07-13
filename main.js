@@ -2904,32 +2904,30 @@ var PdfFullscreenView = class extends ItemView {
         continue;
       const page = await this._pdf.getPage(i);
       const viewport = page.getViewport({ scale: renderScale });
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
+      const offscreen = new OffscreenCanvas(viewport.width, viewport.height);
       await page.render({
-        canvasContext: canvas.getContext("2d", { willReadFrequently: true }),
+        canvasContext: offscreen.getContext("2d"),
         viewport
       }).promise;
       try {
-        const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
-        if (blob) {
-          const imgUrl = URL.createObjectURL(blob);
-          const img = document.createElement("img");
-          img.src = imgUrl;
-          img.className = "cloud-attach-pdf-fullscreen-page";
-          img.style.display = "block";
-          img.style.boxShadow = "0 1px 4px rgba(0,0,0,0.15)";
-          img.dataset.pageNum = String(i);
-          if (!zoomedIn) {
-            this._sizeCanvas(img, scrollW, mode === "single" ? scrollH : Infinity);
-          } else {
-            img.style.width = viewport.width + "px";
-            img.style.height = viewport.height + "px";
-          }
-          canvas.replaceWith(img);
-          URL.revokeObjectURL(imgUrl);
+        const blob = await offscreen.convertToBlob({ type: "image/png" });
+        const imgUrl = URL.createObjectURL(blob);
+        const img = document.createElement("img");
+        img.src = imgUrl;
+        img.className = "cloud-attach-pdf-fullscreen-page";
+        img.style.display = "block";
+        img.style.boxShadow = "0 1px 4px rgba(0,0,0,0.15)";
+        img.dataset.pageNum = String(i);
+        if (!zoomedIn) {
+          this._sizeCanvas(img, scrollW, mode === "single" ? scrollH : Infinity);
+        } else {
+          img.style.width = viewport.width + "px";
+          img.style.height = viewport.height + "px";
         }
+        canvas.replaceWith(img);
+        URL.revokeObjectURL(imgUrl);
       } catch (e) {
+        console.error("[CloudAttach] OffscreenCanvas render error:", e);
       }
     }
     this._bindScroll();

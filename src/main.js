@@ -3109,40 +3109,36 @@ class PdfFullscreenView extends ItemView {
       this.scrollEl.appendChild(wrap);
     }
 
-    // 渲染：canvas 渲染后转 img（<img> 不依赖 GPU compositor，popout 窗口可正常显示）
+    // 渲染：OffscreenCanvas 纯内存渲染（不依赖任何窗口 compositor），转 img 显示
     for (let i = 1; i <= totalPages; i++) {
       const canvas = this.scrollEl.querySelector(`canvas.cloud-attach-pdf-fullscreen-page[data-page-num="${i}"]`);
       if (!canvas) continue;
       const page = await this._pdf.getPage(i);
       const viewport = page.getViewport({ scale: renderScale });
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
+      const offscreen = new OffscreenCanvas(viewport.width, viewport.height);
       await page.render({
-        canvasContext: canvas.getContext('2d', { willReadFrequently: true }),
+        canvasContext: offscreen.getContext('2d'),
         viewport
       }).promise;
-      // canvas → blob → img 替换
       try {
-        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-        if (blob) {
-          const imgUrl = URL.createObjectURL(blob);
-          const img = document.createElement('img');
-          img.src = imgUrl;
-          img.className = 'cloud-attach-pdf-fullscreen-page';
-          img.style.display = 'block';
-          img.style.boxShadow = '0 1px 4px rgba(0,0,0,0.15)';
-          img.dataset.pageNum = String(i);
-          if (!zoomedIn) {
-            this._sizeCanvas(img, scrollW, mode === 'single' ? scrollH : Infinity);
-          } else {
-            img.style.width = viewport.width + 'px';
-            img.style.height = viewport.height + 'px';
-          }
-          canvas.replaceWith(img);
-          URL.revokeObjectURL(imgUrl);
+        const blob = await offscreen.convertToBlob({ type: 'image/png' });
+        const imgUrl = URL.createObjectURL(blob);
+        const img = document.createElement('img');
+        img.src = imgUrl;
+        img.className = 'cloud-attach-pdf-fullscreen-page';
+        img.style.display = 'block';
+        img.style.boxShadow = '0 1px 4px rgba(0,0,0,0.15)';
+        img.dataset.pageNum = String(i);
+        if (!zoomedIn) {
+          this._sizeCanvas(img, scrollW, mode === 'single' ? scrollH : Infinity);
+        } else {
+          img.style.width = viewport.width + 'px';
+          img.style.height = viewport.height + 'px';
         }
+        canvas.replaceWith(img);
+        URL.revokeObjectURL(imgUrl);
       } catch (e) {
-        // blob 失败则保留 canvas（fallback）
+        console.error('[CloudAttach] OffscreenCanvas render error:', e);
       }
     }
 
