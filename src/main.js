@@ -3157,6 +3157,8 @@ class PdfFullscreenView extends ItemView {
   _renderFromBlobs(blobs, mode, scaleLevel, zoomMode) {
     const totalPages = blobs.length;
     const zoomedIn = scaleLevel > 1;
+    const fitWidth = zoomMode === 'fit-width' || (!zoomMode && scaleLevel <= 0);
+    const fitHeight = zoomMode === 'fit-height';
 
     this.scrollEl.style.cssText = `
       flex:1; min-height:0; overflow:auto;
@@ -3174,14 +3176,29 @@ class PdfFullscreenView extends ItemView {
       img.className = 'cloud-attach-pdf-fullscreen-page';
       img.style.display = 'block';
       img.style.boxShadow = '0 1px 4px rgba(0,0,0,0.15)';
-      img.style.maxWidth = '100%';
-      img.style.height = 'auto';
+
+      if (fitWidth || (!fitHeight && !zoomedIn)) {
+        img.style.width = '100%';
+        img.style.height = 'auto';
+        img.style.maxWidth = zoomedIn ? 'none' : '100%';
+      } else if (fitHeight) {
+        img.style.maxWidth = '100%';
+        img.style.maxHeight = '100%';
+        img.style.width = 'auto';
+        img.style.height = 'auto';
+        img.style.objectFit = 'contain';
+      }
+      if (zoomedIn) {
+        img.style.maxWidth = 'none';
+        img.style.maxHeight = 'none';
+        img.style.width = 'auto';
+        img.style.height = 'auto';
+      }
 
       if (mode === 'single') {
         if (zoomedIn) {
           this.scrollEl.style.overflowX = 'auto';
           this.scrollEl.style.scrollSnapType = 'none';
-          img.style.maxWidth = 'none';
           wrap.style.cssText = `
             display:flex; align-items:flex-start; justify-content:flex-start;
             width:100%; flex-shrink:0;
@@ -3194,25 +3211,20 @@ class PdfFullscreenView extends ItemView {
             width:100%; height:100%; flex-shrink:0;
             scroll-snap-align:start; overflow:hidden;
           `;
-          img.style.objectFit = 'contain';
-          img.style.maxHeight = '100%';
+          if (fitHeight) {
+            img.style.maxWidth = '100%';
+            img.style.maxHeight = '100%';
+            img.style.objectFit = 'contain';
+          }
         }
       } else {
         this.scrollEl.style.overflowX = 'hidden';
         this.scrollEl.style.scrollSnapType = 'none';
         img.style.margin = '0 auto 8px';
-        img.style.width = '100%';
         wrap.style.cssText = `
           display:flex; align-items:flex-start; justify-content:flex-start;
           width:100%; flex-shrink:0;
         `;
-      }
-
-      if (zoomedIn) {
-        img.style.maxWidth = 'none';
-        img.style.maxHeight = 'none';
-        img.style.width = 'auto';
-        img.style.height = 'auto';
       }
 
       wrap.appendChild(img);
@@ -3225,6 +3237,15 @@ class PdfFullscreenView extends ItemView {
     }
     this._currentPage = 1;
     this._bindScroll();
+
+    // popout compositor flush
+    this.scrollEl.offsetHeight;
+    requestAnimationFrame(() => {
+      this.scrollEl.style.transform = 'translateZ(0)';
+      requestAnimationFrame(() => {
+        this.scrollEl.style.transform = '';
+      });
+    });
   }
 
   _reRender() {
@@ -5212,7 +5233,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const fullscreenBtn = document.createElement("span");
     fullscreenBtn.textContent = "\u26F6";
     fullscreenBtn.style.cursor = "pointer";
-    fullscreenBtn.title = "\u5168\u5C4F\u9884\u89C8\uFF08\u656C\u8BF7\u671F\u5F85\uFF09";
+    fullscreenBtn.title = "\u5168\u5C4F\u9884\u89C8";
     fullscreenBtn.dataset.role = "fullscreen";
     toolbar.appendChild(fullscreenBtn);
     fullscreenBtn.onclick = (e) => {
