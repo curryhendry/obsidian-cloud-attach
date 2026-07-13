@@ -2910,10 +2910,27 @@ var PdfFullscreenView = class extends ItemView {
         canvasContext: canvas.getContext("2d", { willReadFrequently: true }),
         viewport
       }).promise;
-    }
-    if (!zoomedIn) {
-      const canvases = this.scrollEl.querySelectorAll("canvas.cloud-attach-pdf-fullscreen-page");
-      canvases.forEach((c) => this._sizeCanvas(c, scrollW, mode === "single" ? scrollH : Infinity));
+      try {
+        const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+        if (blob) {
+          const imgUrl = URL.createObjectURL(blob);
+          const img = document.createElement("img");
+          img.src = imgUrl;
+          img.className = "cloud-attach-pdf-fullscreen-page";
+          img.style.display = "block";
+          img.style.boxShadow = "0 1px 4px rgba(0,0,0,0.15)";
+          img.dataset.pageNum = String(i);
+          if (!zoomedIn) {
+            this._sizeCanvas(img, scrollW, mode === "single" ? scrollH : Infinity);
+          } else {
+            img.style.width = viewport.width + "px";
+            img.style.height = viewport.height + "px";
+          }
+          canvas.replaceWith(img);
+          URL.revokeObjectURL(imgUrl);
+        }
+      } catch (e) {
+      }
     }
     this._bindScroll();
   }
@@ -2928,9 +2945,11 @@ var PdfFullscreenView = class extends ItemView {
     });
   }
   _sizeCanvas(c, maxW, maxH) {
-    const ratio = c.width / (c.height || 1);
+    const w = c.width || c.naturalWidth || 0;
+    const h = c.height || c.naturalHeight || 1;
+    const ratio = w / h;
     if (this._zoomMode === "fit-height") {
-      const tH = Math.min(maxH, c.height);
+      const tH = Math.min(maxH, h);
       c.style.height = tH + "px";
       c.style.width = tH * ratio + "px";
     } else {
@@ -4338,23 +4357,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       name = cleanFileNameFromUrl(url);
     this._pendingPdfUrl = url;
     this._pendingPdfName = name;
-    try {
-      const warmCanvas = document.createElement("canvas");
-      warmCanvas.width = 1;
-      warmCanvas.height = 1;
-      warmCanvas.style.position = "fixed";
-      warmCanvas.style.left = "-1px";
-      warmCanvas.style.top = "-1px";
-      warmCanvas.style.opacity = "0";
-      warmCanvas.style.pointerEvents = "none";
-      document.body.appendChild(warmCanvas);
-      const wCtx = warmCanvas.getContext("2d");
-      wCtx.fillStyle = "#000";
-      wCtx.fillRect(0, 0, 1, 1);
-      await new Promise((r) => requestAnimationFrame(r));
-      document.body.removeChild(warmCanvas);
-    } catch (e) {
-    }
     let leaf;
     try {
       leaf = workspace.openPopoutLeaf();

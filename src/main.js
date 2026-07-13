@@ -3109,7 +3109,7 @@ class PdfFullscreenView extends ItemView {
       this.scrollEl.appendChild(wrap);
     }
 
-    // 渲染：canvas 已在最终父节点内
+    // 渲染：canvas 渲染后转 img（<img> 不依赖 GPU compositor，popout 窗口可正常显示）
     for (let i = 1; i <= totalPages; i++) {
       const canvas = this.scrollEl.querySelector(`canvas.cloud-attach-pdf-fullscreen-page[data-page-num="${i}"]`);
       if (!canvas) continue;
@@ -3121,12 +3121,29 @@ class PdfFullscreenView extends ItemView {
         canvasContext: canvas.getContext('2d', { willReadFrequently: true }),
         viewport
       }).promise;
-    }
-
-    // CSS 尺寸调整（非放大时统一缩放）
-    if (!zoomedIn) {
-      const canvases = this.scrollEl.querySelectorAll('canvas.cloud-attach-pdf-fullscreen-page');
-      canvases.forEach(c => this._sizeCanvas(c, scrollW, mode === 'single' ? scrollH : Infinity));
+      // canvas → blob → img 替换
+      try {
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+        if (blob) {
+          const imgUrl = URL.createObjectURL(blob);
+          const img = document.createElement('img');
+          img.src = imgUrl;
+          img.className = 'cloud-attach-pdf-fullscreen-page';
+          img.style.display = 'block';
+          img.style.boxShadow = '0 1px 4px rgba(0,0,0,0.15)';
+          img.dataset.pageNum = String(i);
+          if (!zoomedIn) {
+            this._sizeCanvas(img, scrollW, mode === 'single' ? scrollH : Infinity);
+          } else {
+            img.style.width = viewport.width + 'px';
+            img.style.height = viewport.height + 'px';
+          }
+          canvas.replaceWith(img);
+          URL.revokeObjectURL(imgUrl);
+        }
+      } catch (e) {
+        // blob 失败则保留 canvas（fallback）
+      }
     }
 
     this._bindScroll();
@@ -3143,9 +3160,11 @@ class PdfFullscreenView extends ItemView {
   }
 
   _sizeCanvas(c, maxW, maxH) {
-    const ratio = c.width / (c.height || 1);
+    const w = c.width || c.naturalWidth || 0;
+    const h = c.height || c.naturalHeight || 1;
+    const ratio = w / h;
     if (this._zoomMode === 'fit-height') {
-      const tH = Math.min(maxH, c.height);
+      const tH = Math.min(maxH, h);
       c.style.height = tH + 'px';
       c.style.width = (tH * ratio) + 'px';
     } else {
@@ -4610,24 +4629,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     // store 到实例上，onOpen 会读取
     this._pendingPdfUrl = url;
     this._pendingPdfName = name;
-    // 预热 GPU compositor（冷态下主窗口 canvas 渲染一次，popout 继承 compositor）
-    try {
-      const warmCanvas = document.createElement('canvas');
-      warmCanvas.width = 1;
-      warmCanvas.height = 1;
-      warmCanvas.style.position = 'fixed';
-      warmCanvas.style.left = '-1px';
-      warmCanvas.style.top = '-1px';
-      warmCanvas.style.opacity = '0';
-      warmCanvas.style.pointerEvents = 'none';
-      document.body.appendChild(warmCanvas);
-      const wCtx = warmCanvas.getContext('2d');
-      wCtx.fillStyle = '#000';
-      wCtx.fillRect(0, 0, 1, 1);
-      await new Promise(r => requestAnimationFrame(r));
-      document.body.removeChild(warmCanvas);
-    } catch (e) { /* non-critical */ }
-
     // 优先 popout 窗口（真·全屏），fallback 到 split
     let leaf;
     try {
