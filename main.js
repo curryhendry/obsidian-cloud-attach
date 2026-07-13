@@ -2835,8 +2835,13 @@ var PdfFullscreenView = class extends ItemView {
     }
   }
   async _renderAllPages(mode, scaleLevel, zoomMode) {
-    if (!this._pdf)
+    if (!this._pdf && !this.plugin._pendingPageBlobs)
       return;
+    if (this.plugin._pendingPageBlobs) {
+      this._renderFromBlobs(this.plugin._pendingPageBlobs, mode, scaleLevel, zoomMode);
+      this.plugin._pendingPageBlobs = null;
+      return;
+    }
     const totalPages = this._pdf.numPages;
     const firstPg = await this._pdf.getPage(1);
     const firstVp = firstPg.getViewport({ scale: 1 });
@@ -2930,6 +2935,74 @@ var PdfFullscreenView = class extends ItemView {
         console.error("[CloudAttach] OffscreenCanvas render error:", e);
       }
     }
+    this._bindScroll();
+  }
+  /** 用预渲染的 blob URL 显示（popout 模式，不依赖 GPU compositor） */
+  _renderFromBlobs(blobs, mode, scaleLevel, zoomMode) {
+    const totalPages = blobs.length;
+    const scrollW = this.scrollEl.clientWidth;
+    const scrollH = this.scrollEl.clientHeight;
+    const zoomedIn = scaleLevel > 1;
+    this.scrollEl.style.cssText = `
+      flex:1; min-height:0; overflow:auto;
+      background:var(--background-secondary); padding:0;
+    `;
+    this.scrollEl.empty();
+    for (let i = 0; i < totalPages; i++) {
+      const wrap = document.createElement("div");
+      wrap.className = "cloud-attach-snap-item";
+      wrap.dataset.pageNum = String(i + 1);
+      const img = document.createElement("img");
+      img.src = blobs[i];
+      img.className = "cloud-attach-pdf-fullscreen-page";
+      img.style.display = "block";
+      img.style.boxShadow = "0 1px 4px rgba(0,0,0,0.15)";
+      img.dataset.pageNum = String(i + 1);
+      if (mode === "single") {
+        if (zoomedIn) {
+          this.scrollEl.style.overflowX = "auto";
+          this.scrollEl.style.scrollSnapType = "none";
+          wrap.style.cssText = `
+            display:flex; align-items:flex-start; justify-content:flex-start;
+            width:100%; flex-shrink:0;
+          `;
+        } else {
+          this.scrollEl.style.overflowX = "hidden";
+          this.scrollEl.style.scrollSnapType = "y mandatory";
+          wrap.style.cssText = `
+            display:flex; align-items:center; justify-content:center;
+            width:100%; height:${scrollH}px; flex-shrink:0;
+            scroll-snap-align:start; overflow:hidden;
+          `;
+          if (!zoomedIn) {
+            img.style.maxWidth = "100%";
+            img.style.maxHeight = "100%";
+            img.style.objectFit = "contain";
+          }
+        }
+      } else {
+        this.scrollEl.style.overflowX = "hidden";
+        this.scrollEl.style.scrollSnapType = "none";
+        img.style.margin = "0 auto 8px";
+        img.style.width = "100%";
+        img.style.height = "auto";
+        wrap.style.cssText = `
+          display:flex; align-items:flex-start; justify-content:flex-start;
+          width:100%; flex-shrink:0;
+        `;
+      }
+      if (zoomedIn) {
+        img.style.width = "auto";
+        img.style.height = "auto";
+      }
+      wrap.appendChild(img);
+      this.scrollEl.appendChild(wrap);
+    }
+    if (this.plugin._pendingPageCount) {
+      this.pageTotal.textContent = " / " + this.plugin._pendingPageCount;
+      this.plugin._pendingPageCount = 0;
+    }
+    this._currentPage = 1;
     this._bindScroll();
   }
   _reRender() {
@@ -4355,6 +4428,30 @@ module.exports = class CloudAttachPlugin extends Plugin {
       name = cleanFileNameFromUrl(url);
     this._pendingPdfUrl = url;
     this._pendingPdfName = name;
+    try {
+      const pdfjsLib = await this._loadPdfJs();
+      const pdfData = await this._downloadPdfBinary(url);
+      const pdfDoc = await (pdfData ? pdfjsLib.getDocument({ data: pdfData }) : pdfjsLib.getDocument({ url })).promise;
+      const totalPages = pdfDoc.numPages;
+      const blobUrls = [];
+      for (let i = 1; i <= totalPages; i++) {
+        const page = await pdfDoc.getPage(i);
+        const vp = page.getViewport({ scale: 1600 / page.getViewport({ scale: 1 }).width });
+        const canvas = document.createElement("canvas");
+        canvas.width = vp.width;
+        canvas.height = vp.height;
+        await page.render({ canvasContext: canvas.getContext("2d", { willReadFrequently: true }), viewport: vp }).promise;
+        const blob = await new Promise((r) => canvas.toBlob(r, "image/png"));
+        if (blob) {
+          blobUrls.push(URL.createObjectURL(blob));
+        }
+      }
+      this._pendingPageBlobs = blobUrls;
+      this._pendingPageCount = totalPages;
+    } catch (e) {
+      console.error("[CloudAttach] pre-render failed:", e);
+      this._pendingPageBlobs = null;
+    }
     let leaf;
     try {
       leaf = workspace.openPopoutLeaf();

@@ -3032,16 +3032,23 @@ class PdfFullscreenView extends ItemView {
   }
 
   async _renderAllPages(mode, scaleLevel, zoomMode) {
-    if (!this._pdf) return;
+    if (!this._pdf && !this.plugin._pendingPageBlobs) return;
+    
+    // 预渲染模式（popout 打开前在主窗口渲染好了 blob）
+    if (this.plugin._pendingPageBlobs) {
+      this._renderFromBlobs(this.plugin._pendingPageBlobs, mode, scaleLevel, zoomMode);
+      this.plugin._pendingPageBlobs = null;
+      return;
+    }
+    
+    // 正常渲染路径（split 视图，使用 OffscreenCanvas）
     const totalPages = this._pdf.numPages;
     
-    // 用第一页实际尺寸算 scale
     const firstPg = await this._pdf.getPage(1);
     const firstVp = firstPg.getViewport({ scale: 1 });
     const pageW = firstVp.width;
     const pageH = firstVp.height;
     
-    // 计算渲染 scale
     let renderScale = 1;
     if (scaleLevel > 0) {
       renderScale = scaleLevel;
@@ -3057,16 +3064,13 @@ class PdfFullscreenView extends ItemView {
     const scrollH = this.scrollEl.clientHeight;
     const zoomedIn = scaleLevel > 1;
 
-    // Reset scrollEl
     this.scrollEl.style.cssText = `
       flex:1; min-height:0; overflow:auto;
       background:var(--background-secondary); padding:0;
     `;
     this.scrollEl.empty();
 
-    // 先建结构再渲染，避免 reparent canvas（Electron 不会迁移 GPU 纹理）
     for (let i = 1; i <= totalPages; i++) {
-      // 构建 wrap
       const wrap = document.createElement('div');
       wrap.className = 'cloud-attach-snap-item';
       wrap.dataset.pageNum = String(i);
@@ -3095,7 +3099,6 @@ class PdfFullscreenView extends ItemView {
           `;
         }
       } else {
-        // continuous
         this.scrollEl.style.overflowX = 'hidden';
         this.scrollEl.style.scrollSnapType = 'none';
         canvas.style.margin = '0 auto 8px';
@@ -3109,7 +3112,6 @@ class PdfFullscreenView extends ItemView {
       this.scrollEl.appendChild(wrap);
     }
 
-    // 渲染：OffscreenCanvas 纯内存渲染（不依赖任何窗口 compositor），转 img 显示
     for (let i = 1; i <= totalPages; i++) {
       const canvas = this.scrollEl.querySelector(`canvas.cloud-attach-pdf-fullscreen-page[data-page-num="${i}"]`);
       if (!canvas) continue;
@@ -3142,6 +3144,84 @@ class PdfFullscreenView extends ItemView {
       }
     }
 
+    this._bindScroll();
+  }
+
+  /** 用预渲染的 blob URL 显示（popout 模式，不依赖 GPU compositor） */
+  _renderFromBlobs(blobs, mode, scaleLevel, zoomMode) {
+    const totalPages = blobs.length;
+    const scrollW = this.scrollEl.clientWidth;
+    const scrollH = this.scrollEl.clientHeight;
+    const zoomedIn = scaleLevel > 1;
+
+    this.scrollEl.style.cssText = `
+      flex:1; min-height:0; overflow:auto;
+      background:var(--background-secondary); padding:0;
+    `;
+    this.scrollEl.empty();
+
+    for (let i = 0; i < totalPages; i++) {
+      const wrap = document.createElement('div');
+      wrap.className = 'cloud-attach-snap-item';
+      wrap.dataset.pageNum = String(i + 1);
+
+      const img = document.createElement('img');
+      img.src = blobs[i];
+      img.className = 'cloud-attach-pdf-fullscreen-page';
+      img.style.display = 'block';
+      img.style.boxShadow = '0 1px 4px rgba(0,0,0,0.15)';
+      img.dataset.pageNum = String(i + 1);
+
+      if (mode === 'single') {
+        if (zoomedIn) {
+          this.scrollEl.style.overflowX = 'auto';
+          this.scrollEl.style.scrollSnapType = 'none';
+          wrap.style.cssText = `
+            display:flex; align-items:flex-start; justify-content:flex-start;
+            width:100%; flex-shrink:0;
+          `;
+        } else {
+          this.scrollEl.style.overflowX = 'hidden';
+          this.scrollEl.style.scrollSnapType = 'y mandatory';
+          wrap.style.cssText = `
+            display:flex; align-items:center; justify-content:center;
+            width:100%; height:${scrollH}px; flex-shrink:0;
+            scroll-snap-align:start; overflow:hidden;
+          `;
+          if (!zoomedIn) {
+            img.style.maxWidth = '100%';
+            img.style.maxHeight = '100%';
+            img.style.objectFit = 'contain';
+          }
+        }
+      } else {
+        this.scrollEl.style.overflowX = 'hidden';
+        this.scrollEl.style.scrollSnapType = 'none';
+        img.style.margin = '0 auto 8px';
+        img.style.width = '100%';
+        img.style.height = 'auto';
+        wrap.style.cssText = `
+          display:flex; align-items:flex-start; justify-content:flex-start;
+          width:100%; flex-shrink:0;
+        `;
+      }
+
+      // 放大模式
+      if (zoomedIn) {
+        img.style.width = 'auto';
+        img.style.height = 'auto';
+      }
+
+      wrap.appendChild(img);
+      this.scrollEl.appendChild(wrap);
+    }
+
+    // 设置页面信息
+    if (this.plugin._pendingPageCount) {
+      this.pageTotal.textContent = ' / ' + this.plugin._pendingPageCount;
+      this.plugin._pendingPageCount = 0;
+    }
+    this._currentPage = 1;
     this._bindScroll();
   }
 
@@ -4620,12 +4700,39 @@ module.exports = class CloudAttachPlugin extends Plugin {
   async openPdfFullscreen(url, name) {
     const { workspace } = this.app;
     if (!name) name = cleanFileNameFromUrl(url);
-    // 检查是否已存在
-    // 每次创建新 leaf，不关闭旧的
-    // store 到实例上，onOpen 会读取
+    
     this._pendingPdfUrl = url;
     this._pendingPdfName = name;
-    // 优先 popout 窗口（真·全屏），fallback 到 split
+
+    // 主窗口预渲染所有页面为 blob URL（不依赖 popout compositor）
+    try {
+      const pdfjsLib = await this._loadPdfJs();
+      const pdfData = await this._downloadPdfBinary(url);
+      const pdfDoc = await (pdfData
+        ? pdfjsLib.getDocument({ data: pdfData })
+        : pdfjsLib.getDocument({ url })).promise;
+      const totalPages = pdfDoc.numPages;
+      const blobUrls = [];
+      for (let i = 1; i <= totalPages; i++) {
+        const page = await pdfDoc.getPage(i);
+        // 用 fit-width scale 1600px 保证清晰度，蓝牙主窗口渲染不受限
+        const vp = page.getViewport({ scale: 1600 / page.getViewport({ scale: 1 }).width });
+        const canvas = document.createElement('canvas');
+        canvas.width = vp.width;
+        canvas.height = vp.height;
+        await page.render({ canvasContext: canvas.getContext('2d', { willReadFrequently: true }), viewport: vp }).promise;
+        const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+        if (blob) {
+          blobUrls.push(URL.createObjectURL(blob));
+        }
+      }
+      this._pendingPageBlobs = blobUrls;
+      this._pendingPageCount = totalPages;
+    } catch (e) {
+      console.error('[CloudAttach] pre-render failed:', e);
+      this._pendingPageBlobs = null;
+    }
+
     let leaf;
     try {
       leaf = workspace.openPopoutLeaf();
@@ -4635,8 +4742,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
     await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true, state: { pdfUrl: url, pdfName: name } });
     workspace.revealLeaf(leaf);
-    // 不 delete _pendingPdfUrl，onOpen 是 async 的，setViewState 返回时 onOpen 可能还没执行
-    // _pendingPdfUrl 在 onOpen 读取后被下一次 openPdfFullscreen 覆盖即可
   }
 
   // ============================================================
