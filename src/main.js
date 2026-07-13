@@ -3238,12 +3238,10 @@ class PdfFullscreenView extends ItemView {
     this._currentPage = 1;
     this._bindScroll();
 
-    // popout compositor flush: display none → rAF → restore 强制全量重绘
+    // popout compositor flush: 同步 display:none → offsetHeight → restore
     this.scrollEl.style.display = 'none';
-    requestAnimationFrame(() => {
-      this.scrollEl.style.display = '';
-      void this.scrollEl.offsetHeight;
-    });
+    void this.scrollEl.offsetHeight;
+    this.scrollEl.style.display = '';
   }
 
   _reRender() {

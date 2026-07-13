@@ -3021,10 +3021,8 @@ var PdfFullscreenView = class extends ItemView {
     this._currentPage = 1;
     this._bindScroll();
     this.scrollEl.style.display = "none";
-    requestAnimationFrame(() => {
-      this.scrollEl.style.display = "";
-      void this.scrollEl.offsetHeight;
-    });
+    void this.scrollEl.offsetHeight;
+    this.scrollEl.style.display = "";
   }
   _reRender() {
     if (!this._pdf && !this._pageBlobs)
