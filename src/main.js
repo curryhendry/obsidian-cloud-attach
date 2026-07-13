@@ -3159,6 +3159,8 @@ class PdfFullscreenView extends ItemView {
     const zoomedIn = scaleLevel > 1;
     const fitWidth = zoomMode === 'fit-width' || (!zoomMode && scaleLevel <= 0);
     const fitHeight = zoomMode === 'fit-height';
+    const viewH = this.scrollEl.clientHeight || this.containerEl.clientHeight || 600;
+    const viewW = this.scrollEl.clientWidth || this.containerEl.clientWidth || 400;
 
     this.scrollEl.style.cssText = `
       flex:1; min-height:0; overflow:auto;
@@ -3177,21 +3179,19 @@ class PdfFullscreenView extends ItemView {
       img.style.display = 'block';
       img.style.boxShadow = '0 1px 4px rgba(0,0,0,0.15)';
 
-      if (fitWidth || (!fitHeight && !zoomedIn)) {
-        img.style.width = '100%';
-        img.style.height = 'auto';
-        img.style.maxWidth = zoomedIn ? 'none' : '100%';
-      } else if (fitHeight) {
-        img.style.maxWidth = '100%';
-        img.style.maxHeight = '100%';
-        img.style.width = 'auto';
-        img.style.height = 'auto';
-        img.style.objectFit = 'contain';
-      }
       if (zoomedIn) {
         img.style.maxWidth = 'none';
         img.style.maxHeight = 'none';
         img.style.width = 'auto';
+        img.style.height = 'auto';
+      } else if (fitHeight) {
+        img.style.maxWidth = '100%';
+        img.style.maxHeight = 'none';
+        img.style.width = 'auto';
+        img.style.height = 'auto';
+        img.style.objectFit = 'contain';
+      } else {
+        img.style.width = '100%';
         img.style.height = 'auto';
       }
 
@@ -3208,22 +3208,23 @@ class PdfFullscreenView extends ItemView {
           this.scrollEl.style.scrollSnapType = 'y mandatory';
           wrap.style.cssText = `
             display:flex; align-items:center; justify-content:center;
-            width:100%; height:100%; flex-shrink:0;
+            width:100%; height:${viewH}px; flex-shrink:0;
             scroll-snap-align:start; overflow:hidden;
           `;
-          if (fitHeight) {
-            img.style.maxWidth = '100%';
-            img.style.maxHeight = '100%';
-            img.style.objectFit = 'contain';
-          }
+          img.style.objectFit = 'contain';
+          img.style.maxWidth = '100%';
+          img.style.maxHeight = '100%';
         }
       } else {
         this.scrollEl.style.overflowX = 'hidden';
         this.scrollEl.style.scrollSnapType = 'none';
-        img.style.margin = '0 auto 8px';
+        if (zoomedIn) {
+          this.scrollEl.style.overflowX = 'auto';
+          this.scrollEl.style.scrollSnapType = 'none';
+        }
         wrap.style.cssText = `
-          display:flex; align-items:flex-start; justify-content:flex-start;
-          width:100%; flex-shrink:0;
+          display:flex; align-items:flex-start; justify-content:center;
+          width:100%; flex-shrink:0; margin-bottom:8px;
         `;
       }
 
@@ -3290,11 +3291,34 @@ class PdfFullscreenView extends ItemView {
     if (!this._thumbnailVisible) {
       // 关侧边栏后 scrollEl 变宽，需要重渲染
       requestAnimationFrame(() => this._reRender());
+    } else {
+      // 开侧边栏后也需要重渲染
+      requestAnimationFrame(() => this._reRender());
     }
   }
 
   async _renderThumbnails() {
-    if (!this._pdf || !this._thumbnailPanel) return;
+    if (!this._thumbnailPanel) return;
+    // blob 模式用图片做缩略图
+    if (!this._pdf && this._pageBlobs) {
+      this._thumbnailPanel.empty();
+      const total = this._pageBlobs.length;
+      for (let i = 0; i < total; i++) {
+        const wrap = this._thumbnailPanel.createEl('div');
+        wrap.style.cssText = 'position:relative;margin-bottom:8px;cursor:pointer;border:2px solid transparent;border-radius:4px;padding:2px;';
+        wrap.dataset.pageNum = String(i + 1);
+        wrap.onclick = () => {
+          this._scrollToPage(i + 1);
+          this._thumbnailPanel.querySelectorAll('div[data-page-num]').forEach(d => d.style.borderColor = 'transparent');
+          wrap.style.borderColor = 'var(--interactive-accent)';
+        };
+        const img = wrap.createEl('img');
+        img.src = this._pageBlobs[i];
+        img.style.cssText = 'width:100%;height:auto;display:block;';
+      }
+      return;
+    }
+    if (!this._pdf) return;
     this._thumbnailPanel.empty();
     const total = this._pdf.numPages;
     for (let i = 1; i <= total; i++) {
