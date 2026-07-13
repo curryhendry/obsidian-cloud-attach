@@ -168,7 +168,7 @@ Object.assign(I18n.translations.zh, {
   "view.new_folder_failed": "\u274C \u521B\u5EFA\u5931\u8D25: {error}",
   "view.new_folder_name_empty": "\u26A0\uFE0F \u6587\u4EF6\u5939\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A",
   "view.fullscreen_loading": "\u23F3 \u52A0\u8F7D PDF...",
-  "view.fullscreen_preparing": "\u23F3 \u6B63\u5728\u6E32\u67D3...",
+  "view.fullscreen_preparing": "\u23F3 \u6B63\u5728\u6E32\u67D3\uFF0C\u7A0D\u540E\u81EA\u52A8\u6253\u5F00\u2026",
   "view.fullscreen_load_fail": "\u274C \u52A0\u8F7D PDF \u5931\u8D25",
   "view.fullscreen_fit_width": "\u9002\u5E94\u5BBD\u5EA6",
   "view.file_count": "{count}/{total} \u9879\u5DF2\u9009",
@@ -425,7 +425,7 @@ Object.assign(I18n.translations.en, {
   "view.new_folder_failed": "\u274C Failed: {error}",
   "view.new_folder_name_empty": "\u26A0\uFE0F Folder name cannot be empty",
   "view.fullscreen_loading": "\u23F3 Loading PDF...",
-  "view.fullscreen_preparing": "\u23F3 Rendering...",
+  "view.fullscreen_preparing": "\u23F3 Rendering, will open shortly\u2026",
   "view.fullscreen_load_fail": "\u274C Failed to load PDF",
   "view.fullscreen_fit_width": "Fit Width",
   "view.file_count": "{count}/{total} selected",
@@ -2818,10 +2818,6 @@ var PdfFullscreenView = class extends ItemView {
     try {
       this.scrollEl.empty();
       this.scrollEl.createEl("div", { text: t("view.fullscreen_loading"), cls: "cloud-attach-loading" });
-      if (this.plugin._pendingPageBlobs) {
-        this._renderAllPages(this._viewMode, this._renderScaleLevel, this._zoomMode);
-        return;
-      }
       const pdfjsLib = await this.plugin._loadPdfJs();
       const pdfData = await this.plugin._downloadPdfBinary(this.pdfUrl);
       const loadingTask = pdfData ? pdfjsLib.getDocument({ data: pdfData, ownerDocument: this.containerEl.ownerDocument }) : pdfjsLib.getDocument({ url: this.pdfUrl, ownerDocument: this.containerEl.ownerDocument });
@@ -2841,16 +2837,15 @@ var PdfFullscreenView = class extends ItemView {
     }
   }
   async _renderAllPages(mode, scaleLevel, zoomMode) {
-    if (!this._pdf && !this.plugin._pendingPageBlobs)
+    if (!this._pdf && !this.plugin._pendingPageBlobs && !this._pageBlobs)
       return;
     const blobs = this.plugin._pendingPageBlobs || this._pageBlobs;
-    if (!this._pdf && blobs) {
-      this._renderFromBlobs(blobs, mode, scaleLevel, zoomMode);
+    if (blobs) {
       if (this.plugin._pendingPageBlobs) {
         this._pageBlobs = this.plugin._pendingPageBlobs;
         this.plugin._pendingPageBlobs = null;
       }
-      this._bindScroll();
+      this._renderFromBlobs(this._pageBlobs, mode, scaleLevel, zoomMode);
       return;
     }
     const totalPages = this._pdf.numPages;

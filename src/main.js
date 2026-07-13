@@ -181,7 +181,7 @@ Object.assign(I18n.translations.zh, {
   'view.new_folder_failed': '❌ 创建失败: {error}',
   'view.new_folder_name_empty': '⚠️ 文件夹名称不能为空',
   'view.fullscreen_loading': '⏳ 加载 PDF...',
-  'view.fullscreen_preparing': '⏳ 正在渲染...',
+  'view.fullscreen_preparing': '⏳ 正在渲染，稍后自动打开…',
   'view.fullscreen_load_fail': '❌ 加载 PDF 失败',
   'view.fullscreen_fit_width': '适应宽度',
   'view.file_count': '{count}/{total} 项已选',
@@ -447,7 +447,7 @@ Object.assign(I18n.translations.en, {
   'view.new_folder_failed': '❌ Failed: {error}',
   'view.new_folder_name_empty': '⚠️ Folder name cannot be empty',
   'view.fullscreen_loading': '⏳ Loading PDF...',
-  'view.fullscreen_preparing': '⏳ Rendering...',
+  'view.fullscreen_preparing': '⏳ Rendering, will open shortly…',
   'view.fullscreen_load_fail': '❌ Failed to load PDF',
   'view.fullscreen_fit_width': 'Fit Width',
   'view.file_count': '{count}/{total} selected',
@@ -3011,12 +3011,6 @@ class PdfFullscreenView extends ItemView {
       this.scrollEl.empty();
       this.scrollEl.createEl('div', { text: t('view.fullscreen_loading'), cls: 'cloud-attach-loading' });
 
-      // popout 预渲染模式：跳过 PDF 加载，直接用 blob
-      if (this.plugin._pendingPageBlobs) {
-        this._renderAllPages(this._viewMode, this._renderScaleLevel, this._zoomMode);
-        return;
-      }
-
       const pdfjsLib = await this.plugin._loadPdfJs();
       const pdfData = await this.plugin._downloadPdfBinary(this.pdfUrl);
       const loadingTask = pdfData
@@ -3040,17 +3034,16 @@ class PdfFullscreenView extends ItemView {
   }
 
   async _renderAllPages(mode, scaleLevel, zoomMode) {
-    if (!this._pdf && !this.plugin._pendingPageBlobs) return;
+    if (!this._pdf && !this.plugin._pendingPageBlobs && !this._pageBlobs) return;
     
-    // 预渲染模式：popout 用 blob 渲染
+    // 预渲染模式：popout 优先用 blob 渲染
     const blobs = this.plugin._pendingPageBlobs || this._pageBlobs;
-    if (!this._pdf && blobs) {
-      this._renderFromBlobs(blobs, mode, scaleLevel, zoomMode);
+    if (blobs) {
       if (this.plugin._pendingPageBlobs) {
         this._pageBlobs = this.plugin._pendingPageBlobs;
         this.plugin._pendingPageBlobs = null;
       }
-      this._bindScroll();
+      this._renderFromBlobs(this._pageBlobs, mode, scaleLevel, zoomMode);
       return;
     }
     
