@@ -2810,12 +2810,19 @@ var PdfFullscreenView = class extends ItemView {
     this.scrollEl.style.overflowX = "hidden";
     this.scrollEl.style.background = "var(--background-secondary)";
     this.scrollEl.style.padding = "0";
+    if (this.plugin._preRenderPendingUrl === this.pdfUrl) {
+      this.plugin._pendingPdfView = this;
+      this.pageTotal.textContent = " / ...";
+    }
     this._loadPdf();
   }
   async _loadPdf() {
     try {
       this.scrollEl.empty();
       this.scrollEl.createEl("div", { text: t("view.fullscreen_loading"), cls: "cloud-attach-loading" });
+      if (this.plugin._preRenderPendingUrl === this.pdfUrl) {
+        return;
+      }
       const pdfjsLib = await this.plugin._loadPdfJs();
       const pdfData = await this.plugin._downloadPdfBinary(this.pdfUrl);
       const loadingTask = pdfData ? pdfjsLib.getDocument({ data: pdfData, ownerDocument: this.containerEl.ownerDocument }) : pdfjsLib.getDocument({ url: this.pdfUrl, ownerDocument: this.containerEl.ownerDocument });
@@ -4428,6 +4435,16 @@ module.exports = class CloudAttachPlugin extends Plugin {
       name = cleanFileNameFromUrl(url);
     this._pendingPdfUrl = url;
     this._pendingPdfName = name;
+    this._preRenderPendingUrl = url;
+    let leaf;
+    try {
+      leaf = workspace.openPopoutLeaf();
+    } catch (e) {
+      console.log("[CloudAttach] openPopoutLeaf failed, fallback to split:", e);
+      leaf = workspace.getLeaf("split", "vertical");
+    }
+    await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true, state: { pdfUrl: url, pdfName: name } });
+    workspace.revealLeaf(leaf);
     try {
       const pdfjsLib = await this._loadPdfJs();
       const pdfData = await this._downloadPdfBinary(url);
@@ -4452,15 +4469,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
       console.error("[CloudAttach] pre-render failed:", e);
       this._pendingPageBlobs = null;
     }
-    let leaf;
-    try {
-      leaf = workspace.openPopoutLeaf();
-    } catch (e) {
-      console.log("[CloudAttach] openPopoutLeaf failed, fallback to split:", e);
-      leaf = workspace.getLeaf("split", "vertical");
+    this._preRenderPendingUrl = null;
+    if (this._pendingPdfView) {
+      this._pendingPdfView._renderAllPages(this._pendingPdfView._viewMode, this._pendingPdfView._renderScaleLevel, this._pendingPdfView._zoomMode);
+      this._pendingPdfView = null;
     }
-    await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true, state: { pdfUrl: url, pdfName: name } });
-    workspace.revealLeaf(leaf);
   }
   // ============================================================
   // PDF.js 内联预览（v0.3.026）
