@@ -181,7 +181,7 @@ Object.assign(I18n.translations.zh, {
   'view.new_folder_failed': '❌ 创建失败: {error}',
   'view.new_folder_name_empty': '⚠️ 文件夹名称不能为空',
   'view.fullscreen_loading': '⏳ 加载 PDF...',
-  'view.fullscreen_preparing': '⏳ 正在渲染，稍后自动打开…',
+  'view.fullscreen_preparing': '⏳ 正在渲染在线PDF，稍后自动打开…',
   'view.fullscreen_load_fail': '❌ 加载 PDF 失败',
   'view.fullscreen_fit_width': '适应宽度',
   'view.file_count': '{count}/{total} 项已选',
@@ -3238,13 +3238,11 @@ class PdfFullscreenView extends ItemView {
     this._currentPage = 1;
     this._bindScroll();
 
-    // popout compositor flush
-    this.scrollEl.offsetHeight;
+    // popout compositor flush: display none → rAF → restore 强制全量重绘
+    this.scrollEl.style.display = 'none';
     requestAnimationFrame(() => {
-      this.scrollEl.style.transform = 'translateZ(0)';
-      requestAnimationFrame(() => {
-        this.scrollEl.style.transform = '';
-      });
+      this.scrollEl.style.display = '';
+      void this.scrollEl.offsetHeight;
     });
   }
 

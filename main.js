@@ -168,7 +168,7 @@ Object.assign(I18n.translations.zh, {
   "view.new_folder_failed": "\u274C \u521B\u5EFA\u5931\u8D25: {error}",
   "view.new_folder_name_empty": "\u26A0\uFE0F \u6587\u4EF6\u5939\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A",
   "view.fullscreen_loading": "\u23F3 \u52A0\u8F7D PDF...",
-  "view.fullscreen_preparing": "\u23F3 \u6B63\u5728\u6E32\u67D3\uFF0C\u7A0D\u540E\u81EA\u52A8\u6253\u5F00\u2026",
+  "view.fullscreen_preparing": "\u23F3 \u6B63\u5728\u6E32\u67D3\u5728\u7EBFPDF\uFF0C\u7A0D\u540E\u81EA\u52A8\u6253\u5F00\u2026",
   "view.fullscreen_load_fail": "\u274C \u52A0\u8F7D PDF \u5931\u8D25",
   "view.fullscreen_fit_width": "\u9002\u5E94\u5BBD\u5EA6",
   "view.file_count": "{count}/{total} \u9879\u5DF2\u9009",
@@ -3020,12 +3020,10 @@ var PdfFullscreenView = class extends ItemView {
     }
     this._currentPage = 1;
     this._bindScroll();
-    this.scrollEl.offsetHeight;
+    this.scrollEl.style.display = "none";
     requestAnimationFrame(() => {
-      this.scrollEl.style.transform = "translateZ(0)";
-      requestAnimationFrame(() => {
-        this.scrollEl.style.transform = "";
-      });
+      this.scrollEl.style.display = "";
+      void this.scrollEl.offsetHeight;
     });
   }
   _reRender() {
