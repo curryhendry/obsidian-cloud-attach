@@ -3001,13 +3001,6 @@ class PdfFullscreenView extends ItemView {
     this.scrollEl.style.background = 'var(--background-secondary)';
     this.scrollEl.style.padding = '0';
 
-    // popout 模式：注册自己供 openPdfFullscreen 回调
-    if (this.plugin._preRenderPendingUrl === this.pdfUrl) {
-      this.plugin._pendingPdfView = this;
-      // 设 total 占位（预渲染还没完成）
-      this.pageTotal.textContent = ' / ...';
-    }
-
     this._loadPdf();
   }
 
@@ -3015,11 +3008,6 @@ class PdfFullscreenView extends ItemView {
     try {
       this.scrollEl.empty();
       this.scrollEl.createEl('div', { text: t('view.fullscreen_loading'), cls: 'cloud-attach-loading' });
-
-      // popout 模式：预渲染还没完成，loading 已经显示，等 openPdfFullscreen 回调即可
-      if (this.plugin._preRenderPendingUrl === this.pdfUrl) {
-        return;
-      }
 
       const pdfjsLib = await this.plugin._loadPdfJs();
       const pdfData = await this.plugin._downloadPdfBinary(this.pdfUrl);
@@ -4711,20 +4699,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
     
     this._pendingPdfUrl = url;
     this._pendingPdfName = name;
-    this._preRenderPendingUrl = url;
 
-    // 先打开 popout（显示 loading），再预渲染
-    let leaf;
-    try {
-      leaf = workspace.openPopoutLeaf();
-    } catch (e) {
-      console.log('[CloudAttach] openPopoutLeaf failed, fallback to split:', e);
-      leaf = workspace.getLeaf('split', 'vertical');
-    }
-    await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true, state: { pdfUrl: url, pdfName: name } });
-    workspace.revealLeaf(leaf);
-
-    // popout 已显示 loading，现在主窗口预渲染
+    // 主窗口预渲染所有页面为 blob URL（不依赖 popout compositor）
+    new Notice(t('view.fullscreen_preparing'));
     try {
       const pdfjsLib = await this._loadPdfJs();
       const pdfData = await this._downloadPdfBinary(url);
@@ -4751,13 +4728,16 @@ module.exports = class CloudAttachPlugin extends Plugin {
       console.error('[CloudAttach] pre-render failed:', e);
       this._pendingPageBlobs = null;
     }
-    this._preRenderPendingUrl = null;
 
-    // 通知已打开的视图渲染
-    if (this._pendingPdfView) {
-      this._pendingPdfView._renderAllPages(this._pendingPdfView._viewMode, this._pendingPdfView._renderScaleLevel, this._pendingPdfView._zoomMode);
-      this._pendingPdfView = null;
+    let leaf;
+    try {
+      leaf = workspace.openPopoutLeaf();
+    } catch (e) {
+      console.log('[CloudAttach] openPopoutLeaf failed, fallback to split:', e);
+      leaf = workspace.getLeaf('split', 'vertical');
     }
+    await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true, state: { pdfUrl: url, pdfName: name } });
+    workspace.revealLeaf(leaf);
   }
 
   // ============================================================
