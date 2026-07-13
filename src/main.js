@@ -3162,8 +3162,6 @@ class PdfFullscreenView extends ItemView {
   /** 用预渲染的 blob URL 显示（popout 模式，不依赖 GPU compositor） */
   _renderFromBlobs(blobs, mode, scaleLevel, zoomMode) {
     const totalPages = blobs.length;
-    const scrollW = this.scrollEl.clientWidth;
-    const scrollH = this.scrollEl.clientHeight;
     const zoomedIn = scaleLevel > 1;
 
     this.scrollEl.style.cssText = `
@@ -3182,12 +3180,14 @@ class PdfFullscreenView extends ItemView {
       img.className = 'cloud-attach-pdf-fullscreen-page';
       img.style.display = 'block';
       img.style.boxShadow = '0 1px 4px rgba(0,0,0,0.15)';
-      img.dataset.pageNum = String(i + 1);
+      img.style.maxWidth = '100%';
+      img.style.height = 'auto';
 
       if (mode === 'single') {
         if (zoomedIn) {
           this.scrollEl.style.overflowX = 'auto';
           this.scrollEl.style.scrollSnapType = 'none';
+          img.style.maxWidth = 'none';
           wrap.style.cssText = `
             display:flex; align-items:flex-start; justify-content:flex-start;
             width:100%; flex-shrink:0;
@@ -3197,29 +3197,26 @@ class PdfFullscreenView extends ItemView {
           this.scrollEl.style.scrollSnapType = 'y mandatory';
           wrap.style.cssText = `
             display:flex; align-items:center; justify-content:center;
-            width:100%; height:${scrollH}px; flex-shrink:0;
+            width:100%; height:100%; flex-shrink:0;
             scroll-snap-align:start; overflow:hidden;
           `;
-          if (!zoomedIn) {
-            img.style.maxWidth = '100%';
-            img.style.maxHeight = '100%';
-            img.style.objectFit = 'contain';
-          }
+          img.style.objectFit = 'contain';
+          img.style.maxHeight = '100%';
         }
       } else {
         this.scrollEl.style.overflowX = 'hidden';
         this.scrollEl.style.scrollSnapType = 'none';
         img.style.margin = '0 auto 8px';
         img.style.width = '100%';
-        img.style.height = 'auto';
         wrap.style.cssText = `
           display:flex; align-items:flex-start; justify-content:flex-start;
           width:100%; flex-shrink:0;
         `;
       }
 
-      // 放大模式
       if (zoomedIn) {
+        img.style.maxWidth = 'none';
+        img.style.maxHeight = 'none';
         img.style.width = 'auto';
         img.style.height = 'auto';
       }
@@ -3228,7 +3225,6 @@ class PdfFullscreenView extends ItemView {
       this.scrollEl.appendChild(wrap);
     }
 
-    // 设置页面信息
     if (this.plugin._pendingPageCount) {
       this.pageTotal.textContent = ' / ' + this.plugin._pendingPageCount;
       this.plugin._pendingPageCount = 0;
