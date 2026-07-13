@@ -4610,6 +4610,24 @@ module.exports = class CloudAttachPlugin extends Plugin {
     // store 到实例上，onOpen 会读取
     this._pendingPdfUrl = url;
     this._pendingPdfName = name;
+    // 预热 GPU compositor（冷态下主窗口 canvas 渲染一次，popout 继承 compositor）
+    try {
+      const warmCanvas = document.createElement('canvas');
+      warmCanvas.width = 1;
+      warmCanvas.height = 1;
+      warmCanvas.style.position = 'fixed';
+      warmCanvas.style.left = '-1px';
+      warmCanvas.style.top = '-1px';
+      warmCanvas.style.opacity = '0';
+      warmCanvas.style.pointerEvents = 'none';
+      document.body.appendChild(warmCanvas);
+      const wCtx = warmCanvas.getContext('2d');
+      wCtx.fillStyle = '#000';
+      wCtx.fillRect(0, 0, 1, 1);
+      await new Promise(r => requestAnimationFrame(r));
+      document.body.removeChild(warmCanvas);
+    } catch (e) { /* non-critical */ }
+
     // 优先 popout 窗口（真·全屏），fallback 到 split
     let leaf;
     try {

@@ -4338,6 +4338,23 @@ module.exports = class CloudAttachPlugin extends Plugin {
       name = cleanFileNameFromUrl(url);
     this._pendingPdfUrl = url;
     this._pendingPdfName = name;
+    try {
+      const warmCanvas = document.createElement("canvas");
+      warmCanvas.width = 1;
+      warmCanvas.height = 1;
+      warmCanvas.style.position = "fixed";
+      warmCanvas.style.left = "-1px";
+      warmCanvas.style.top = "-1px";
+      warmCanvas.style.opacity = "0";
+      warmCanvas.style.pointerEvents = "none";
+      document.body.appendChild(warmCanvas);
+      const wCtx = warmCanvas.getContext("2d");
+      wCtx.fillStyle = "#000";
+      wCtx.fillRect(0, 0, 1, 1);
+      await new Promise((r) => requestAnimationFrame(r));
+      document.body.removeChild(warmCanvas);
+    } catch (e) {
+    }
     let leaf;
     try {
       leaf = workspace.openPopoutLeaf();
