@@ -3011,6 +3011,12 @@ class PdfFullscreenView extends ItemView {
       this.scrollEl.empty();
       this.scrollEl.createEl('div', { text: t('view.fullscreen_loading'), cls: 'cloud-attach-loading' });
 
+      // popout 预渲染模式：跳过 PDF 加载，直接用 blob
+      if (this.plugin._pendingPageBlobs) {
+        this._renderAllPages(this._viewMode, this._renderScaleLevel, this._zoomMode);
+        return;
+      }
+
       const pdfjsLib = await this.plugin._loadPdfJs();
       const pdfData = await this.plugin._downloadPdfBinary(this.pdfUrl);
       const loadingTask = pdfData
@@ -3229,7 +3235,7 @@ class PdfFullscreenView extends ItemView {
   }
 
   _reRender() {
-    if (!this._pdf) return;
+    if (!this._pdf && !this._pageBlobs) return;
     const savedPage = this._currentPage || 1;
     this._renderAllPages(this._viewMode, this._renderScaleLevel, this._zoomMode).then(() => {
       this._scrollToPage(savedPage);

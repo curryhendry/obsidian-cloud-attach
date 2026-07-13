@@ -2818,6 +2818,10 @@ var PdfFullscreenView = class extends ItemView {
     try {
       this.scrollEl.empty();
       this.scrollEl.createEl("div", { text: t("view.fullscreen_loading"), cls: "cloud-attach-loading" });
+      if (this.plugin._pendingPageBlobs) {
+        this._renderAllPages(this._viewMode, this._renderScaleLevel, this._zoomMode);
+        return;
+      }
       const pdfjsLib = await this.plugin._loadPdfJs();
       const pdfData = await this.plugin._downloadPdfBinary(this.pdfUrl);
       const loadingTask = pdfData ? pdfjsLib.getDocument({ data: pdfData, ownerDocument: this.containerEl.ownerDocument }) : pdfjsLib.getDocument({ url: this.pdfUrl, ownerDocument: this.containerEl.ownerDocument });
@@ -3011,7 +3015,7 @@ var PdfFullscreenView = class extends ItemView {
     this._bindScroll();
   }
   _reRender() {
-    if (!this._pdf)
+    if (!this._pdf && !this._pageBlobs)
       return;
     const savedPage = this._currentPage || 1;
     this._renderAllPages(this._viewMode, this._renderScaleLevel, this._zoomMode).then(() => {
