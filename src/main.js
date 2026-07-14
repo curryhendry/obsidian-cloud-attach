@@ -3319,6 +3319,7 @@ class PdfFullscreenView extends ItemView {
   _toggleThumbnailPanel() {
     if (!this._thumbnailPanelWrap) return;
     this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? 'flex' : 'none';
+    this._reRender();
   }
 
   async _renderThumbnails() {

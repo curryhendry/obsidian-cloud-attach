@@ -3093,6 +3093,7 @@ var PdfFullscreenView = class extends ItemView {
     if (!this._thumbnailPanelWrap)
       return;
     this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? "flex" : "none";
+    this._reRender();
   }
   async _renderThumbnails() {
     if (!this._thumbnailPanel)
