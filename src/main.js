@@ -3455,7 +3455,8 @@ class PdfFullscreenView extends ItemView {
   }
 
   _scrollToPage(pageNum) {
-    if (!this._pdf || pageNum < 1 || pageNum > this._pdf.numPages) return;
+    const total = this._pdf ? this._pdf.numPages : (this._pageBlobs ? this._pageBlobs.length : 0);
+    if (!total || pageNum < 1 || pageNum > total) return;
     this.pageInput.value = String(pageNum);
     this._currentPage = pageNum;
     this._highlightThumbnail(pageNum);
