@@ -3304,7 +3304,15 @@ class PdfFullscreenView extends ItemView {
       requestAnimationFrame(() => this._reRender());
     } else {
       // 开侧边栏后也需要重渲染
-      requestAnimationFrame(() => this._reRender());
+      requestAnimationFrame(() => {
+        this._reRender();
+        // popout compositor flush
+        const pw = this._thumbnailPanelWrap.parentNode;
+        if (pw) {
+          pw.removeChild(this._thumbnailPanelWrap);
+          pw.appendChild(this._thumbnailPanelWrap);
+        }
+      });
     }
   }
 
