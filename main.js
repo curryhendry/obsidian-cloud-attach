@@ -3097,7 +3097,7 @@ var PdfFullscreenView = class extends ItemView {
     }
   }
   _applyZoom() {
-    this._reRender();
+    new Notice("\u7F29\u653E\u529F\u80FD\u5F00\u53D1\u4E2D");
   }
   _toggleThumbnailPanel() {
     if (!this._thumbnailPanelWrap)

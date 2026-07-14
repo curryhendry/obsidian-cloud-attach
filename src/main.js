@@ -3323,7 +3323,7 @@ class PdfFullscreenView extends ItemView {
   }
 
   _applyZoom() {
-    this._reRender();
+    new Notice('缩放功能开发中');
   }
 
   _toggleThumbnailPanel() {
