@@ -3076,11 +3076,12 @@ var PdfFullscreenView = class extends ItemView {
       requestAnimationFrame(() => this._reRender());
     } else {
       requestAnimationFrame(() => {
+        this._renderThumbnails();
         this._reRender();
-        const pw = this._thumbnailPanelWrap.parentNode;
-        if (pw) {
-          pw.removeChild(this._thumbnailPanelWrap);
-          pw.appendChild(this._thumbnailPanelWrap);
+        const cw = this._contentWrap.parentNode;
+        if (cw) {
+          cw.removeChild(this._contentWrap);
+          cw.appendChild(this._contentWrap);
         }
       });
     }

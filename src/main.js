@@ -3303,14 +3303,14 @@ class PdfFullscreenView extends ItemView {
       // 关侧边栏后 scrollEl 变宽，需要重渲染
       requestAnimationFrame(() => this._reRender());
     } else {
-      // 开侧边栏后也需要重渲染
+      // 开侧边栏：重渲染缩略图 + flush contentWrap
       requestAnimationFrame(() => {
+        this._renderThumbnails();
         this._reRender();
-        // popout compositor flush
-        const pw = this._thumbnailPanelWrap.parentNode;
-        if (pw) {
-          pw.removeChild(this._thumbnailPanelWrap);
-          pw.appendChild(this._thumbnailPanelWrap);
+        const cw = this._contentWrap.parentNode;
+        if (cw) {
+          cw.removeChild(this._contentWrap);
+          cw.appendChild(this._contentWrap);
         }
       });
     }
