@@ -3215,9 +3215,15 @@ class PdfFullscreenView extends ItemView {
             width:100%; height:${viewH}px; flex-shrink:0;
             scroll-snap-align:start; overflow:hidden;
           `;
-          img.style.objectFit = 'contain';
-          img.style.maxWidth = '100%';
-          img.style.maxHeight = '100%';
+          if (fitHeight) {
+            img.style.objectFit = 'contain';
+            img.style.maxWidth = '100%';
+            img.style.maxHeight = '100%';
+          } else {
+            img.style.objectFit = 'contain';
+            img.style.maxWidth = '100%';
+            img.style.maxHeight = 'none';
+          }
         }
       } else {
         this.scrollEl.style.overflowX = 'hidden';
