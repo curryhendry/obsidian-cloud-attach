@@ -2882,12 +2882,7 @@ class PdfFullscreenView extends ItemView {
     this._renderScaleLevel = 0;
 
     zoomOutBtn.onclick = () => {
-      const levels = [0.1, 0.25, 0.5, 0.75, 0, 1.5, 2, 3, 4, 5];
-      const idx = levels.indexOf(this._renderScaleLevel);
-      if (idx > 0) {
-        this._renderScaleLevel = levels[idx - 1];
-        this._applyZoom();
-      }
+      new Notice('缩放功能开发中');
     };
 
     // 放大按钮
@@ -2896,12 +2891,7 @@ class PdfFullscreenView extends ItemView {
     zoomInBtn.setAttribute('aria-label', '放大');
     zoomInBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
     zoomInBtn.onclick = () => {
-      const levels = [0.1, 0.25, 0.5, 0.75, 0, 1.5, 2, 3, 4, 5];
-      const idx = levels.indexOf(this._renderScaleLevel);
-      if (idx < levels.length - 1) {
-        this._renderScaleLevel = levels[idx + 1];
-        this._applyZoom();
-      }
+      new Notice('缩放功能开发中');
     };
 
     // 下拉菜单按钮
@@ -3323,7 +3313,7 @@ class PdfFullscreenView extends ItemView {
   }
 
   _applyZoom() {
-    new Notice('缩放功能开发中');
+    this._reRender();
   }
 
   _toggleThumbnailPanel() {
