@@ -3007,6 +3007,10 @@ var PdfFullscreenView = class extends ItemView {
           this.scrollEl.style.overflowX = "auto";
           this.scrollEl.style.scrollSnapType = "none";
         }
+        if (fitHeight) {
+          img.style.maxHeight = viewH + "px";
+          img.style.objectFit = "contain";
+        }
         wrap.style.cssText = `
           display:flex; align-items:flex-start; justify-content:center;
           width:100%; flex-shrink:0; margin-bottom:8px;
