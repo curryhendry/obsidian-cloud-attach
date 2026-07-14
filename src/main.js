@@ -4784,6 +4784,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
    * 打开 PDF 全屏预览（新窗口 Popout Leaf）
    */
   async openPdfFullscreen(url, name) {
+    if (Platform.isMobile) return;
     const { workspace } = this.app;
     if (!name) name = cleanFileNameFromUrl(url);
     
