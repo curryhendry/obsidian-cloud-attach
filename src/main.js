@@ -5,7 +5,7 @@
 
 'use strict';
 
-const { Plugin, Notice, Menu, Modal, PluginSettingTab, MarkdownView, ItemView, EditorSuggest } = require('obsidian');
+const { Plugin, Notice, Menu, Modal, Platform, PluginSettingTab, MarkdownView, ItemView, EditorSuggest } = require('obsidian');
 // heic2any 动态加载，遇 HEIC 图时才 require('./heic2any.bundle.js')
 
 const VIEW_TYPE_CLOUDATTACH = 'cloud-attach-view';

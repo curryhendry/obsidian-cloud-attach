@@ -1,4 +1,4 @@
-## v0.4.417.dev - 2026-07-14
+## v0.4.418.dev - 2026-07-14
 - 🔧 deploy.sh 补上 manifest.json .dev 预检 block（对齐笔记规范）
 
 

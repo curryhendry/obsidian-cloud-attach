@@ -2,7 +2,7 @@
 "use strict";
 
 // src/main.js
-var { Plugin, Notice, Menu, Modal, PluginSettingTab, MarkdownView, ItemView, EditorSuggest } = require("obsidian");
+var { Plugin, Notice, Menu, Modal, Platform, PluginSettingTab, MarkdownView, ItemView, EditorSuggest } = require("obsidian");
 var VIEW_TYPE_CLOUDATTACH = "cloud-attach-view";
 var VIEW_TYPE_PDF_FULLSCREEN = "cloud-attach-pdf-fullscreen";
 var I18n = {
