@@ -3025,6 +3025,11 @@ var PdfFullscreenView = class extends ItemView {
     }
     this._currentPage = 1;
     this._bindScroll();
+    const parent = this.scrollEl.parentNode;
+    if (parent) {
+      parent.removeChild(this.scrollEl);
+      parent.appendChild(this.scrollEl);
+    }
   }
   _reRender() {
     if (!this._pdf && !this._pageBlobs)
@@ -3131,6 +3136,11 @@ var PdfFullscreenView = class extends ItemView {
       pageNumEl.style.padding = "1px 5px";
       pageNumEl.style.borderRadius = "8px";
       pageNumEl.style.boxShadow = "0 1px 2px rgba(0,0,0,0.1)";
+    }
+    const p = this._thumbnailPanel.parentNode;
+    if (p) {
+      p.removeChild(this._thumbnailPanel);
+      p.appendChild(this._thumbnailPanel);
     }
   }
   _bindScroll() {

@@ -3242,6 +3242,13 @@ class PdfFullscreenView extends ItemView {
     }
     this._currentPage = 1;
     this._bindScroll();
+
+    // popout compositor flush: 摘除再插回强制重绘
+    const parent = this.scrollEl.parentNode;
+    if (parent) {
+      parent.removeChild(this.scrollEl);
+      parent.appendChild(this.scrollEl);
+    }
   }
 
   _reRender() {
@@ -3360,6 +3367,12 @@ class PdfFullscreenView extends ItemView {
       pageNumEl.style.padding = '1px 5px';
       pageNumEl.style.borderRadius = '8px';
       pageNumEl.style.boxShadow = '0 1px 2px rgba(0,0,0,0.1)';
+    }
+    // popout compositor flush
+    const p = this._thumbnailPanel.parentNode;
+    if (p) {
+      p.removeChild(this._thumbnailPanel);
+      p.appendChild(this._thumbnailPanel);
     }
   }
 
