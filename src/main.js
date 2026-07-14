@@ -3253,6 +3253,42 @@ class PdfFullscreenView extends ItemView {
       parent.removeChild(this.scrollEl);
       parent.appendChild(this.scrollEl);
     }
+
+    // 同时创建缩略图面板（display:none），与 PDF 在同一渲染窗口
+    this._buildThumbnailPanel();
+  }
+
+  _buildThumbnailPanel() {
+    const thumbBlobs = this._thumbnailBlobs;
+    if (!thumbBlobs || !thumbBlobs.length) return;
+    if (this._thumbnailPanelWrap) {
+      this._thumbnailPanelWrap.remove();
+    }
+    this._thumbnailPanelWrap = this._contentWrap.createEl('div');
+    this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? 'flex' : 'none';
+    this._thumbnailPanelWrap.style.flexDirection = 'row';
+    this._contentWrap.insertBefore(this._thumbnailPanelWrap, this.scrollEl);
+
+    this._thumbnailPanel = this._thumbnailPanelWrap.createEl('div');
+    this._thumbnailPanel.style.width = '150px';
+    this._thumbnailPanel.style.flexShrink = '0';
+    this._thumbnailPanel.style.overflowY = 'auto';
+    this._thumbnailPanel.style.background = 'var(--background-primary)';
+    this._thumbnailPanel.style.padding = '8px';
+
+    for (let i = 0; i < thumbBlobs.length; i++) {
+      const wrap = this._thumbnailPanel.createEl('div');
+      wrap.style.cssText = 'position:relative;margin-bottom:8px;cursor:pointer;border:2px solid transparent;border-radius:4px;padding:2px;';
+      wrap.dataset.pageNum = String(i + 1);
+      wrap.onclick = () => {
+        this._scrollToPage(i + 1);
+        this._thumbnailPanel.querySelectorAll('div[data-page-num]').forEach(d => d.style.borderColor = 'transparent');
+        wrap.style.borderColor = 'var(--interactive-accent)';
+      };
+      const img = wrap.createEl('img');
+      img.src = thumbBlobs[i];
+      img.style.cssText = 'width:100%;height:auto;display:block;';
+    }
   }
 
   _reRender() {
@@ -3285,39 +3321,8 @@ class PdfFullscreenView extends ItemView {
   }
 
   _toggleThumbnailPanel() {
-    if (!this._thumbnailPanelWrap) {
-      // 创建缩略图面板容器
-      this._thumbnailPanelWrap = this._contentWrap.createEl('div');
-      this._thumbnailPanelWrap.style.display = 'flex';
-      this._thumbnailPanelWrap.style.flexDirection = 'row';
-      this._contentWrap.insertBefore(this._thumbnailPanelWrap, this.scrollEl);
-      
-      // 缩略图面板
-      this._thumbnailPanel = this._thumbnailPanelWrap.createEl('div');
-      this._thumbnailPanel.style.width = '150px';
-      this._thumbnailPanel.style.flexShrink = '0';
-      this._thumbnailPanel.style.overflowY = 'auto';
-      this._thumbnailPanel.style.background = 'var(--background-primary)';
-      this._thumbnailPanel.style.padding = '8px';
-      this._renderThumbnails();
-    }
-    // 侧边栏开关后重渲染（宽度变化）
+    if (!this._thumbnailPanelWrap) return;
     this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? 'flex' : 'none';
-    if (!this._thumbnailVisible) {
-      // 关侧边栏后 scrollEl 变宽，需要重渲染
-      requestAnimationFrame(() => this._reRender());
-    } else {
-      // 开侧边栏：重渲染缩略图 + flush contentWrap
-      requestAnimationFrame(() => {
-        this._renderThumbnails();
-        this._reRender();
-        const cw = this._contentWrap.parentNode;
-        if (cw) {
-          cw.removeChild(this._contentWrap);
-          cw.appendChild(this._contentWrap);
-        }
-      });
-    }
   }
 
   async _renderThumbnails() {
