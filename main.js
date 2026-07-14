@@ -2844,6 +2844,10 @@ var PdfFullscreenView = class extends ItemView {
       if (this.plugin._pendingPageBlobs) {
         this._pageBlobs = this.plugin._pendingPageBlobs;
         this.plugin._pendingPageBlobs = null;
+        if (this.plugin._pendingThumbnailBlobs) {
+          this._thumbnailBlobs = this.plugin._pendingThumbnailBlobs;
+          this.plugin._pendingThumbnailBlobs = null;
+        }
       }
       this._renderFromBlobs(this._pageBlobs, mode, scaleLevel, zoomMode);
       return;
@@ -3089,6 +3093,24 @@ var PdfFullscreenView = class extends ItemView {
   async _renderThumbnails() {
     if (!this._thumbnailPanel)
       return;
+    if (!this._pdf && this._thumbnailBlobs) {
+      this._thumbnailPanel.empty();
+      const total2 = this._thumbnailBlobs.length;
+      for (let i = 0; i < total2; i++) {
+        const wrap = this._thumbnailPanel.createEl("div");
+        wrap.style.cssText = "position:relative;margin-bottom:8px;cursor:pointer;border:2px solid transparent;border-radius:4px;padding:2px;";
+        wrap.dataset.pageNum = String(i + 1);
+        wrap.onclick = () => {
+          this._scrollToPage(i + 1);
+          this._thumbnailPanel.querySelectorAll("div[data-page-num]").forEach((d) => d.style.borderColor = "transparent");
+          wrap.style.borderColor = "var(--interactive-accent)";
+        };
+        const img = wrap.createEl("img");
+        img.src = this._thumbnailBlobs[i];
+        img.style.cssText = "width:100%;height:auto;display:block;";
+      }
+      return;
+    }
     if (!this._pdf && this._pageBlobs) {
       this._thumbnailPanel.empty();
       const total2 = this._pageBlobs.length;
@@ -4496,6 +4518,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const pdfDoc = await (pdfData ? pdfjsLib.getDocument({ data: pdfData }) : pdfjsLib.getDocument({ url })).promise;
       const totalPages = pdfDoc.numPages;
       const blobUrls = [];
+      const thumbBlobs = [];
       for (let i = 1; i <= totalPages; i++) {
         const page = await pdfDoc.getPage(i);
         const vp = page.getViewport({ scale: 1600 / page.getViewport({ scale: 1 }).width });
@@ -4507,9 +4530,19 @@ module.exports = class CloudAttachPlugin extends Plugin {
         if (blob) {
           blobUrls.push(URL.createObjectURL(blob));
         }
+        const tvp = page.getViewport({ scale: 0.2 });
+        const tCanvas = document.createElement("canvas");
+        tCanvas.width = tvp.width;
+        tCanvas.height = tvp.height;
+        await page.render({ canvasContext: tCanvas.getContext("2d", { willReadFrequently: true }), viewport: tvp }).promise;
+        const tBlob = await new Promise((r) => tCanvas.toBlob(r, "image/png"));
+        if (tBlob) {
+          thumbBlobs.push(URL.createObjectURL(tBlob));
+        }
       }
       this._pendingPageBlobs = blobUrls;
       this._pendingPageCount = totalPages;
+      this._pendingThumbnailBlobs = thumbBlobs;
     } catch (e) {
       console.error("[CloudAttach] pre-render failed:", e);
       this._pendingPageBlobs = null;
