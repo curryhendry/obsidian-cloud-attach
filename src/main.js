@@ -3108,8 +3108,6 @@ class PdfFullscreenView extends ItemView {
       }
     };
 
-    try { await renderPage(1); } catch (e) { console.error('[CloudAttach] lazy render page 1:', e); }
-
     const lazyQueue = [], MAX_Q = 3;
     let lazyBusy = false;
     const processQueue = async () => {
@@ -3140,6 +3138,8 @@ class PdfFullscreenView extends ItemView {
     }, { root: this.scrollEl, rootMargin: '300px' });
 
     this.scrollEl.querySelectorAll('.cloud-attach-snap-item').forEach(w => this._fullscreenObserver.observe(w));
+
+    try { await renderPage(1); } catch (e) { console.error('[CloudAttach] lazy render page 1:', e); }
 
     this._bindScroll(displayH, scrollH);
     console.log('[CloudAttach] _renderAllPages done totalPages=', totalPages, 'displayW=', displayW, 'displayH=', displayH);
