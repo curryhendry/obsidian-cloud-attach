@@ -1,3 +1,8 @@
+## v0.4.437.dev - 2026-07-16
+
+- PdfFullscreenView 回退到 v0.4.377 原版基线，仅加 5 处 blob 兼容入口（_renderAllPages/_renderThumbnails/_reRender/_scrollToPage + 新增 _renderFromBlobs）
+- 移动端完全恢复 v0.4.377 原始逻辑，桌面端 blob 预渲染走独立分支
+
 ## v0.4.435.dev - 2026-07-16
 - 🔄 双平台合并：PdfFullscreenView 非blob路径分平台渲染
   - 移动端：纯 canvas 渲染（v0.4.377 基线）+ 缩放按钮恢复级别数组

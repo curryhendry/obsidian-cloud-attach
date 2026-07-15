@@ -2713,15 +2713,11 @@ var PdfFullscreenView = class extends ItemView {
     zoomOutBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
     this._renderScaleLevel = 0;
     zoomOutBtn.onclick = () => {
-      if (Platform.isMobile) {
-        const levels = [0.1, 0.25, 0.5, 0.75, 0, 1.5, 2, 3, 4, 5];
-        const idx = levels.indexOf(this._renderScaleLevel);
-        if (idx > 0) {
-          this._renderScaleLevel = levels[idx - 1];
-          this._applyZoom();
-        }
-      } else {
-        new Notice("\u7F29\u653E\u529F\u80FD\u5F00\u53D1\u4E2D");
+      const levels = [0.1, 0.25, 0.5, 0.75, 0, 1.5, 2, 3, 4, 5];
+      const idx = levels.indexOf(this._renderScaleLevel);
+      if (idx > 0) {
+        this._renderScaleLevel = levels[idx - 1];
+        this._applyZoom();
       }
     };
     const zoomInBtn = left.createEl("button");
@@ -2729,15 +2725,11 @@ var PdfFullscreenView = class extends ItemView {
     zoomInBtn.setAttribute("aria-label", "\u653E\u5927");
     zoomInBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
     zoomInBtn.onclick = () => {
-      if (Platform.isMobile) {
-        const levels = [0.1, 0.25, 0.5, 0.75, 0, 1.5, 2, 3, 4, 5];
-        const idx = levels.indexOf(this._renderScaleLevel);
-        if (idx < levels.length - 1) {
-          this._renderScaleLevel = levels[idx + 1];
-          this._applyZoom();
-        }
-      } else {
-        new Notice("\u7F29\u653E\u529F\u80FD\u5F00\u53D1\u4E2D");
+      const levels = [0.1, 0.25, 0.5, 0.75, 0, 1.5, 2, 3, 4, 5];
+      const idx = levels.indexOf(this._renderScaleLevel);
+      if (idx < levels.length - 1) {
+        this._renderScaleLevel = levels[idx + 1];
+        this._applyZoom();
       }
     };
     const viewMenuBtn = left.createEl("button");
@@ -2845,8 +2837,6 @@ var PdfFullscreenView = class extends ItemView {
     }
   }
   async _renderAllPages(mode, scaleLevel, zoomMode) {
-    if (!this._pdf && !this.plugin._pendingPageBlobs && !this._pageBlobs)
-      return;
     const blobs = this.plugin._pendingPageBlobs || this._pageBlobs;
     if (blobs) {
       if (this.plugin._pendingPageBlobs) {
@@ -2860,6 +2850,8 @@ var PdfFullscreenView = class extends ItemView {
       this._renderFromBlobs(this._pageBlobs, mode, scaleLevel, zoomMode);
       return;
     }
+    if (!this._pdf)
+      return;
     const totalPages = this._pdf.numPages;
     const firstPg = await this._pdf.getPage(1);
     const firstVp = firstPg.getViewport({ scale: 1 });
@@ -2921,68 +2913,32 @@ var PdfFullscreenView = class extends ItemView {
       wrap.appendChild(canvas);
       this.scrollEl.appendChild(wrap);
     }
-    if (Platform.isMobile) {
-      for (let i = 1; i <= totalPages; i++) {
-        const canvas = this.scrollEl.querySelector(`canvas.cloud-attach-pdf-fullscreen-page[data-page-num="${i}"]`);
-        if (!canvas)
-          continue;
-        const page = await this._pdf.getPage(i);
-        const viewport = page.getViewport({ scale: renderScale });
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        await page.render({
-          canvasContext: canvas.getContext("2d"),
-          viewport
-        }).promise;
-      }
-      if (!zoomedIn) {
-        const canvases = this.scrollEl.querySelectorAll("canvas.cloud-attach-pdf-fullscreen-page");
-        canvases.forEach((c) => this._sizeCanvas(c, scrollW, mode === "single" ? scrollH : Infinity));
-      }
-    } else {
-      for (let i = 1; i <= totalPages; i++) {
-        const canvas = this.scrollEl.querySelector(`canvas.cloud-attach-pdf-fullscreen-page[data-page-num="${i}"]`);
-        if (!canvas)
-          continue;
-        const page = await this._pdf.getPage(i);
-        const viewport = page.getViewport({ scale: renderScale });
-        const offscreen = new OffscreenCanvas(viewport.width, viewport.height);
-        await page.render({
-          canvasContext: offscreen.getContext("2d"),
-          viewport
-        }).promise;
-        try {
-          const blob = await offscreen.convertToBlob({ type: "image/png" });
-          const imgUrl = URL.createObjectURL(blob);
-          const img = document.createElement("img");
-          img.src = imgUrl;
-          img.className = "cloud-attach-pdf-fullscreen-page";
-          img.style.display = "block";
-          img.style.boxShadow = "0 1px 4px rgba(0,0,0,0.15)";
-          img.dataset.pageNum = String(i);
-          if (!zoomedIn) {
-            this._sizeCanvas(img, scrollW, mode === "single" ? scrollH : Infinity);
-          } else {
-            img.style.width = viewport.width + "px";
-            img.style.height = viewport.height + "px";
-          }
-          canvas.replaceWith(img);
-          URL.revokeObjectURL(imgUrl);
-        } catch (e) {
-          console.error("[CloudAttach] OffscreenCanvas render error:", e);
-        }
-      }
+    for (let i = 1; i <= totalPages; i++) {
+      const canvas = this.scrollEl.querySelector(`canvas.cloud-attach-pdf-fullscreen-page[data-page-num="${i}"]`);
+      if (!canvas)
+        continue;
+      const page = await this._pdf.getPage(i);
+      const viewport = page.getViewport({ scale: renderScale });
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      await page.render({
+        canvasContext: canvas.getContext("2d"),
+        viewport
+      }).promise;
+    }
+    if (!zoomedIn) {
+      const canvases = this.scrollEl.querySelectorAll("canvas.cloud-attach-pdf-fullscreen-page");
+      canvases.forEach((c) => this._sizeCanvas(c, scrollW, mode === "single" ? scrollH : Infinity));
     }
     this._bindScroll();
   }
-  /** 用预渲染的 blob URL 显示（popout 模式，不依赖 GPU compositor） */
+  /** 桌面端 blob 预渲染显示（popout 模式） */
   _renderFromBlobs(blobs, mode, scaleLevel, zoomMode) {
     const totalPages = blobs.length;
     const zoomedIn = scaleLevel > 1;
     const fitWidth = zoomMode === "fit-width" || !zoomMode && scaleLevel <= 0;
     const fitHeight = zoomMode === "fit-height";
     const viewH = this.scrollEl.clientHeight || this.containerEl.clientHeight || 600;
-    const viewW = this.scrollEl.clientWidth || this.containerEl.clientWidth || 400;
     this.scrollEl.style.cssText = `
       flex:1; min-height:0; overflow:auto;
       background:var(--background-secondary); padding:0;
@@ -3067,44 +3023,6 @@ var PdfFullscreenView = class extends ItemView {
     }
     this._currentPage = 1;
     this._bindScroll();
-    const parent = this.scrollEl.parentNode;
-    if (parent) {
-      parent.removeChild(this.scrollEl);
-      parent.appendChild(this.scrollEl);
-    }
-    if (!this._thumbnailPanelWrap)
-      this._buildThumbnailPanel();
-  }
-  _buildThumbnailPanel() {
-    const thumbBlobs = this._thumbnailBlobs;
-    if (!thumbBlobs || !thumbBlobs.length)
-      return;
-    if (this._thumbnailPanelWrap) {
-      this._thumbnailPanelWrap.remove();
-    }
-    this._thumbnailPanelWrap = this._contentWrap.createEl("div");
-    this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? "flex" : "none";
-    this._thumbnailPanelWrap.style.flexDirection = "row";
-    this._contentWrap.insertBefore(this._thumbnailPanelWrap, this.scrollEl);
-    this._thumbnailPanel = this._thumbnailPanelWrap.createEl("div");
-    this._thumbnailPanel.style.width = "150px";
-    this._thumbnailPanel.style.flexShrink = "0";
-    this._thumbnailPanel.style.overflowY = "auto";
-    this._thumbnailPanel.style.background = "var(--background-primary)";
-    this._thumbnailPanel.style.padding = "8px";
-    for (let i = 0; i < thumbBlobs.length; i++) {
-      const wrap = this._thumbnailPanel.createEl("div");
-      wrap.style.cssText = "position:relative;margin-bottom:8px;cursor:pointer;border:2px solid transparent;border-radius:4px;padding:2px;";
-      wrap.dataset.pageNum = String(i + 1);
-      wrap.onclick = () => {
-        this._scrollToPage(i + 1);
-        this._thumbnailPanel.querySelectorAll("div[data-page-num]").forEach((d) => d.style.borderColor = "transparent");
-        wrap.style.borderColor = "var(--interactive-accent)";
-      };
-      const img = wrap.createEl("img");
-      img.src = thumbBlobs[i];
-      img.style.cssText = "width:100%;height:auto;display:block;";
-    }
   }
   _reRender() {
     if (!this._pdf && !this._pageBlobs)
@@ -3117,11 +3035,9 @@ var PdfFullscreenView = class extends ItemView {
     });
   }
   _sizeCanvas(c, maxW, maxH) {
-    const w = c.width || c.naturalWidth || 0;
-    const h = c.height || c.naturalHeight || 1;
-    const ratio = w / h;
+    const ratio = c.width / (c.height || 1);
     if (this._zoomMode === "fit-height") {
-      const tH = Math.min(maxH, h);
+      const tH = Math.min(maxH, c.height);
       c.style.height = tH + "px";
       c.style.width = tH * ratio + "px";
     } else {
@@ -3133,15 +3049,28 @@ var PdfFullscreenView = class extends ItemView {
     this._reRender();
   }
   _toggleThumbnailPanel() {
-    if (!this._thumbnailPanelWrap)
-      return;
+    if (!this._thumbnailPanelWrap) {
+      this._thumbnailPanelWrap = this._contentWrap.createEl("div");
+      this._thumbnailPanelWrap.style.display = "flex";
+      this._thumbnailPanelWrap.style.flexDirection = "row";
+      this._contentWrap.insertBefore(this._thumbnailPanelWrap, this.scrollEl);
+      this._thumbnailPanel = this._thumbnailPanelWrap.createEl("div");
+      this._thumbnailPanel.style.width = "150px";
+      this._thumbnailPanel.style.flexShrink = "0";
+      this._thumbnailPanel.style.overflowY = "auto";
+      this._thumbnailPanel.style.background = "var(--background-primary)";
+      this._thumbnailPanel.style.padding = "8px";
+      this._renderThumbnails();
+    }
     this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? "flex" : "none";
-    this._reRender();
+    if (!this._thumbnailVisible) {
+      requestAnimationFrame(() => this._reRender());
+    }
   }
   async _renderThumbnails() {
     if (!this._thumbnailPanel)
       return;
-    if (!this._pdf && this._thumbnailBlobs) {
+    if (this._thumbnailBlobs) {
       this._thumbnailPanel.empty();
       const total2 = this._thumbnailBlobs.length;
       for (let i = 0; i < total2; i++) {
@@ -3159,25 +3088,7 @@ var PdfFullscreenView = class extends ItemView {
       }
       return;
     }
-    if (!this._pdf && this._pageBlobs) {
-      this._thumbnailPanel.empty();
-      const total2 = this._pageBlobs.length;
-      for (let i = 0; i < total2; i++) {
-        const wrap = this._thumbnailPanel.createEl("div");
-        wrap.style.cssText = "position:relative;margin-bottom:8px;cursor:pointer;border:2px solid transparent;border-radius:4px;padding:2px;";
-        wrap.dataset.pageNum = String(i + 1);
-        wrap.onclick = () => {
-          this._scrollToPage(i + 1);
-          this._thumbnailPanel.querySelectorAll("div[data-page-num]").forEach((d) => d.style.borderColor = "transparent");
-          wrap.style.borderColor = "var(--interactive-accent)";
-        };
-        const img = wrap.createEl("img");
-        img.src = this._pageBlobs[i];
-        img.style.cssText = "width:100%;height:auto;display:block;";
-      }
-      return;
-    }
-    if (!this._pdf)
+    if (!this._pdf || !this._thumbnailPanel)
       return;
     this._thumbnailPanel.empty();
     const total = this._pdf.numPages;
@@ -3203,7 +3114,7 @@ var PdfFullscreenView = class extends ItemView {
       canvas.style.display = "block";
       canvas.width = viewport.width;
       canvas.height = viewport.height;
-      await page.render({ canvasContext: canvas.getContext("2d", { willReadFrequently: true }), viewport }).promise;
+      await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
       const pageNumEl = wrap.createEl("div", { text: String(i) });
       pageNumEl.style.position = "absolute";
       pageNumEl.style.bottom = "4px";
@@ -3214,11 +3125,6 @@ var PdfFullscreenView = class extends ItemView {
       pageNumEl.style.padding = "1px 5px";
       pageNumEl.style.borderRadius = "8px";
       pageNumEl.style.boxShadow = "0 1px 2px rgba(0,0,0,0.1)";
-    }
-    const p = this._thumbnailPanel.parentNode;
-    if (p) {
-      p.removeChild(this._thumbnailPanel);
-      p.appendChild(this._thumbnailPanel);
     }
   }
   _bindScroll() {
@@ -3283,6 +3189,102 @@ var PdfFullscreenView = class extends ItemView {
     });
   }
 };
+fields.username = userInput;
+openlistFields.appendChild(userDiv);
+var passDiv = exports.createFieldDiv(t("settings.password"), "");
+var passWrapper = document.createElement("div");
+passWrapper.style.display = "flex";
+passWrapper.style.gap = "4px";
+var passInput = document.createElement("input");
+passInput.type = "password";
+passInput.value = exports.account?.password || "";
+passInput.className = "cloud-attach-input";
+passInput.style.flex = "1";
+passWrapper.appendChild(passInput);
+var passToggle = document.createElement("button");
+passToggle.textContent = "\u{1F441}\uFE0F";
+passToggle.type = "button";
+passToggle.style.padding = "6px 8px";
+passToggle.style.cursor = "pointer";
+passToggle.onclick = () => {
+  passInput.type = passInput.type === "password" ? "text" : "password";
+  passToggle.textContent = passInput.type === "password" ? "\u{1F441}\uFE0F" : "\u{1F512}";
+};
+passWrapper.appendChild(passToggle);
+passDiv.appendChild(passWrapper);
+fields.password = passInput;
+openlistFields.appendChild(passDiv);
+var tokenDiv = exports.createFieldDiv(t("settings.token"), t("settings.token_hint"));
+var tokenWrapper = document.createElement("div");
+tokenWrapper.style.display = "flex";
+tokenWrapper.style.gap = "4px";
+var tokenInput = document.createElement("input");
+tokenInput.type = "password";
+tokenInput.value = exports.account?.token || "";
+tokenInput.className = "cloud-attach-input";
+tokenInput.style.flex = "1";
+tokenWrapper.appendChild(tokenInput);
+var tokenToggle = document.createElement("button");
+tokenToggle.textContent = "\u{1F441}\uFE0F";
+tokenToggle.type = "button";
+tokenToggle.style.padding = "6px 8px";
+tokenToggle.style.cursor = "pointer";
+tokenToggle.onclick = () => {
+  tokenInput.type = tokenInput.type === "password" ? "text" : "password";
+  tokenToggle.textContent = tokenInput.type === "password" ? "\u{1F441}\uFE0F" : "\u{1F512}";
+};
+tokenWrapper.appendChild(tokenToggle);
+tokenDiv.appendChild(tokenWrapper);
+fields.token = tokenInput;
+openlistFields.appendChild(tokenDiv);
+var olPublicUrlDiv = exports.createFieldDiv(t("settings.public_url"), t("settings.cdn_url_placeholder"));
+var olPublicUrlInput = document.createElement("input");
+olPublicUrlInput.type = "text";
+olPublicUrlInput.placeholder = "https://public.example.com";
+olPublicUrlInput.value = exports.account?.publicUrl || "";
+olPublicUrlInput.className = "cloud-attach-input";
+olPublicUrlDiv.appendChild(olPublicUrlInput);
+fields.olPublicUrl = olPublicUrlInput;
+openlistFields.appendChild(olPublicUrlDiv);
+exports.contentEl.appendChild(openlistFields);
+var s3Fields = document.createElement("div");
+s3Fields.id = "s3-fields";
+s3Fields.style.display = "none";
+var endpointDiv = exports.createFieldDiv(t("settings.endpoint"), t("settings.endpoint_placeholder"));
+var endpointInput = document.createElement("input");
+endpointInput.type = "text";
+endpointInput.placeholder = "https://xxx.r2.cloudflarestorage.com";
+endpointInput.value = exports.account?.endpoint || "";
+endpointInput.className = "cloud-attach-input";
+endpointDiv.appendChild(endpointInput);
+fields.endpoint = endpointInput;
+s3Fields.appendChild(endpointDiv);
+var bucketDiv = exports.createFieldDiv(t("settings.bucket"), t("settings.bucket_placeholder"));
+var bucketInput = document.createElement("input");
+bucketInput.type = "text";
+bucketInput.placeholder = "my-vault-attach";
+bucketInput.value = exports.account?.bucket || "";
+bucketInput.className = "cloud-attach-input";
+bucketDiv.appendChild(bucketInput);
+fields.bucket = bucketInput;
+s3Fields.appendChild(bucketDiv);
+var regionDiv = exports.createFieldDiv(t("settings.region"), t("settings.region_placeholder"));
+var regionInput = document.createElement("input");
+regionInput.type = "text";
+regionInput.placeholder = "auto";
+regionInput.value = exports.account?.region || "";
+regionInput.className = "cloud-attach-input";
+regionDiv.appendChild(regionInput);
+fields.region = regionInput;
+s3Fields.appendChild(regionDiv);
+var akDiv = exports.createFieldDiv(t("settings.access_key"), "");
+var akInput = document.createElement("input");
+akInput.type = "text";
+akInput.value = exports.account?.accessKey || "";
+akInput.className = "cloud-attach-input";
+akDiv.appendChild(akInput);
+fields.accessKey = akInput;
+s3Fields.appendChild(akDiv);
 var AddAccountModal = class extends Modal {
   constructor(app, plugin, onSave, account = null) {
     super(app);
@@ -3295,7 +3297,7 @@ var AddAccountModal = class extends Modal {
     const title = document.createElement("h2");
     title.textContent = this.account ? t("settings.edit_account") : t("settings.add_account");
     this.contentEl.appendChild(title);
-    const fields = {};
+    const fields2 = {};
     const typeDiv = document.createElement("div");
     typeDiv.style.margin = "16px 0";
     const typeLabel = document.createElement("label");
@@ -3343,10 +3345,10 @@ var AddAccountModal = class extends Modal {
     nameInput.value = this.account?.name || "";
     nameInput.className = "cloud-attach-input";
     nameDiv.appendChild(nameInput);
-    fields.name = nameInput;
+    fields2.name = nameInput;
     this.contentEl.appendChild(nameDiv);
-    const openlistFields = document.createElement("div");
-    openlistFields.id = "ol-fields";
+    const openlistFields2 = document.createElement("div");
+    openlistFields2.id = "ol-fields";
     const urlDiv = this.createFieldDiv(t("settings.server_address"), t("settings.server_address_placeholder"));
     const urlInput = document.createElement("input");
     urlInput.type = "text";
@@ -3354,8 +3356,8 @@ var AddAccountModal = class extends Modal {
     urlInput.value = this.account?.url || "";
     urlInput.className = "cloud-attach-input";
     urlDiv.appendChild(urlInput);
-    fields.url = urlInput;
-    openlistFields.appendChild(urlDiv);
+    fields2.url = urlInput;
+    openlistFields2.appendChild(urlDiv);
     const webdavDiv = this.createFieldDiv(t("settings.webdav_path_label"), t("settings.webdav_path_placeholder"));
     const webdavInput = document.createElement("input");
     webdavInput.type = "text";
@@ -3363,110 +3365,110 @@ var AddAccountModal = class extends Modal {
     webdavInput.value = this.account?.webdavPath || "";
     webdavInput.className = "cloud-attach-input";
     webdavDiv.appendChild(webdavInput);
-    fields.webdavPath = webdavInput;
-    openlistFields.appendChild(webdavDiv);
-    const userDiv = this.createFieldDiv(t("settings.username"), "");
-    const userInput = document.createElement("input");
-    userInput.type = "text";
-    userInput.value = this.account?.username || "";
-    userInput.className = "cloud-attach-input";
-    userDiv.appendChild(userInput);
-    fields.username = userInput;
-    openlistFields.appendChild(userDiv);
-    const passDiv = this.createFieldDiv(t("settings.password"), "");
-    const passWrapper = document.createElement("div");
-    passWrapper.style.display = "flex";
-    passWrapper.style.gap = "4px";
-    const passInput = document.createElement("input");
-    passInput.type = "password";
-    passInput.value = this.account?.password || "";
-    passInput.className = "cloud-attach-input";
-    passInput.style.flex = "1";
-    passWrapper.appendChild(passInput);
-    const passToggle = document.createElement("button");
-    passToggle.textContent = "\u{1F441}\uFE0F";
-    passToggle.type = "button";
-    passToggle.style.padding = "6px 8px";
-    passToggle.style.cursor = "pointer";
-    passToggle.onclick = () => {
-      passInput.type = passInput.type === "password" ? "text" : "password";
-      passToggle.textContent = passInput.type === "password" ? "\u{1F441}\uFE0F" : "\u{1F512}";
+    fields2.webdavPath = webdavInput;
+    openlistFields2.appendChild(webdavDiv);
+    const userDiv2 = this.createFieldDiv(t("settings.username"), "");
+    const userInput2 = document.createElement("input");
+    userInput2.type = "text";
+    userInput2.value = this.account?.username || "";
+    userInput2.className = "cloud-attach-input";
+    userDiv2.appendChild(userInput2);
+    fields2.username = userInput2;
+    openlistFields2.appendChild(userDiv2);
+    const passDiv2 = this.createFieldDiv(t("settings.password"), "");
+    const passWrapper2 = document.createElement("div");
+    passWrapper2.style.display = "flex";
+    passWrapper2.style.gap = "4px";
+    const passInput2 = document.createElement("input");
+    passInput2.type = "password";
+    passInput2.value = this.account?.password || "";
+    passInput2.className = "cloud-attach-input";
+    passInput2.style.flex = "1";
+    passWrapper2.appendChild(passInput2);
+    const passToggle2 = document.createElement("button");
+    passToggle2.textContent = "\u{1F441}\uFE0F";
+    passToggle2.type = "button";
+    passToggle2.style.padding = "6px 8px";
+    passToggle2.style.cursor = "pointer";
+    passToggle2.onclick = () => {
+      passInput2.type = passInput2.type === "password" ? "text" : "password";
+      passToggle2.textContent = passInput2.type === "password" ? "\u{1F441}\uFE0F" : "\u{1F512}";
     };
-    passWrapper.appendChild(passToggle);
-    passDiv.appendChild(passWrapper);
-    fields.password = passInput;
-    openlistFields.appendChild(passDiv);
-    const tokenDiv = this.createFieldDiv(t("settings.token"), t("settings.token_hint"));
-    const tokenWrapper = document.createElement("div");
-    tokenWrapper.style.display = "flex";
-    tokenWrapper.style.gap = "4px";
-    const tokenInput = document.createElement("input");
-    tokenInput.type = "password";
-    tokenInput.value = this.account?.token || "";
-    tokenInput.className = "cloud-attach-input";
-    tokenInput.style.flex = "1";
-    tokenWrapper.appendChild(tokenInput);
-    const tokenToggle = document.createElement("button");
-    tokenToggle.textContent = "\u{1F441}\uFE0F";
-    tokenToggle.type = "button";
-    tokenToggle.style.padding = "6px 8px";
-    tokenToggle.style.cursor = "pointer";
-    tokenToggle.onclick = () => {
-      tokenInput.type = tokenInput.type === "password" ? "text" : "password";
-      tokenToggle.textContent = tokenInput.type === "password" ? "\u{1F441}\uFE0F" : "\u{1F512}";
+    passWrapper2.appendChild(passToggle2);
+    passDiv2.appendChild(passWrapper2);
+    fields2.password = passInput2;
+    openlistFields2.appendChild(passDiv2);
+    const tokenDiv2 = this.createFieldDiv(t("settings.token"), t("settings.token_hint"));
+    const tokenWrapper2 = document.createElement("div");
+    tokenWrapper2.style.display = "flex";
+    tokenWrapper2.style.gap = "4px";
+    const tokenInput2 = document.createElement("input");
+    tokenInput2.type = "password";
+    tokenInput2.value = this.account?.token || "";
+    tokenInput2.className = "cloud-attach-input";
+    tokenInput2.style.flex = "1";
+    tokenWrapper2.appendChild(tokenInput2);
+    const tokenToggle2 = document.createElement("button");
+    tokenToggle2.textContent = "\u{1F441}\uFE0F";
+    tokenToggle2.type = "button";
+    tokenToggle2.style.padding = "6px 8px";
+    tokenToggle2.style.cursor = "pointer";
+    tokenToggle2.onclick = () => {
+      tokenInput2.type = tokenInput2.type === "password" ? "text" : "password";
+      tokenToggle2.textContent = tokenInput2.type === "password" ? "\u{1F441}\uFE0F" : "\u{1F512}";
     };
-    tokenWrapper.appendChild(tokenToggle);
-    tokenDiv.appendChild(tokenWrapper);
-    fields.token = tokenInput;
-    openlistFields.appendChild(tokenDiv);
-    const olPublicUrlDiv = this.createFieldDiv(t("settings.public_url"), t("settings.cdn_url_placeholder"));
-    const olPublicUrlInput = document.createElement("input");
-    olPublicUrlInput.type = "text";
-    olPublicUrlInput.placeholder = "https://public.example.com";
-    olPublicUrlInput.value = this.account?.publicUrl || "";
-    olPublicUrlInput.className = "cloud-attach-input";
-    olPublicUrlDiv.appendChild(olPublicUrlInput);
-    fields.olPublicUrl = olPublicUrlInput;
-    openlistFields.appendChild(olPublicUrlDiv);
-    this.contentEl.appendChild(openlistFields);
-    const s3Fields = document.createElement("div");
-    s3Fields.id = "s3-fields";
-    s3Fields.style.display = "none";
-    const endpointDiv = this.createFieldDiv(t("settings.endpoint"), t("settings.endpoint_placeholder"));
-    const endpointInput = document.createElement("input");
-    endpointInput.type = "text";
-    endpointInput.placeholder = "https://xxx.r2.cloudflarestorage.com";
-    endpointInput.value = this.account?.endpoint || "";
-    endpointInput.className = "cloud-attach-input";
-    endpointDiv.appendChild(endpointInput);
-    fields.endpoint = endpointInput;
-    s3Fields.appendChild(endpointDiv);
-    const bucketDiv = this.createFieldDiv(t("settings.bucket"), t("settings.bucket_placeholder"));
-    const bucketInput = document.createElement("input");
-    bucketInput.type = "text";
-    bucketInput.placeholder = "my-vault-attach";
-    bucketInput.value = this.account?.bucket || "";
-    bucketInput.className = "cloud-attach-input";
-    bucketDiv.appendChild(bucketInput);
-    fields.bucket = bucketInput;
-    s3Fields.appendChild(bucketDiv);
-    const regionDiv = this.createFieldDiv(t("settings.region"), t("settings.region_placeholder"));
-    const regionInput = document.createElement("input");
-    regionInput.type = "text";
-    regionInput.placeholder = "auto";
-    regionInput.value = this.account?.region || "";
-    regionInput.className = "cloud-attach-input";
-    regionDiv.appendChild(regionInput);
-    fields.region = regionInput;
-    s3Fields.appendChild(regionDiv);
-    const akDiv = this.createFieldDiv(t("settings.access_key"), "");
-    const akInput = document.createElement("input");
-    akInput.type = "text";
-    akInput.value = this.account?.accessKey || "";
-    akInput.className = "cloud-attach-input";
-    akDiv.appendChild(akInput);
-    fields.accessKey = akInput;
-    s3Fields.appendChild(akDiv);
+    tokenWrapper2.appendChild(tokenToggle2);
+    tokenDiv2.appendChild(tokenWrapper2);
+    fields2.token = tokenInput2;
+    openlistFields2.appendChild(tokenDiv2);
+    const olPublicUrlDiv2 = this.createFieldDiv(t("settings.public_url"), t("settings.cdn_url_placeholder"));
+    const olPublicUrlInput2 = document.createElement("input");
+    olPublicUrlInput2.type = "text";
+    olPublicUrlInput2.placeholder = "https://public.example.com";
+    olPublicUrlInput2.value = this.account?.publicUrl || "";
+    olPublicUrlInput2.className = "cloud-attach-input";
+    olPublicUrlDiv2.appendChild(olPublicUrlInput2);
+    fields2.olPublicUrl = olPublicUrlInput2;
+    openlistFields2.appendChild(olPublicUrlDiv2);
+    this.contentEl.appendChild(openlistFields2);
+    const s3Fields2 = document.createElement("div");
+    s3Fields2.id = "s3-fields";
+    s3Fields2.style.display = "none";
+    const endpointDiv2 = this.createFieldDiv(t("settings.endpoint"), t("settings.endpoint_placeholder"));
+    const endpointInput2 = document.createElement("input");
+    endpointInput2.type = "text";
+    endpointInput2.placeholder = "https://xxx.r2.cloudflarestorage.com";
+    endpointInput2.value = this.account?.endpoint || "";
+    endpointInput2.className = "cloud-attach-input";
+    endpointDiv2.appendChild(endpointInput2);
+    fields2.endpoint = endpointInput2;
+    s3Fields2.appendChild(endpointDiv2);
+    const bucketDiv2 = this.createFieldDiv(t("settings.bucket"), t("settings.bucket_placeholder"));
+    const bucketInput2 = document.createElement("input");
+    bucketInput2.type = "text";
+    bucketInput2.placeholder = "my-vault-attach";
+    bucketInput2.value = this.account?.bucket || "";
+    bucketInput2.className = "cloud-attach-input";
+    bucketDiv2.appendChild(bucketInput2);
+    fields2.bucket = bucketInput2;
+    s3Fields2.appendChild(bucketDiv2);
+    const regionDiv2 = this.createFieldDiv(t("settings.region"), t("settings.region_placeholder"));
+    const regionInput2 = document.createElement("input");
+    regionInput2.type = "text";
+    regionInput2.placeholder = "auto";
+    regionInput2.value = this.account?.region || "";
+    regionInput2.className = "cloud-attach-input";
+    regionDiv2.appendChild(regionInput2);
+    fields2.region = regionInput2;
+    s3Fields2.appendChild(regionDiv2);
+    const akDiv2 = this.createFieldDiv(t("settings.access_key"), "");
+    const akInput2 = document.createElement("input");
+    akInput2.type = "text";
+    akInput2.value = this.account?.accessKey || "";
+    akInput2.className = "cloud-attach-input";
+    akDiv2.appendChild(akInput2);
+    fields2.accessKey = akInput2;
+    s3Fields2.appendChild(akDiv2);
     const skDiv = this.createFieldDiv(t("settings.secret_key"), "");
     const skWrapper = document.createElement("div");
     skWrapper.style.display = "flex";
@@ -3488,8 +3490,8 @@ var AddAccountModal = class extends Modal {
     };
     skWrapper.appendChild(skToggle);
     skDiv.appendChild(skWrapper);
-    fields.secretKey = skInput;
-    s3Fields.appendChild(skDiv);
+    fields2.secretKey = skInput;
+    s3Fields2.appendChild(skDiv);
     const publicUrlDiv = this.createFieldDiv(t("settings.public_url"), t("settings.cdn_url_placeholder"));
     const publicUrlInput = document.createElement("input");
     publicUrlInput.type = "text";
@@ -3497,8 +3499,8 @@ var AddAccountModal = class extends Modal {
     publicUrlInput.value = this.account?.publicUrl || "";
     publicUrlInput.className = "cloud-attach-input";
     publicUrlDiv.appendChild(publicUrlInput);
-    fields.publicUrl = publicUrlInput;
-    s3Fields.appendChild(publicUrlDiv);
+    fields2.publicUrl = publicUrlInput;
+    s3Fields2.appendChild(publicUrlDiv);
     const prefixDiv = this.createFieldDiv(t("settings.prefix"), t("settings.prefix_placeholder"));
     const prefixInput = document.createElement("input");
     prefixInput.type = "text";
@@ -3506,12 +3508,12 @@ var AddAccountModal = class extends Modal {
     prefixInput.value = this.account?.prefix || "";
     prefixInput.className = "cloud-attach-input";
     prefixDiv.appendChild(prefixInput);
-    fields.prefix = prefixInput;
-    s3Fields.appendChild(prefixDiv);
-    this.contentEl.appendChild(s3Fields);
+    fields2.prefix = prefixInput;
+    s3Fields2.appendChild(prefixDiv);
+    this.contentEl.appendChild(s3Fields2);
     const switchType = (type) => {
-      openlistFields.style.display = type === "openlist" ? "block" : "none";
-      s3Fields.style.display = type === "s3" ? "block" : "none";
+      openlistFields2.style.display = type === "openlist" ? "block" : "none";
+      s3Fields2.style.display = type === "s3" ? "block" : "none";
     };
     radioOpenList.onchange = () => switchType("openlist");
     radioS3.onchange = () => switchType("s3");
@@ -3533,10 +3535,10 @@ var AddAccountModal = class extends Modal {
       const accountType = radioOpenList.checked ? "openlist" : "s3";
       let accountData;
       if (accountType === "s3") {
-        let endpoint = fields.endpoint.value.trim().replace(/\/$/, "");
+        let endpoint = fields2.endpoint.value.trim().replace(/\/$/, "");
         if (endpoint && !/^https?:\/\//i.test(endpoint))
           endpoint = "http://" + endpoint;
-        const bucket = fields.bucket.value.trim();
+        const bucket = fields2.bucket.value.trim();
         if (!endpoint) {
           new Notice(t("settings.please_fill_endpoint"), 3e3);
           return;
@@ -3547,18 +3549,18 @@ var AddAccountModal = class extends Modal {
         }
         accountData = {
           type: "s3",
-          name: fields.name.value.trim() || t("settings.s3_account_label", { n: this.plugin.accounts.length + 1 }),
+          name: fields2.name.value.trim() || t("settings.s3_account_label", { n: this.plugin.accounts.length + 1 }),
           endpoint,
           bucket,
-          region: fields.region.value.trim(),
-          accessKey: fields.accessKey.value.trim(),
-          secretKey: fields.secretKey.value,
-          publicUrl: fields.publicUrl.value.trim(),
-          prefix: fields.prefix.value.trim(),
+          region: fields2.region.value.trim(),
+          accessKey: fields2.accessKey.value.trim(),
+          secretKey: fields2.secretKey.value,
+          publicUrl: fields2.publicUrl.value.trim(),
+          prefix: fields2.prefix.value.trim(),
           isActive: true
         };
       } else {
-        let url = fields.url.value.trim().replace(/\/$/, "");
+        let url = fields2.url.value.trim().replace(/\/$/, "");
         if (url && !/^https?:\/\//i.test(url))
           url = "http://" + url;
         if (!url) {
@@ -3574,16 +3576,16 @@ var AddAccountModal = class extends Modal {
           }
         } catch {
         }
-        const finalWebdavPath = autoWebdavPath || fields.webdavPath.value.trim() || "";
+        const finalWebdavPath = autoWebdavPath || fields2.webdavPath.value.trim() || "";
         accountData = {
           type: "openlist",
-          name: fields.name.value.trim() || t("settings.account_label", { n: this.plugin.accounts.length + 1 }),
+          name: fields2.name.value.trim() || t("settings.account_label", { n: this.plugin.accounts.length + 1 }),
           url,
           webdavPath: finalWebdavPath,
-          username: fields.username.value.trim(),
-          password: fields.password.value,
-          token: fields.token.value,
-          publicUrl: fields.olPublicUrl.value.trim() || "",
+          username: fields2.username.value.trim(),
+          password: fields2.password.value,
+          token: fields2.token.value,
+          publicUrl: fields2.olPublicUrl.value.trim() || "",
           isActive: true
         };
       }
