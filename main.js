@@ -2985,14 +2985,24 @@ var PdfFullscreenView = class extends ItemView {
         } else {
           this.scrollEl.style.overflowX = "hidden";
           this.scrollEl.style.scrollSnapType = "y mandatory";
-          wrap.style.cssText = `
-            display:flex; align-items:center; justify-content:center;
-            width:100%; height:${viewH}px; flex-shrink:0;
-            scroll-snap-align:start; overflow:hidden;
-          `;
-          img.style.objectFit = "contain";
-          img.style.maxWidth = "100%";
-          img.style.maxHeight = "100%";
+          if (fitHeight) {
+            wrap.style.cssText = `
+              display:flex; align-items:center; justify-content:center;
+              width:100%; height:${viewH}px; flex-shrink:0;
+              scroll-snap-align:start; overflow:hidden;
+            `;
+            img.style.objectFit = "contain";
+            img.style.maxWidth = "100%";
+            img.style.maxHeight = "100%";
+          } else {
+            wrap.style.cssText = `
+              display:flex; justify-content:center;
+              width:100%; flex-shrink:0;
+              scroll-snap-align:start;
+            `;
+            img.style.width = "100%";
+            img.style.height = "auto";
+          }
         }
       } else {
         this.scrollEl.style.overflowX = "hidden";
