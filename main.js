@@ -3030,7 +3030,8 @@ var PdfFullscreenView = class extends ItemView {
       parent.removeChild(this.scrollEl);
       parent.appendChild(this.scrollEl);
     }
-    this._buildThumbnailPanel();
+    if (!this._thumbnailPanelWrap)
+      this._buildThumbnailPanel();
   }
   _buildThumbnailPanel() {
     const thumbBlobs = this._thumbnailBlobs;

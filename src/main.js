@@ -3250,8 +3250,8 @@ class PdfFullscreenView extends ItemView {
       parent.appendChild(this.scrollEl);
     }
 
-    // 同时创建缩略图面板（display:none），与 PDF 在同一渲染窗口
-    this._buildThumbnailPanel();
+    // 缩略图面板仅在首次渲染时创建，避免 re-render 时重建破坏布局
+    if (!this._thumbnailPanelWrap) this._buildThumbnailPanel();
   }
 
   _buildThumbnailPanel() {
