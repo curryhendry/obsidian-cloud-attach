@@ -2874,13 +2874,13 @@ class PdfFullscreenView extends ItemView {
     zoomOutBtn.className = 'clickable-icon';
     zoomOutBtn.setAttribute('aria-label', '缩小');
     zoomOutBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
-    zoomOutBtn.onclick = () => { new Notice('全屏预览（敬请期待）'); };
+    zoomOutBtn.onclick = () => { new Notice('缩放功能开发中'); };
 
     const zoomInBtn = left.createEl('button');
     zoomInBtn.className = 'clickable-icon';
     zoomInBtn.setAttribute('aria-label', '放大');
     zoomInBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
-    zoomInBtn.onclick = () => { new Notice('全屏预览（敬请期待）'); };
+    zoomInBtn.onclick = () => { new Notice('缩放功能开发中'); };
 
     const viewMenuBtn = left.createEl('button');
     viewMenuBtn.className = 'clickable-icon';
@@ -5191,6 +5191,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     img.className = 'cloudattach-pdf-page';
     img.dataset.pageNum = String(pageNum);
     img.style.userSelect = 'none';
+    img.style.pointerEvents = 'none';
     img.draggable = false;
     img.style.width = '100%';
     img.style.display = 'block';
@@ -5257,6 +5258,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
     container.style.position = "relative";
     if (isTouch) {
       container.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         toolbar.style.opacity = toolbar.style.opacity === "1" ? "0" : "1";
       });
     } else {
