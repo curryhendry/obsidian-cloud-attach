@@ -4517,11 +4517,17 @@ module.exports = class CloudAttachPlugin extends Plugin {
    * 打开 PDF 全屏预览（新窗口 Popout Leaf）
    */
   async openPdfFullscreen(url, name) {
-    if (Platform.isMobile)
-      return;
     const { workspace } = this.app;
     if (!name)
       name = cleanFileNameFromUrl(url);
+    if (Platform.isMobile) {
+      this._pendingPdfUrl = url;
+      this._pendingPdfName = name;
+      const leaf2 = workspace.getLeaf("split", "vertical");
+      await leaf2.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true, state: { pdfUrl: url, pdfName: name } });
+      workspace.revealLeaf(leaf2);
+      return;
+    }
     this._pendingPdfUrl = url;
     this._pendingPdfName = name;
     new Notice(t("view.fullscreen_preparing"));

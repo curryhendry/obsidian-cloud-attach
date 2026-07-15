@@ -4791,9 +4791,20 @@ module.exports = class CloudAttachPlugin extends Plugin {
    * 打开 PDF 全屏预览（新窗口 Popout Leaf）
    */
   async openPdfFullscreen(url, name) {
-    if (Platform.isMobile) return;
     const { workspace } = this.app;
     if (!name) name = cleanFileNameFromUrl(url);
+
+    if (Platform.isMobile) {
+      // 手机端：split leaf + canvas 渲染（不设 _pendingPageBlobs，_renderAllPages 走正常路径）
+      this._pendingPdfUrl = url;
+      this._pendingPdfName = name;
+      const leaf = workspace.getLeaf('split', 'vertical');
+      await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true, state: { pdfUrl: url, pdfName: name } });
+      workspace.revealLeaf(leaf);
+      return;
+    }
+
+    // 桌面端：blob 预渲染 + popout
     
     this._pendingPdfUrl = url;
     this._pendingPdfName = name;
