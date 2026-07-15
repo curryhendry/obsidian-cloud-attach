@@ -2843,6 +2843,7 @@ class PdfFullscreenView extends ItemView {
     const thumbBtn = thumbBtnWrap.createEl('button');
     thumbBtn.className = 'clickable-icon';
     thumbBtn.setAttribute('aria-label', '面板');
+    // 参考图样式：方格图标（2x2 网格）
     thumbBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>';
     thumbBtn.onclick = () => {
       this._thumbnailVisible = !this._thumbnailVisible;
@@ -2859,68 +2860,90 @@ class PdfFullscreenView extends ItemView {
         this._thumbnailVisible = true;
         this._toggleThumbnailPanel();
       }));
-      menu.addItem(item => {
-        item.setTitle('目录').setDisabled(true);
-      });
+      menu.addItem(item => item.setTitle(this._panelMode === 'outline' ? '✓ 目录' : '目录').onClick(() => {
+        this._panelMode = 'outline';
+        this._thumbnailVisible = true;
+        new Notice('目录功能开发中');
+      }));
       menu.showAtMouseEvent(e);
     };
 
-    this._viewMode = 'continuous';
-    this._zoomMode = 'fit-width';
-    this._zoomLevel = 0;
-    this._renderScaleLevel = 0;
+    // 缩放按钮组：缩小、放大、下拉菜单
+    this._viewMode = 'continuous'; // 'continuous' | 'single'
+    this._zoomMode = 'fit-width'; // 'fit-width' | 'fit-height'
+    this._zoomLevel = 0; // 0=自动（跟随 _zoomMode），>0=固定缩放倍数
     
+    // 缩小按钮
     const zoomOutBtn = left.createEl('button');
     zoomOutBtn.className = 'clickable-icon';
     zoomOutBtn.setAttribute('aria-label', '缩小');
     zoomOutBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
-    zoomOutBtn.onclick = () => { new Notice('缩放功能开发中'); };
+    // 缩放级别：0=自动, 1.5=150%, 2=200%, 3=300%, 4=400%, 5=500%
+    this._renderScaleLevel = 0;
 
+    zoomOutBtn.onclick = () => {
+      new Notice('缩放功能开发中');
+    };
+
+    // 放大按钮
     const zoomInBtn = left.createEl('button');
     zoomInBtn.className = 'clickable-icon';
     zoomInBtn.setAttribute('aria-label', '放大');
     zoomInBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
-    zoomInBtn.onclick = () => { new Notice('缩放功能开发中'); };
+    zoomInBtn.onclick = () => {
+      new Notice('缩放功能开发中');
+    };
 
+    // 下拉菜单按钮
     const viewMenuBtn = left.createEl('button');
     viewMenuBtn.className = 'clickable-icon';
     viewMenuBtn.style.padding = '2px';
     viewMenuBtn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
     viewMenuBtn.onclick = (e) => {
       const menu = new Menu();
-      menu.addItem(item => item.setTitle((this._zoomMode === 'fit-width' ? '✓ ' : '') + '适应宽度').onClick(() => {
-        this._zoomMode = 'fit-width'; this._applyZoom();
-      }));
-      menu.addItem(item => item.setTitle((this._zoomMode === 'fit-height' ? '✓ ' : '') + '适应高度').onClick(() => {
-        this._zoomMode = 'fit-height'; this._applyZoom();
-      }));
+      // 缩放部分
+      const zoomOpts = { 'fit-width': '适应宽度', 'fit-height': '适应高度' };
+      Object.entries(zoomOpts).forEach(([val, label]) => {
+        menu.addItem(item => item.setTitle((this._zoomMode === val && this._renderScaleLevel <= 0 ? '✓ ' : '') + label).onClick(() => {
+          this._zoomMode = val;
+          this._renderScaleLevel = 0; // 切回自动
+          this._applyZoom();
+        }));
+      });
       menu.addSeparator();
-      menu.addItem(item => item.setTitle((this._viewMode === 'continuous' ? '✓ ' : '') + '连续滚动').onClick(() => {
-        this._viewMode = 'continuous'; this._applyZoom();
-      }));
-      menu.addItem(item => item.setTitle((this._viewMode === 'single' ? '✓ ' : '') + '单页').onClick(() => {
-        this._viewMode = 'single'; this._applyZoom();
-      }));
+      // 滚动方式部分
+      const modeOpts = { 'continuous': '连续', 'single': '单页' };
+      Object.entries(modeOpts).forEach(([val, label]) => {
+        menu.addItem(item => item.setTitle((this._viewMode === val ? '✓ ' : '') + label).onClick(() => {
+          this._viewMode = val;
+          this._reRender();
+        }));
+      });
       menu.showAtMouseEvent(e);
     };
 
+
+
+    // 右侧：功能按钮
     const right = toolbar.createEl('div');
     right.style.display = 'flex';
     right.style.alignItems = 'center';
     right.style.gap = '10px';
 
+    // 上一页（图标按钮）
     const prevBtn = right.createEl('button');
     prevBtn.className = 'clickable-icon';
     prevBtn.setAttribute('aria-label', '上一页');
     prevBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>';
     prevBtn.onclick = () => this._scrollToPage((this._currentPage || 1) - 1);
 
+    // 页码输入框（可编辑）
     const pageWrap = right.createEl('span');
     pageWrap.style.display = 'flex';
     pageWrap.style.alignItems = 'center';
     pageWrap.style.gap = '2px';
     this.pageInput = pageWrap.createEl('input', { type: 'number', value: '1' });
-    this.pageInput.style.width = '50px';
+    this.pageInput.style.width = '40px';
     this.pageInput.style.fontSize = '13px';
     this.pageInput.style.textAlign = 'center';
     this.pageInput.style.border = '1px solid var(--background-modifier-border)';
@@ -2940,24 +2963,28 @@ class PdfFullscreenView extends ItemView {
     this.pageTotal.style.fontSize = '13px';
     this.pageTotal.style.color = 'var(--text-muted)';
 
+    // 下一页（图标按钮）
     const nextBtn = right.createEl('button');
     nextBtn.className = 'clickable-icon';
     nextBtn.setAttribute('aria-label', '下一页');
     nextBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>';
     nextBtn.onclick = () => this._scrollToPage((this._currentPage || 1) + 1);
 
+    // 关闭按钮（图标按钮）
     const closeBtn = right.createEl('button');
     closeBtn.className = 'clickable-icon';
     closeBtn.setAttribute('aria-label', '关闭');
     closeBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
     closeBtn.onclick = () => this.leaf.detach();
 
+    // 内容区包装器（flex row，容纳缩略图面板 + 滚动区）
     this._contentWrap = container.createEl('div');
     this._contentWrap.style.flex = '1';
     this._contentWrap.style.display = 'flex';
     this._contentWrap.style.overflow = 'hidden';
-    this._contentWrap.style.minHeight = '0';
+    this._contentWrap.style.minHeight = '0'; // flex 子元素必须设 min-height:0 才会收缩
 
+    // 内容区
     this.scrollEl = this._contentWrap.createEl('div');
     this.scrollEl.style.flex = '1';
     this.scrollEl.style.minHeight = '0';
@@ -2985,9 +3012,7 @@ class PdfFullscreenView extends ItemView {
       this.pageInput.value = '1';
       this._currentPage = 1;
 
-      // 等容器 layout 完成后再渲染（避免 clientWidth/Height=0 导致的 crash）
-      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-      this._renderAllPages();
+      this._renderAllPages(this._viewMode, this._renderScaleLevel, this._zoomMode);
     } catch (e) {
       console.error('[CloudAttach] PdfFullscreenView load error:', e);
       this.scrollEl.empty();
@@ -2998,227 +3023,314 @@ class PdfFullscreenView extends ItemView {
     }
   }
 
-  _calcScale(zoomMode, scaleLevel, w, h) {
-    if (scaleLevel > 0) return scaleLevel;
-    const firstPg = this._pdf; if (!firstPg) return 1;
-    w = w || this.scrollEl.clientWidth || this.containerEl.clientWidth || 800;
-    h = h || this.scrollEl.clientHeight || this.containerEl.clientHeight || 600;
-    return zoomMode === 'fit-width' ? w / this._pageW : h / this._pageH;
-  }
-
-  async _renderAllPages() {
-    if (!this._pdf && !this.plugin._pendingPageBlobs) return;
+  async _renderAllPages(mode, scaleLevel, zoomMode) {
+    if (!this._pdf && !this.plugin._pendingPageBlobs && !this._pageBlobs) return;
     
-    // 桌面端 blob 预渲染入口
-    if (this.plugin._pendingPageBlobs) {
-      this._pageBlobs = this.plugin._pendingPageBlobs;
-      this.plugin._pendingPageBlobs = null;
-      if (this.plugin._pendingThumbnailBlobs) {
-        this._thumbnailBlobs = this.plugin._pendingThumbnailBlobs;
-        this.plugin._pendingThumbnailBlobs = null;
+    // 预渲染模式：popout 优先用 blob 渲染
+    const blobs = this.plugin._pendingPageBlobs || this._pageBlobs;
+    if (blobs) {
+      if (this.plugin._pendingPageBlobs) {
+        this._pageBlobs = this.plugin._pendingPageBlobs;
+        this.plugin._pendingPageBlobs = null;
+        if (this.plugin._pendingThumbnailBlobs) {
+          this._thumbnailBlobs = this.plugin._pendingThumbnailBlobs;
+          this.plugin._pendingThumbnailBlobs = null;
+        }
       }
-      this._renderFromBlobs(this._pageBlobs);
+      this._renderFromBlobs(this._pageBlobs, mode, scaleLevel, zoomMode);
       return;
     }
     
-    console.log('[CloudAttach] _renderAllPages mode=', this._viewMode, 'scrollW=', this.scrollEl.clientWidth, 'scrollH=', this.scrollEl.clientHeight);
-    this._fullscreenObserver?.disconnect(); this._fullscreenObserver = null;
-
+    // 正常渲染路径（split 视图，使用 OffscreenCanvas）
     const totalPages = this._pdf.numPages;
-    const pg = await this._pdf.getPage(1);
-    const vp = pg.getViewport({ scale: 1 });
-    this._pageW = vp.width; this._pageH = vp.height;
+    
+    const firstPg = await this._pdf.getPage(1);
+    const firstVp = firstPg.getViewport({ scale: 1 });
+    const pageW = firstVp.width;
+    const pageH = firstVp.height;
+    
+    let renderScale = 1;
+    if (scaleLevel > 0) {
+      renderScale = scaleLevel;
+    } else if (zoomMode === 'fit-width') {
+      const w = this.scrollEl.clientWidth || this.containerEl.clientWidth;
+      renderScale = w > 0 ? w / pageW : 1;
+    } else if (zoomMode === 'fit-height') {
+      const h = this.scrollEl.clientHeight || this.containerEl.clientHeight;
+      renderScale = h > 0 ? h / pageH : 1;
+    }
 
-    const mode = this._viewMode;
-    const zoomMode = this._zoomMode;
-    const scaleLevel = this._renderScaleLevel;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const scrollW = this.scrollEl.clientWidth;
+    const scrollH = this.scrollEl.clientHeight;
+    const zoomedIn = scaleLevel > 1;
 
-    const scrollW = this.scrollEl.clientWidth || this.containerEl.clientWidth || 800;
-    const scrollH = this.scrollEl.clientHeight || this.containerEl.clientHeight || 600;
-
-    const displayScale = this._calcScale(zoomMode, scaleLevel, scrollW, scrollH);
-    const displayW = Math.round(this._pageW * displayScale);
-    const displayH = Math.round(this._pageH * displayScale);
-    const renderScale = displayScale * dpr;
-    const isSingle = mode === 'single';
-
-    this.scrollEl.style.display = '';
-    this.scrollEl.style.minHeight = '0';
-    this.scrollEl.style.background = 'var(--background-secondary)';
-    this.scrollEl.style.padding = '0';
-    this.scrollEl.style.overflowY = 'auto';
-    this.scrollEl.style.overflowX = isSingle ? 'hidden' : 'auto';
-    this.scrollEl.style.WebkitOverflowScrolling = 'touch';
-    this.scrollEl.style.scrollSnapType = isSingle ? 'y mandatory' : 'none';
-    this.scrollEl.onscroll = null;
-    this.scrollEl.onwheel = null;
-    this.scrollEl.scrollTop = 0;
+    this.scrollEl.style.cssText = `
+      flex:1; min-height:0; overflow:auto;
+      background:var(--background-secondary); padding:0;
+    `;
     this.scrollEl.empty();
 
     for (let i = 1; i <= totalPages; i++) {
       const wrap = document.createElement('div');
       wrap.className = 'cloud-attach-snap-item';
       wrap.dataset.pageNum = String(i);
-      wrap.style.position = 'relative';
-      wrap.style.flexShrink = '0';
-      wrap.style.width = '100%';
-      if (isSingle) {
-        wrap.style.height = (scrollH || 600) + 'px';
-        wrap.style.scrollSnapAlign = 'start';
-        wrap.style.display = 'flex';
-        wrap.style.alignItems = 'center';
-        wrap.style.justifyContent = 'center';
-        wrap.style.overflow = (displayH > scrollH || displayW > scrollW) ? 'auto' : 'hidden';
-      } else {
-        wrap.style.minHeight = displayH + 'px';
-        wrap.style.minWidth = displayW + 'px';
-        wrap.style.display = 'flex';
-        wrap.style.justifyContent = 'center';
-        wrap.style.alignItems = 'flex-start';
-      }
-      this.scrollEl.appendChild(wrap);
-    }
-
-    const renderPage = async (pageNum) => {
-      const wrap = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);
-      if (!wrap || wrap.dataset.rendered) return;
-      wrap.dataset.rendered = '1';
-
-      const page = await this._pdf.getPage(pageNum);
-      const viewport = page.getViewport({ scale: renderScale });
 
       const canvas = document.createElement('canvas');
       canvas.className = 'cloud-attach-pdf-fullscreen-page';
       canvas.style.display = 'block';
       canvas.style.boxShadow = '0 1px 4px rgba(0,0,0,0.15)';
-      canvas.dataset.pageNum = String(pageNum);
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      canvas.style.width = displayW + 'px';
-      canvas.style.height = displayH + 'px';
-      if (mode === 'continuous') {
-        canvas.style.marginBottom = '8px';
-      }
-      wrap.appendChild(canvas);
-      await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+      canvas.dataset.pageNum = String(i);
 
-      if (scaleLevel > 0 && displayH > scrollH && isSingle) {
-        wrap.scrollTop = Math.max(0, (displayH - scrollH) / 2);
-      }
-    };
-
-    const lazyQueue = [], MAX_Q = 3;
-    let lazyBusy = false;
-    const processQueue = async () => {
-      if (lazyBusy || lazyQueue.length === 0) return;
-      lazyBusy = true;
-      const n = lazyQueue.shift();
-      try { await new Promise(r => requestAnimationFrame(r)); await renderPage(n); }
-      catch (e) { console.error('[CloudAttach] lazy render page', n, ':', e); }
-      lazyBusy = false;
-      setTimeout(() => processQueue(), 100);
-    };
-    this._lazyQueueAdd = (n) => {
-      if (lazyQueue.length < MAX_Q && !lazyQueue.includes(n)) lazyQueue.push(n);
-      processQueue();
-    };
-
-    this._fullscreenObserver = new IntersectionObserver((entries) => {
-      entries.forEach(e => {
-        if (e.isIntersecting) {
-          const w = e.target;
-          if (w.dataset.rendered) return;
-          const n = parseInt(w.dataset.pageNum);
-          if (lazyQueue.length < MAX_Q) lazyQueue.push(n);
-          processQueue();
-          this._fullscreenObserver.unobserve(w);
+      if (mode === 'single') {
+        if (zoomedIn) {
+          this.scrollEl.style.overflowX = 'auto';
+          this.scrollEl.style.scrollSnapType = 'none';
+          wrap.style.cssText = `
+            display:flex; align-items:flex-start; justify-content:flex-start;
+            width:100%; flex-shrink:0;
+          `;
+        } else {
+          this.scrollEl.style.overflowX = 'hidden';
+          this.scrollEl.style.scrollSnapType = 'y mandatory';
+          wrap.style.cssText = `
+            display:flex; align-items:center; justify-content:center;
+            width:100%; height:${scrollH}px; flex-shrink:0;
+            scroll-snap-align:start; overflow:hidden;
+          `;
         }
-      });
-    }, { root: this.scrollEl, rootMargin: '300px' });
+      } else {
+        this.scrollEl.style.overflowX = 'hidden';
+        this.scrollEl.style.scrollSnapType = 'none';
+        canvas.style.margin = '0 auto 8px';
+        wrap.style.cssText = `
+          display:flex; align-items:flex-start; justify-content:flex-start;
+          width:100%; flex-shrink:0;
+        `;
+      }
 
-    this.scrollEl.querySelectorAll('.cloud-attach-snap-item').forEach(w => this._fullscreenObserver.observe(w));
+      wrap.appendChild(canvas);
+      this.scrollEl.appendChild(wrap);
+    }
 
-    try { await renderPage(1); } catch (e) { console.error('[CloudAttach] lazy render page 1:', e); }
+    for (let i = 1; i <= totalPages; i++) {
+      const canvas = this.scrollEl.querySelector(`canvas.cloud-attach-pdf-fullscreen-page[data-page-num="${i}"]`);
+      if (!canvas) continue;
+      const page = await this._pdf.getPage(i);
+      const viewport = page.getViewport({ scale: renderScale });
+      const offscreen = new OffscreenCanvas(viewport.width, viewport.height);
+      await page.render({
+        canvasContext: offscreen.getContext('2d'),
+        viewport
+      }).promise;
+      try {
+        const blob = await offscreen.convertToBlob({ type: 'image/png' });
+        const imgUrl = URL.createObjectURL(blob);
+        const img = document.createElement('img');
+        img.src = imgUrl;
+        img.className = 'cloud-attach-pdf-fullscreen-page';
+        img.style.display = 'block';
+        img.style.boxShadow = '0 1px 4px rgba(0,0,0,0.15)';
+        img.dataset.pageNum = String(i);
+        if (!zoomedIn) {
+          this._sizeCanvas(img, scrollW, mode === 'single' ? scrollH : Infinity);
+        } else {
+          img.style.width = viewport.width + 'px';
+          img.style.height = viewport.height + 'px';
+        }
+        canvas.replaceWith(img);
+        URL.revokeObjectURL(imgUrl);
+      } catch (e) {
+        console.error('[CloudAttach] OffscreenCanvas render error:', e);
+      }
+    }
 
-    this._bindScroll(displayH, scrollH);
-    console.log('[CloudAttach] _renderAllPages done totalPages=', totalPages, 'displayW=', displayW, 'displayH=', displayH);
+    this._bindScroll();
+  }
+
+  /** 用预渲染的 blob URL 显示（popout 模式，不依赖 GPU compositor） */
+  _renderFromBlobs(blobs, mode, scaleLevel, zoomMode) {
+    const totalPages = blobs.length;
+    const zoomedIn = scaleLevel > 1;
+    const fitWidth = zoomMode === 'fit-width' || (!zoomMode && scaleLevel <= 0);
+    const fitHeight = zoomMode === 'fit-height';
+    const viewH = this.scrollEl.clientHeight || this.containerEl.clientHeight || 600;
+    const viewW = this.scrollEl.clientWidth || this.containerEl.clientWidth || 400;
+
+    this.scrollEl.style.cssText = `
+      flex:1; min-height:0; overflow:auto;
+      background:var(--background-secondary); padding:0;
+    `;
+    this.scrollEl.empty();
+
+    for (let i = 0; i < totalPages; i++) {
+      const wrap = document.createElement('div');
+      wrap.className = 'cloud-attach-snap-item';
+      wrap.dataset.pageNum = String(i + 1);
+
+      const img = document.createElement('img');
+      img.src = blobs[i];
+      img.className = 'cloud-attach-pdf-fullscreen-page';
+      img.style.display = 'block';
+      img.style.boxShadow = '0 1px 4px rgba(0,0,0,0.15)';
+
+      if (zoomedIn) {
+        img.style.maxWidth = 'none';
+        img.style.maxHeight = 'none';
+        img.style.width = 'auto';
+        img.style.height = 'auto';
+      } else if (fitHeight) {
+        img.style.maxWidth = '100%';
+        img.style.maxHeight = 'none';
+        img.style.width = 'auto';
+        img.style.height = 'auto';
+        img.style.objectFit = 'contain';
+      } else {
+        img.style.width = '100%';
+        img.style.height = 'auto';
+      }
+
+      if (mode === 'single') {
+        if (zoomedIn) {
+          this.scrollEl.style.overflowX = 'auto';
+          this.scrollEl.style.scrollSnapType = 'none';
+          wrap.style.cssText = `
+            display:flex; align-items:flex-start; justify-content:flex-start;
+            width:100%; flex-shrink:0;
+          `;
+        } else {
+          this.scrollEl.style.overflowX = 'hidden';
+          this.scrollEl.style.scrollSnapType = 'y mandatory';
+          if (fitHeight) {
+            wrap.style.cssText = `
+              display:flex; align-items:center; justify-content:center;
+              width:100%; height:${viewH}px; flex-shrink:0;
+              scroll-snap-align:start; overflow:hidden;
+            `;
+            img.style.objectFit = 'contain';
+            img.style.maxWidth = '100%';
+            img.style.maxHeight = '100%';
+          } else {
+            // fit-width: wrap 不定高，img 按宽度自适应，snap 对齐顶部
+            wrap.style.cssText = `
+              display:flex; justify-content:center;
+              width:100%; flex-shrink:0;
+              scroll-snap-align:start;
+            `;
+            img.style.width = '100%';
+            img.style.height = 'auto';
+          }
+        }
+      } else {
+        this.scrollEl.style.overflowX = 'hidden';
+        this.scrollEl.style.scrollSnapType = 'none';
+        if (zoomedIn) {
+          this.scrollEl.style.overflowX = 'auto';
+          this.scrollEl.style.scrollSnapType = 'none';
+        }
+        if (fitHeight) {
+          img.style.maxHeight = viewH + 'px';
+          img.style.objectFit = 'contain';
+        }
+        wrap.style.cssText = `
+          display:flex; align-items:flex-start; justify-content:center;
+          width:100%; flex-shrink:0; margin-bottom:8px;
+        `;
+      }
+
+      wrap.appendChild(img);
+      this.scrollEl.appendChild(wrap);
+    }
+
+    if (this.plugin._pendingPageCount) {
+      this.pageTotal.textContent = ' / ' + this.plugin._pendingPageCount;
+      this.plugin._pendingPageCount = 0;
+    }
+    this._currentPage = 1;
+    this._bindScroll();
+
+    // popout compositor flush: 摘除再插回强制重绘
+    const parent = this.scrollEl.parentNode;
+    if (parent) {
+      parent.removeChild(this.scrollEl);
+      parent.appendChild(this.scrollEl);
+    }
+
+    // 缩略图面板仅在首次渲染时创建，避免 re-render 时重建破坏布局
+    if (!this._thumbnailPanelWrap) this._buildThumbnailPanel();
+  }
+
+  _buildThumbnailPanel() {
+    const thumbBlobs = this._thumbnailBlobs;
+    if (!thumbBlobs || !thumbBlobs.length) return;
+    if (this._thumbnailPanelWrap) {
+      this._thumbnailPanelWrap.remove();
+    }
+    this._thumbnailPanelWrap = this._contentWrap.createEl('div');
+    this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? 'flex' : 'none';
+    this._thumbnailPanelWrap.style.flexDirection = 'row';
+    this._contentWrap.insertBefore(this._thumbnailPanelWrap, this.scrollEl);
+
+    this._thumbnailPanel = this._thumbnailPanelWrap.createEl('div');
+    this._thumbnailPanel.style.width = '150px';
+    this._thumbnailPanel.style.flexShrink = '0';
+    this._thumbnailPanel.style.overflowY = 'auto';
+    this._thumbnailPanel.style.background = 'var(--background-primary)';
+    this._thumbnailPanel.style.padding = '8px';
+
+    for (let i = 0; i < thumbBlobs.length; i++) {
+      const wrap = this._thumbnailPanel.createEl('div');
+      wrap.style.cssText = 'position:relative;margin-bottom:8px;cursor:pointer;border:2px solid transparent;border-radius:4px;padding:2px;';
+      wrap.dataset.pageNum = String(i + 1);
+      wrap.onclick = () => {
+        this._scrollToPage(i + 1);
+        this._thumbnailPanel.querySelectorAll('div[data-page-num]').forEach(d => d.style.borderColor = 'transparent');
+        wrap.style.borderColor = 'var(--interactive-accent)';
+      };
+      const img = wrap.createEl('img');
+      img.src = thumbBlobs[i];
+      img.style.cssText = 'width:100%;height:auto;display:block;';
+    }
   }
 
   _reRender() {
-    if (!this._pdf) return;
+    if (!this._pdf && !this._pageBlobs) return;
     const savedPage = this._currentPage || 1;
-    this.scrollEl.querySelectorAll('canvas').forEach(c => {
-      const ctx = c.getContext('2d'); if (ctx) ctx.clearRect(0, 0, c.width, c.height);
-      c.width = 0; c.height = 0; c.remove();
-    });
-    this.scrollEl.empty();
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        this._renderAllPages().then(() => {
-          this._scrollToPage(savedPage);
-        }).catch(e => console.error('[CloudAttach] _reRender error:', e));
-      });
+    this._renderAllPages(this._viewMode, this._renderScaleLevel, this._zoomMode).then(() => {
+      this._scrollToPage(savedPage);
+    }).catch(e => {
+      console.error('[CloudAttach] _reRender error:', e);
     });
   }
 
-  _resizeAllCanvases() {
-    if (!this._pdf) return;
-    const scrollW = this.scrollEl.clientWidth;
-    const scrollH = this.scrollEl.clientHeight;
-    if (!scrollW || !scrollH) return;
-    const displayScale = this._calcScale(this._zoomMode, this._renderScaleLevel, scrollW, scrollH);
-    const displayW = Math.round(this._pageW * displayScale);
-    const displayH = Math.round(this._pageH * displayScale);
-    const isSingle = this._viewMode === 'single';
-
-    this.scrollEl.querySelectorAll('.cloud-attach-snap-item').forEach(wrap => {
-      const canvas = wrap.querySelector('canvas');
-      if (!canvas) return;
-      canvas.style.width = displayW + 'px';
-      canvas.style.height = displayH + 'px';
-      if (isSingle) {
-        wrap.style.height = scrollH + 'px';
-        wrap.style.overflow = (displayH > scrollH || displayW > scrollW) ? 'auto' : 'hidden';
-        if (this._renderScaleLevel > 0 && displayH > scrollH) {
-          wrap.scrollTop = Math.max(0, (displayH - scrollH) / 2);
-        }
-      } else {
-        wrap.style.minHeight = displayH + 'px';
-      }
-    });
-
-    if (isSingle) {
-      this._scrollToPage(this._currentPage || 1);
+  _sizeCanvas(c, maxW, maxH) {
+    const w = c.width || c.naturalWidth || 0;
+    const h = c.height || c.naturalHeight || 1;
+    const ratio = w / h;
+    if (this._zoomMode === 'fit-height') {
+      const tH = Math.min(maxH, h);
+      c.style.height = tH + 'px';
+      c.style.width = (tH * ratio) + 'px';
+    } else {
+      // fit-width：按容器宽度等比缩放
+      c.style.width = maxW + 'px';
+      c.style.height = 'auto';
     }
   }
 
-  _applyZoom() { this._reRender(); }
+  _applyZoom() {
+    this._reRender();
+  }
 
   _toggleThumbnailPanel() {
-    if (!this._thumbnailPanelWrap) {
-      this._thumbnailPanelWrap = this._contentWrap.createEl('div');
-      this._thumbnailPanelWrap.style.display = 'flex';
-      this._thumbnailPanelWrap.style.flexDirection = 'row';
-      this._contentWrap.insertBefore(this._thumbnailPanelWrap, this.scrollEl);
-      this._thumbnailPanel = this._thumbnailPanelWrap.createEl('div');
-      this._thumbnailPanel.style.width = '150px';
-      this._thumbnailPanel.style.flexShrink = '0';
-      this._thumbnailPanel.style.overflowY = 'auto';
-      this._thumbnailPanel.style.background = 'var(--background-primary)';
-      this._thumbnailPanel.style.padding = '8px';
-      this._renderThumbnails();
-    }
+    if (!this._thumbnailPanelWrap) return;
     this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? 'flex' : 'none';
-    console.log('[CloudAttach] _toggleThumbnailPanel _reRender visible=', this._thumbnailVisible);
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => this._reRender());
-    });
+    this._reRender();
   }
 
   async _renderThumbnails() {
-    // 桌面端 blob 缩略图
-    if (this._thumbnailBlobs) {
+    if (!this._thumbnailPanel) return;
+    // blob 模式用预渲染的缩略图
+    if (!this._pdf && this._thumbnailBlobs) {
       this._thumbnailPanel.empty();
       const total = this._thumbnailBlobs.length;
       for (let i = 0; i < total; i++) {
@@ -3236,59 +3348,107 @@ class PdfFullscreenView extends ItemView {
       }
       return;
     }
-    if (!this._pdf || !this._thumbnailPanel) return;
+    if (!this._pdf && this._pageBlobs) {
+      this._thumbnailPanel.empty();
+      const total = this._pageBlobs.length;
+      for (let i = 0; i < total; i++) {
+        const wrap = this._thumbnailPanel.createEl('div');
+        wrap.style.cssText = 'position:relative;margin-bottom:8px;cursor:pointer;border:2px solid transparent;border-radius:4px;padding:2px;';
+        wrap.dataset.pageNum = String(i + 1);
+        wrap.onclick = () => {
+          this._scrollToPage(i + 1);
+          this._thumbnailPanel.querySelectorAll('div[data-page-num]').forEach(d => d.style.borderColor = 'transparent');
+          wrap.style.borderColor = 'var(--interactive-accent)';
+        };
+        const img = wrap.createEl('img');
+        img.src = this._pageBlobs[i];
+        img.style.cssText = 'width:100%;height:auto;display:block;';
+      }
+      return;
+    }
+    if (!this._pdf) return;
     this._thumbnailPanel.empty();
     const total = this._pdf.numPages;
     for (let i = 1; i <= total; i++) {
       const page = await this._pdf.getPage(i);
-      const viewport = page.getViewport({ scale: 0.2 });
+      const viewport = page.getViewport({ scale: 0.2 }); // 缩略图小尺寸
       const wrap = this._thumbnailPanel.createEl('div');
-      wrap.style.position = 'relative'; wrap.style.marginBottom = '8px';
-      wrap.style.cursor = 'pointer'; wrap.style.border = '2px solid transparent';
-      wrap.style.borderRadius = '4px'; wrap.style.padding = '4px';
+      wrap.style.position = 'relative';
+      wrap.style.marginBottom = '8px';
+      wrap.style.cursor = 'pointer';
+      wrap.style.border = '2px solid transparent';
+      wrap.style.borderRadius = '4px';
+      wrap.style.padding = '4px';
       wrap.dataset.pageNum = String(i);
-      wrap.onclick = () => { this._scrollToPage(i); this._highlightThumbnail(i); };
+      wrap.onclick = () => {
+        this._scrollToPage(i);
+        // 高亮当前缩略图
+        this._thumbnailPanel.querySelectorAll('div[data-page-num]').forEach(d => d.style.borderColor = 'transparent');
+        wrap.style.borderColor = 'var(--interactive-accent)';
+      };
       const canvas = wrap.createEl('canvas');
-      canvas.style.width = '100%'; canvas.style.height = 'auto'; canvas.style.display = 'block';
-      canvas.width = viewport.width; canvas.height = viewport.height;
-      await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-      const label = wrap.createEl('div', { text: String(i) });
-      label.style.cssText = 'position:absolute;bottom:4px;right:4px;background:rgba(255,255,255,0.85);color:var(--text-muted);font-size:10px;padding:1px 5px;border-radius:8px;box-shadow:0 1px 2px rgba(0,0,0,0.1)';
+      canvas.style.width = '100%';
+      canvas.style.height = 'auto';
+      canvas.style.display = 'block';
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      await page.render({ canvasContext: canvas.getContext('2d', { willReadFrequently: true }), viewport }).promise;
+      // 悬浮页码（右下角更小巧透明）
+      const pageNumEl = wrap.createEl('div', { text: String(i) });
+      pageNumEl.style.position = 'absolute';
+      pageNumEl.style.bottom = '4px';
+      pageNumEl.style.right = '4px';
+      pageNumEl.style.background = 'rgba(var(--background-primary-rgb, 255,255,255), 0.85)';
+      pageNumEl.style.color = 'var(--text-muted)';
+      pageNumEl.style.fontSize = '10px';
+      pageNumEl.style.padding = '1px 5px';
+      pageNumEl.style.borderRadius = '8px';
+      pageNumEl.style.boxShadow = '0 1px 2px rgba(0,0,0,0.1)';
+    }
+    // popout compositor flush
+    const p = this._thumbnailPanel.parentNode;
+    if (p) {
+      p.removeChild(this._thumbnailPanel);
+      p.appendChild(this._thumbnailPanel);
     }
   }
 
-  _bindScroll(displayH, scrollH) {
-    this.scrollEl.tabIndex = 0;
-    this.scrollEl.style.outline = 'none';
-    if (this._onPointerDown) this.scrollEl.removeEventListener('pointerdown', this._onPointerDown);
-    this._onPointerDown = () => this.scrollEl.focus();
-    this.scrollEl.addEventListener('pointerdown', this._onPointerDown);
-
-    if (this._onWheel) {
-      this._contentWrap.removeEventListener('wheel', this._onWheel);
-      this._onWheel = null;
-    }
-
-    this.scrollEl.onkeydown = (e) => {
-      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-        e.preventDefault(); e.stopPropagation();
-        const cur = this._currentPage || 1;
-        const dir = e.key === 'ArrowDown' ? 1 : -1;
-        const newPage = Math.max(1, Math.min(cur + dir, this._pdf?.numPages || 1));
-        if (newPage !== cur) this._scrollToPage(newPage);
+  _bindScroll() {
+    this.scrollEl.onwheel = (e) => {
+      // 连续模式：永远自由滚动
+      if (this._viewMode === 'continuous') return;
+      
+      // 非放大（自适应/缩小）：scroll-snap 原生翻页，不拦截
+      if (this._renderScaleLevel <= 1) return;
+      
+      // 放大(>1x)：去 snap 后 scrollEl 自由滚动，边界时手动翻页
+      const atTop = this.scrollEl.scrollTop <= 0;
+      const atBottom = this.scrollEl.scrollTop + this.scrollEl.clientHeight >= this.scrollEl.scrollHeight - 2;
+      if ((e.deltaY < 0 && atTop) || (e.deltaY > 0 && atBottom)) {
+        e.preventDefault();
+        const newPage = (this._currentPage || 1) + (e.deltaY > 0 ? 1 : -1);
+        const clampedPage = Math.max(1, Math.min(newPage, this._pdf?.numPages || 1));
+        if (clampedPage !== this._currentPage) {
+          this._scrollToPage(clampedPage);
+        }
       }
     };
-
+    
+    // onscroll：跟踪当前页（两种模式都用）
     this.scrollEl.onscroll = () => {
       if (!this._pdf) return;
       const snaps = this.scrollEl.querySelectorAll('.cloud-attach-snap-item');
       const cr = this.scrollEl.getBoundingClientRect();
+      const ch = cr.height;
+      
       let bestPage = null, bestDist = Infinity;
       for (const s of snaps) {
         const r = s.getBoundingClientRect();
         const top = r.top - cr.top;
-        if (top >= -r.height * 0.5 && top < cr.height * 0.5 && Math.abs(top) < bestDist) {
-          bestDist = Math.abs(top); bestPage = parseInt(s.dataset.pageNum, 10);
+        // 页面顶部在视口上半部分则认为是当前页
+        if (top >= -r.height * 0.5 && top < ch * 0.5 && Math.abs(top) < bestDist) {
+          bestDist = Math.abs(top);
+          bestPage = parseInt(s.dataset.pageNum, 10);
         }
       }
       if (bestPage && this._currentPage !== bestPage) {
@@ -3300,29 +3460,19 @@ class PdfFullscreenView extends ItemView {
   }
 
   _scrollToPage(pageNum) {
-    console.log('[CloudAttach] _scrollToPage', pageNum, 'mode=', this._viewMode);
-    if (!this._pdf || pageNum < 1 || pageNum > this._pdf.numPages) return;
+    const total = this._pdf ? this._pdf.numPages : (this._pageBlobs ? this._pageBlobs.length : 0);
+    if (!total || pageNum < 1 || pageNum > total) return;
     this.pageInput.value = String(pageNum);
     this._currentPage = pageNum;
     this._highlightThumbnail(pageNum);
 
-    if (this._viewMode === 'single') {
-      const wrap = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);
-      if (wrap && !wrap.dataset.rendered) {
-        if (this._lazyQueueAdd) this._lazyQueueAdd(pageNum);
-      }
-      this.scrollEl.scrollTo({ top: (pageNum - 1) * this.scrollEl.clientHeight, behavior: 'smooth' });
-    } else {
-      const target = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);
-      if (target) {
-        const sr = this.scrollEl.getBoundingClientRect();
-        const tr = target.getBoundingClientRect();
-        const top = tr.top - sr.top + this.scrollEl.scrollTop;
-        this.scrollEl.scrollTo({ top, behavior: 'smooth' });
-        if (!target.dataset.rendered && this._lazyQueueAdd) {
-          this._lazyQueueAdd(pageNum);
-        }
-      }
+    // 找到目标页的 snap-item，用真实坐标定位
+    const target = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);
+    if (target) {
+      const scrollRect = this.scrollEl.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+      const top = targetRect.top - scrollRect.top + this.scrollEl.scrollTop;
+      this.scrollEl.scrollTo({ top: Math.max(0, top - 4), behavior: 'smooth' });
     }
   }
 
@@ -3331,118 +3481,6 @@ class PdfFullscreenView extends ItemView {
     this._thumbnailPanel.querySelectorAll('div[data-page-num]').forEach(d => {
       d.style.borderColor = parseInt(d.dataset.pageNum, 10) === pageNum ? 'var(--interactive-accent)' : 'transparent';
     });
-  }
-
-  /** 桌面端 blob 渲染（popout 模式） */
-  _renderFromBlobs(blobs) {
-    const totalPages = blobs.length;
-    const fitWidth = this._zoomMode === 'fit-width' || (!this._zoomMode && this._renderScaleLevel <= 0);
-    const fitHeight = this._zoomMode === 'fit-height';
-    const viewH = this.scrollEl.clientHeight || this.containerEl.clientHeight || 600;
-    const zoomedIn = this._renderScaleLevel > 1;
-
-    this.scrollEl.style.cssText = 'flex:1; min-height:0; overflow:auto; background:var(--background-secondary); padding:0;';
-    this.scrollEl.empty();
-
-    for (let i = 0; i < totalPages; i++) {
-      const wrap = document.createElement('div');
-      wrap.className = 'cloud-attach-snap-item';
-      wrap.dataset.pageNum = String(i + 1);
-      const img = document.createElement('img');
-      img.src = blobs[i];
-      img.className = 'cloud-attach-pdf-fullscreen-page';
-      img.style.display = 'block';
-      img.style.boxShadow = '0 1px 4px rgba(0,0,0,0.15)';
-
-      if (zoomedIn) {
-        img.style.maxWidth = 'none'; img.style.maxHeight = 'none';
-        img.style.width = 'auto'; img.style.height = 'auto';
-      } else if (fitHeight) {
-        img.style.maxWidth = '100%'; img.style.maxHeight = 'none';
-        img.style.width = 'auto'; img.style.height = 'auto';
-        img.style.objectFit = 'contain';
-      } else {
-        img.style.width = '100%'; img.style.height = 'auto';
-      }
-
-      if (this._viewMode === 'single') {
-        if (zoomedIn) {
-          this.scrollEl.style.overflowX = 'auto';
-          this.scrollEl.style.scrollSnapType = 'none';
-          wrap.style.cssText = 'display:flex; align-items:flex-start; justify-content:flex-start; width:100%; flex-shrink:0;';
-        } else {
-          this.scrollEl.style.overflowX = 'hidden';
-          this.scrollEl.style.scrollSnapType = 'y mandatory';
-          if (fitHeight) {
-            wrap.style.cssText = 'display:flex; align-items:center; justify-content:center; width:100%; height:' + viewH + 'px; flex-shrink:0; scroll-snap-align:start; overflow:hidden;';
-            img.style.objectFit = 'contain';
-            img.style.maxWidth = '100%';
-            img.style.maxHeight = '100%';
-          } else {
-            wrap.style.cssText = 'display:flex; justify-content:center; width:100%; flex-shrink:0; scroll-snap-align:start;';
-            img.style.width = '100%';
-            img.style.height = 'auto';
-          }
-        }
-      } else {
-        this.scrollEl.style.overflowX = 'hidden';
-        this.scrollEl.style.scrollSnapType = 'none';
-        if (zoomedIn) {
-          this.scrollEl.style.overflowX = 'auto';
-        }
-        if (fitHeight) {
-          img.style.maxHeight = viewH + 'px';
-          img.style.objectFit = 'contain';
-        }
-        wrap.style.cssText = 'display:flex; align-items:flex-start; justify-content:center; width:100%; flex-shrink:0; margin-bottom:8px;';
-      }
-
-      wrap.appendChild(img);
-      this.scrollEl.appendChild(wrap);
-    }
-
-    if (this.plugin._pendingPageCount) {
-      this.pageTotal.textContent = ' / ' + this.plugin._pendingPageCount;
-      this.plugin._pendingPageCount = 0;
-    }
-    this._currentPage = 1;
-    this._bindScroll();
-
-    // popout compositor flush
-    const parent = this.scrollEl.parentNode;
-    if (parent) {
-      parent.removeChild(this.scrollEl);
-      parent.appendChild(this.scrollEl);
-    }
-
-    // 缩略图面板仅在首次创建
-    if (!this._thumbnailPanelWrap) {
-      if (this._thumbnailBlobs && this._thumbnailBlobs.length) {
-        this._thumbnailPanelWrap = this._contentWrap.createEl('div');
-        this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? 'flex' : 'none';
-        this._thumbnailPanelWrap.style.flexDirection = 'row';
-        this._contentWrap.insertBefore(this._thumbnailPanelWrap, this.scrollEl);
-        this._thumbnailPanel = this._thumbnailPanelWrap.createEl('div');
-        this._thumbnailPanel.style.width = '150px';
-        this._thumbnailPanel.style.flexShrink = '0';
-        this._thumbnailPanel.style.overflowY = 'auto';
-        this._thumbnailPanel.style.background = 'var(--background-primary)';
-        this._thumbnailPanel.style.padding = '8px';
-        for (let i = 0; i < this._thumbnailBlobs.length; i++) {
-          const tw = this._thumbnailPanel.createEl('div');
-          tw.style.cssText = 'position:relative;margin-bottom:8px;cursor:pointer;border:2px solid transparent;border-radius:4px;padding:2px;';
-          tw.dataset.pageNum = String(i + 1);
-          tw.onclick = () => {
-            this._scrollToPage(i + 1);
-            this._thumbnailPanel.querySelectorAll('div[data-page-num]').forEach(d => d.style.borderColor = 'transparent');
-            tw.style.borderColor = 'var(--interactive-accent)';
-          };
-          const ti = tw.createEl('img');
-          ti.src = this._thumbnailBlobs[i];
-          ti.style.cssText = 'width:100%;height:auto;display:block;';
-        }
-      }
-    }
   }
 }
 

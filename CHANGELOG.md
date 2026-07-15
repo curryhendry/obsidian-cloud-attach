@@ -1,3 +1,9 @@
+## v0.4.433.dev - 2026-07-15
+- 🔄 整体合并：PdfFullscreenView 回退到 v0.4.424 基线（桌面端测试通过），openPdfFullscreen 保留双平台分叉
+  - 桌面端：blob 预渲染 + popout（v0.4.424 原样）
+  - 移动端：split leaf + canvas 渲染（v0.4.425 分叉）
+  - 修复 v0.4.427-431 引入的签名不匹配、_pageBlobs 检测缺失、_scrollToPage 单路径等问题
+
 ## v0.4.431.dev - 2026-07-15
 - 🔧 deploy.sh 补上 manifest.json .dev 预检 block（对齐笔记规范）
 
