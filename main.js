@@ -2805,6 +2805,11 @@ var PdfFullscreenView = class extends ItemView {
   }
   async _loadPdf() {
     try {
+      if (this.plugin._pendingPageBlobs) {
+        this.scrollEl.empty();
+        this._renderAllPages();
+        return;
+      }
       this.scrollEl.empty();
       this.scrollEl.createEl("div", { text: t("view.fullscreen_loading"), cls: "cloud-attach-loading" });
       const pdfjsLib = await this.plugin._loadPdfJs();
