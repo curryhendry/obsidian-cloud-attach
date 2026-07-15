@@ -5154,10 +5154,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     setTimeout(() => this._scanAllPdfImgs(), 3e3);
     const rescanPdfImgs = () => {
       this._renderedPdfUrlsByMode = { editing: /* @__PURE__ */ new Set(), reading: /* @__PURE__ */ new Set() };
-      if (this._pdfLazyObservers) {
-        this._pdfLazyObservers.forEach((obs) => obs.disconnect());
-        this._pdfLazyObservers.clear();
-      }
       this._scanAllPdfImgs();
       setTimeout(() => this._scanAllPdfImgs(), 500);
       setTimeout(() => this._scanAllPdfImgs(), 1500);

@@ -5445,11 +5445,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const rescanPdfImgs = () => {
       // 清空已渲染记录，确保切换笔记后重新渲染（编辑/阅读模式独立）
       this._renderedPdfUrlsByMode = { editing: new Set(), reading: new Set() };
-      // 销毁懒加载 observer 释放资源
-      if (this._pdfLazyObservers) {
-        this._pdfLazyObservers.forEach(obs => obs.disconnect());
-        this._pdfLazyObservers.clear();
-      }
+      // 注：不再 disconnect _pdfLazyObservers —— 已渲染的容器占位符仍依赖它们继续 lazy-load
       // 主窗口：立即扫一次
       this._scanAllPdfImgs();
       // 延迟再扫（等 DOM 渲染完成）
