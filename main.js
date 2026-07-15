@@ -2990,15 +2990,9 @@ var PdfFullscreenView = class extends ItemView {
             width:100%; height:${viewH}px; flex-shrink:0;
             scroll-snap-align:start; overflow:hidden;
           `;
-          if (fitHeight) {
-            img.style.objectFit = "contain";
-            img.style.maxWidth = "100%";
-            img.style.maxHeight = "100%";
-          } else {
-            img.style.objectFit = "contain";
-            img.style.maxWidth = "100%";
-            img.style.maxHeight = "none";
-          }
+          img.style.objectFit = "contain";
+          img.style.maxWidth = "100%";
+          img.style.maxHeight = "100%";
         }
       } else {
         this.scrollEl.style.overflowX = "hidden";
