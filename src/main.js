@@ -2882,7 +2882,16 @@ class PdfFullscreenView extends ItemView {
     this._renderScaleLevel = 0;
 
     zoomOutBtn.onclick = () => {
-      new Notice('缩放功能开发中');
+      if (Platform.isMobile) {
+        const levels = [0.1, 0.25, 0.5, 0.75, 0, 1.5, 2, 3, 4, 5];
+        const idx = levels.indexOf(this._renderScaleLevel);
+        if (idx > 0) {
+          this._renderScaleLevel = levels[idx - 1];
+          this._applyZoom();
+        }
+      } else {
+        new Notice('缩放功能开发中');
+      }
     };
 
     // 放大按钮
@@ -2891,7 +2900,16 @@ class PdfFullscreenView extends ItemView {
     zoomInBtn.setAttribute('aria-label', '放大');
     zoomInBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
     zoomInBtn.onclick = () => {
-      new Notice('缩放功能开发中');
+      if (Platform.isMobile) {
+        const levels = [0.1, 0.25, 0.5, 0.75, 0, 1.5, 2, 3, 4, 5];
+        const idx = levels.indexOf(this._renderScaleLevel);
+        if (idx < levels.length - 1) {
+          this._renderScaleLevel = levels[idx + 1];
+          this._applyZoom();
+        }
+      } else {
+        new Notice('缩放功能开发中');
+      }
     };
 
     // 下拉菜单按钮
@@ -3041,7 +3059,7 @@ class PdfFullscreenView extends ItemView {
       return;
     }
     
-    // 正常渲染路径（split 视图，使用 OffscreenCanvas）
+    // 正常渲染路径（split 视图）
     const totalPages = this._pdf.numPages;
     
     const firstPg = await this._pdf.getPage(1);
@@ -3112,35 +3130,56 @@ class PdfFullscreenView extends ItemView {
       this.scrollEl.appendChild(wrap);
     }
 
-    for (let i = 1; i <= totalPages; i++) {
-      const canvas = this.scrollEl.querySelector(`canvas.cloud-attach-pdf-fullscreen-page[data-page-num="${i}"]`);
-      if (!canvas) continue;
-      const page = await this._pdf.getPage(i);
-      const viewport = page.getViewport({ scale: renderScale });
-      const offscreen = new OffscreenCanvas(viewport.width, viewport.height);
-      await page.render({
-        canvasContext: offscreen.getContext('2d'),
-        viewport
-      }).promise;
-      try {
-        const blob = await offscreen.convertToBlob({ type: 'image/png' });
-        const imgUrl = URL.createObjectURL(blob);
-        const img = document.createElement('img');
-        img.src = imgUrl;
-        img.className = 'cloud-attach-pdf-fullscreen-page';
-        img.style.display = 'block';
-        img.style.boxShadow = '0 1px 4px rgba(0,0,0,0.15)';
-        img.dataset.pageNum = String(i);
-        if (!zoomedIn) {
-          this._sizeCanvas(img, scrollW, mode === 'single' ? scrollH : Infinity);
-        } else {
-          img.style.width = viewport.width + 'px';
-          img.style.height = viewport.height + 'px';
+    if (Platform.isMobile) {
+      // 移动端：纯 canvas 渲染（v0.4.377 基线）
+      for (let i = 1; i <= totalPages; i++) {
+        const canvas = this.scrollEl.querySelector(`canvas.cloud-attach-pdf-fullscreen-page[data-page-num="${i}"]`);
+        if (!canvas) continue;
+        const page = await this._pdf.getPage(i);
+        const viewport = page.getViewport({ scale: renderScale });
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        await page.render({
+          canvasContext: canvas.getContext('2d'),
+          viewport
+        }).promise;
+      }
+      if (!zoomedIn) {
+        const canvases = this.scrollEl.querySelectorAll('canvas.cloud-attach-pdf-fullscreen-page');
+        canvases.forEach(c => this._sizeCanvas(c, scrollW, mode === 'single' ? scrollH : Infinity));
+      }
+    } else {
+      // 桌面端：OffscreenCanvas → blob → <img>（v0.4.424 基线）
+      for (let i = 1; i <= totalPages; i++) {
+        const canvas = this.scrollEl.querySelector(`canvas.cloud-attach-pdf-fullscreen-page[data-page-num="${i}"]`);
+        if (!canvas) continue;
+        const page = await this._pdf.getPage(i);
+        const viewport = page.getViewport({ scale: renderScale });
+        const offscreen = new OffscreenCanvas(viewport.width, viewport.height);
+        await page.render({
+          canvasContext: offscreen.getContext('2d'),
+          viewport
+        }).promise;
+        try {
+          const blob = await offscreen.convertToBlob({ type: 'image/png' });
+          const imgUrl = URL.createObjectURL(blob);
+          const img = document.createElement('img');
+          img.src = imgUrl;
+          img.className = 'cloud-attach-pdf-fullscreen-page';
+          img.style.display = 'block';
+          img.style.boxShadow = '0 1px 4px rgba(0,0,0,0.15)';
+          img.dataset.pageNum = String(i);
+          if (!zoomedIn) {
+            this._sizeCanvas(img, scrollW, mode === 'single' ? scrollH : Infinity);
+          } else {
+            img.style.width = viewport.width + 'px';
+            img.style.height = viewport.height + 'px';
+          }
+          canvas.replaceWith(img);
+          URL.revokeObjectURL(imgUrl);
+        } catch (e) {
+          console.error('[CloudAttach] OffscreenCanvas render error:', e);
         }
-        canvas.replaceWith(img);
-        URL.revokeObjectURL(imgUrl);
-      } catch (e) {
-        console.error('[CloudAttach] OffscreenCanvas render error:', e);
       }
     }
 

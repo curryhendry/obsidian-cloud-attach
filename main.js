@@ -2713,14 +2713,32 @@ var PdfFullscreenView = class extends ItemView {
     zoomOutBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
     this._renderScaleLevel = 0;
     zoomOutBtn.onclick = () => {
-      new Notice("\u7F29\u653E\u529F\u80FD\u5F00\u53D1\u4E2D");
+      if (Platform.isMobile) {
+        const levels = [0.1, 0.25, 0.5, 0.75, 0, 1.5, 2, 3, 4, 5];
+        const idx = levels.indexOf(this._renderScaleLevel);
+        if (idx > 0) {
+          this._renderScaleLevel = levels[idx - 1];
+          this._applyZoom();
+        }
+      } else {
+        new Notice("\u7F29\u653E\u529F\u80FD\u5F00\u53D1\u4E2D");
+      }
     };
     const zoomInBtn = left.createEl("button");
     zoomInBtn.className = "clickable-icon";
     zoomInBtn.setAttribute("aria-label", "\u653E\u5927");
     zoomInBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
     zoomInBtn.onclick = () => {
-      new Notice("\u7F29\u653E\u529F\u80FD\u5F00\u53D1\u4E2D");
+      if (Platform.isMobile) {
+        const levels = [0.1, 0.25, 0.5, 0.75, 0, 1.5, 2, 3, 4, 5];
+        const idx = levels.indexOf(this._renderScaleLevel);
+        if (idx < levels.length - 1) {
+          this._renderScaleLevel = levels[idx + 1];
+          this._applyZoom();
+        }
+      } else {
+        new Notice("\u7F29\u653E\u529F\u80FD\u5F00\u53D1\u4E2D");
+      }
     };
     const viewMenuBtn = left.createEl("button");
     viewMenuBtn.className = "clickable-icon";
@@ -2903,36 +2921,56 @@ var PdfFullscreenView = class extends ItemView {
       wrap.appendChild(canvas);
       this.scrollEl.appendChild(wrap);
     }
-    for (let i = 1; i <= totalPages; i++) {
-      const canvas = this.scrollEl.querySelector(`canvas.cloud-attach-pdf-fullscreen-page[data-page-num="${i}"]`);
-      if (!canvas)
-        continue;
-      const page = await this._pdf.getPage(i);
-      const viewport = page.getViewport({ scale: renderScale });
-      const offscreen = new OffscreenCanvas(viewport.width, viewport.height);
-      await page.render({
-        canvasContext: offscreen.getContext("2d"),
-        viewport
-      }).promise;
-      try {
-        const blob = await offscreen.convertToBlob({ type: "image/png" });
-        const imgUrl = URL.createObjectURL(blob);
-        const img = document.createElement("img");
-        img.src = imgUrl;
-        img.className = "cloud-attach-pdf-fullscreen-page";
-        img.style.display = "block";
-        img.style.boxShadow = "0 1px 4px rgba(0,0,0,0.15)";
-        img.dataset.pageNum = String(i);
-        if (!zoomedIn) {
-          this._sizeCanvas(img, scrollW, mode === "single" ? scrollH : Infinity);
-        } else {
-          img.style.width = viewport.width + "px";
-          img.style.height = viewport.height + "px";
+    if (Platform.isMobile) {
+      for (let i = 1; i <= totalPages; i++) {
+        const canvas = this.scrollEl.querySelector(`canvas.cloud-attach-pdf-fullscreen-page[data-page-num="${i}"]`);
+        if (!canvas)
+          continue;
+        const page = await this._pdf.getPage(i);
+        const viewport = page.getViewport({ scale: renderScale });
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        await page.render({
+          canvasContext: canvas.getContext("2d"),
+          viewport
+        }).promise;
+      }
+      if (!zoomedIn) {
+        const canvases = this.scrollEl.querySelectorAll("canvas.cloud-attach-pdf-fullscreen-page");
+        canvases.forEach((c) => this._sizeCanvas(c, scrollW, mode === "single" ? scrollH : Infinity));
+      }
+    } else {
+      for (let i = 1; i <= totalPages; i++) {
+        const canvas = this.scrollEl.querySelector(`canvas.cloud-attach-pdf-fullscreen-page[data-page-num="${i}"]`);
+        if (!canvas)
+          continue;
+        const page = await this._pdf.getPage(i);
+        const viewport = page.getViewport({ scale: renderScale });
+        const offscreen = new OffscreenCanvas(viewport.width, viewport.height);
+        await page.render({
+          canvasContext: offscreen.getContext("2d"),
+          viewport
+        }).promise;
+        try {
+          const blob = await offscreen.convertToBlob({ type: "image/png" });
+          const imgUrl = URL.createObjectURL(blob);
+          const img = document.createElement("img");
+          img.src = imgUrl;
+          img.className = "cloud-attach-pdf-fullscreen-page";
+          img.style.display = "block";
+          img.style.boxShadow = "0 1px 4px rgba(0,0,0,0.15)";
+          img.dataset.pageNum = String(i);
+          if (!zoomedIn) {
+            this._sizeCanvas(img, scrollW, mode === "single" ? scrollH : Infinity);
+          } else {
+            img.style.width = viewport.width + "px";
+            img.style.height = viewport.height + "px";
+          }
+          canvas.replaceWith(img);
+          URL.revokeObjectURL(imgUrl);
+        } catch (e) {
+          console.error("[CloudAttach] OffscreenCanvas render error:", e);
         }
-        canvas.replaceWith(img);
-        URL.revokeObjectURL(imgUrl);
-      } catch (e) {
-        console.error("[CloudAttach] OffscreenCanvas render error:", e);
       }
     }
     this._bindScroll();

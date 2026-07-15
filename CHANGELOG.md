@@ -1,3 +1,8 @@
+## v0.4.435.dev - 2026-07-16
+- 🔄 双平台合并：PdfFullscreenView 非blob路径分平台渲染
+  - 移动端：纯 canvas 渲染（v0.4.377 基线）+ 缩放按钮恢复级别数组
+  - 桌面端：OffscreenCanvas→blob→img（v0.4.424 基线）+ 缩放按钮 Notice
+
 ## v0.4.433.dev - 2026-07-15
 - 🔄 整体合并：PdfFullscreenView 回退到 v0.4.424 基线（桌面端测试通过），openPdfFullscreen 保留双平台分叉
   - 桌面端：blob 预渲染 + popout（v0.4.424 原样）
