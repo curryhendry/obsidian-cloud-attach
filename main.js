@@ -2826,6 +2826,17 @@ var PdfFullscreenView = class extends ItemView {
       });
     }
   }
+  // ---- 规则引擎 - 计算 display scale（CSS 尺寸，非 canvas 像素）----
+  // 接受可选 w/h 避免调用方已取值后内部重复读取（layout 半帧差异）
+  _calcScale(zoomMode, scaleLevel, w, h) {
+    if (scaleLevel > 0)
+      return scaleLevel;
+    if (!this._pageW)
+      return 1;
+    w = w || this.scrollEl.clientWidth || this.containerEl.clientWidth || 800;
+    h = h || this.scrollEl.clientHeight || this.containerEl.clientHeight || 600;
+    return zoomMode === "fit-width" ? w / this._pageW : h / this._pageH;
+  }
   async _renderAllPages(mode, scaleLevel, zoomMode) {
     if (!this._pdf && !this.plugin._pendingPageBlobs && !this._pageBlobs)
       return;
@@ -2842,100 +2853,186 @@ var PdfFullscreenView = class extends ItemView {
       this._renderFromBlobs(this._pageBlobs, mode, scaleLevel, zoomMode);
       return;
     }
+    const _mode = mode || this._viewMode || "continuous";
+    const _zoomMode = zoomMode || this._zoomMode || "fit-width";
+    const _scaleLevel = scaleLevel || this._renderScaleLevel || 0;
+    console.log("[CloudAttach] _renderAllPages mode=", _mode, "scrollW=", this.scrollEl.clientWidth, "scrollH=", this.scrollEl.clientHeight);
+    this._fullscreenObserver?.disconnect();
+    this._fullscreenObserver = null;
     const totalPages = this._pdf.numPages;
-    const firstPg = await this._pdf.getPage(1);
-    const firstVp = firstPg.getViewport({ scale: 1 });
-    const pageW = firstVp.width;
-    const pageH = firstVp.height;
-    let renderScale = 1;
-    if (scaleLevel > 0) {
-      renderScale = scaleLevel;
-    } else if (zoomMode === "fit-width") {
-      const w = this.scrollEl.clientWidth || this.containerEl.clientWidth;
-      renderScale = w > 0 ? w / pageW : 1;
-    } else if (zoomMode === "fit-height") {
-      const h = this.scrollEl.clientHeight || this.containerEl.clientHeight;
-      renderScale = h > 0 ? h / pageH : 1;
-    }
-    const scrollW = this.scrollEl.clientWidth;
-    const scrollH = this.scrollEl.clientHeight;
-    const zoomedIn = scaleLevel > 1;
-    this.scrollEl.style.cssText = `
-      flex:1; min-height:0; overflow:auto;
-      background:var(--background-secondary); padding:0;
-    `;
+    const pg = await this._pdf.getPage(1);
+    const vp = pg.getViewport({ scale: 1 });
+    this._pageW = vp.width;
+    this._pageH = vp.height;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const scrollW = this.scrollEl.clientWidth || this.containerEl.clientWidth || 800;
+    const scrollH = this.scrollEl.clientHeight || this.containerEl.clientHeight || 600;
+    const displayScale = this._calcScale(_zoomMode, _scaleLevel, scrollW, scrollH);
+    const displayW = Math.round(this._pageW * displayScale);
+    const displayH = Math.round(this._pageH * displayScale);
+    const renderScale = displayScale * dpr;
+    const isSingle = _mode === "single";
+    this.scrollEl.style.display = "";
+    this.scrollEl.style.minHeight = "0";
+    this.scrollEl.style.background = "var(--background-secondary)";
+    this.scrollEl.style.padding = "0";
+    this.scrollEl.style.overflowY = "auto";
+    this.scrollEl.style.overflowX = isSingle ? "hidden" : "auto";
+    this.scrollEl.style.WebkitOverflowScrolling = "touch";
+    this.scrollEl.style.scrollSnapType = isSingle ? "y mandatory" : "none";
+    this.scrollEl.onscroll = null;
+    this.scrollEl.onwheel = null;
+    this.scrollEl.scrollTop = 0;
     this.scrollEl.empty();
     for (let i = 1; i <= totalPages; i++) {
       const wrap = document.createElement("div");
       wrap.className = "cloud-attach-snap-item";
       wrap.dataset.pageNum = String(i);
+      wrap.style.position = "relative";
+      wrap.style.flexShrink = "0";
+      wrap.style.width = "100%";
+      if (isSingle) {
+        wrap.style.height = (scrollH || 600) + "px";
+        wrap.style.scrollSnapAlign = "start";
+        wrap.style.display = "flex";
+        wrap.style.alignItems = "center";
+        wrap.style.justifyContent = "center";
+        wrap.style.overflow = displayH > scrollH || displayW > scrollW ? "auto" : "hidden";
+      } else {
+        wrap.style.minHeight = displayH + "px";
+        wrap.style.minWidth = displayW + "px";
+        wrap.style.display = "flex";
+        wrap.style.justifyContent = "center";
+        wrap.style.alignItems = "flex-start";
+      }
+      this.scrollEl.appendChild(wrap);
+    }
+    const renderPage = async (pageNum) => {
+      const wrap = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);
+      if (!wrap || wrap.dataset.rendered)
+        return;
+      wrap.dataset.rendered = "1";
+      const page = await this._pdf.getPage(pageNum);
+      const viewport = page.getViewport({ scale: renderScale });
       const canvas = document.createElement("canvas");
       canvas.className = "cloud-attach-pdf-fullscreen-page";
       canvas.style.display = "block";
       canvas.style.boxShadow = "0 1px 4px rgba(0,0,0,0.15)";
-      canvas.dataset.pageNum = String(i);
-      if (mode === "single") {
-        if (zoomedIn) {
-          this.scrollEl.style.overflowX = "auto";
-          this.scrollEl.style.scrollSnapType = "none";
-          wrap.style.cssText = `
-            display:flex; align-items:flex-start; justify-content:flex-start;
-            width:100%; flex-shrink:0;
-          `;
-        } else {
-          this.scrollEl.style.overflowX = "hidden";
-          this.scrollEl.style.scrollSnapType = "y mandatory";
-          wrap.style.cssText = `
-            display:flex; align-items:center; justify-content:center;
-            width:100%; height:${scrollH}px; flex-shrink:0;
-            scroll-snap-align:start; overflow:hidden;
-          `;
-        }
-      } else {
-        this.scrollEl.style.overflowX = "hidden";
-        this.scrollEl.style.scrollSnapType = "none";
-        canvas.style.margin = "0 auto 8px";
-        wrap.style.cssText = `
-          display:flex; align-items:flex-start; justify-content:flex-start;
-          width:100%; flex-shrink:0;
-        `;
+      canvas.dataset.pageNum = String(pageNum);
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      canvas.style.width = displayW + "px";
+      canvas.style.height = displayH + "px";
+      if (_mode === "continuous") {
+        canvas.style.marginBottom = "8px";
       }
       wrap.appendChild(canvas);
-      this.scrollEl.appendChild(wrap);
-    }
-    for (let i = 1; i <= totalPages; i++) {
-      const canvas = this.scrollEl.querySelector(`canvas.cloud-attach-pdf-fullscreen-page[data-page-num="${i}"]`);
-      if (!canvas)
-        continue;
-      const page = await this._pdf.getPage(i);
-      const viewport = page.getViewport({ scale: renderScale });
-      const offscreen = new OffscreenCanvas(viewport.width, viewport.height);
-      await page.render({
-        canvasContext: offscreen.getContext("2d"),
-        viewport
-      }).promise;
-      try {
-        const blob = await offscreen.convertToBlob({ type: "image/png" });
-        const imgUrl = URL.createObjectURL(blob);
-        const img = document.createElement("img");
-        img.src = imgUrl;
-        img.className = "cloud-attach-pdf-fullscreen-page";
-        img.style.display = "block";
-        img.style.boxShadow = "0 1px 4px rgba(0,0,0,0.15)";
-        img.dataset.pageNum = String(i);
-        if (!zoomedIn) {
-          this._sizeCanvas(img, scrollW, mode === "single" ? scrollH : Infinity);
-        } else {
-          img.style.width = viewport.width + "px";
-          img.style.height = viewport.height + "px";
-        }
-        canvas.replaceWith(img);
-        URL.revokeObjectURL(imgUrl);
-      } catch (e) {
-        console.error("[CloudAttach] OffscreenCanvas render error:", e);
+      await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+      if (_scaleLevel > 0 && displayH > scrollH && isSingle) {
+        wrap.scrollTop = Math.max(0, (displayH - scrollH) / 2);
       }
+    };
+    try {
+      await renderPage(1);
+    } catch (e) {
+      console.error("[CloudAttach] lazy render page 1:", e);
     }
+    const lazyQueue = [], MAX_Q = 3;
+    let lazyBusy = false;
+    const processQueue = async () => {
+      if (lazyBusy || lazyQueue.length === 0)
+        return;
+      lazyBusy = true;
+      const n = lazyQueue.shift();
+      try {
+        await new Promise((r) => requestAnimationFrame(r));
+        await renderPage(n);
+      } catch (e) {
+        console.error("[CloudAttach] lazy render page", n, ":", e);
+      }
+      lazyBusy = false;
+      setTimeout(() => processQueue(), 100);
+    };
+    this._lazyQueueAdd = (n) => {
+      if (lazyQueue.length < MAX_Q && !lazyQueue.includes(n))
+        lazyQueue.push(n);
+      processQueue();
+    };
+    this._fullscreenObserver = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (e.isIntersecting) {
+          const w = e.target;
+          if (w.dataset.rendered)
+            return;
+          const n = parseInt(w.dataset.pageNum);
+          if (lazyQueue.length < MAX_Q)
+            lazyQueue.push(n);
+          processQueue();
+          this._fullscreenObserver.unobserve(w);
+        }
+      });
+    }, { root: this.scrollEl, rootMargin: "300px" });
+    this.scrollEl.querySelectorAll(".cloud-attach-snap-item").forEach((w) => this._fullscreenObserver.observe(w));
     this._bindScroll();
+    console.log("[CloudAttach] _renderAllPages done totalPages=", totalPages, "displayW=", displayW, "displayH=", displayH);
+  }
+  _reRender() {
+    if (this._pdf && !this._pageBlobs && !this.plugin._pendingPageBlobs) {
+      const savedPage = this._currentPage || 1;
+      this.scrollEl.querySelectorAll("canvas").forEach((c) => {
+        const ctx = c.getContext("2d");
+        if (ctx)
+          ctx.clearRect(0, 0, c.width, c.height);
+        c.width = 0;
+        c.height = 0;
+        c.remove();
+      });
+      this.scrollEl.empty();
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          this._renderAllPages().then(() => {
+            this._scrollToPage(savedPage);
+          }).catch((e) => console.error("[CloudAttach] _reRender error:", e));
+        });
+      });
+      return;
+    }
+    if (this._pageBlobs) {
+      this._renderFromBlobs(this._pageBlobs, this._viewMode, this._renderScaleLevel, this._zoomMode);
+    }
+  }
+  _resizeAllCanvases() {
+    if (!this._pdf)
+      return;
+    if (this._pageBlobs)
+      return;
+    const scrollW = this.scrollEl.clientWidth;
+    const scrollH = this.scrollEl.clientHeight;
+    if (!scrollW || !scrollH)
+      return;
+    const displayScale = this._calcScale(this._zoomMode, this._renderScaleLevel, scrollW, scrollH);
+    const displayW = Math.round(this._pageW * displayScale);
+    const displayH = Math.round(this._pageH * displayScale);
+    const isSingle = this._viewMode === "single";
+    this.scrollEl.querySelectorAll(".cloud-attach-snap-item").forEach((wrap) => {
+      const canvas = wrap.querySelector("canvas");
+      if (!canvas)
+        return;
+      canvas.style.width = displayW + "px";
+      canvas.style.height = displayH + "px";
+      if (isSingle) {
+        wrap.style.height = scrollH + "px";
+        wrap.style.overflow = displayH > scrollH || displayW > scrollW ? "auto" : "hidden";
+        if (this._renderScaleLevel > 0 && displayH > scrollH) {
+          wrap.scrollTop = Math.max(0, (displayH - scrollH) / 2);
+        }
+      } else {
+        wrap.style.minHeight = displayH + "px";
+      }
+    });
+    if (isSingle) {
+      this._scrollToPage(this._currentPage || 1);
+    }
   }
   /** 用预渲染的 blob URL 显示（popout 模式，不依赖 GPU compositor） */
   _renderFromBlobs(blobs, mode, scaleLevel, zoomMode) {
@@ -3067,16 +3164,6 @@ var PdfFullscreenView = class extends ItemView {
       img.src = thumbBlobs[i];
       img.style.cssText = "width:100%;height:auto;display:block;";
     }
-  }
-  _reRender() {
-    if (!this._pdf && !this._pageBlobs)
-      return;
-    const savedPage = this._currentPage || 1;
-    this._renderAllPages(this._viewMode, this._renderScaleLevel, this._zoomMode).then(() => {
-      this._scrollToPage(savedPage);
-    }).catch((e) => {
-      console.error("[CloudAttach] _reRender error:", e);
-    });
   }
   _sizeCanvas(c, maxW, maxH) {
     const w = c.width || c.naturalWidth || 0;
