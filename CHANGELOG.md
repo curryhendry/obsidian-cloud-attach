@@ -1,6 +1,10 @@
-## v0.4.443.dev - 2026-07-16
+## v0.4.444.dev - 2026-07-16
 
-- PdfFullscreenView 使用 v0.4.424.dev 完整版（695行，含桌面端 blob popout、OffscreenCanvas、缩略图、compositor flush）
+- PdfFullscreenView 以 v0.4.377 为基线（手机端完整保留：懒加载、IntersectionObserver、_calcScale、_resizeAllCanvases、WebkitOverflowScrolling、目录disabled、双rAF）
+- 桌面端 blob popout：从 v0.4.424 提取 _renderFromBlobs（110行）、_buildThumbnailPanel（32行）、_sizeCanvas（14行）作为独立方法插入
+- _renderAllPages 增加 blob 入口参数（_mode/_scaleLevel/_zoomMode），blob 存在时走 _renderFromBlobs
+- _reRender/_scrollToPage/_renderThumbnails 增加 blob guard
+- openPdfFullscreen 双路径：手机端 split leaf + canvas，桌面端 blob 预渲染 + popout
 - _renderAllPages 正常路径增加 Platform.isMobile 分支：手机端直接渲染 DOM canvas，桌面端走 OffscreenCanvas→blob→img
 - openPdfFullscreen 双路径：手机端 split leaf + canvas，桌面端 blob 预渲染 + popout
 - 移除 v0.4.377 的桌面端拦截 Notice

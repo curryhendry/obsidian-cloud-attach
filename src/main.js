@@ -3015,6 +3015,25 @@ class PdfFullscreenView extends ItemView {
       this.scrollEl.empty();
       this.scrollEl.createEl('div', { text: t('view.fullscreen_loading'), cls: 'cloud-attach-loading' });
 
+      // 桌面端 blob 预渲染：跳过 pdfjs，直接用 blob
+      if (this.plugin._pendingPageBlobs) {
+        this._pageBlobs = this.plugin._pendingPageBlobs;
+        this.plugin._pendingPageBlobs = null;
+        if (this.plugin._pendingThumbnailBlobs) {
+          this._thumbnailBlobs = this.plugin._pendingThumbnailBlobs;
+          this.plugin._pendingThumbnailBlobs = null;
+        }
+        if (this.plugin._pendingPageCount) {
+          this.pageTotal.textContent = ' / ' + this.plugin._pendingPageCount;
+          this.plugin._pendingPageCount = 0;
+        }
+        this.pageInput.value = '1';
+        this._currentPage = 1;
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+        this._renderAllPages(this._viewMode, this._renderScaleLevel, this._zoomMode);
+        return;
+      }
+
       const pdfjsLib = await this.plugin._loadPdfJs();
       const pdfData = await this.plugin._downloadPdfBinary(this.pdfUrl);
       const loadingTask = pdfData
