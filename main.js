@@ -2826,7 +2826,325 @@ var PdfFullscreenView = class extends ItemView {
       });
     }
   }
+  async _renderAllPagesMobile() {
+    if (!this._pdf)
+      return;
+    console.log("[CloudAttach] _renderAllPages mode=", this._viewMode, "scrollW=", this.scrollEl.clientWidth, "scrollH=", this.scrollEl.clientHeight);
+    this._fullscreenObserver?.disconnect();
+    this._fullscreenObserver = null;
+    const totalPages = this._pdf.numPages;
+    const pg = await this._pdf.getPage(1);
+    const vp = pg.getViewport({ scale: 1 });
+    this._pageW = vp.width;
+    this._pageH = vp.height;
+    const mode = this._viewMode;
+    const zoomMode = this._zoomMode;
+    const scaleLevel = this._renderScaleLevel;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const scrollW = this.scrollEl.clientWidth || this.containerEl.clientWidth || 800;
+    const scrollH = this.scrollEl.clientHeight || this.containerEl.clientHeight || 600;
+    const displayScale = this._calcScaleMobile(zoomMode, scaleLevel, scrollW, scrollH);
+    const displayW = Math.round(this._pageW * displayScale);
+    const displayH = Math.round(this._pageH * displayScale);
+    const renderScale = displayScale * dpr;
+    const isSingle = mode === "single";
+    this.scrollEl.style.display = "";
+    this.scrollEl.style.minHeight = "0";
+    this.scrollEl.style.background = "var(--background-secondary)";
+    this.scrollEl.style.padding = "0";
+    this.scrollEl.style.overflowY = "auto";
+    this.scrollEl.style.overflowX = isSingle ? "hidden" : "auto";
+    this.scrollEl.style.WebkitOverflowScrolling = "touch";
+    this.scrollEl.style.scrollSnapType = isSingle ? "y mandatory" : "none";
+    this.scrollEl.onscroll = null;
+    this.scrollEl.onwheel = null;
+    this.scrollEl.scrollTop = 0;
+    this.scrollEl.empty();
+    for (let i = 1; i <= totalPages; i++) {
+      const wrap = document.createElement("div");
+      wrap.className = "cloud-attach-snap-item";
+      wrap.dataset.pageNum = String(i);
+      wrap.style.position = "relative";
+      wrap.style.flexShrink = "0";
+      wrap.style.width = "100%";
+      if (isSingle) {
+        wrap.style.height = (scrollH || 600) + "px";
+        wrap.style.scrollSnapAlign = "start";
+        wrap.style.display = "flex";
+        wrap.style.alignItems = "center";
+        wrap.style.justifyContent = "center";
+        wrap.style.overflow = displayH > scrollH || displayW > scrollW ? "auto" : "hidden";
+      } else {
+        wrap.style.minHeight = displayH + "px";
+        wrap.style.minWidth = displayW + "px";
+        wrap.style.display = "flex";
+        wrap.style.justifyContent = "center";
+        wrap.style.alignItems = "flex-start";
+      }
+      this.scrollEl.appendChild(wrap);
+    }
+    const renderPage = async (pageNum) => {
+      const wrap = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);
+      if (!wrap || wrap.dataset.rendered)
+        return;
+      wrap.dataset.rendered = "1";
+      const page = await this._pdf.getPage(pageNum);
+      const viewport = page.getViewport({ scale: renderScale });
+      const canvas = document.createElement("canvas");
+      canvas.className = "cloud-attach-pdf-fullscreen-page";
+      canvas.style.display = "block";
+      canvas.style.boxShadow = "0 1px 4px rgba(0,0,0,0.15)";
+      canvas.dataset.pageNum = String(pageNum);
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      canvas.style.width = displayW + "px";
+      canvas.style.height = displayH + "px";
+      if (mode === "continuous") {
+        canvas.style.marginBottom = "8px";
+      }
+      wrap.appendChild(canvas);
+      await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+      if (scaleLevel > 0 && displayH > scrollH && isSingle) {
+        wrap.scrollTop = Math.max(0, (displayH - scrollH) / 2);
+      }
+    };
+    try {
+      await renderPage(1);
+    } catch (e) {
+      console.error("[CloudAttach] lazy render page 1:", e);
+    }
+    const lazyQueue = [], MAX_Q = 3;
+    let lazyBusy = false;
+    const processQueue = async () => {
+      if (lazyBusy || lazyQueue.length === 0)
+        return;
+      lazyBusy = true;
+      const n = lazyQueue.shift();
+      try {
+        await new Promise((r) => requestAnimationFrame(r));
+        await renderPage(n);
+      } catch (e) {
+        console.error("[CloudAttach] lazy render page", n, ":", e);
+      }
+      lazyBusy = false;
+      setTimeout(() => processQueue(), 100);
+    };
+    this._lazyQueueAdd = (n) => {
+      if (lazyQueue.length < MAX_Q && !lazyQueue.includes(n))
+        lazyQueue.push(n);
+      processQueue();
+    };
+    this._fullscreenObserver = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (e.isIntersecting) {
+          const w = e.target;
+          if (w.dataset.rendered)
+            return;
+          const n = parseInt(w.dataset.pageNum);
+          if (lazyQueue.length < MAX_Q)
+            lazyQueue.push(n);
+          processQueue();
+          this._fullscreenObserver.unobserve(w);
+        }
+      });
+    }, { root: this.scrollEl, rootMargin: "300px" });
+    this.scrollEl.querySelectorAll(".cloud-attach-snap-item").forEach((w) => this._fullscreenObserver.observe(w));
+    this._bindScrollMobile(displayH, scrollH);
+    console.log("[CloudAttach] _renderAllPages done totalPages=", totalPages, "displayW=", displayW, "displayH=", displayH);
+  }
+  _calcScaleMobile(zoomMode, scaleLevel, w, h) {
+    if (scaleLevel > 0)
+      return scaleLevel;
+    const firstPg = this._pdf;
+    if (!firstPg)
+      return 1;
+    w = w || this.scrollEl.clientWidth || this.containerEl.clientWidth || 800;
+    h = h || this.scrollEl.clientHeight || this.containerEl.clientHeight || 600;
+    return zoomMode === "fit-width" ? w / this._pageW : h / this._pageH;
+  }
+  _resizeAllCanvasesMobile() {
+    if (!this._pdf)
+      return;
+    const scrollW = this.scrollEl.clientWidth;
+    const scrollH = this.scrollEl.clientHeight;
+    if (!scrollW || !scrollH)
+      return;
+    const displayScale = this._calcScale(this._zoomMode, this._renderScaleLevel, scrollW, scrollH);
+    const displayW = Math.round(this._pageW * displayScale);
+    const displayH = Math.round(this._pageH * displayScale);
+    const isSingle = this._viewMode === "single";
+    this.scrollEl.querySelectorAll(".cloud-attach-snap-item").forEach((wrap) => {
+      const canvas = wrap.querySelector("canvas");
+      if (!canvas)
+        return;
+      canvas.style.width = displayW + "px";
+      canvas.style.height = displayH + "px";
+      if (isSingle) {
+        wrap.style.height = scrollH + "px";
+        wrap.style.overflow = displayH > scrollH || displayW > scrollW ? "auto" : "hidden";
+        if (this._renderScaleLevel > 0 && displayH > scrollH) {
+          wrap.scrollTop = Math.max(0, (displayH - scrollH) / 2);
+        }
+      } else {
+        wrap.style.minHeight = displayH + "px";
+      }
+    });
+    if (isSingle) {
+      this._scrollToPage(this._currentPage || 1);
+    }
+  }
+  _bindScrollMobile(displayH, scrollH) {
+    this.scrollEl.tabIndex = 0;
+    this.scrollEl.style.outline = "none";
+    if (this._onPointerDown)
+      this.scrollEl.removeEventListener("pointerdown", this._onPointerDown);
+    this._onPointerDown = () => this.scrollEl.focus();
+    this.scrollEl.addEventListener("pointerdown", this._onPointerDown);
+    if (this._onWheel) {
+      this._contentWrap.removeEventListener("wheel", this._onWheel);
+      this._onWheel = null;
+    }
+    this.scrollEl.onkeydown = (e) => {
+      if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+        e.preventDefault();
+        e.stopPropagation();
+        const cur = this._currentPage || 1;
+        const dir = e.key === "ArrowDown" ? 1 : -1;
+        const newPage = Math.max(1, Math.min(cur + dir, this._pdf?.numPages || 1));
+        if (newPage !== cur)
+          this._scrollToPage(newPage);
+      }
+    };
+    this.scrollEl.onscroll = () => {
+      if (!this._pdf)
+        return;
+      const snaps = this.scrollEl.querySelectorAll(".cloud-attach-snap-item");
+      const cr = this.scrollEl.getBoundingClientRect();
+      let bestPage = null, bestDist = Infinity;
+      for (const s of snaps) {
+        const r = s.getBoundingClientRect();
+        const top = r.top - cr.top;
+        if (top >= -r.height * 0.5 && top < cr.height * 0.5 && Math.abs(top) < bestDist) {
+          bestDist = Math.abs(top);
+          bestPage = parseInt(s.dataset.pageNum, 10);
+        }
+      }
+      if (bestPage && this._currentPage !== bestPage) {
+        this._currentPage = bestPage;
+        this.pageInput.value = String(bestPage);
+        this._highlightThumbnail(bestPage);
+      }
+    };
+  }
+  _scrollToPageMobile(pageNum) {
+    console.log("[CloudAttach] _scrollToPage", pageNum, "mode=", this._viewMode);
+    if (!this._pdf || pageNum < 1 || pageNum > this._pdf.numPages)
+      return;
+    this.pageInput.value = String(pageNum);
+    this._currentPage = pageNum;
+    this._highlightThumbnailMobile(pageNum);
+    if (this._viewMode === "single") {
+      const wrap = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);
+      if (wrap && !wrap.dataset.rendered) {
+        if (this._lazyQueueAdd)
+          this._lazyQueueAdd(pageNum);
+      }
+      this.scrollEl.scrollTo({ top: (pageNum - 1) * this.scrollEl.clientHeight, behavior: "smooth" });
+    } else {
+      const target = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);
+      if (target) {
+        const sr = this.scrollEl.getBoundingClientRect();
+        const tr = target.getBoundingClientRect();
+        const top = tr.top - sr.top + this.scrollEl.scrollTop;
+        this.scrollEl.scrollTo({ top, behavior: "smooth" });
+        if (!target.dataset.rendered && this._lazyQueueAdd) {
+          this._lazyQueueAdd(pageNum);
+        }
+      }
+    }
+  }
+  _reRenderMobile() {
+    if (!this._pdf)
+      return;
+    const savedPage = this._currentPage || 1;
+    this.scrollEl.querySelectorAll("canvas").forEach((c) => {
+      const ctx = c.getContext("2d");
+      if (ctx)
+        ctx.clearRect(0, 0, c.width, c.height);
+      c.width = 0;
+      c.height = 0;
+      c.remove();
+    });
+    this.scrollEl.empty();
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        this._renderAllPagesMobile().then(() => {
+          this._scrollToPage(savedPage);
+        }).catch((e) => console.error("[CloudAttach] _reRender error:", e));
+      });
+    });
+  }
+  _highlightThumbnailMobile(pageNum) {
+    if (!this._thumbnailPanel)
+      return;
+    this._thumbnailPanel.querySelectorAll("div[data-page-num]").forEach((d) => {
+      d.style.borderColor = parseInt(d.dataset.pageNum, 10) === pageNum ? "var(--interactive-accent)" : "transparent";
+    });
+  }
+  async _renderThumbnailsMobile() {
+    if (!this._pdf || !this._thumbnailPanel)
+      return;
+    this._thumbnailPanel.empty();
+    const total = this._pdf.numPages;
+    for (let i = 1; i <= total; i++) {
+      const page = await this._pdf.getPage(i);
+      const viewport = page.getViewport({ scale: 0.2 });
+      const wrap = this._thumbnailPanel.createEl("div");
+      wrap.style.position = "relative";
+      wrap.style.marginBottom = "8px";
+      wrap.style.cursor = "pointer";
+      wrap.style.border = "2px solid transparent";
+      wrap.style.borderRadius = "4px";
+      wrap.style.padding = "4px";
+      wrap.dataset.pageNum = String(i);
+      wrap.onclick = () => {
+        this._scrollToPage(i);
+        this._highlightThumbnailMobile(i);
+      };
+      const canvas = wrap.createEl("canvas");
+      canvas.style.width = "100%";
+      canvas.style.height = "auto";
+      canvas.style.display = "block";
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+      const label = wrap.createEl("div", { text: String(i) });
+      label.style.cssText = "position:absolute;bottom:4px;right:4px;background:rgba(255,255,255,0.85);color:var(--text-muted);font-size:10px;padding:1px 5px;border-radius:8px;box-shadow:0 1px 2px rgba(0,0,0,0.1)";
+    }
+  }
+  _toggleThumbnailPanelMobile() {
+    if (!this._thumbnailPanelWrap) {
+      this._thumbnailPanelWrap = this._contentWrap.createEl("div");
+      this._thumbnailPanelWrap.style.display = "flex";
+      this._thumbnailPanelWrap.style.flexDirection = "row";
+      this._contentWrap.insertBefore(this._thumbnailPanelWrap, this.scrollEl);
+      this._thumbnailPanel = this._thumbnailPanelWrap.createEl("div");
+      this._thumbnailPanel.style.width = "150px";
+      this._thumbnailPanel.style.flexShrink = "0";
+      this._thumbnailPanel.style.overflowY = "auto";
+      this._thumbnailPanel.style.background = "var(--background-primary)";
+      this._thumbnailPanel.style.padding = "8px";
+      this._renderThumbnailsMobile();
+    }
+    this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? "flex" : "none";
+    console.log("[CloudAttach] _toggleThumbnailPanel _reRender visible=", this._thumbnailVisible);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => this._reRender());
+    });
+  }
   async _renderAllPages(mode, scaleLevel, zoomMode) {
+    if (Platform.isMobile)
+      return this._renderAllPagesMobile();
     if (!this._pdf && !this.plugin._pendingPageBlobs && !this._pageBlobs)
       return;
     const blobs = this.plugin._pendingPageBlobs || this._pageBlobs;
@@ -2909,42 +3227,30 @@ var PdfFullscreenView = class extends ItemView {
         continue;
       const page = await this._pdf.getPage(i);
       const viewport = page.getViewport({ scale: renderScale });
-      if (Platform.isMobile) {
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+      const offscreen = new OffscreenCanvas(viewport.width, viewport.height);
+      await page.render({
+        canvasContext: offscreen.getContext("2d"),
+        viewport
+      }).promise;
+      try {
+        const blob = await offscreen.convertToBlob({ type: "image/png" });
+        const imgUrl = URL.createObjectURL(blob);
+        const img = document.createElement("img");
+        img.src = imgUrl;
+        img.className = "cloud-attach-pdf-fullscreen-page";
+        img.style.display = "block";
+        img.style.boxShadow = "0 1px 4px rgba(0,0,0,0.15)";
+        img.dataset.pageNum = String(i);
         if (!zoomedIn) {
-          this._sizeCanvas(canvas, scrollW, mode === "single" ? scrollH : Infinity);
+          this._sizeCanvas(img, scrollW, mode === "single" ? scrollH : Infinity);
         } else {
-          canvas.style.width = viewport.width + "px";
-          canvas.style.height = viewport.height + "px";
+          img.style.width = viewport.width + "px";
+          img.style.height = viewport.height + "px";
         }
-      } else {
-        const offscreen = new OffscreenCanvas(viewport.width, viewport.height);
-        await page.render({
-          canvasContext: offscreen.getContext("2d"),
-          viewport
-        }).promise;
-        try {
-          const blob = await offscreen.convertToBlob({ type: "image/png" });
-          const imgUrl = URL.createObjectURL(blob);
-          const img = document.createElement("img");
-          img.src = imgUrl;
-          img.className = "cloud-attach-pdf-fullscreen-page";
-          img.style.display = "block";
-          img.style.boxShadow = "0 1px 4px rgba(0,0,0,0.15)";
-          img.dataset.pageNum = String(i);
-          if (!zoomedIn) {
-            this._sizeCanvas(img, scrollW, mode === "single" ? scrollH : Infinity);
-          } else {
-            img.style.width = viewport.width + "px";
-            img.style.height = viewport.height + "px";
-          }
-          canvas.replaceWith(img);
-          URL.revokeObjectURL(imgUrl);
-        } catch (e) {
-          console.error("[CloudAttach] OffscreenCanvas render error:", e);
-        }
+        canvas.replaceWith(img);
+        URL.revokeObjectURL(imgUrl);
+      } catch (e) {
+        console.error("[CloudAttach] OffscreenCanvas render error:", e);
       }
     }
     this._bindScroll();
@@ -3081,6 +3387,8 @@ var PdfFullscreenView = class extends ItemView {
     }
   }
   _reRender() {
+    if (Platform.isMobile)
+      return this._reRenderMobile();
     if (!this._pdf && !this._pageBlobs)
       return;
     const savedPage = this._currentPage || 1;
@@ -3104,15 +3412,21 @@ var PdfFullscreenView = class extends ItemView {
     }
   }
   _applyZoom() {
+    if (Platform.isMobile)
+      return this._reRenderMobile();
     this._reRender();
   }
   _toggleThumbnailPanel() {
+    if (Platform.isMobile)
+      return this._toggleThumbnailPanelMobile();
     if (!this._thumbnailPanelWrap)
       return;
     this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? "flex" : "none";
     this._reRender();
   }
   async _renderThumbnails() {
+    if (Platform.isMobile)
+      return this._renderThumbnailsMobile();
     if (!this._thumbnailPanel)
       return;
     if (!this._pdf && this._thumbnailBlobs) {
@@ -3235,6 +3549,8 @@ var PdfFullscreenView = class extends ItemView {
     };
   }
   _scrollToPage(pageNum) {
+    if (Platform.isMobile)
+      return this._scrollToPageMobile(pageNum);
     const total = this._pdf ? this._pdf.numPages : this._pageBlobs ? this._pageBlobs.length : 0;
     if (!total || pageNum < 1 || pageNum > total)
       return;
@@ -4566,16 +4882,18 @@ module.exports = class CloudAttachPlugin extends Plugin {
         canvas.height = vp.height;
         await page.render({ canvasContext: canvas.getContext("2d", { willReadFrequently: true }), viewport: vp }).promise;
         const blob = await new Promise((r) => canvas.toBlob(r, "image/png"));
-        if (blob)
+        if (blob) {
           blobUrls.push(URL.createObjectURL(blob));
+        }
         const tvp = page.getViewport({ scale: 0.2 });
         const tCanvas = document.createElement("canvas");
         tCanvas.width = tvp.width;
         tCanvas.height = tvp.height;
         await page.render({ canvasContext: tCanvas.getContext("2d", { willReadFrequently: true }), viewport: tvp }).promise;
         const tBlob = await new Promise((r) => tCanvas.toBlob(r, "image/png"));
-        if (tBlob)
+        if (tBlob) {
           thumbBlobs.push(URL.createObjectURL(tBlob));
+        }
       }
       this._pendingPageBlobs = blobUrls;
       this._pendingPageCount = totalPages;
