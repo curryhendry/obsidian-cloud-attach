@@ -44,9 +44,14 @@
 1. Click *Code* → *Download ZIP* in this repository
 2. Extract and place in `<vault>/.obsidian/plugins/cloud-attach/`
 
-**Option 2: Download by Release** (recommended)
+**Option 2: Download by Release**
 
 Visit [Releases](https://github.com/curryhendry/obsidian-cloud-attach/releases) to download a specific version.
+
+**Option 3: Community Plugin Store** (recommended)
+
+Open the plugin browser in Obsidian, search for "CloudAttach" and install.
+Link: [CloudAttach](https://community.obsidian.md/plugins/cloud-attach)
 
 ---
 

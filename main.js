@@ -2697,11 +2697,7 @@ var PdfFullscreenView = class extends ItemView {
         this._thumbnailVisible = true;
         this._toggleThumbnailPanel();
       }));
-      menu.addItem((item) => item.setTitle(this._panelMode === "outline" ? "\u2713 \u76EE\u5F55" : "\u76EE\u5F55").onClick(() => {
-        this._panelMode = "outline";
-        this._thumbnailVisible = true;
-        new Notice("\u76EE\u5F55\u529F\u80FD\u5F00\u53D1\u4E2D");
-      }));
+      menu.addItem((item) => item.setTitle("\u76EE\u5F55").setDisabled(true));
       menu.showAtMouseEvent(e);
     };
     this._viewMode = "continuous";
@@ -2737,7 +2733,7 @@ var PdfFullscreenView = class extends ItemView {
         }));
       });
       menu.addSeparator();
-      const modeOpts = { "continuous": "\u8FDE\u7EED", "single": "\u5355\u9875" };
+      const modeOpts = { "continuous": "\u8FDE\u7EED\u6EDA\u52A8", "single": "\u5355\u9875" };
       Object.entries(modeOpts).forEach(([val, label]) => {
         menu.addItem((item) => item.setTitle((this._viewMode === val ? "\u2713 " : "") + label).onClick(() => {
           this._viewMode = val;
@@ -2760,7 +2756,7 @@ var PdfFullscreenView = class extends ItemView {
     pageWrap.style.alignItems = "center";
     pageWrap.style.gap = "2px";
     this.pageInput = pageWrap.createEl("input", { type: "number", value: "1" });
-    this.pageInput.style.width = "40px";
+    this.pageInput.style.width = "50px";
     this.pageInput.style.fontSize = "13px";
     this.pageInput.style.textAlign = "center";
     this.pageInput.style.border = "1px solid var(--background-modifier-border)";

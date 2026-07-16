@@ -2860,11 +2860,7 @@ class PdfFullscreenView extends ItemView {
         this._thumbnailVisible = true;
         this._toggleThumbnailPanel();
       }));
-      menu.addItem(item => item.setTitle(this._panelMode === 'outline' ? '✓ 目录' : '目录').onClick(() => {
-        this._panelMode = 'outline';
-        this._thumbnailVisible = true;
-        new Notice('目录功能开发中');
-      }));
+      menu.addItem(item => item.setTitle('目录').setDisabled(true));
       menu.showAtMouseEvent(e);
     };
 
@@ -2912,7 +2908,7 @@ class PdfFullscreenView extends ItemView {
       });
       menu.addSeparator();
       // 滚动方式部分
-      const modeOpts = { 'continuous': '连续', 'single': '单页' };
+      const modeOpts = { 'continuous': '连续滚动', 'single': '单页' };
       Object.entries(modeOpts).forEach(([val, label]) => {
         menu.addItem(item => item.setTitle((this._viewMode === val ? '✓ ' : '') + label).onClick(() => {
           this._viewMode = val;
@@ -2943,7 +2939,7 @@ class PdfFullscreenView extends ItemView {
     pageWrap.style.alignItems = 'center';
     pageWrap.style.gap = '2px';
     this.pageInput = pageWrap.createEl('input', { type: 'number', value: '1' });
-    this.pageInput.style.width = '40px';
+    this.pageInput.style.width = '50px';
     this.pageInput.style.fontSize = '13px';
     this.pageInput.style.textAlign = 'center';
     this.pageInput.style.border = '1px solid var(--background-modifier-border)';
