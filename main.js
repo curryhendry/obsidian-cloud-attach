@@ -5120,6 +5120,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
         scrollArea.style.overflowX = "hidden";
         scrollArea.style.position = "relative";
         container.appendChild(scrollArea);
+        scrollArea.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        });
         const firstPage = await pdf.getPage(1);
         const firstViewport = firstPage.getViewport({ scale: FIXED_SCALE });
         const canvasW = firstViewport.width;
@@ -5275,6 +5279,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     img.className = "cloudattach-pdf-page";
     img.dataset.pageNum = String(pageNum);
     img.style.userSelect = "none";
+    img.style.pointerEvents = "none";
     img.draggable = false;
     img.style.width = "100%";
     img.style.display = "block";

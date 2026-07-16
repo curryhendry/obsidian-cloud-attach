@@ -5407,6 +5407,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
       scrollArea.style.overflowX = "hidden";
       scrollArea.style.position = "relative";
       container.appendChild(scrollArea);
+      // iOS: 阻止 Obsidian 拦截 img tap 以图片形式打开
+      scrollArea.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); });
       // 获取首页信息
       const firstPage = await pdf.getPage(1);
       const firstViewport = firstPage.getViewport({ scale: FIXED_SCALE });
@@ -5562,6 +5564,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     img.className = 'cloudattach-pdf-page';
     img.dataset.pageNum = String(pageNum);
     img.style.userSelect = 'none';
+    img.style.pointerEvents = 'none'; // iOS: 阻止 Obsidian 拦截 img tap
     img.draggable = false;
     img.style.width = '100%';
     img.style.display = 'block';
