@@ -3189,102 +3189,6 @@ var PdfFullscreenView = class extends ItemView {
     });
   }
 };
-fields.username = userInput;
-openlistFields.appendChild(userDiv);
-var passDiv = exports.createFieldDiv(t("settings.password"), "");
-var passWrapper = document.createElement("div");
-passWrapper.style.display = "flex";
-passWrapper.style.gap = "4px";
-var passInput = document.createElement("input");
-passInput.type = "password";
-passInput.value = exports.account?.password || "";
-passInput.className = "cloud-attach-input";
-passInput.style.flex = "1";
-passWrapper.appendChild(passInput);
-var passToggle = document.createElement("button");
-passToggle.textContent = "\u{1F441}\uFE0F";
-passToggle.type = "button";
-passToggle.style.padding = "6px 8px";
-passToggle.style.cursor = "pointer";
-passToggle.onclick = () => {
-  passInput.type = passInput.type === "password" ? "text" : "password";
-  passToggle.textContent = passInput.type === "password" ? "\u{1F441}\uFE0F" : "\u{1F512}";
-};
-passWrapper.appendChild(passToggle);
-passDiv.appendChild(passWrapper);
-fields.password = passInput;
-openlistFields.appendChild(passDiv);
-var tokenDiv = exports.createFieldDiv(t("settings.token"), t("settings.token_hint"));
-var tokenWrapper = document.createElement("div");
-tokenWrapper.style.display = "flex";
-tokenWrapper.style.gap = "4px";
-var tokenInput = document.createElement("input");
-tokenInput.type = "password";
-tokenInput.value = exports.account?.token || "";
-tokenInput.className = "cloud-attach-input";
-tokenInput.style.flex = "1";
-tokenWrapper.appendChild(tokenInput);
-var tokenToggle = document.createElement("button");
-tokenToggle.textContent = "\u{1F441}\uFE0F";
-tokenToggle.type = "button";
-tokenToggle.style.padding = "6px 8px";
-tokenToggle.style.cursor = "pointer";
-tokenToggle.onclick = () => {
-  tokenInput.type = tokenInput.type === "password" ? "text" : "password";
-  tokenToggle.textContent = tokenInput.type === "password" ? "\u{1F441}\uFE0F" : "\u{1F512}";
-};
-tokenWrapper.appendChild(tokenToggle);
-tokenDiv.appendChild(tokenWrapper);
-fields.token = tokenInput;
-openlistFields.appendChild(tokenDiv);
-var olPublicUrlDiv = exports.createFieldDiv(t("settings.public_url"), t("settings.cdn_url_placeholder"));
-var olPublicUrlInput = document.createElement("input");
-olPublicUrlInput.type = "text";
-olPublicUrlInput.placeholder = "https://public.example.com";
-olPublicUrlInput.value = exports.account?.publicUrl || "";
-olPublicUrlInput.className = "cloud-attach-input";
-olPublicUrlDiv.appendChild(olPublicUrlInput);
-fields.olPublicUrl = olPublicUrlInput;
-openlistFields.appendChild(olPublicUrlDiv);
-exports.contentEl.appendChild(openlistFields);
-var s3Fields = document.createElement("div");
-s3Fields.id = "s3-fields";
-s3Fields.style.display = "none";
-var endpointDiv = exports.createFieldDiv(t("settings.endpoint"), t("settings.endpoint_placeholder"));
-var endpointInput = document.createElement("input");
-endpointInput.type = "text";
-endpointInput.placeholder = "https://xxx.r2.cloudflarestorage.com";
-endpointInput.value = exports.account?.endpoint || "";
-endpointInput.className = "cloud-attach-input";
-endpointDiv.appendChild(endpointInput);
-fields.endpoint = endpointInput;
-s3Fields.appendChild(endpointDiv);
-var bucketDiv = exports.createFieldDiv(t("settings.bucket"), t("settings.bucket_placeholder"));
-var bucketInput = document.createElement("input");
-bucketInput.type = "text";
-bucketInput.placeholder = "my-vault-attach";
-bucketInput.value = exports.account?.bucket || "";
-bucketInput.className = "cloud-attach-input";
-bucketDiv.appendChild(bucketInput);
-fields.bucket = bucketInput;
-s3Fields.appendChild(bucketDiv);
-var regionDiv = exports.createFieldDiv(t("settings.region"), t("settings.region_placeholder"));
-var regionInput = document.createElement("input");
-regionInput.type = "text";
-regionInput.placeholder = "auto";
-regionInput.value = exports.account?.region || "";
-regionInput.className = "cloud-attach-input";
-regionDiv.appendChild(regionInput);
-fields.region = regionInput;
-s3Fields.appendChild(regionDiv);
-var akDiv = exports.createFieldDiv(t("settings.access_key"), "");
-var akInput = document.createElement("input");
-akInput.type = "text";
-akInput.value = exports.account?.accessKey || "";
-akInput.className = "cloud-attach-input";
-akDiv.appendChild(akInput);
-fields.accessKey = akInput;
-s3Fields.appendChild(akDiv);
 var AddAccountModal = class extends Modal {
   constructor(app, plugin, onSave, account = null) {
     super(app);
@@ -3297,7 +3201,7 @@ var AddAccountModal = class extends Modal {
     const title = document.createElement("h2");
     title.textContent = this.account ? t("settings.edit_account") : t("settings.add_account");
     this.contentEl.appendChild(title);
-    const fields2 = {};
+    const fields = {};
     const typeDiv = document.createElement("div");
     typeDiv.style.margin = "16px 0";
     const typeLabel = document.createElement("label");
@@ -3345,10 +3249,10 @@ var AddAccountModal = class extends Modal {
     nameInput.value = this.account?.name || "";
     nameInput.className = "cloud-attach-input";
     nameDiv.appendChild(nameInput);
-    fields2.name = nameInput;
+    fields.name = nameInput;
     this.contentEl.appendChild(nameDiv);
-    const openlistFields2 = document.createElement("div");
-    openlistFields2.id = "ol-fields";
+    const openlistFields = document.createElement("div");
+    openlistFields.id = "ol-fields";
     const urlDiv = this.createFieldDiv(t("settings.server_address"), t("settings.server_address_placeholder"));
     const urlInput = document.createElement("input");
     urlInput.type = "text";
@@ -3356,8 +3260,8 @@ var AddAccountModal = class extends Modal {
     urlInput.value = this.account?.url || "";
     urlInput.className = "cloud-attach-input";
     urlDiv.appendChild(urlInput);
-    fields2.url = urlInput;
-    openlistFields2.appendChild(urlDiv);
+    fields.url = urlInput;
+    openlistFields.appendChild(urlDiv);
     const webdavDiv = this.createFieldDiv(t("settings.webdav_path_label"), t("settings.webdav_path_placeholder"));
     const webdavInput = document.createElement("input");
     webdavInput.type = "text";
@@ -3365,110 +3269,110 @@ var AddAccountModal = class extends Modal {
     webdavInput.value = this.account?.webdavPath || "";
     webdavInput.className = "cloud-attach-input";
     webdavDiv.appendChild(webdavInput);
-    fields2.webdavPath = webdavInput;
-    openlistFields2.appendChild(webdavDiv);
-    const userDiv2 = this.createFieldDiv(t("settings.username"), "");
-    const userInput2 = document.createElement("input");
-    userInput2.type = "text";
-    userInput2.value = this.account?.username || "";
-    userInput2.className = "cloud-attach-input";
-    userDiv2.appendChild(userInput2);
-    fields2.username = userInput2;
-    openlistFields2.appendChild(userDiv2);
-    const passDiv2 = this.createFieldDiv(t("settings.password"), "");
-    const passWrapper2 = document.createElement("div");
-    passWrapper2.style.display = "flex";
-    passWrapper2.style.gap = "4px";
-    const passInput2 = document.createElement("input");
-    passInput2.type = "password";
-    passInput2.value = this.account?.password || "";
-    passInput2.className = "cloud-attach-input";
-    passInput2.style.flex = "1";
-    passWrapper2.appendChild(passInput2);
-    const passToggle2 = document.createElement("button");
-    passToggle2.textContent = "\u{1F441}\uFE0F";
-    passToggle2.type = "button";
-    passToggle2.style.padding = "6px 8px";
-    passToggle2.style.cursor = "pointer";
-    passToggle2.onclick = () => {
-      passInput2.type = passInput2.type === "password" ? "text" : "password";
-      passToggle2.textContent = passInput2.type === "password" ? "\u{1F441}\uFE0F" : "\u{1F512}";
+    fields.webdavPath = webdavInput;
+    openlistFields.appendChild(webdavDiv);
+    const userDiv = this.createFieldDiv(t("settings.username"), "");
+    const userInput = document.createElement("input");
+    userInput.type = "text";
+    userInput.value = this.account?.username || "";
+    userInput.className = "cloud-attach-input";
+    userDiv.appendChild(userInput);
+    fields.username = userInput;
+    openlistFields.appendChild(userDiv);
+    const passDiv = this.createFieldDiv(t("settings.password"), "");
+    const passWrapper = document.createElement("div");
+    passWrapper.style.display = "flex";
+    passWrapper.style.gap = "4px";
+    const passInput = document.createElement("input");
+    passInput.type = "password";
+    passInput.value = this.account?.password || "";
+    passInput.className = "cloud-attach-input";
+    passInput.style.flex = "1";
+    passWrapper.appendChild(passInput);
+    const passToggle = document.createElement("button");
+    passToggle.textContent = "\u{1F441}\uFE0F";
+    passToggle.type = "button";
+    passToggle.style.padding = "6px 8px";
+    passToggle.style.cursor = "pointer";
+    passToggle.onclick = () => {
+      passInput.type = passInput.type === "password" ? "text" : "password";
+      passToggle.textContent = passInput.type === "password" ? "\u{1F441}\uFE0F" : "\u{1F512}";
     };
-    passWrapper2.appendChild(passToggle2);
-    passDiv2.appendChild(passWrapper2);
-    fields2.password = passInput2;
-    openlistFields2.appendChild(passDiv2);
-    const tokenDiv2 = this.createFieldDiv(t("settings.token"), t("settings.token_hint"));
-    const tokenWrapper2 = document.createElement("div");
-    tokenWrapper2.style.display = "flex";
-    tokenWrapper2.style.gap = "4px";
-    const tokenInput2 = document.createElement("input");
-    tokenInput2.type = "password";
-    tokenInput2.value = this.account?.token || "";
-    tokenInput2.className = "cloud-attach-input";
-    tokenInput2.style.flex = "1";
-    tokenWrapper2.appendChild(tokenInput2);
-    const tokenToggle2 = document.createElement("button");
-    tokenToggle2.textContent = "\u{1F441}\uFE0F";
-    tokenToggle2.type = "button";
-    tokenToggle2.style.padding = "6px 8px";
-    tokenToggle2.style.cursor = "pointer";
-    tokenToggle2.onclick = () => {
-      tokenInput2.type = tokenInput2.type === "password" ? "text" : "password";
-      tokenToggle2.textContent = tokenInput2.type === "password" ? "\u{1F441}\uFE0F" : "\u{1F512}";
+    passWrapper.appendChild(passToggle);
+    passDiv.appendChild(passWrapper);
+    fields.password = passInput;
+    openlistFields.appendChild(passDiv);
+    const tokenDiv = this.createFieldDiv(t("settings.token"), t("settings.token_hint"));
+    const tokenWrapper = document.createElement("div");
+    tokenWrapper.style.display = "flex";
+    tokenWrapper.style.gap = "4px";
+    const tokenInput = document.createElement("input");
+    tokenInput.type = "password";
+    tokenInput.value = this.account?.token || "";
+    tokenInput.className = "cloud-attach-input";
+    tokenInput.style.flex = "1";
+    tokenWrapper.appendChild(tokenInput);
+    const tokenToggle = document.createElement("button");
+    tokenToggle.textContent = "\u{1F441}\uFE0F";
+    tokenToggle.type = "button";
+    tokenToggle.style.padding = "6px 8px";
+    tokenToggle.style.cursor = "pointer";
+    tokenToggle.onclick = () => {
+      tokenInput.type = tokenInput.type === "password" ? "text" : "password";
+      tokenToggle.textContent = tokenInput.type === "password" ? "\u{1F441}\uFE0F" : "\u{1F512}";
     };
-    tokenWrapper2.appendChild(tokenToggle2);
-    tokenDiv2.appendChild(tokenWrapper2);
-    fields2.token = tokenInput2;
-    openlistFields2.appendChild(tokenDiv2);
-    const olPublicUrlDiv2 = this.createFieldDiv(t("settings.public_url"), t("settings.cdn_url_placeholder"));
-    const olPublicUrlInput2 = document.createElement("input");
-    olPublicUrlInput2.type = "text";
-    olPublicUrlInput2.placeholder = "https://public.example.com";
-    olPublicUrlInput2.value = this.account?.publicUrl || "";
-    olPublicUrlInput2.className = "cloud-attach-input";
-    olPublicUrlDiv2.appendChild(olPublicUrlInput2);
-    fields2.olPublicUrl = olPublicUrlInput2;
-    openlistFields2.appendChild(olPublicUrlDiv2);
-    this.contentEl.appendChild(openlistFields2);
-    const s3Fields2 = document.createElement("div");
-    s3Fields2.id = "s3-fields";
-    s3Fields2.style.display = "none";
-    const endpointDiv2 = this.createFieldDiv(t("settings.endpoint"), t("settings.endpoint_placeholder"));
-    const endpointInput2 = document.createElement("input");
-    endpointInput2.type = "text";
-    endpointInput2.placeholder = "https://xxx.r2.cloudflarestorage.com";
-    endpointInput2.value = this.account?.endpoint || "";
-    endpointInput2.className = "cloud-attach-input";
-    endpointDiv2.appendChild(endpointInput2);
-    fields2.endpoint = endpointInput2;
-    s3Fields2.appendChild(endpointDiv2);
-    const bucketDiv2 = this.createFieldDiv(t("settings.bucket"), t("settings.bucket_placeholder"));
-    const bucketInput2 = document.createElement("input");
-    bucketInput2.type = "text";
-    bucketInput2.placeholder = "my-vault-attach";
-    bucketInput2.value = this.account?.bucket || "";
-    bucketInput2.className = "cloud-attach-input";
-    bucketDiv2.appendChild(bucketInput2);
-    fields2.bucket = bucketInput2;
-    s3Fields2.appendChild(bucketDiv2);
-    const regionDiv2 = this.createFieldDiv(t("settings.region"), t("settings.region_placeholder"));
-    const regionInput2 = document.createElement("input");
-    regionInput2.type = "text";
-    regionInput2.placeholder = "auto";
-    regionInput2.value = this.account?.region || "";
-    regionInput2.className = "cloud-attach-input";
-    regionDiv2.appendChild(regionInput2);
-    fields2.region = regionInput2;
-    s3Fields2.appendChild(regionDiv2);
-    const akDiv2 = this.createFieldDiv(t("settings.access_key"), "");
-    const akInput2 = document.createElement("input");
-    akInput2.type = "text";
-    akInput2.value = this.account?.accessKey || "";
-    akInput2.className = "cloud-attach-input";
-    akDiv2.appendChild(akInput2);
-    fields2.accessKey = akInput2;
-    s3Fields2.appendChild(akDiv2);
+    tokenWrapper.appendChild(tokenToggle);
+    tokenDiv.appendChild(tokenWrapper);
+    fields.token = tokenInput;
+    openlistFields.appendChild(tokenDiv);
+    const olPublicUrlDiv = this.createFieldDiv(t("settings.public_url"), t("settings.cdn_url_placeholder"));
+    const olPublicUrlInput = document.createElement("input");
+    olPublicUrlInput.type = "text";
+    olPublicUrlInput.placeholder = "https://public.example.com";
+    olPublicUrlInput.value = this.account?.publicUrl || "";
+    olPublicUrlInput.className = "cloud-attach-input";
+    olPublicUrlDiv.appendChild(olPublicUrlInput);
+    fields.olPublicUrl = olPublicUrlInput;
+    openlistFields.appendChild(olPublicUrlDiv);
+    this.contentEl.appendChild(openlistFields);
+    const s3Fields = document.createElement("div");
+    s3Fields.id = "s3-fields";
+    s3Fields.style.display = "none";
+    const endpointDiv = this.createFieldDiv(t("settings.endpoint"), t("settings.endpoint_placeholder"));
+    const endpointInput = document.createElement("input");
+    endpointInput.type = "text";
+    endpointInput.placeholder = "https://xxx.r2.cloudflarestorage.com";
+    endpointInput.value = this.account?.endpoint || "";
+    endpointInput.className = "cloud-attach-input";
+    endpointDiv.appendChild(endpointInput);
+    fields.endpoint = endpointInput;
+    s3Fields.appendChild(endpointDiv);
+    const bucketDiv = this.createFieldDiv(t("settings.bucket"), t("settings.bucket_placeholder"));
+    const bucketInput = document.createElement("input");
+    bucketInput.type = "text";
+    bucketInput.placeholder = "my-vault-attach";
+    bucketInput.value = this.account?.bucket || "";
+    bucketInput.className = "cloud-attach-input";
+    bucketDiv.appendChild(bucketInput);
+    fields.bucket = bucketInput;
+    s3Fields.appendChild(bucketDiv);
+    const regionDiv = this.createFieldDiv(t("settings.region"), t("settings.region_placeholder"));
+    const regionInput = document.createElement("input");
+    regionInput.type = "text";
+    regionInput.placeholder = "auto";
+    regionInput.value = this.account?.region || "";
+    regionInput.className = "cloud-attach-input";
+    regionDiv.appendChild(regionInput);
+    fields.region = regionInput;
+    s3Fields.appendChild(regionDiv);
+    const akDiv = this.createFieldDiv(t("settings.access_key"), "");
+    const akInput = document.createElement("input");
+    akInput.type = "text";
+    akInput.value = this.account?.accessKey || "";
+    akInput.className = "cloud-attach-input";
+    akDiv.appendChild(akInput);
+    fields.accessKey = akInput;
+    s3Fields.appendChild(akDiv);
     const skDiv = this.createFieldDiv(t("settings.secret_key"), "");
     const skWrapper = document.createElement("div");
     skWrapper.style.display = "flex";
@@ -3490,8 +3394,8 @@ var AddAccountModal = class extends Modal {
     };
     skWrapper.appendChild(skToggle);
     skDiv.appendChild(skWrapper);
-    fields2.secretKey = skInput;
-    s3Fields2.appendChild(skDiv);
+    fields.secretKey = skInput;
+    s3Fields.appendChild(skDiv);
     const publicUrlDiv = this.createFieldDiv(t("settings.public_url"), t("settings.cdn_url_placeholder"));
     const publicUrlInput = document.createElement("input");
     publicUrlInput.type = "text";
@@ -3499,8 +3403,8 @@ var AddAccountModal = class extends Modal {
     publicUrlInput.value = this.account?.publicUrl || "";
     publicUrlInput.className = "cloud-attach-input";
     publicUrlDiv.appendChild(publicUrlInput);
-    fields2.publicUrl = publicUrlInput;
-    s3Fields2.appendChild(publicUrlDiv);
+    fields.publicUrl = publicUrlInput;
+    s3Fields.appendChild(publicUrlDiv);
     const prefixDiv = this.createFieldDiv(t("settings.prefix"), t("settings.prefix_placeholder"));
     const prefixInput = document.createElement("input");
     prefixInput.type = "text";
@@ -3508,12 +3412,12 @@ var AddAccountModal = class extends Modal {
     prefixInput.value = this.account?.prefix || "";
     prefixInput.className = "cloud-attach-input";
     prefixDiv.appendChild(prefixInput);
-    fields2.prefix = prefixInput;
-    s3Fields2.appendChild(prefixDiv);
-    this.contentEl.appendChild(s3Fields2);
+    fields.prefix = prefixInput;
+    s3Fields.appendChild(prefixDiv);
+    this.contentEl.appendChild(s3Fields);
     const switchType = (type) => {
-      openlistFields2.style.display = type === "openlist" ? "block" : "none";
-      s3Fields2.style.display = type === "s3" ? "block" : "none";
+      openlistFields.style.display = type === "openlist" ? "block" : "none";
+      s3Fields.style.display = type === "s3" ? "block" : "none";
     };
     radioOpenList.onchange = () => switchType("openlist");
     radioS3.onchange = () => switchType("s3");
@@ -3535,10 +3439,10 @@ var AddAccountModal = class extends Modal {
       const accountType = radioOpenList.checked ? "openlist" : "s3";
       let accountData;
       if (accountType === "s3") {
-        let endpoint = fields2.endpoint.value.trim().replace(/\/$/, "");
+        let endpoint = fields.endpoint.value.trim().replace(/\/$/, "");
         if (endpoint && !/^https?:\/\//i.test(endpoint))
           endpoint = "http://" + endpoint;
-        const bucket = fields2.bucket.value.trim();
+        const bucket = fields.bucket.value.trim();
         if (!endpoint) {
           new Notice(t("settings.please_fill_endpoint"), 3e3);
           return;
@@ -3549,18 +3453,18 @@ var AddAccountModal = class extends Modal {
         }
         accountData = {
           type: "s3",
-          name: fields2.name.value.trim() || t("settings.s3_account_label", { n: this.plugin.accounts.length + 1 }),
+          name: fields.name.value.trim() || t("settings.s3_account_label", { n: this.plugin.accounts.length + 1 }),
           endpoint,
           bucket,
-          region: fields2.region.value.trim(),
-          accessKey: fields2.accessKey.value.trim(),
-          secretKey: fields2.secretKey.value,
-          publicUrl: fields2.publicUrl.value.trim(),
-          prefix: fields2.prefix.value.trim(),
+          region: fields.region.value.trim(),
+          accessKey: fields.accessKey.value.trim(),
+          secretKey: fields.secretKey.value,
+          publicUrl: fields.publicUrl.value.trim(),
+          prefix: fields.prefix.value.trim(),
           isActive: true
         };
       } else {
-        let url = fields2.url.value.trim().replace(/\/$/, "");
+        let url = fields.url.value.trim().replace(/\/$/, "");
         if (url && !/^https?:\/\//i.test(url))
           url = "http://" + url;
         if (!url) {
@@ -3576,16 +3480,16 @@ var AddAccountModal = class extends Modal {
           }
         } catch {
         }
-        const finalWebdavPath = autoWebdavPath || fields2.webdavPath.value.trim() || "";
+        const finalWebdavPath = autoWebdavPath || fields.webdavPath.value.trim() || "";
         accountData = {
           type: "openlist",
-          name: fields2.name.value.trim() || t("settings.account_label", { n: this.plugin.accounts.length + 1 }),
+          name: fields.name.value.trim() || t("settings.account_label", { n: this.plugin.accounts.length + 1 }),
           url,
           webdavPath: finalWebdavPath,
-          username: fields2.username.value.trim(),
-          password: fields2.password.value,
-          token: fields2.token.value,
-          publicUrl: fields2.olPublicUrl.value.trim() || "",
+          username: fields.username.value.trim(),
+          password: fields.password.value,
+          token: fields.token.value,
+          publicUrl: fields.olPublicUrl.value.trim() || "",
           isActive: true
         };
       }
