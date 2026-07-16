@@ -5407,8 +5407,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
       scrollArea.style.overflowX = "hidden";
       scrollArea.style.position = "relative";
       container.appendChild(scrollArea);
-      // iOS: 阻止 Obsidian 拦截 img tap 以图片形式打开
-      scrollArea.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); });
       // 获取首页信息
       const firstPage = await pdf.getPage(1);
       const firstViewport = firstPage.getViewport({ scale: FIXED_SCALE });
@@ -5631,6 +5629,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
     container.style.position = "relative";
     if (isTouch) {
       container.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         toolbar.style.opacity = toolbar.style.opacity === "1" ? "0" : "1";
       });
     } else {

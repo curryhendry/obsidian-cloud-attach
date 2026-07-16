@@ -5120,10 +5120,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
         scrollArea.style.overflowX = "hidden";
         scrollArea.style.position = "relative";
         container.appendChild(scrollArea);
-        scrollArea.addEventListener("click", (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-        });
         const firstPage = await pdf.getPage(1);
         const firstViewport = firstPage.getViewport({ scale: FIXED_SCALE });
         const canvasW = firstViewport.width;
@@ -5346,6 +5342,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
     container.style.position = "relative";
     if (isTouch) {
       container.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         toolbar.style.opacity = toolbar.style.opacity === "1" ? "0" : "1";
       });
     } else {
