@@ -3612,6 +3612,9 @@ class PdfFullscreenView extends ItemView {
       const img = wrap.createEl('img');
       img.src = thumbBlobs[i];
       img.style.cssText = 'width:100%;height:auto;display:block;';
+      const badge = wrap.createEl('span');
+      badge.textContent = String(i + 1);
+      badge.style.cssText = 'position:absolute;bottom:2px;right:2px;background:rgba(0,0,0,0.65);color:#fff;font-size:11px;padding:1px 5px;border-radius:3px;pointer-events:none;';
     }
   }
 
