@@ -4732,29 +4732,64 @@ module.exports = class CloudAttachPlugin extends Plugin {
    */
   async openPdfFullscreen(url, name) {
     const { workspace } = this.app;
-    // 桌面端暂不支持全屏预览
-    if (!Platform.isMobile) {
-      new Notice('全屏预览（敬请期待）');
+    if (!name) name = cleanFileNameFromUrl(url);
+
+    if (Platform.isMobile) {
+      // 手机端：split leaf + canvas 渲染（不设 _pendingPageBlobs，_renderAllPages 走正常路径）
+      this._pendingPdfUrl = url;
+      this._pendingPdfName = name;
+      const leaf = workspace.getLeaf('split', 'vertical');
+      await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true, state: { pdfUrl: url, pdfName: name } });
+      workspace.revealLeaf(leaf);
       return;
     }
-    if (!name) name = cleanFileNameFromUrl(url);
+
+    // 桌面端：blob 预渲染 + popout
     this._pendingPdfUrl = url;
     this._pendingPdfName = name;
-    
-    // 释放笔记内联 PDF canvas 减少内存峰值（iOS 内存受限时避免 crash）
-    const doc = app.workspace.activeLeaf?.view?.containerEl?.ownerDocument || document;
-    doc.querySelectorAll('.cloudattach-pdf-container, img[data-cloudattach-processed="done"]').forEach(el => {
-      el.querySelectorAll('canvas').forEach(c => c.remove());
-      el.dataset.cloudattachProcessed = '';
-    });
-    if (this._renderedPdfUrlsByMode) {
-      Object.values(this._renderedPdfUrlsByMode).forEach(s => s instanceof Set && s.clear());
+    new Notice(t('view.fullscreen_preparing'));
+    try {
+      const pdfjsLib = await this._loadPdfJs();
+      const pdfData = await this._downloadPdfBinary(url);
+      const pdfDoc = await (pdfData
+        ? pdfjsLib.getDocument({ data: pdfData })
+        : pdfjsLib.getDocument({ url })).promise;
+      const totalPages = pdfDoc.numPages;
+      const blobUrls = [];
+      const thumbBlobs = [];
+      for (let i = 1; i <= totalPages; i++) {
+        const page = await pdfDoc.getPage(i);
+        const vp = page.getViewport({ scale: 1600 / page.getViewport({ scale: 1 }).width });
+        const canvas = document.createElement('canvas');
+        canvas.width = vp.width;
+        canvas.height = vp.height;
+        await page.render({ canvasContext: canvas.getContext('2d', { willReadFrequently: true }), viewport: vp }).promise;
+        const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+        if (blob) blobUrls.push(URL.createObjectURL(blob));
+        const tvp = page.getViewport({ scale: 0.2 });
+        const tCanvas = document.createElement('canvas');
+        tCanvas.width = tvp.width;
+        tCanvas.height = tvp.height;
+        await page.render({ canvasContext: tCanvas.getContext('2d', { willReadFrequently: true }), viewport: tvp }).promise;
+        const tBlob = await new Promise(r => tCanvas.toBlob(r, 'image/png'));
+        if (tBlob) thumbBlobs.push(URL.createObjectURL(tBlob));
+      }
+      this._pendingPageBlobs = blobUrls;
+      this._pendingPageCount = totalPages;
+      this._pendingThumbnailBlobs = thumbBlobs;
+    } catch (e) {
+      console.error('[CloudAttach] pre-render failed:', e);
+      this._pendingPageBlobs = null;
     }
-    const leaf = workspace.getLeaf('split', 'vertical');
+    let leaf;
+    try {
+      leaf = workspace.openPopoutLeaf();
+    } catch (e) {
+      console.log('[CloudAttach] openPopoutLeaf failed, fallback to split:', e);
+      leaf = workspace.getLeaf('split', 'vertical');
+    }
     await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true, state: { pdfUrl: url, pdfName: name } });
     workspace.revealLeaf(leaf);
-    // 不 delete _pendingPdfUrl，onOpen 是 async 的，setViewState 返回时 onOpen 可能还没执行
-    // _pendingPdfUrl 在 onOpen 读取后被下一次 openPdfFullscreen 覆盖即可
   }
 
   // ============================================================

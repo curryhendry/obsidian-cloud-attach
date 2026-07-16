@@ -528,7 +528,7 @@ function t(key, params = {}) {
   return str;
 }
 var OpenListClient = class {
-  constructor(account, app2) {
+  constructor(account, app) {
     this.serverUrl = account.url.replace(/\/$/, "");
     this.baseUrl = this.serverUrl;
     this.webdavPath = (account.webdavPath || "").replace(/\/$/, "");
@@ -536,7 +536,7 @@ var OpenListClient = class {
     this.username = account.username;
     this.password = account.password;
     this.publicUrl = account.publicUrl?.replace(/\/$/, "") || "";
-    this.app = app2;
+    this.app = app;
   }
   /**
    * 对 URL 路径部分做安全解码：把 %XX 编码的中文还原为原文，但保留空格等必须编码的字符。
@@ -1345,8 +1345,8 @@ var OpenListClient = class {
   }
 };
 var S3Client = class {
-  constructor(account, app2) {
-    this.app = app2;
+  constructor(account, app) {
+    this.app = app;
     this.endpoint = account.endpoint?.replace(/\/$/, "") || "";
     this.bucket = account.bucket || "";
     this.region = account.region || "";
@@ -3221,8 +3221,8 @@ var PdfFullscreenView = class extends ItemView {
   }
 };
 var AddAccountModal = class extends Modal {
-  constructor(app2, plugin, onSave, account = null) {
-    super(app2);
+  constructor(app, plugin, onSave, account = null) {
+    super(app);
     this.plugin = plugin;
     this.onSave = onSave;
     this.account = account;
@@ -3746,8 +3746,8 @@ var CloudAttachSettingTab = class extends PluginSettingTab {
   }
 };
 var AdvancedSettingModal = class extends Modal {
-  constructor(app2, plugin) {
-    super(app2);
+  constructor(app, plugin) {
+    super(app);
     this.plugin = plugin;
   }
   async onOpen() {
@@ -3972,8 +3972,8 @@ var AdvancedSettingModal = class extends Modal {
   }
 };
 var CloudAttachSuggest = class extends EditorSuggest {
-  constructor(app2, plugin) {
-    super(app2);
+  constructor(app, plugin) {
+    super(app);
     this.plugin = plugin;
     this.limit = 100;
   }
@@ -4493,23 +4493,59 @@ module.exports = class CloudAttachPlugin extends Plugin {
    */
   async openPdfFullscreen(url, name) {
     const { workspace } = this.app;
-    if (!Platform.isMobile) {
-      new Notice("\u5168\u5C4F\u9884\u89C8\uFF08\u656C\u8BF7\u671F\u5F85\uFF09");
-      return;
-    }
     if (!name)
       name = cleanFileNameFromUrl(url);
+    if (Platform.isMobile) {
+      this._pendingPdfUrl = url;
+      this._pendingPdfName = name;
+      const leaf2 = workspace.getLeaf("split", "vertical");
+      await leaf2.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true, state: { pdfUrl: url, pdfName: name } });
+      workspace.revealLeaf(leaf2);
+      return;
+    }
     this._pendingPdfUrl = url;
     this._pendingPdfName = name;
-    const doc = app.workspace.activeLeaf?.view?.containerEl?.ownerDocument || document;
-    doc.querySelectorAll('.cloudattach-pdf-container, img[data-cloudattach-processed="done"]').forEach((el) => {
-      el.querySelectorAll("canvas").forEach((c) => c.remove());
-      el.dataset.cloudattachProcessed = "";
-    });
-    if (this._renderedPdfUrlsByMode) {
-      Object.values(this._renderedPdfUrlsByMode).forEach((s) => s instanceof Set && s.clear());
+    new Notice(t("view.fullscreen_preparing"));
+    try {
+      const pdfjsLib = await this._loadPdfJs();
+      const pdfData = await this._downloadPdfBinary(url);
+      const pdfDoc = await (pdfData ? pdfjsLib.getDocument({ data: pdfData }) : pdfjsLib.getDocument({ url })).promise;
+      const totalPages = pdfDoc.numPages;
+      const blobUrls = [];
+      const thumbBlobs = [];
+      for (let i = 1; i <= totalPages; i++) {
+        const page = await pdfDoc.getPage(i);
+        const vp = page.getViewport({ scale: 1600 / page.getViewport({ scale: 1 }).width });
+        const canvas = document.createElement("canvas");
+        canvas.width = vp.width;
+        canvas.height = vp.height;
+        await page.render({ canvasContext: canvas.getContext("2d", { willReadFrequently: true }), viewport: vp }).promise;
+        const blob = await new Promise((r) => canvas.toBlob(r, "image/png"));
+        if (blob)
+          blobUrls.push(URL.createObjectURL(blob));
+        const tvp = page.getViewport({ scale: 0.2 });
+        const tCanvas = document.createElement("canvas");
+        tCanvas.width = tvp.width;
+        tCanvas.height = tvp.height;
+        await page.render({ canvasContext: tCanvas.getContext("2d", { willReadFrequently: true }), viewport: tvp }).promise;
+        const tBlob = await new Promise((r) => tCanvas.toBlob(r, "image/png"));
+        if (tBlob)
+          thumbBlobs.push(URL.createObjectURL(tBlob));
+      }
+      this._pendingPageBlobs = blobUrls;
+      this._pendingPageCount = totalPages;
+      this._pendingThumbnailBlobs = thumbBlobs;
+    } catch (e) {
+      console.error("[CloudAttach] pre-render failed:", e);
+      this._pendingPageBlobs = null;
     }
-    const leaf = workspace.getLeaf("split", "vertical");
+    let leaf;
+    try {
+      leaf = workspace.openPopoutLeaf();
+    } catch (e) {
+      console.log("[CloudAttach] openPopoutLeaf failed, fallback to split:", e);
+      leaf = workspace.getLeaf("split", "vertical");
+    }
     await leaf.setViewState({ type: VIEW_TYPE_PDF_FULLSCREEN, active: true, state: { pdfUrl: url, pdfName: name } });
     workspace.revealLeaf(leaf);
   }
@@ -5082,8 +5118,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const current = parseInt(container.dataset.currentPage);
       const { Modal: Modal2, Setting } = require("obsidian");
       class PageJumpModal extends Modal2 {
-        constructor(app2, cur, total, onSubmit) {
-          super(app2);
+        constructor(app, cur, total, onSubmit) {
+          super(app);
           this.cur = cur;
           this.total = total;
           this.onSubmit = onSubmit;
