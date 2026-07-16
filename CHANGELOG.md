@@ -1,3 +1,8 @@
+## v0.4.440.dev - 2026-07-16
+
+- 修复：PdfFullscreenView 基线从错误的 /tmp/v377_main.js 改为 git tag 0.4.377 真实源码（560行）
+- 5 处 blob 兼容入口基于真实 v0.4.377 代码重新应用：_renderAllPages blob 入口、_reRender blob guard、_scrollToPage blob guard、_renderThumbnails blob 分支、新增 _renderFromBlobs
+
 ## v0.4.438.dev - 2026-07-16
 
 - PdfFullscreenView 回退到 v0.4.377 原版基线，仅加 5 处 blob 兼容入口（_renderAllPages/_renderThumbnails/_reRender/_scrollToPage + 新增 _renderFromBlobs）
