@@ -2688,7 +2688,7 @@ var PdfFullscreenView = class extends ItemView {
     const viewBtn = left.createEl("button");
     viewBtn.className = "clickable-icon";
     viewBtn.setAttribute("aria-label", "\u89C6\u56FE");
-    viewBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="18" rx="2"></rect><line x1="2" y1="9" x2="22" y2="9"></line></svg>';
+    viewBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>';
     viewBtn.onclick = (e) => {
       const menu = new Menu();
       const zoomOpts = { "fit-width": "\u9002\u5E94\u5BBD\u5EA6", "fit-height": "\u9002\u5E94\u9AD8\u5EA6" };
