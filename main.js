@@ -2684,11 +2684,11 @@ var PdfFullscreenView = class extends ItemView {
     };
     this._viewMode = "continuous";
     this._zoomMode = "fit-width";
+    this._renderScaleLevel = 0;
     const zoomOutBtn = left.createEl("button");
     zoomOutBtn.className = "clickable-icon";
     zoomOutBtn.setAttribute("aria-label", "\u7F29\u5C0F");
     zoomOutBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
-    this._renderScaleLevel = 0;
     zoomOutBtn.onclick = () => {
       if (this._renderScaleLevel <= 0)
         this._renderScaleLevel = 1;
@@ -2697,14 +2697,18 @@ var PdfFullscreenView = class extends ItemView {
       this._applyZoom();
     };
     const zoomLabel = left.createEl("span");
-    zoomLabel.style.cssText = "font-size:12px;color:var(--text-muted);cursor:pointer;min-width:38px;text-align:center;user-select:none;";
     zoomLabel.textContent = "\u9002\u5E94";
+    zoomLabel.style.cssText = "font-size:12px;color:var(--text-muted);cursor:pointer;min-width:38px;text-align:center;user-select:none;";
     zoomLabel.onclick = () => {
       this._renderScaleLevel = 0;
       this._updateZoomLabel();
       this._applyZoom();
     };
     this._zoomLabel = zoomLabel;
+    const zoomInBtn = left.createEl("button");
+    zoomInBtn.className = "clickable-icon";
+    zoomInBtn.setAttribute("aria-label", "\u653E\u5927");
+    zoomInBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
     zoomInBtn.onclick = () => {
       if (this._renderScaleLevel <= 0)
         this._renderScaleLevel = 1;
@@ -3010,9 +3014,7 @@ var PdfFullscreenView = class extends ItemView {
     this._onTouchStart = (e) => {
       if (e.touches.length !== 2)
         return;
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      pinchStartDist = Math.hypot(dx, dy);
+      pinchStartDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
       pinchStartLevel = this._renderScaleLevel <= 0 ? 1 : this._renderScaleLevel;
     };
     this.scrollEl.addEventListener("touchstart", this._onTouchStart, { passive: true });
@@ -3022,18 +3024,12 @@ var PdfFullscreenView = class extends ItemView {
       if (e.touches.length !== 2 || pinchStartDist <= 0)
         return;
       e.preventDefault();
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      const dist = Math.hypot(dx, dy);
+      const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
       this._renderScaleLevel = Math.max(0.25, Math.min(3, pinchStartLevel * dist / pinchStartDist));
       this._updateZoomLabel();
       this._applyZoom();
     };
     this.scrollEl.addEventListener("touchmove", this._onTouchMove, { passive: false });
-    if (this._onWheel) {
-      this._contentWrap.removeEventListener("wheel", this._onWheel);
-      this._onWheel = null;
-    }
     this.scrollEl.onkeydown = (e) => {
       if (e.key === "ArrowUp" || e.key === "ArrowDown") {
         e.preventDefault();

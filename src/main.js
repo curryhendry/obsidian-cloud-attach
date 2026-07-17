@@ -2846,27 +2846,24 @@ class PdfFullscreenView extends ItemView {
     };
 
     // 缩放按钮组：缩小、百分比、放大
-    this._viewMode = 'continuous'; // 'continuous' | 'single'
-    this._zoomMode = 'fit-width'; // 'fit-width' | 'fit-height'
-    
-    // 缩小按钮
+    this._viewMode = 'continuous';
+    this._zoomMode = 'fit-width';
+    this._renderScaleLevel = 0;
+
     const zoomOutBtn = left.createEl('button');
     zoomOutBtn.className = 'clickable-icon';
     zoomOutBtn.setAttribute('aria-label', '缩小');
     zoomOutBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
-    this._renderScaleLevel = 0;
-
     zoomOutBtn.onclick = () => {
-      if (this._renderScaleLevel <= 0) this._renderScaleLevel = 1; // 首次从自动切到 100%
+      if (this._renderScaleLevel <= 0) this._renderScaleLevel = 1;
       this._renderScaleLevel = Math.max(0.25, this._renderScaleLevel - 0.1);
       this._updateZoomLabel();
       this._applyZoom();
     };
 
-    // 百分比标签（点击重置为适应宽度）
     const zoomLabel = left.createEl('span');
-    zoomLabel.style.cssText = 'font-size:12px;color:var(--text-muted);cursor:pointer;min-width:38px;text-align:center;user-select:none;';
     zoomLabel.textContent = '适应';
+    zoomLabel.style.cssText = 'font-size:12px;color:var(--text-muted);cursor:pointer;min-width:38px;text-align:center;user-select:none;';
     zoomLabel.onclick = () => {
       this._renderScaleLevel = 0;
       this._updateZoomLabel();
@@ -2874,6 +2871,10 @@ class PdfFullscreenView extends ItemView {
     };
     this._zoomLabel = zoomLabel;
 
+    const zoomInBtn = left.createEl('button');
+    zoomInBtn.className = 'clickable-icon';
+    zoomInBtn.setAttribute('aria-label', '放大');
+    zoomInBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
     zoomInBtn.onclick = () => {
       if (this._renderScaleLevel <= 0) this._renderScaleLevel = 1;
       this._renderScaleLevel = Math.min(3, this._renderScaleLevel + 0.1);
@@ -2881,24 +2882,22 @@ class PdfFullscreenView extends ItemView {
       this._applyZoom();
     };
 
-    // 下拉菜单按钮
+    // 视图菜单（适应宽度/高度、滚动方式）
     const viewMenuBtn = left.createEl('button');
     viewMenuBtn.className = 'clickable-icon';
     viewMenuBtn.style.padding = '2px';
     viewMenuBtn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
     viewMenuBtn.onclick = (e) => {
       const menu = new Menu();
-      // 缩放部分
       const zoomOpts = { 'fit-width': '适应宽度', 'fit-height': '适应高度' };
       Object.entries(zoomOpts).forEach(([val, label]) => {
         menu.addItem(item => item.setTitle((this._zoomMode === val && this._renderScaleLevel <= 0 ? '✓ ' : '') + label).onClick(() => {
           this._zoomMode = val;
-          this._renderScaleLevel = 0; // 切回自动
+          this._renderScaleLevel = 0;
           this._applyZoom();
         }));
       });
       menu.addSeparator();
-      // 滚动方式部分
       const modeOpts = { 'continuous': '连续滚动', 'single': '单页' };
       Object.entries(modeOpts).forEach(([val, label]) => {
         menu.addItem(item => item.setTitle((this._viewMode === val ? '✓ ' : '') + label).onClick(() => {
@@ -3194,7 +3193,7 @@ class PdfFullscreenView extends ItemView {
     this._onPointerDown = () => this.scrollEl.focus();
     this.scrollEl.addEventListener('pointerdown', this._onPointerDown);
 
-    // 桌面端 Ctrl+滚轮 无级缩放
+    // 滚轮：Ctrl+滚轮缩放，普通滚轮原生处理
     if (this._onCtrlWheel) this.scrollEl.removeEventListener('wheel', this._onCtrlWheel);
     this._onCtrlWheel = (e) => {
       if (!e.ctrlKey && !e.metaKey) return;
@@ -3211,9 +3210,7 @@ class PdfFullscreenView extends ItemView {
     let pinchStartDist = 0, pinchStartLevel = 0;
     this._onTouchStart = (e) => {
       if (e.touches.length !== 2) return;
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      pinchStartDist = Math.hypot(dx, dy);
+      pinchStartDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
       pinchStartLevel = this._renderScaleLevel <= 0 ? 1 : this._renderScaleLevel;
     };
     this.scrollEl.addEventListener('touchstart', this._onTouchStart, { passive: true });
@@ -3221,20 +3218,12 @@ class PdfFullscreenView extends ItemView {
     this._onTouchMove = (e) => {
       if (e.touches.length !== 2 || pinchStartDist <= 0) return;
       e.preventDefault();
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      const dist = Math.hypot(dx, dy);
+      const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
       this._renderScaleLevel = Math.max(0.25, Math.min(3, pinchStartLevel * dist / pinchStartDist));
       this._updateZoomLabel();
       this._applyZoom();
     };
     this.scrollEl.addEventListener('touchmove', this._onTouchMove, { passive: false });
-
-    // 滚轮：单页 scroll-snap 由浏览器原生处理，不需要手动拦截
-    if (this._onWheel) {
-      this._contentWrap.removeEventListener('wheel', this._onWheel);
-      this._onWheel = null;
-    }
 
     // 键盘翻页（单页 & 连续通用）
     this.scrollEl.onkeydown = (e) => {
