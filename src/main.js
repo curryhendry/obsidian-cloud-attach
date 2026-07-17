@@ -2858,7 +2858,7 @@ class PdfFullscreenView extends ItemView {
 
     zoomOutBtn.onclick = () => {
       if (this._renderScaleLevel <= 0) this._renderScaleLevel = 1; // 首次从自动切到 100%
-      this._renderScaleLevel = Math.max(0.25, this._renderScaleLevel - 0.25);
+      this._renderScaleLevel = Math.max(0.25, this._renderScaleLevel - 0.1);
       this._updateZoomLabel();
       this._applyZoom();
     };
@@ -2876,7 +2876,7 @@ class PdfFullscreenView extends ItemView {
 
     zoomInBtn.onclick = () => {
       if (this._renderScaleLevel <= 0) this._renderScaleLevel = 1;
-      this._renderScaleLevel = Math.min(5, this._renderScaleLevel + 0.25);
+      this._renderScaleLevel = Math.min(3, this._renderScaleLevel + 0.1);
       this._updateZoomLabel();
       this._applyZoom();
     };
@@ -3200,7 +3200,7 @@ class PdfFullscreenView extends ItemView {
       if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault(); e.stopPropagation();
       if (this._renderScaleLevel <= 0) this._renderScaleLevel = 1;
-      this._renderScaleLevel = Math.max(0.25, Math.min(5, this._renderScaleLevel - e.deltaY * 0.002));
+      this._renderScaleLevel = Math.max(0.25, Math.min(3, this._renderScaleLevel - e.deltaY * 0.002));
       this._updateZoomLabel();
       this._applyZoom();
     };
@@ -3224,7 +3224,7 @@ class PdfFullscreenView extends ItemView {
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       const dist = Math.hypot(dx, dy);
-      this._renderScaleLevel = Math.max(0.25, Math.min(5, pinchStartLevel * dist / pinchStartDist));
+      this._renderScaleLevel = Math.max(0.25, Math.min(3, pinchStartLevel * dist / pinchStartDist));
       this._updateZoomLabel();
       this._applyZoom();
     };
