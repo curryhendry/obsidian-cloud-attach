@@ -48,7 +48,7 @@
 
 前往 [Releases](https://github.com/curryhendry/obsidian-cloud-attach/releases) 下载对应版本。
 
-**方式三：按版本下载**（推荐）
+**方式三：插件商店安装**（推荐）
 
 Obsidian中打开插件商店，搜索“CloudAttach”安装即可。
 传送门：[CloudAttach](https://community.obsidian.md/plugins/cloud-attach)

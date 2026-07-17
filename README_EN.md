@@ -118,6 +118,7 @@ To revert to iframe preview, simply change the setting back in Advanced Settings
 ## Roadmap
 
 - [x] Object storage support (primarily Cloudflare R2)
+
 ~~- [ ] Search server files within notes and insert (on hold — no good approach yet)~~
 - [x] Manual trigger to detect and refresh expired sign tokens
 - [x] Semi-automatic note attachment upload
@@ -125,7 +126,8 @@ To revert to iframe preview, simply change the setting back in Advanced Settings
 - [x] Publish to Obsidian Community Plugins
 - [x] File rename and delete support
 - [ ] PDF fullscreen view and more interactions
-- [ ] Other file format support (e.g., Office preview, TBD)
+
+~~- [ ] Other file format support (e.g., Office preview, TBD)~~
 - [x] Automatic attachment upload (default path)
 
 ---
