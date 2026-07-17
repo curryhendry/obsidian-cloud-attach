@@ -2697,7 +2697,11 @@ var PdfFullscreenView = class extends ItemView {
         this._thumbnailVisible = true;
         this._toggleThumbnailPanel();
       }));
-      menu.addItem((item) => item.setTitle("\u76EE\u5F55").setDisabled(true));
+      menu.addItem((item) => item.setTitle(this._panelMode === "outline" ? "\u2713 \u76EE\u5F55" : "\u76EE\u5F55").onClick(() => {
+        this._panelMode = "outline";
+        this._thumbnailVisible = true;
+        this._toggleThumbnailPanel();
+      }));
       menu.showAtMouseEvent(e);
     };
     this._viewMode = "continuous";
@@ -3418,10 +3422,85 @@ var PdfFullscreenView = class extends ItemView {
   _toggleThumbnailPanel() {
     if (Platform.isMobile)
       return this._toggleThumbnailPanelMobile();
+    if (this._panelMode === "outline") {
+      if (this._thumbnailVisible) {
+        if (!this._thumbnailPanelWrap) {
+          this._thumbnailPanelWrap = this._contentWrap.createEl("div");
+          this._thumbnailPanelWrap.style.display = "flex";
+          this._thumbnailPanelWrap.style.flexDirection = "row";
+          this._contentWrap.insertBefore(this._thumbnailPanelWrap, this.scrollEl);
+          this._thumbnailPanel = this._thumbnailPanelWrap.createEl("div");
+          this._thumbnailPanel.style.width = "200px";
+          this._thumbnailPanel.style.flexShrink = "0";
+          this._thumbnailPanel.style.overflowY = "auto";
+          this._thumbnailPanel.style.background = "var(--background-primary)";
+          this._thumbnailPanel.style.padding = "8px";
+        }
+        this._thumbnailPanelWrap.style.display = "flex";
+        this._renderOutline();
+      } else {
+        if (this._thumbnailPanelWrap)
+          this._thumbnailPanelWrap.style.display = "none";
+      }
+      return;
+    }
     if (!this._thumbnailPanelWrap)
       return;
     this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? "flex" : "none";
     this._reRender();
+  }
+  async _renderOutline() {
+    if (!this._pdf || !this._thumbnailPanel)
+      return;
+    this._thumbnailPanel.empty();
+    this._thumbnailPanel.style.overflowY = "auto";
+    let outline;
+    try {
+      outline = await this._pdf.getOutline();
+    } catch (e) {
+      return;
+    }
+    if (!outline || outline.length === 0) {
+      this._thumbnailPanel.createEl("div", { text: "\uFF08\u65E0\u76EE\u5F55\uFF09", attr: { style: "color:var(--text-muted);font-size:12px;padding:8px;" } });
+      return;
+    }
+    const buildTree = async (items, depth, container) => {
+      for (const item of items) {
+        const row = container.createEl("div");
+        row.style.cssText = `padding:4px 0 4px ${depth * 12 + 8}px;cursor:pointer;font-size:12px;color:var(--text-normal);border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`;
+        row.addEventListener("mouseenter", () => row.style.background = "var(--background-modifier-hover)");
+        row.addEventListener("mouseleave", () => row.style.background = "");
+        let pageNum = null;
+        if (item.dest) {
+          if (typeof item.dest === "string") {
+            try {
+              const d = await this._pdf.getDestination(item.dest);
+              if (d)
+                pageNum = await this._pdf.getPageIndex(d[0]) + 1;
+            } catch (e) {
+            }
+          } else if (Array.isArray(item.dest)) {
+            try {
+              pageNum = await this._pdf.getPageIndex(item.dest[0]) + 1;
+            } catch (e) {
+            }
+          }
+        }
+        if (pageNum) {
+          row.textContent = `${item.title}  \xB7 ${pageNum}`;
+          row.addEventListener("click", () => this._scrollToPage(pageNum));
+        } else {
+          row.textContent = item.title;
+          row.style.cursor = "default";
+          row.style.color = "var(--text-muted)";
+        }
+        container.appendChild(row);
+        if (item.items && item.items.length > 0) {
+          buildTree(item.items, depth + 1, container);
+        }
+      }
+    };
+    await buildTree(outline, 0, this._thumbnailPanel);
   }
   async _renderThumbnails() {
     if (Platform.isMobile)
