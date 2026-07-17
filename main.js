@@ -2697,7 +2697,7 @@ var PdfFullscreenView = class extends ItemView {
       this._applyZoom();
     };
     const zoomLabel = left.createEl("span");
-    zoomLabel.textContent = "\u9002\u5E94";
+    zoomLabel.textContent = "100%";
     zoomLabel.style.cssText = "font-size:12px;color:var(--text-muted);cursor:pointer;min-width:38px;text-align:center;user-select:none;";
     zoomLabel.onclick = () => {
       this._renderScaleLevel = 0;
@@ -3203,7 +3203,7 @@ var PdfFullscreenView = class extends ItemView {
     }
     const scrollW = this.scrollEl.clientWidth;
     const scrollH = this.scrollEl.clientHeight;
-    const zoomedIn = scaleLevel > 1;
+    const manualScale = scaleLevel > 0;
     this.scrollEl.style.cssText = `
       flex:1; min-height:0; overflow:auto;
       background:var(--background-secondary); padding:0;
@@ -3219,7 +3219,7 @@ var PdfFullscreenView = class extends ItemView {
       canvas.style.boxShadow = "0 1px 4px rgba(0,0,0,0.15)";
       canvas.dataset.pageNum = String(i);
       if (mode === "single") {
-        if (zoomedIn) {
+        if (manualScale) {
           this.scrollEl.style.overflowX = "auto";
           this.scrollEl.style.scrollSnapType = "none";
           wrap.style.cssText = `
@@ -3267,7 +3267,7 @@ var PdfFullscreenView = class extends ItemView {
         img.style.display = "block";
         img.style.boxShadow = "0 1px 4px rgba(0,0,0,0.15)";
         img.dataset.pageNum = String(i);
-        if (!zoomedIn) {
+        if (!manualScale) {
           this._sizeCanvas(img, scrollW, mode === "single" ? scrollH : Infinity);
         } else {
           img.style.width = viewport.width + "px";
@@ -3284,7 +3284,7 @@ var PdfFullscreenView = class extends ItemView {
   /** 用预渲染的 blob URL 显示（popout 模式，不依赖 GPU compositor） */
   _renderFromBlobs(blobs, mode, scaleLevel, zoomMode) {
     const totalPages = blobs.length;
-    const zoomedIn = scaleLevel > 1;
+    const manualScale = scaleLevel > 0;
     const fitWidth = zoomMode === "fit-width" || !zoomMode && scaleLevel <= 0;
     const fitHeight = zoomMode === "fit-height";
     const viewH = this.scrollEl.clientHeight || this.containerEl.clientHeight || 600;
@@ -3303,11 +3303,10 @@ var PdfFullscreenView = class extends ItemView {
       img.className = "cloud-attach-pdf-fullscreen-page";
       img.style.display = "block";
       img.style.boxShadow = "0 1px 4px rgba(0,0,0,0.15)";
-      if (zoomedIn) {
-        img.style.maxWidth = "none";
-        img.style.maxHeight = "none";
-        img.style.width = "auto";
+      if (manualScale) {
+        img.style.width = Math.round(viewW * scaleLevel) + "px";
         img.style.height = "auto";
+        img.style.maxWidth = "none";
       } else if (fitHeight) {
         img.style.maxWidth = "100%";
         img.style.maxHeight = "none";
@@ -3319,7 +3318,7 @@ var PdfFullscreenView = class extends ItemView {
         img.style.height = "auto";
       }
       if (mode === "single") {
-        if (zoomedIn) {
+        if (manualScale) {
           this.scrollEl.style.overflowX = "auto";
           this.scrollEl.style.scrollSnapType = "none";
           wrap.style.cssText = `
@@ -3351,7 +3350,7 @@ var PdfFullscreenView = class extends ItemView {
       } else {
         this.scrollEl.style.overflowX = "hidden";
         this.scrollEl.style.scrollSnapType = "none";
-        if (zoomedIn) {
+        if (manualScale) {
           this.scrollEl.style.overflowX = "auto";
           this.scrollEl.style.scrollSnapType = "none";
         }
@@ -3444,7 +3443,7 @@ var PdfFullscreenView = class extends ItemView {
     if (!this._zoomLabel)
       return;
     if (this._renderScaleLevel <= 0) {
-      this._zoomLabel.textContent = "\u9002\u5E94";
+      this._zoomLabel.textContent = "100%";
     } else {
       this._zoomLabel.textContent = Math.round(this._renderScaleLevel * 100) + "%";
     }

@@ -1,4 +1,4 @@
-## v0.4.457.dev - 2026-07-17
+## v0.4.458.dev - 2026-07-17
 
 - PdfFullscreenView 以 v0.4.377 为基线（手机端完整保留：懒加载、IntersectionObserver、_calcScale、_resizeAllCanvases、WebkitOverflowScrolling、目录disabled、双rAF）
 - 桌面端 blob popout：从 v0.4.424 提取 _renderFromBlobs（110行）、_buildThumbnailPanel（32行）、_sizeCanvas（14行）作为独立方法插入
