@@ -3484,6 +3484,7 @@ class PdfFullscreenView extends ItemView {
 
   /** 用预渲染的 blob URL 显示（popout 模式，不依赖 GPU compositor） */
   _renderFromBlobs(blobs, mode, scaleLevel, zoomMode) {
+    console.log('[CloudAttach] _renderFromBlobs scaleLevel=', scaleLevel, 'viewW=', this.scrollEl.clientWidth, 'containerW=', this.containerEl.clientWidth);
     const totalPages = blobs.length;
     const manualScale = scaleLevel > 0;
     const fitWidth = zoomMode === 'fit-width' || (!zoomMode && scaleLevel <= 0);
@@ -3630,6 +3631,7 @@ class PdfFullscreenView extends ItemView {
   }
 
   _reRender() {
+    console.log('[CloudAttach] _reRender _renderScaleLevel=', this._renderScaleLevel, '_pageBlobs=', !!this._pageBlobs);
     if (Platform.isMobile) return this._reRenderMobile();
     if (!this._pdf && !this._pageBlobs) return;
     const savedPage = this._currentPage || 1;
