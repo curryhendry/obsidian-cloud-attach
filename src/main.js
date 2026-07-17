@@ -2845,30 +2845,40 @@ class PdfFullscreenView extends ItemView {
       this._toggleThumbnailPanel();
     };
 
-    // 缩放按钮组：缩小、放大、下拉菜单
+    // 缩放按钮组：缩小、百分比、放大
     this._viewMode = 'continuous'; // 'continuous' | 'single'
     this._zoomMode = 'fit-width'; // 'fit-width' | 'fit-height'
-    this._zoomLevel = 0; // 0=自动（跟随 _zoomMode），>0=固定缩放倍数
     
     // 缩小按钮
     const zoomOutBtn = left.createEl('button');
     zoomOutBtn.className = 'clickable-icon';
     zoomOutBtn.setAttribute('aria-label', '缩小');
     zoomOutBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
-    // 缩放级别：0=自动, 1.5=150%, 2=200%, 3=300%, 4=400%, 5=500%
     this._renderScaleLevel = 0;
 
     zoomOutBtn.onclick = () => {
-      new Notice('缩放功能开发中');
+      if (this._renderScaleLevel <= 0) this._renderScaleLevel = 1; // 首次从自动切到 100%
+      this._renderScaleLevel = Math.max(0.25, this._renderScaleLevel - 0.25);
+      this._updateZoomLabel();
+      this._applyZoom();
     };
 
-    // 放大按钮
-    const zoomInBtn = left.createEl('button');
-    zoomInBtn.className = 'clickable-icon';
-    zoomInBtn.setAttribute('aria-label', '放大');
-    zoomInBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
+    // 百分比标签（点击重置为适应宽度）
+    const zoomLabel = left.createEl('span');
+    zoomLabel.style.cssText = 'font-size:12px;color:var(--text-muted);cursor:pointer;min-width:38px;text-align:center;user-select:none;';
+    zoomLabel.textContent = '适应';
+    zoomLabel.onclick = () => {
+      this._renderScaleLevel = 0;
+      this._updateZoomLabel();
+      this._applyZoom();
+    };
+    this._zoomLabel = zoomLabel;
+
     zoomInBtn.onclick = () => {
-      new Notice('缩放功能开发中');
+      if (this._renderScaleLevel <= 0) this._renderScaleLevel = 1;
+      this._renderScaleLevel = Math.min(5, this._renderScaleLevel + 0.25);
+      this._updateZoomLabel();
+      this._applyZoom();
     };
 
     // 下拉菜单按钮
@@ -3183,6 +3193,42 @@ class PdfFullscreenView extends ItemView {
     if (this._onPointerDown) this.scrollEl.removeEventListener('pointerdown', this._onPointerDown);
     this._onPointerDown = () => this.scrollEl.focus();
     this.scrollEl.addEventListener('pointerdown', this._onPointerDown);
+
+    // 桌面端 Ctrl+滚轮 无级缩放
+    if (this._onCtrlWheel) this.scrollEl.removeEventListener('wheel', this._onCtrlWheel);
+    this._onCtrlWheel = (e) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault(); e.stopPropagation();
+      if (this._renderScaleLevel <= 0) this._renderScaleLevel = 1;
+      this._renderScaleLevel = Math.max(0.25, Math.min(5, this._renderScaleLevel - e.deltaY * 0.002));
+      this._updateZoomLabel();
+      this._applyZoom();
+    };
+    this.scrollEl.addEventListener('wheel', this._onCtrlWheel, { passive: false });
+
+    // 移动端双指捏合缩放
+    if (this._onTouchStart) this.scrollEl.removeEventListener('touchstart', this._onTouchStart);
+    let pinchStartDist = 0, pinchStartLevel = 0;
+    this._onTouchStart = (e) => {
+      if (e.touches.length !== 2) return;
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      pinchStartDist = Math.hypot(dx, dy);
+      pinchStartLevel = this._renderScaleLevel <= 0 ? 1 : this._renderScaleLevel;
+    };
+    this.scrollEl.addEventListener('touchstart', this._onTouchStart, { passive: true });
+    if (this._onTouchMove) this.scrollEl.removeEventListener('touchmove', this._onTouchMove);
+    this._onTouchMove = (e) => {
+      if (e.touches.length !== 2 || pinchStartDist <= 0) return;
+      e.preventDefault();
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.hypot(dx, dy);
+      this._renderScaleLevel = Math.max(0.25, Math.min(5, pinchStartLevel * dist / pinchStartDist));
+      this._updateZoomLabel();
+      this._applyZoom();
+    };
+    this.scrollEl.addEventListener('touchmove', this._onTouchMove, { passive: false });
 
     // 滚轮：单页 scroll-snap 由浏览器原生处理，不需要手动拦截
     if (this._onWheel) {
@@ -3618,6 +3664,15 @@ class PdfFullscreenView extends ItemView {
       // fit-width：按容器宽度等比缩放
       c.style.width = maxW + 'px';
       c.style.height = 'auto';
+    }
+  }
+
+  _updateZoomLabel() {
+    if (!this._zoomLabel) return;
+    if (this._renderScaleLevel <= 0) {
+      this._zoomLabel.textContent = '适应';
+    } else {
+      this._zoomLabel.textContent = Math.round(this._renderScaleLevel * 100) + '%';
     }
   }
 

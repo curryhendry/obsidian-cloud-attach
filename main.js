@@ -2684,21 +2684,33 @@ var PdfFullscreenView = class extends ItemView {
     };
     this._viewMode = "continuous";
     this._zoomMode = "fit-width";
-    this._zoomLevel = 0;
     const zoomOutBtn = left.createEl("button");
     zoomOutBtn.className = "clickable-icon";
     zoomOutBtn.setAttribute("aria-label", "\u7F29\u5C0F");
     zoomOutBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
     this._renderScaleLevel = 0;
     zoomOutBtn.onclick = () => {
-      new Notice("\u7F29\u653E\u529F\u80FD\u5F00\u53D1\u4E2D");
+      if (this._renderScaleLevel <= 0)
+        this._renderScaleLevel = 1;
+      this._renderScaleLevel = Math.max(0.25, this._renderScaleLevel - 0.25);
+      this._updateZoomLabel();
+      this._applyZoom();
     };
-    const zoomInBtn = left.createEl("button");
-    zoomInBtn.className = "clickable-icon";
-    zoomInBtn.setAttribute("aria-label", "\u653E\u5927");
-    zoomInBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
+    const zoomLabel = left.createEl("span");
+    zoomLabel.style.cssText = "font-size:12px;color:var(--text-muted);cursor:pointer;min-width:38px;text-align:center;user-select:none;";
+    zoomLabel.textContent = "\u9002\u5E94";
+    zoomLabel.onclick = () => {
+      this._renderScaleLevel = 0;
+      this._updateZoomLabel();
+      this._applyZoom();
+    };
+    this._zoomLabel = zoomLabel;
     zoomInBtn.onclick = () => {
-      new Notice("\u7F29\u653E\u529F\u80FD\u5F00\u53D1\u4E2D");
+      if (this._renderScaleLevel <= 0)
+        this._renderScaleLevel = 1;
+      this._renderScaleLevel = Math.min(5, this._renderScaleLevel + 0.25);
+      this._updateZoomLabel();
+      this._applyZoom();
     };
     const viewMenuBtn = left.createEl("button");
     viewMenuBtn.className = "clickable-icon";
@@ -2978,6 +2990,46 @@ var PdfFullscreenView = class extends ItemView {
       this.scrollEl.removeEventListener("pointerdown", this._onPointerDown);
     this._onPointerDown = () => this.scrollEl.focus();
     this.scrollEl.addEventListener("pointerdown", this._onPointerDown);
+    if (this._onCtrlWheel)
+      this.scrollEl.removeEventListener("wheel", this._onCtrlWheel);
+    this._onCtrlWheel = (e) => {
+      if (!e.ctrlKey && !e.metaKey)
+        return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (this._renderScaleLevel <= 0)
+        this._renderScaleLevel = 1;
+      this._renderScaleLevel = Math.max(0.25, Math.min(5, this._renderScaleLevel - e.deltaY * 2e-3));
+      this._updateZoomLabel();
+      this._applyZoom();
+    };
+    this.scrollEl.addEventListener("wheel", this._onCtrlWheel, { passive: false });
+    if (this._onTouchStart)
+      this.scrollEl.removeEventListener("touchstart", this._onTouchStart);
+    let pinchStartDist = 0, pinchStartLevel = 0;
+    this._onTouchStart = (e) => {
+      if (e.touches.length !== 2)
+        return;
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      pinchStartDist = Math.hypot(dx, dy);
+      pinchStartLevel = this._renderScaleLevel <= 0 ? 1 : this._renderScaleLevel;
+    };
+    this.scrollEl.addEventListener("touchstart", this._onTouchStart, { passive: true });
+    if (this._onTouchMove)
+      this.scrollEl.removeEventListener("touchmove", this._onTouchMove);
+    this._onTouchMove = (e) => {
+      if (e.touches.length !== 2 || pinchStartDist <= 0)
+        return;
+      e.preventDefault();
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.hypot(dx, dy);
+      this._renderScaleLevel = Math.max(0.25, Math.min(5, pinchStartLevel * dist / pinchStartDist));
+      this._updateZoomLabel();
+      this._applyZoom();
+    };
+    this.scrollEl.addEventListener("touchmove", this._onTouchMove, { passive: false });
     if (this._onWheel) {
       this._contentWrap.removeEventListener("wheel", this._onWheel);
       this._onWheel = null;
@@ -3390,6 +3442,15 @@ var PdfFullscreenView = class extends ItemView {
     } else {
       c.style.width = maxW + "px";
       c.style.height = "auto";
+    }
+  }
+  _updateZoomLabel() {
+    if (!this._zoomLabel)
+      return;
+    if (this._renderScaleLevel <= 0) {
+      this._zoomLabel.textContent = "\u9002\u5E94";
+    } else {
+      this._zoomLabel.textContent = Math.round(this._renderScaleLevel * 100) + "%";
     }
   }
   _applyZoom() {
