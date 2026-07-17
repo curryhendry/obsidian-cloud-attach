@@ -2685,49 +2685,18 @@ var PdfFullscreenView = class extends ItemView {
     this._viewMode = "continuous";
     this._zoomMode = "fit-width";
     this._renderScaleLevel = 0;
-    const zoomOutBtn = left.createEl("button");
-    zoomOutBtn.className = "clickable-icon";
-    zoomOutBtn.setAttribute("aria-label", "\u7F29\u5C0F");
-    zoomOutBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
-    zoomOutBtn.onclick = () => {
-      if (this._renderScaleLevel <= 0)
-        this._renderScaleLevel = 1;
-      this._renderScaleLevel = Math.max(0.25, this._renderScaleLevel - 0.1);
-      this._updateZoomLabel();
-      this._applyZoom();
-    };
-    const zoomLabel = left.createEl("span");
-    zoomLabel.textContent = "100%";
-    zoomLabel.style.cssText = "font-size:12px;color:var(--text-muted);cursor:pointer;min-width:38px;text-align:center;user-select:none;";
-    zoomLabel.onclick = () => {
-      this._renderScaleLevel = 0;
-      this._updateZoomLabel();
-      this._applyZoom();
-    };
-    this._zoomLabel = zoomLabel;
-    const zoomInBtn = left.createEl("button");
-    zoomInBtn.className = "clickable-icon";
-    zoomInBtn.setAttribute("aria-label", "\u653E\u5927");
-    zoomInBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
-    zoomInBtn.onclick = () => {
-      if (this._renderScaleLevel <= 0)
-        this._renderScaleLevel = 1;
-      this._renderScaleLevel = Math.min(3, this._renderScaleLevel + 0.1);
-      this._updateZoomLabel();
-      this._applyZoom();
-    };
-    const viewMenuBtn = left.createEl("button");
-    viewMenuBtn.className = "clickable-icon";
-    viewMenuBtn.style.padding = "2px";
-    viewMenuBtn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
-    viewMenuBtn.onclick = (e) => {
+    const viewBtn = left.createEl("button");
+    viewBtn.className = "clickable-icon";
+    viewBtn.setAttribute("aria-label", "\u89C6\u56FE");
+    viewBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="18" rx="2"></rect><line x1="2" y1="9" x2="22" y2="9"></line></svg>';
+    viewBtn.onclick = (e) => {
       const menu = new Menu();
       const zoomOpts = { "fit-width": "\u9002\u5E94\u5BBD\u5EA6", "fit-height": "\u9002\u5E94\u9AD8\u5EA6" };
       Object.entries(zoomOpts).forEach(([val, label]) => {
-        menu.addItem((item) => item.setTitle((this._zoomMode === val && this._renderScaleLevel <= 0 ? "\u2713 " : "") + label).onClick(() => {
+        menu.addItem((item) => item.setTitle((this._zoomMode === val ? "\u2713 " : "") + label).onClick(() => {
           this._zoomMode = val;
           this._renderScaleLevel = 0;
-          this._applyZoom();
+          this._reRender();
         }));
       });
       menu.addSeparator();
@@ -2994,42 +2963,10 @@ var PdfFullscreenView = class extends ItemView {
       this.scrollEl.removeEventListener("pointerdown", this._onPointerDown);
     this._onPointerDown = () => this.scrollEl.focus();
     this.scrollEl.addEventListener("pointerdown", this._onPointerDown);
-    if (this._onCtrlWheel)
-      this.scrollEl.removeEventListener("wheel", this._onCtrlWheel);
-    this._onCtrlWheel = (e) => {
-      if (!e.ctrlKey && !e.metaKey)
-        return;
-      e.preventDefault();
-      e.stopPropagation();
-      if (this._renderScaleLevel <= 0)
-        this._renderScaleLevel = 1;
-      this._renderScaleLevel = Math.max(0.25, Math.min(3, this._renderScaleLevel - e.deltaY * 2e-3));
-      this._updateZoomLabel();
-      this._applyZoom();
-    };
-    this.scrollEl.addEventListener("wheel", this._onCtrlWheel, { passive: false });
-    if (this._onTouchStart)
-      this.scrollEl.removeEventListener("touchstart", this._onTouchStart);
-    let pinchStartDist = 0, pinchStartLevel = 0;
-    this._onTouchStart = (e) => {
-      if (e.touches.length !== 2)
-        return;
-      pinchStartDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-      pinchStartLevel = this._renderScaleLevel <= 0 ? 1 : this._renderScaleLevel;
-    };
-    this.scrollEl.addEventListener("touchstart", this._onTouchStart, { passive: true });
-    if (this._onTouchMove)
-      this.scrollEl.removeEventListener("touchmove", this._onTouchMove);
-    this._onTouchMove = (e) => {
-      if (e.touches.length !== 2 || pinchStartDist <= 0)
-        return;
-      e.preventDefault();
-      const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-      this._renderScaleLevel = Math.max(0.25, Math.min(3, pinchStartLevel * dist / pinchStartDist));
-      this._updateZoomLabel();
-      this._applyZoom();
-    };
-    this.scrollEl.addEventListener("touchmove", this._onTouchMove, { passive: false });
+    if (this._onWheel) {
+      this._contentWrap.removeEventListener("wheel", this._onWheel);
+      this._onWheel = null;
+    }
     this.scrollEl.onkeydown = (e) => {
       if (e.key === "ArrowUp" || e.key === "ArrowDown") {
         e.preventDefault();
@@ -3203,7 +3140,7 @@ var PdfFullscreenView = class extends ItemView {
     }
     const scrollW = this.scrollEl.clientWidth;
     const scrollH = this.scrollEl.clientHeight;
-    const manualScale = scaleLevel > 0;
+    const zoomedIn = scaleLevel > 1;
     this.scrollEl.style.cssText = `
       flex:1; min-height:0; overflow:auto;
       background:var(--background-secondary); padding:0;
@@ -3219,7 +3156,7 @@ var PdfFullscreenView = class extends ItemView {
       canvas.style.boxShadow = "0 1px 4px rgba(0,0,0,0.15)";
       canvas.dataset.pageNum = String(i);
       if (mode === "single") {
-        if (manualScale) {
+        if (zoomedIn) {
           this.scrollEl.style.overflowX = "auto";
           this.scrollEl.style.scrollSnapType = "none";
           wrap.style.cssText = `
@@ -3267,7 +3204,7 @@ var PdfFullscreenView = class extends ItemView {
         img.style.display = "block";
         img.style.boxShadow = "0 1px 4px rgba(0,0,0,0.15)";
         img.dataset.pageNum = String(i);
-        if (!manualScale) {
+        if (!zoomedIn) {
           this._sizeCanvas(img, scrollW, mode === "single" ? scrollH : Infinity);
         } else {
           img.style.width = viewport.width + "px";
@@ -3283,9 +3220,8 @@ var PdfFullscreenView = class extends ItemView {
   }
   /** 用预渲染的 blob URL 显示（popout 模式，不依赖 GPU compositor） */
   _renderFromBlobs(blobs, mode, scaleLevel, zoomMode) {
-    console.log("[CloudAttach] _renderFromBlobs scaleLevel=", scaleLevel, "viewW=", this.scrollEl.clientWidth, "containerW=", this.containerEl.clientWidth);
     const totalPages = blobs.length;
-    const manualScale = scaleLevel > 0;
+    const zoomedIn = scaleLevel > 1;
     const fitWidth = zoomMode === "fit-width" || !zoomMode && scaleLevel <= 0;
     const fitHeight = zoomMode === "fit-height";
     const viewH = this.scrollEl.clientHeight || this.containerEl.clientHeight || 600;
@@ -3304,10 +3240,11 @@ var PdfFullscreenView = class extends ItemView {
       img.className = "cloud-attach-pdf-fullscreen-page";
       img.style.display = "block";
       img.style.boxShadow = "0 1px 4px rgba(0,0,0,0.15)";
-      if (manualScale) {
-        img.style.width = Math.round(viewW * scaleLevel) + "px";
-        img.style.height = "auto";
+      if (zoomedIn) {
         img.style.maxWidth = "none";
+        img.style.maxHeight = "none";
+        img.style.width = "auto";
+        img.style.height = "auto";
       } else if (fitHeight) {
         img.style.maxWidth = "100%";
         img.style.maxHeight = "none";
@@ -3319,7 +3256,7 @@ var PdfFullscreenView = class extends ItemView {
         img.style.height = "auto";
       }
       if (mode === "single") {
-        if (manualScale) {
+        if (zoomedIn) {
           this.scrollEl.style.overflowX = "auto";
           this.scrollEl.style.scrollSnapType = "none";
           wrap.style.cssText = `
@@ -3351,7 +3288,7 @@ var PdfFullscreenView = class extends ItemView {
       } else {
         this.scrollEl.style.overflowX = "hidden";
         this.scrollEl.style.scrollSnapType = "none";
-        if (manualScale) {
+        if (zoomedIn) {
           this.scrollEl.style.overflowX = "auto";
           this.scrollEl.style.scrollSnapType = "none";
         }
@@ -3416,7 +3353,6 @@ var PdfFullscreenView = class extends ItemView {
     }
   }
   _reRender() {
-    console.log("[CloudAttach] _reRender _renderScaleLevel=", this._renderScaleLevel, "_pageBlobs=", !!this._pageBlobs);
     if (Platform.isMobile)
       return this._reRenderMobile();
     if (!this._pdf && !this._pageBlobs)
@@ -3439,15 +3375,6 @@ var PdfFullscreenView = class extends ItemView {
     } else {
       c.style.width = maxW + "px";
       c.style.height = "auto";
-    }
-  }
-  _updateZoomLabel() {
-    if (!this._zoomLabel)
-      return;
-    if (this._renderScaleLevel <= 0) {
-      this._zoomLabel.textContent = "100%";
-    } else {
-      this._zoomLabel.textContent = Math.round(this._renderScaleLevel * 100) + "%";
     }
   }
   _applyZoom() {
