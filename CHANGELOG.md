@@ -1,3 +1,7 @@
+## v0.4.464.dev - 2026-07-26
+
+- 翻页时缩略图面板自动平滑滚动跟随当前页码（桌面端 + 手机端）
+
 ## v0.5.001.dev - 2026-07-17
 
 - PdfFullscreenView 以 v0.4.377 为基线（手机端完整保留：懒加载、IntersectionObserver、_calcScale、_resizeAllCanvases、WebkitOverflowScrolling、目录disabled、双rAF）

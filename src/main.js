@@ -3249,7 +3249,9 @@ class PdfFullscreenView extends ItemView {
   _highlightThumbnailMobile(pageNum) {
     if (!this._thumbnailPanel) return;
     this._thumbnailPanel.querySelectorAll('div[data-page-num]').forEach(d => {
-      d.style.borderColor = parseInt(d.dataset.pageNum, 10) === pageNum ? 'var(--interactive-accent)' : 'transparent';
+      const active = parseInt(d.dataset.pageNum, 10) === pageNum;
+      d.style.borderColor = active ? 'var(--interactive-accent)' : 'transparent';
+      if (active) d.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
   }
 
@@ -3763,7 +3765,9 @@ class PdfFullscreenView extends ItemView {
   _highlightThumbnail(pageNum) {
     if (!this._thumbnailPanel) return;
     this._thumbnailPanel.querySelectorAll('div[data-page-num]').forEach(d => {
-      d.style.borderColor = parseInt(d.dataset.pageNum, 10) === pageNum ? 'var(--interactive-accent)' : 'transparent';
+      const active = parseInt(d.dataset.pageNum, 10) === pageNum;
+      d.style.borderColor = active ? 'var(--interactive-accent)' : 'transparent';
+      if (active) d.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
   }
 }
