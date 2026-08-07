@@ -830,7 +830,7 @@ class OpenListClient {
     
     try {
       // 直接使用 remotePath（不再次解码），保持与服务器路径一致
-      console.log('[CloudAttach] getSignedUrl calling API:', apiUrl, 'path:', remotePath, 'prefix:', preferredPrefix);
+      console.log('[CloudAttach] getSignedUrl calling API:', apiUrl, 'path:', remotePath, 'virtualPath:', virtualPath, 'prefix:', preferredPrefix);
       
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -6132,6 +6132,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
       return;
     }
     console.log('[CloudAttach] 找到 URL:', url.substring(0, 80), 'type:', urlType);
+    if (!url.includes('?sign=') && !url.includes('&sign=')) {
+      // 无 sign 参数的不是签名 URL，跳过
+      return;
+    }
     new Notice(t('notice.check_url', {url: url.substring(0, 50)}), 3000);
     const match = this.matchAccount(url);
     if (!match) {

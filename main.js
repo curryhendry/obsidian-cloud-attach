@@ -767,7 +767,7 @@ var OpenListClient = class {
       headers["Authorization"] = this.token;
     }
     try {
-      console.log("[CloudAttach] getSignedUrl calling API:", apiUrl, "path:", remotePath, "prefix:", preferredPrefix);
+      console.log("[CloudAttach] getSignedUrl calling API:", apiUrl, "path:", remotePath, "virtualPath:", virtualPath, "prefix:", preferredPrefix);
       const response = await fetch(apiUrl, {
         method: "POST",
         headers,
@@ -5824,6 +5824,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
       return;
     }
     console.log("[CloudAttach] \u627E\u5230 URL:", url.substring(0, 80), "type:", urlType);
+    if (!url.includes("?sign=") && !url.includes("&sign=")) {
+      return;
+    }
     new Notice(t("notice.check_url", { url: url.substring(0, 50) }), 3e3);
     const match = this.matchAccount(url);
     if (!match) {
