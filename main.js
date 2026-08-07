@@ -2496,7 +2496,7 @@ var CloudAttachView = class extends ItemView {
     }
     if (imageExts.includes(ext)) {
       const w = width ? `|${width}` : "";
-      return `![${nameWithoutExt}${w}](${url})`;
+      return `![${file.name}${w}](${url})`;
     } else if (videoExts.includes(ext)) {
       return `<video controls width="600" height="400">
  <source src="${url}" type="video/mp4">
@@ -2508,7 +2508,7 @@ var CloudAttachView = class extends ItemView {
     } else if (docExts.includes(ext)) {
       if (ext === "pdf" && this.plugin.settings.pdfPreview === "pdfjs") {
         const w = width ? `|${width}` : "";
-        return `![${nameWithoutExt}${w}](${url})`;
+        return `![${file.name}${w}](${url})`;
       }
       return `<iframe src="${url}" width="100%" height="800px"></iframe>`;
     } else {

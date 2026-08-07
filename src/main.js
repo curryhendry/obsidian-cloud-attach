@@ -2661,7 +2661,7 @@ class CloudAttachView extends ItemView {
     }
     if (imageExts.includes(ext)) {
       const w = width ? `|${width}` : '';
-      return `![${nameWithoutExt}${w}](${url})`;
+      return `![${file.name}${w}](${url})`;
     } else if (videoExts.includes(ext)) {
       return `<video controls width="600" height="400">\n <source src="${url}" type="video/mp4">\n</video>`;
     } else if (audioExts.includes(ext)) {
@@ -2670,7 +2670,7 @@ class CloudAttachView extends ItemView {
       // PDF 文件：若启用 PDF.js 预览则用 ![]() 语法（MutationObserver 会拦截替换为 canvas）
       if (ext === 'pdf' && this.plugin.settings.pdfPreview === 'pdfjs') {
         const w = width ? `|${width}` : '';
-        return `![${nameWithoutExt}${w}](${url})`;
+        return `![${file.name}${w}](${url})`;
       }
       return `<iframe src="${url}" width="100%" height="800px"></iframe>`;
     } else {
