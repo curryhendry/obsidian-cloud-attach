@@ -752,7 +752,11 @@ var OpenListClient = class {
       const davPrefix = "/dav";
       if (this.webdavPath.startsWith(davPrefix)) {
         const pathSuffix = this.webdavPath.slice(davPrefix.length);
-        virtualPath = pathSuffix + (remotePath.startsWith("/") ? remotePath : "/" + remotePath);
+        if (remotePath.startsWith(pathSuffix + "/") || remotePath === pathSuffix) {
+          virtualPath = remotePath;
+        } else {
+          virtualPath = pathSuffix + (remotePath.startsWith("/") ? remotePath : "/" + remotePath);
+        }
       }
     }
     const apiUrl = `${this.serverUrl}/api/fs/get`;

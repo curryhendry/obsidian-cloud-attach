@@ -807,8 +807,13 @@ class OpenListClient {
     if (this.webdavPath && this.webdavPath !== '/dav') {
       const davPrefix = '/dav';
       if (this.webdavPath.startsWith(davPrefix)) {
-        const pathSuffix = this.webdavPath.slice(davPrefix.length); // e.g. /Local/test
-        virtualPath = pathSuffix + (remotePath.startsWith('/') ? remotePath : '/' + remotePath);
+        const pathSuffix = this.webdavPath.slice(davPrefix.length); // e.g. /Local/share
+        // 防止 remotePath 已含前缀时重复拼接（如 refresh sign 时 extractRealPath 提取的路径）
+        if (remotePath.startsWith(pathSuffix + '/') || remotePath === pathSuffix) {
+          virtualPath = remotePath;
+        } else {
+          virtualPath = pathSuffix + (remotePath.startsWith('/') ? remotePath : '/' + remotePath);
+        }
       }
     }
     const apiUrl = `${this.serverUrl}/api/fs/get`;
