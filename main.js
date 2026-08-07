@@ -752,11 +752,7 @@ var OpenListClient = class {
       const davPrefix = "/dav";
       if (this.webdavPath.startsWith(davPrefix)) {
         const pathSuffix = this.webdavPath.slice(davPrefix.length);
-        if (remotePath.startsWith(pathSuffix + "/") || remotePath === pathSuffix) {
-          virtualPath = remotePath;
-        } else {
-          virtualPath = pathSuffix + (remotePath.startsWith("/") ? remotePath : "/" + remotePath);
-        }
+        virtualPath = pathSuffix + (remotePath.startsWith("/") ? remotePath : "/" + remotePath);
       }
     }
     const apiUrl = `${this.serverUrl}/api/fs/get`;
@@ -850,7 +846,17 @@ var OpenListClient = class {
         return null;
       let pathSegment = match[1];
       pathSegment = pathSegment.split("?")[0].split("&")[0];
-      return "/" + pathSegment;
+      let result = "/" + pathSegment;
+      if (this.webdavPath && this.webdavPath !== "/dav") {
+        const davPrefix = "/dav";
+        if (this.webdavPath.startsWith(davPrefix)) {
+          const pathSuffix = this.webdavPath.slice(davPrefix.length);
+          if (result.startsWith(pathSuffix + "/") || result === pathSuffix) {
+            result = result.slice(pathSuffix.length) || "/";
+          }
+        }
+      }
+      return result;
     } catch {
       return null;
     }

@@ -807,13 +807,8 @@ class OpenListClient {
     if (this.webdavPath && this.webdavPath !== '/dav') {
       const davPrefix = '/dav';
       if (this.webdavPath.startsWith(davPrefix)) {
-        const pathSuffix = this.webdavPath.slice(davPrefix.length); // e.g. /Local/share
-        // 防止 remotePath 已含前缀时重复拼接（如 refresh sign 时 extractRealPath 提取的路径）
-        if (remotePath.startsWith(pathSuffix + '/') || remotePath === pathSuffix) {
-          virtualPath = remotePath;
-        } else {
-          virtualPath = pathSuffix + (remotePath.startsWith('/') ? remotePath : '/' + remotePath);
-        }
+        const pathSuffix = this.webdavPath.slice(davPrefix.length); // e.g. /Local/test
+        virtualPath = pathSuffix + (remotePath.startsWith('/') ? remotePath : '/' + remotePath);
       }
     }
     const apiUrl = `${this.serverUrl}/api/fs/get`;
@@ -932,8 +927,19 @@ class OpenListClient {
       let pathSegment = match[1];
       // 去掉 sign 参数（如果有）
       pathSegment = pathSegment.split('?')[0].split('&')[0];
-      
-      return '/' + pathSegment;
+
+      let result = '/' + pathSegment;
+      // 去掉 webdavPath 对应的前缀（如 /Local/share），让 getSignedUrl 自己拼回
+      if (this.webdavPath && this.webdavPath !== '/dav') {
+        const davPrefix = '/dav';
+        if (this.webdavPath.startsWith(davPrefix)) {
+          const pathSuffix = this.webdavPath.slice(davPrefix.length);
+          if (result.startsWith(pathSuffix + '/') || result === pathSuffix) {
+            result = result.slice(pathSuffix.length) || '/';
+          }
+        }
+      }
+      return result;
     } catch {
       return null;
     }
