@@ -12,8 +12,7 @@ var I18n = {
     en: {}
   },
   setLang(lang) {
-    if (!lang)
-      lang = "zh";
+    if (!lang) lang = "zh";
     const normalized = lang.toLowerCase().split("-")[0];
     this.currentLang = normalized in this.translations ? normalized : "zh";
   },
@@ -530,7 +529,7 @@ function t(key, params = {}) {
   return str;
 }
 var OpenListClient = class {
-  constructor(account, app2) {
+  constructor(account, app2, opts = {}) {
     this.serverUrl = account.url.replace(/\/$/, "");
     this.baseUrl = this.serverUrl;
     this.webdavPath = (account.webdavPath || "").replace(/\/$/, "");
@@ -539,6 +538,7 @@ var OpenListClient = class {
     this.password = account.password;
     this.publicUrl = account.publicUrl?.replace(/\/$/, "") || "";
     this.app = app2;
+    this.renameWithTimestamp = !!opts.renameWithTimestamp;
   }
   /**
    * 对 URL 路径部分做安全解码：把 %XX 编码的中文还原为原文，但保留空格等必须编码的字符。
@@ -554,8 +554,7 @@ var OpenListClient = class {
       let decoded = path;
       for (let i = 0; i < 5; i++) {
         const next = decodeURIComponent(decoded);
-        if (next === decoded)
-          break;
+        if (next === decoded) break;
         decoded = next;
       }
       const safePath = decoded.replace(/[\s#?&<>"'\\|{}]/g, (c) => encodeURIComponent(c));
@@ -569,10 +568,8 @@ var OpenListClient = class {
    * @returns {Promise<boolean>}
    */
   async login() {
-    if (this.token)
-      return true;
-    if (!this.username || !this.password)
-      return false;
+    if (this.token) return true;
+    if (!this.username || !this.password) return false;
     try {
       const url = `${this.serverUrl}/api/auth/login`;
       const response = await this.requestViaObsidian(url, {
@@ -699,8 +696,7 @@ var OpenListClient = class {
     }
     try {
       const resp = await fetch(url);
-      if (!resp.ok)
-        return null;
+      if (!resp.ok) return null;
       const buf = await resp.arrayBuffer();
       return new Uint8Array(buf);
     } catch (e) {
@@ -790,8 +786,7 @@ var OpenListClient = class {
     if (this.publicUrl) {
       let base = this.publicUrl;
       const proto2 = base.match(/^https?:/) ? "" : this.serverUrl.match(/^https?:/)?.[0] || "http:";
-      if (!base.startsWith("http"))
-        base = `${proto2}//${base}`;
+      if (!base.startsWith("http")) base = `${proto2}//${base}`;
       base = base.replace(/\/+$/, "");
       let path = remotePath;
       const decodedWebdavPath = decodeURIComponent(this.webdavPath || "");
@@ -822,8 +817,7 @@ var OpenListClient = class {
     if (this.publicUrl) {
       let base = this.publicUrl;
       const proto2 = base.match(/^https?:/) ? "" : this.serverUrl.match(/^https?:/)?.[0] || "http:";
-      if (!base.startsWith("http"))
-        base = `${proto2}//${base}`;
+      if (!base.startsWith("http")) base = `${proto2}//${base}`;
       base = base.replace(/\/+$/, "");
       return `${base}${virtualPath}`;
     }
@@ -842,8 +836,7 @@ var OpenListClient = class {
   extractRealPath(url) {
     try {
       const match = url.match(/^https?:\/\/[^\/]+\/\w+\/(.+?)(?:\?|$)/);
-      if (!match)
-        return null;
+      if (!match) return null;
       let pathSegment = match[1];
       pathSegment = pathSegment.split("?")[0].split("&")[0];
       let result = "/" + pathSegment;
@@ -881,8 +874,7 @@ var OpenListClient = class {
   findAndReplaceUrl(text, realPath, newUrl) {
     const urlRegex = /https?:\/\/[^\s()"']+/g;
     const matches = text.match(urlRegex);
-    if (!matches)
-      return text;
+    if (!matches) return text;
     const newUrlClean = newUrl.split("?")[0];
     const newUrlPath = newUrlClean.replace(/^https?:\/\/[^\/]+/, "");
     const newUrlDecoded = decodeURIComponent(newUrlPath);
@@ -913,8 +905,7 @@ var OpenListClient = class {
    * @returns {string} 解码后的 URL
    */
   static safeDecodeUrl(url) {
-    if (!url || typeof url !== "string")
-      return url || "";
+    if (!url || typeof url !== "string") return url || "";
     try {
       return decodeURIComponent(url);
     } catch {
@@ -957,8 +948,7 @@ var OpenListClient = class {
             "Depth": "0"
           }
         });
-        if (response2.ok || response2.status === 207)
-          return true;
+        if (response2.ok || response2.status === 207) return true;
       }
       const apiUrl = `${this.serverUrl}/api/fs/list`;
       const response = await fetch(apiUrl, {
@@ -1087,8 +1077,7 @@ var OpenListClient = class {
     }
   }
   async listDirectory(remotePath = "/") {
-    if (this.webdavPath)
-      return this.listDirectoryWebDAV(remotePath);
+    if (this.webdavPath) return this.listDirectoryWebDAV(remotePath);
     return this.listDirectoryAPI(remotePath);
   }
   /**
@@ -1103,7 +1092,16 @@ var OpenListClient = class {
       if (!file) {
         return { ok: false, error: t("error.local_file_not_found") };
       }
-      const fileName = file.name;
+      let fileName = file.name;
+      if (this.renameWithTimestamp) {
+        const dotIdx = fileName.lastIndexOf(".");
+        const base = dotIdx > 0 ? fileName.substring(0, dotIdx) : fileName;
+        const ext = dotIdx > 0 ? fileName.substring(dotIdx) : "";
+        const pad = (n) => String(n).padStart(2, "0");
+        const d = /* @__PURE__ */ new Date();
+        const ts = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+        fileName = `${base}_${ts}${ext}`;
+      }
       const normalizedDir = remoteDir.endsWith("/") ? remoteDir : remoteDir + "/";
       const remotePath = normalizedDir + fileName;
       let content;
@@ -1171,8 +1169,7 @@ var OpenListClient = class {
       },
       body: propfindBody
     });
-    if (!response.ok && response.status !== 207)
-      throw new Error(`WebDAV error: ${response.status}`);
+    if (!response.ok && response.status !== 207) throw new Error(`WebDAV error: ${response.status}`);
     let text = response.text;
     if (!text) {
       console.log("[CloudAttach] WebDAV 207 response text is empty, retrying with fetch");
@@ -1206,17 +1203,14 @@ var OpenListClient = class {
     if (responses.length === 0) {
       const allElements = doc.getElementsByTagName("*");
       const tagNames = [];
-      for (let i = 0; i < Math.min(allElements.length, 20); i++)
-        tagNames.push(allElements[i].tagName);
+      for (let i = 0; i < Math.min(allElements.length, 20); i++) tagNames.push(allElements[i].tagName);
       console.log("[CloudAttach] XML elements found (sample):", tagNames.join(", "));
     }
     function getTag(el, prefix, localName) {
       const ns = el.getElementsByTagNameNS("DAV:", localName);
-      if (ns.length > 0)
-        return ns[0];
+      if (ns.length > 0) return ns[0];
       const upper = el.getElementsByTagName(prefix + ":" + localName);
-      if (upper.length > 0)
-        return upper[0];
+      if (upper.length > 0) return upper[0];
       const lower = el.getElementsByTagName(prefix.toLowerCase() + ":" + localName);
       return lower[0] || null;
     }
@@ -1251,18 +1245,15 @@ var OpenListClient = class {
       if (relativePath.startsWith(decodedWebdavPath)) {
         relativePath = relativePath.slice(decodedWebdavPath.length) || "/";
       }
-      if (relativePath === remotePath || relativePath === remotePath + "/")
-        continue;
+      if (relativePath === remotePath || relativePath === remotePath + "/") continue;
       files.push({ name, path: relativePath, isDirectory, size: contentLength });
-      if (files.length <= 3)
-        console.log("[CloudAttach] listDir path:", JSON.stringify(relativePath));
+      if (files.length <= 3) console.log("[CloudAttach] listDir path:", JSON.stringify(relativePath));
     }
     if (responses.length > 1 && files.length === 0) {
       console.warn("[CloudAttach] WebDAV: XML\u89E3\u6790\u5230", responses.length, "\u6761\u76EE\u4F46\u5168\u90E8\u88AB\u8FC7\u6EE4\uFF0CremotePath=", remotePath, "webdavPath=", this.webdavPath);
     }
     return files.sort((a, b) => {
-      if (a.isDirectory !== b.isDirectory)
-        return a.isDirectory ? -1 : 1;
+      if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
       return a.name.localeCompare(b.name);
     });
   }
@@ -1282,8 +1273,7 @@ var OpenListClient = class {
         per_page: 0
       })
     });
-    if (!response.ok)
-      throw new Error(`API error: ${response.status}`);
+    if (!response.ok) throw new Error(`API error: ${response.status}`);
     const data = await response.json();
     console.log("[CloudAttach] listDirectory response:", data);
     const files = [];
@@ -1298,8 +1288,7 @@ var OpenListClient = class {
       }
     }
     return files.sort((a, b) => {
-      if (a.isDirectory !== b.isDirectory)
-        return a.isDirectory ? -1 : 1;
+      if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
       return a.name.localeCompare(b.name);
     });
   }
@@ -1350,7 +1339,7 @@ var OpenListClient = class {
   }
 };
 var S3Client = class {
-  constructor(account, app2) {
+  constructor(account, app2, opts = {}) {
     this.app = app2;
     this.endpoint = account.endpoint?.replace(/\/$/, "") || "";
     this.bucket = account.bucket || "";
@@ -1359,6 +1348,7 @@ var S3Client = class {
     this.secretKey = account.secretKey || "";
     this.publicUrl = account.publicUrl?.replace(/\/$/, "") || "";
     this.prefix = account.prefix ? account.prefix.replace(/^\/+|\/+$/g, "") + "/" : "";
+    this.renameWithTimestamp = !!opts.renameWithTimestamp;
   }
   /**
    * 通过 Obsidian requestUrl 发请求，绕过 CORS
@@ -1470,12 +1460,19 @@ var S3Client = class {
   async uploadFile(localPath, remoteDir) {
     try {
       const file = this.app.vault.getAbstractFileByPath(localPath);
-      if (!file)
-        return { ok: false, error: t("error.local_file_not_found") };
-      const fileName = file.name;
+      if (!file) return { ok: false, error: t("error.local_file_not_found") };
+      let fileName = file.name;
+      if (this.renameWithTimestamp) {
+        const dotIdx = fileName.lastIndexOf(".");
+        const base = dotIdx > 0 ? fileName.substring(0, dotIdx) : fileName;
+        const ext = dotIdx > 0 ? fileName.substring(dotIdx) : "";
+        const pad = (n) => String(n).padStart(2, "0");
+        const d = /* @__PURE__ */ new Date();
+        const ts = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+        fileName = `${base}_${ts}${ext}`;
+      }
       const TFile = require("obsidian").TFile;
-      if (!(file instanceof TFile))
-        return { ok: false, error: t("error.unsupported_type") };
+      if (!(file instanceof TFile)) return { ok: false, error: t("error.unsupported_type") };
       const content = await this.app.vault.readBinary(file);
       const normalizedDir = remoteDir.endsWith("/") ? remoteDir : remoteDir + "/";
       const basePrefix = this.prefix ? this.prefix.replace(/\/$/, "") : "";
@@ -1702,10 +1699,8 @@ var S3Client = class {
       const sizeEl = contents[i].getElementsByTagName("LastModified")[0];
       const key = keyEl?.textContent || "";
       const lastModified = sizeEl?.textContent || "";
-      if (!key || key === currentPrefix)
-        continue;
-      if (key.endsWith("/"))
-        continue;
+      if (!key || key === currentPrefix) continue;
+      if (key.endsWith("/")) continue;
       const decodedKey = decodeURIComponent(key);
       const decodedCurrentPrefix = decodeURIComponent(currentPrefix);
       const relativePath = decodedKey.slice(decodedCurrentPrefix.length);
@@ -1714,8 +1709,7 @@ var S3Client = class {
       files.push({ name, path: "/" + decodedKey, isDirectory: false, size, lastModified });
     }
     return files.sort((a, b) => {
-      if (a.isDirectory !== b.isDirectory)
-        return a.isDirectory ? -1 : 1;
+      if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
       return a.name.localeCompare(b.name);
     });
   }
@@ -1751,20 +1745,16 @@ var S3Client = class {
             const itemEncodedKey = encodeURIComponent(itemKey);
             const itemDeleteUrl = `${this.endpoint}/${this.bucket}/${itemEncodedKey}?${itemSignedQuery}`;
             const r = await this.requestViaObsidian(itemDeleteUrl, { method: "DELETE" });
-            if (!r.ok)
-              results.failed.push({ path: item.path, error: `HTTP ${r.status}`, status: r.status });
-            else
-              results.success.push(item.path);
+            if (!r.ok) results.failed.push({ path: item.path, error: `HTTP ${r.status}`, status: r.status });
+            else results.success.push(item.path);
           }
         } else {
           const signedQuery = await this.signQuery(new URLSearchParams({ "X-Amz-Expires": "3600" }), objectKey, "DELETE", {});
           const encodedKey = encodeURIComponent(objectKey);
           const deleteUrl = `${this.endpoint}/${this.bucket}/${encodedKey}?${signedQuery}`;
           const r = await this.requestViaObsidian(deleteUrl, { method: "DELETE" });
-          if (r.ok)
-            results.success.push(fullPath);
-          else
-            results.failed.push({ path: fullPath, error: `HTTP ${r.status}`, status: r.status });
+          if (r.ok) results.success.push(fullPath);
+          else results.failed.push({ path: fullPath, error: `HTTP ${r.status}`, status: r.status });
         }
       } catch (e) {
         results.failed.push({ path: fullPath, error: e.message });
@@ -1930,8 +1920,7 @@ var CloudAttachView = class extends ItemView {
         const opt = document.createElement("option");
         opt.value = acc.id;
         opt.textContent = acc.name;
-        if (acc.id === this.accountId)
-          opt.selected = true;
+        if (acc.id === this.accountId) opt.selected = true;
         select.appendChild(opt);
       });
       select.onchange = async (e) => {
@@ -1967,8 +1956,7 @@ var CloudAttachView = class extends ItemView {
     }
   }
   renderBreadcrumb() {
-    if (!this.breadcrumbEl)
-      return;
+    if (!this.breadcrumbEl) return;
     this.breadcrumbEl.innerHTML = "";
     const webdavPath = this.client?.webdavPath;
     const s3Prefix = this.client?.prefix;
@@ -2111,15 +2099,12 @@ var CloudAttachView = class extends ItemView {
     modal.open();
     setTimeout(() => input.focus(), 50);
     input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter")
-        confirmBtn2.click();
-      else if (e.key === "Escape")
-        modal.close();
+      if (e.key === "Enter") confirmBtn2.click();
+      else if (e.key === "Escape") modal.close();
     });
   }
   renderBatchBar() {
-    if (!this.batchBarEl)
-      return;
+    if (!this.batchBarEl) return;
     this.batchBarEl.innerHTML = "";
     const count = this.selectedFiles.size;
     const totalCount = this.files.length;
@@ -2192,8 +2177,7 @@ var CloudAttachView = class extends ItemView {
    */
   showDeleteConfirmModal() {
     const selected = this.files.filter((f) => this.selectedFiles.has(f.path));
-    if (selected.length === 0)
-      return;
+    if (selected.length === 0) return;
     const modal = new (require("obsidian")).Modal(this.app);
     modal.titleEl.textContent = t("view.delete_confirm_title");
     const content = modal.contentEl;
@@ -2248,8 +2232,7 @@ var CloudAttachView = class extends ItemView {
    * @param {Array} files - 要删除的文件对象列表
    */
   async doDelete(files) {
-    if (!this.client)
-      return;
+    if (!this.client) return;
     const paths = files.map((f) => f.path);
     const result = await this.client.delete(paths);
     const is403 = (failed) => failed.status === 403;
@@ -2293,8 +2276,7 @@ var CloudAttachView = class extends ItemView {
     input.style.marginBottom = "16px";
     input.placeholder = t("view.rename_placeholder");
     input.onkeydown = (e) => {
-      if (e.key === "Enter")
-        confirmBtn.click();
+      if (e.key === "Enter") confirmBtn.click();
     };
     content.appendChild(input);
     const btnRow = document.createElement("div");
@@ -2335,8 +2317,7 @@ var CloudAttachView = class extends ItemView {
    * @param {string} newName - 新文件名
    */
   async doRename(file, newName) {
-    if (!this.client)
-      return;
+    if (!this.client) return;
     try {
       await this.client.rename(file.path, newName);
       new Notice(t("notice.rename_success"));
@@ -2354,24 +2335,20 @@ var CloudAttachView = class extends ItemView {
   // 刷新账户下拉框
   refreshAccountSelect() {
     const select = this.contentEl.querySelector("select.cloud-attach-select");
-    if (!select)
-      return;
+    if (!select) return;
     select.innerHTML = '<option value="">' + t("view.select_account_hint") + "</option>";
     this.plugin.accounts.forEach((acc) => {
       const opt = document.createElement("option");
       opt.value = acc.id;
       opt.textContent = acc.name;
-      if (acc.id === this.accountId)
-        opt.selected = true;
+      if (acc.id === this.accountId) opt.selected = true;
       select.appendChild(opt);
     });
   }
   async loadDir() {
-    if (!this.accountId)
-      return;
+    if (!this.accountId) return;
     this.renderBreadcrumb();
-    if (!this.fileListEl)
-      return;
+    if (!this.fileListEl) return;
     this.fileListEl.innerHTML = '<p class="cloud-attach-loading">' + t("view.loading") + "</p>";
     if (!this.client) {
       this.client = this.plugin.createClient(this.accountId);
@@ -2391,8 +2368,7 @@ var CloudAttachView = class extends ItemView {
     }
   }
   renderFiles() {
-    if (!this.fileListEl)
-      return;
+    if (!this.fileListEl) return;
     this.fileListEl.innerHTML = "";
     console.log("[CloudAttach] rendering files, count:", this.files.length);
     if (this.files.length === 0) {
@@ -2408,10 +2384,8 @@ var CloudAttachView = class extends ItemView {
       checkbox.checked = this.selectedFiles.has(file.path);
       checkbox.onclick = (e) => {
         e.stopPropagation();
-        if (checkbox.checked)
-          this.selectedFiles.add(file.path);
-        else
-          this.selectedFiles.delete(file.path);
+        if (checkbox.checked) this.selectedFiles.add(file.path);
+        else this.selectedFiles.delete(file.path);
         this.renderBatchBar();
       };
       item.appendChild(checkbox);
@@ -2528,8 +2502,7 @@ var CloudAttachView = class extends ItemView {
       return this.plugin.activeMarkdownView;
     }
     let view = workspace.getActiveViewOfType(MarkdownView);
-    if (view?.editor)
-      return view;
+    if (view?.editor) return view;
     const recentLeaf = workspace.getMostRecentLeaf();
     if (recentLeaf?.view instanceof MarkdownView && recentLeaf.view.editor) {
       return recentLeaf.view;
@@ -2556,8 +2529,7 @@ var CloudAttachView = class extends ItemView {
   }
   // 批量插入（异步）
   async insertSelectedFiles() {
-    if (!this.client || this.selectedFiles.size === 0)
-      return;
+    if (!this.client || this.selectedFiles.size === 0) return;
     const view = this.findMostRecentMarkdownView();
     if (!view?.editor) {
       new Notice(t("notice.open_note_first"));
@@ -2579,17 +2551,14 @@ var CloudAttachView = class extends ItemView {
         const isMulti = this.selectedFiles.size > 1;
         item.setTitle(isMulti ? t("menu.insert_note_multi", { count: this.selectedFiles.size }) : t("menu.insert_note")).setIcon("link");
         item.onClick(() => {
-          if (isMulti)
-            this.insertSelectedFiles();
-          else
-            this.insertFile(file);
+          if (isMulti) this.insertSelectedFiles();
+          else this.insertFile(file);
         });
       });
       menu.addItem((item) => {
         item.setTitle(t("menu.copy_link"));
         item.onClick(async () => {
-          if (!this.client)
-            return;
+          if (!this.client) return;
           try {
             const files = this.selectedFiles.size > 1 ? this.files.filter((f) => this.selectedFiles.has(f.path)) : [file];
             const urls = await Promise.all(files.map(
@@ -2607,10 +2576,8 @@ var CloudAttachView = class extends ItemView {
       });
       menu.addItem((item) => {
         item.setTitle(this.selectedFiles.has(file.path) ? t("menu.deselect") : t("menu.select")).onClick(() => {
-          if (this.selectedFiles.has(file.path))
-            this.selectedFiles.delete(file.path);
-          else
-            this.selectedFiles.add(file.path);
+          if (this.selectedFiles.has(file.path)) this.selectedFiles.delete(file.path);
+          else this.selectedFiles.add(file.path);
           this.renderFiles();
           this.renderBatchBar();
         });
@@ -2632,8 +2599,7 @@ var CloudAttachView = class extends ItemView {
   }
 };
 function cleanFileNameFromUrl(url) {
-  if (!url)
-    return "PDF";
+  if (!url) return "PDF";
   const noQuery = url.split("?")[0].split("#")[0];
   const last = noQuery.split("/").pop() || "PDF";
   try {
@@ -2747,8 +2713,7 @@ var PdfFullscreenView = class extends ItemView {
       }
     };
     this.pageInput.onkeydown = (e) => {
-      if (e.key === "Enter")
-        this.pageInput.blur();
+      if (e.key === "Enter") this.pageInput.blur();
     };
     this.pageTotal = pageWrap.createEl("span", { text: " / 1" });
     this.pageTotal.style.fontSize = "13px";
@@ -2800,8 +2765,7 @@ var PdfFullscreenView = class extends ItemView {
     }
   }
   async _renderAllPagesMobile() {
-    if (!this._pdf)
-      return;
+    if (!this._pdf) return;
     console.log("[CloudAttach] _renderAllPages mode=", this._viewMode, "scrollW=", this.scrollEl.clientWidth, "scrollH=", this.scrollEl.clientHeight);
     this._fullscreenObserver?.disconnect();
     this._fullscreenObserver = null;
@@ -2858,8 +2822,7 @@ var PdfFullscreenView = class extends ItemView {
     }
     const renderPage = async (pageNum) => {
       const wrap = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);
-      if (!wrap || wrap.dataset.rendered)
-        return;
+      if (!wrap || wrap.dataset.rendered) return;
       wrap.dataset.rendered = "1";
       const page = await this._pdf.getPage(pageNum);
       const viewport = page.getViewport({ scale: renderScale });
@@ -2889,8 +2852,7 @@ var PdfFullscreenView = class extends ItemView {
     const lazyQueue = [], MAX_Q = 3;
     let lazyBusy = false;
     const processQueue = async () => {
-      if (lazyBusy || lazyQueue.length === 0)
-        return;
+      if (lazyBusy || lazyQueue.length === 0) return;
       lazyBusy = true;
       const n = lazyQueue.shift();
       try {
@@ -2903,19 +2865,16 @@ var PdfFullscreenView = class extends ItemView {
       setTimeout(() => processQueue(), 100);
     };
     this._lazyQueueAdd = (n) => {
-      if (lazyQueue.length < MAX_Q && !lazyQueue.includes(n))
-        lazyQueue.push(n);
+      if (lazyQueue.length < MAX_Q && !lazyQueue.includes(n)) lazyQueue.push(n);
       processQueue();
     };
     this._fullscreenObserver = new IntersectionObserver((entries) => {
       entries.forEach((e) => {
         if (e.isIntersecting) {
           const w = e.target;
-          if (w.dataset.rendered)
-            return;
+          if (w.dataset.rendered) return;
           const n = parseInt(w.dataset.pageNum);
-          if (lazyQueue.length < MAX_Q)
-            lazyQueue.push(n);
+          if (lazyQueue.length < MAX_Q) lazyQueue.push(n);
           processQueue();
           this._fullscreenObserver.unobserve(w);
         }
@@ -2926,30 +2885,25 @@ var PdfFullscreenView = class extends ItemView {
     console.log("[CloudAttach] _renderAllPages done totalPages=", totalPages, "displayW=", displayW, "displayH=", displayH);
   }
   _calcScaleMobile(zoomMode, scaleLevel, w, h) {
-    if (scaleLevel > 0)
-      return scaleLevel;
+    if (scaleLevel > 0) return scaleLevel;
     const firstPg = this._pdf;
-    if (!firstPg)
-      return 1;
+    if (!firstPg) return 1;
     w = w || this.scrollEl.clientWidth || this.containerEl.clientWidth || 800;
     h = h || this.scrollEl.clientHeight || this.containerEl.clientHeight || 600;
     return zoomMode === "fit-width" ? w / this._pageW : h / this._pageH;
   }
   _resizeAllCanvasesMobile() {
-    if (!this._pdf)
-      return;
+    if (!this._pdf) return;
     const scrollW = this.scrollEl.clientWidth;
     const scrollH = this.scrollEl.clientHeight;
-    if (!scrollW || !scrollH)
-      return;
+    if (!scrollW || !scrollH) return;
     const displayScale = this._calcScale(this._zoomMode, this._renderScaleLevel, scrollW, scrollH);
     const displayW = Math.round(this._pageW * displayScale);
     const displayH = Math.round(this._pageH * displayScale);
     const isSingle = this._viewMode === "single";
     this.scrollEl.querySelectorAll(".cloud-attach-snap-item").forEach((wrap) => {
       const canvas = wrap.querySelector("canvas");
-      if (!canvas)
-        return;
+      if (!canvas) return;
       canvas.style.width = displayW + "px";
       canvas.style.height = displayH + "px";
       if (isSingle) {
@@ -2969,8 +2923,7 @@ var PdfFullscreenView = class extends ItemView {
   _bindScrollMobile(displayH, scrollH) {
     this.scrollEl.tabIndex = 0;
     this.scrollEl.style.outline = "none";
-    if (this._onPointerDown)
-      this.scrollEl.removeEventListener("pointerdown", this._onPointerDown);
+    if (this._onPointerDown) this.scrollEl.removeEventListener("pointerdown", this._onPointerDown);
     this._onPointerDown = () => this.scrollEl.focus();
     this.scrollEl.addEventListener("pointerdown", this._onPointerDown);
     if (this._onWheel) {
@@ -2984,13 +2937,11 @@ var PdfFullscreenView = class extends ItemView {
         const cur = this._currentPage || 1;
         const dir = e.key === "ArrowDown" ? 1 : -1;
         const newPage = Math.max(1, Math.min(cur + dir, this._pdf?.numPages || 1));
-        if (newPage !== cur)
-          this._scrollToPage(newPage);
+        if (newPage !== cur) this._scrollToPage(newPage);
       }
     };
     this.scrollEl.onscroll = () => {
-      if (!this._pdf)
-        return;
+      if (!this._pdf) return;
       const snaps = this.scrollEl.querySelectorAll(".cloud-attach-snap-item");
       const cr = this.scrollEl.getBoundingClientRect();
       let bestPage = null, bestDist = Infinity;
@@ -3011,16 +2962,14 @@ var PdfFullscreenView = class extends ItemView {
   }
   _scrollToPageMobile(pageNum) {
     console.log("[CloudAttach] _scrollToPage", pageNum, "mode=", this._viewMode);
-    if (!this._pdf || pageNum < 1 || pageNum > this._pdf.numPages)
-      return;
+    if (!this._pdf || pageNum < 1 || pageNum > this._pdf.numPages) return;
     this.pageInput.value = String(pageNum);
     this._currentPage = pageNum;
     this._highlightThumbnailMobile(pageNum);
     if (this._viewMode === "single") {
       const wrap = this.scrollEl.querySelector(`.cloud-attach-snap-item[data-page-num="${pageNum}"]`);
       if (wrap && !wrap.dataset.rendered) {
-        if (this._lazyQueueAdd)
-          this._lazyQueueAdd(pageNum);
+        if (this._lazyQueueAdd) this._lazyQueueAdd(pageNum);
       }
       this.scrollEl.scrollTo({ top: (pageNum - 1) * this.scrollEl.clientHeight, behavior: "smooth" });
     } else {
@@ -3037,13 +2986,11 @@ var PdfFullscreenView = class extends ItemView {
     }
   }
   _reRenderMobile() {
-    if (!this._pdf)
-      return;
+    if (!this._pdf) return;
     const savedPage = this._currentPage || 1;
     this.scrollEl.querySelectorAll("canvas").forEach((c) => {
       const ctx = c.getContext("2d");
-      if (ctx)
-        ctx.clearRect(0, 0, c.width, c.height);
+      if (ctx) ctx.clearRect(0, 0, c.width, c.height);
       c.width = 0;
       c.height = 0;
       c.remove();
@@ -3058,18 +3005,15 @@ var PdfFullscreenView = class extends ItemView {
     });
   }
   _highlightThumbnailMobile(pageNum) {
-    if (!this._thumbnailPanel)
-      return;
+    if (!this._thumbnailPanel) return;
     this._thumbnailPanel.querySelectorAll("div[data-page-num]").forEach((d) => {
       const active = parseInt(d.dataset.pageNum, 10) === pageNum;
       d.style.borderColor = active ? "var(--interactive-accent)" : "transparent";
-      if (active)
-        d.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      if (active) d.scrollIntoView({ behavior: "smooth", block: "nearest" });
     });
   }
   async _renderThumbnailsMobile() {
-    if (!this._pdf || !this._thumbnailPanel)
-      return;
+    if (!this._pdf || !this._thumbnailPanel) return;
     this._thumbnailPanel.empty();
     const total = this._pdf.numPages;
     for (let i = 1; i <= total; i++) {
@@ -3119,10 +3063,8 @@ var PdfFullscreenView = class extends ItemView {
     });
   }
   async _renderAllPages(mode, scaleLevel, zoomMode) {
-    if (Platform.isMobile)
-      return this._renderAllPagesMobile();
-    if (!this._pdf && !this.plugin._pendingPageBlobs && !this._pageBlobs)
-      return;
+    if (Platform.isMobile) return this._renderAllPagesMobile();
+    if (!this._pdf && !this.plugin._pendingPageBlobs && !this._pageBlobs) return;
     const blobs = this.plugin._pendingPageBlobs || this._pageBlobs;
     if (blobs) {
       if (this.plugin._pendingPageBlobs) {
@@ -3199,8 +3141,7 @@ var PdfFullscreenView = class extends ItemView {
     }
     for (let i = 1; i <= totalPages; i++) {
       const canvas = this.scrollEl.querySelector(`canvas.cloud-attach-pdf-fullscreen-page[data-page-num="${i}"]`);
-      if (!canvas)
-        continue;
+      if (!canvas) continue;
       const page = await this._pdf.getPage(i);
       const viewport = page.getViewport({ scale: renderScale });
       const offscreen = new OffscreenCanvas(viewport.width, viewport.height);
@@ -3328,13 +3269,11 @@ var PdfFullscreenView = class extends ItemView {
       parent.removeChild(this.scrollEl);
       parent.appendChild(this.scrollEl);
     }
-    if (!this._thumbnailPanelWrap)
-      this._buildThumbnailPanel();
+    if (!this._thumbnailPanelWrap) this._buildThumbnailPanel();
   }
   _buildThumbnailPanel() {
     const thumbBlobs = this._thumbnailBlobs;
-    if (!thumbBlobs || !thumbBlobs.length)
-      return;
+    if (!thumbBlobs || !thumbBlobs.length) return;
     if (this._thumbnailPanelWrap) {
       this._thumbnailPanelWrap.remove();
     }
@@ -3366,10 +3305,8 @@ var PdfFullscreenView = class extends ItemView {
     }
   }
   _reRender() {
-    if (Platform.isMobile)
-      return this._reRenderMobile();
-    if (!this._pdf && !this._pageBlobs)
-      return;
+    if (Platform.isMobile) return this._reRenderMobile();
+    if (!this._pdf && !this._pageBlobs) return;
     const savedPage = this._currentPage || 1;
     this._renderAllPages(this._viewMode, this._renderScaleLevel, this._zoomMode).then(() => {
       this._scrollToPage(savedPage);
@@ -3391,23 +3328,18 @@ var PdfFullscreenView = class extends ItemView {
     }
   }
   _applyZoom() {
-    if (Platform.isMobile)
-      return this._reRenderMobile();
+    if (Platform.isMobile) return this._reRenderMobile();
     this._reRender();
   }
   _toggleThumbnailPanel() {
-    if (Platform.isMobile)
-      return this._toggleThumbnailPanelMobile();
-    if (!this._thumbnailPanelWrap)
-      return;
+    if (Platform.isMobile) return this._toggleThumbnailPanelMobile();
+    if (!this._thumbnailPanelWrap) return;
     this._thumbnailPanelWrap.style.display = this._thumbnailVisible ? "flex" : "none";
     this._reRender();
   }
   async _renderThumbnails() {
-    if (Platform.isMobile)
-      return this._renderThumbnailsMobile();
-    if (!this._thumbnailPanel)
-      return;
+    if (Platform.isMobile) return this._renderThumbnailsMobile();
+    if (!this._thumbnailPanel) return;
     if (!this._pdf && this._thumbnailBlobs) {
       this._thumbnailPanel.empty();
       const total2 = this._thumbnailBlobs.length;
@@ -3444,8 +3376,7 @@ var PdfFullscreenView = class extends ItemView {
       }
       return;
     }
-    if (!this._pdf)
-      return;
+    if (!this._pdf) return;
     this._thumbnailPanel.empty();
     const total = this._pdf.numPages;
     for (let i = 1; i <= total; i++) {
@@ -3490,10 +3421,8 @@ var PdfFullscreenView = class extends ItemView {
   }
   _bindScroll() {
     this.scrollEl.onwheel = (e) => {
-      if (this._viewMode === "continuous")
-        return;
-      if (this._renderScaleLevel <= 1)
-        return;
+      if (this._viewMode === "continuous") return;
+      if (this._renderScaleLevel <= 1) return;
       const atTop = this.scrollEl.scrollTop <= 0;
       const atBottom = this.scrollEl.scrollTop + this.scrollEl.clientHeight >= this.scrollEl.scrollHeight - 2;
       if (e.deltaY < 0 && atTop || e.deltaY > 0 && atBottom) {
@@ -3506,8 +3435,7 @@ var PdfFullscreenView = class extends ItemView {
       }
     };
     this.scrollEl.onscroll = () => {
-      if (!this._pdf)
-        return;
+      if (!this._pdf) return;
       const snaps = this.scrollEl.querySelectorAll(".cloud-attach-snap-item");
       const cr = this.scrollEl.getBoundingClientRect();
       const ch = cr.height;
@@ -3528,11 +3456,9 @@ var PdfFullscreenView = class extends ItemView {
     };
   }
   _scrollToPage(pageNum) {
-    if (Platform.isMobile)
-      return this._scrollToPageMobile(pageNum);
+    if (Platform.isMobile) return this._scrollToPageMobile(pageNum);
     const total = this._pdf ? this._pdf.numPages : this._pageBlobs ? this._pageBlobs.length : 0;
-    if (!total || pageNum < 1 || pageNum > total)
-      return;
+    if (!total || pageNum < 1 || pageNum > total) return;
     this.pageInput.value = String(pageNum);
     this._currentPage = pageNum;
     this._highlightThumbnail(pageNum);
@@ -3545,13 +3471,11 @@ var PdfFullscreenView = class extends ItemView {
     }
   }
   _highlightThumbnail(pageNum) {
-    if (!this._thumbnailPanel)
-      return;
+    if (!this._thumbnailPanel) return;
     this._thumbnailPanel.querySelectorAll("div[data-page-num]").forEach((d) => {
       const active = parseInt(d.dataset.pageNum, 10) === pageNum;
       d.style.borderColor = active ? "var(--interactive-accent)" : "transparent";
-      if (active)
-        d.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      if (active) d.scrollIntoView({ behavior: "smooth", block: "nearest" });
     });
   }
 };
@@ -3788,10 +3712,8 @@ var AddAccountModal = class extends Modal {
     radioOpenList.onchange = () => switchType("openlist");
     radioS3.onchange = () => switchType("s3");
     const currentType = this.account?.type === "s3" ? "s3" : "openlist";
-    if (currentType === "s3")
-      radioS3.checked = true;
-    else
-      radioOpenList.checked = true;
+    if (currentType === "s3") radioS3.checked = true;
+    else radioOpenList.checked = true;
     switchType(currentType);
     const btnRow = document.createElement("div");
     btnRow.style.display = "flex";
@@ -3806,8 +3728,7 @@ var AddAccountModal = class extends Modal {
       let accountData;
       if (accountType === "s3") {
         let endpoint = fields.endpoint.value.trim().replace(/\/$/, "");
-        if (endpoint && !/^https?:\/\//i.test(endpoint))
-          endpoint = "http://" + endpoint;
+        if (endpoint && !/^https?:\/\//i.test(endpoint)) endpoint = "http://" + endpoint;
         const bucket = fields.bucket.value.trim();
         if (!endpoint) {
           new Notice(t("settings.please_fill_endpoint"), 3e3);
@@ -3831,8 +3752,7 @@ var AddAccountModal = class extends Modal {
         };
       } else {
         let url = fields.url.value.trim().replace(/\/$/, "");
-        if (url && !/^https?:\/\//i.test(url))
-          url = "http://" + url;
+        if (url && !/^https?:\/\//i.test(url)) url = "http://" + url;
         if (!url) {
           new Notice(t("settings.please_fill_server"), 3e3);
           return;
@@ -3859,10 +3779,8 @@ var AddAccountModal = class extends Modal {
           isActive: true
         };
       }
-      if (this.account)
-        await this.plugin.updateAccount(this.account.id, accountData);
-      else
-        await this.plugin.addAccount(accountData);
+      if (this.account) await this.plugin.updateAccount(this.account.id, accountData);
+      else await this.plugin.addAccount(accountData);
       this.close();
       setTimeout(() => this.onSave?.(), 50);
     };
@@ -4120,8 +4038,7 @@ var AdvancedSettingModal = class extends Modal {
           const cContent = confirmModal.contentEl;
           let confirmed = false;
           confirmModal.onClose = () => {
-            if (!confirmed)
-              toggle.setValue(false);
+            if (!confirmed) toggle.setValue(false);
           };
           cContent.style.padding = "16px";
           cContent.createEl("p", { text: t("settings.auto_upload_confirm_msg") }).style.marginBottom = "12px";
@@ -4154,32 +4071,43 @@ var AdvancedSettingModal = class extends Modal {
         }
       });
     });
-    // ===== 自动上传文件类型过滤 =====
+    const renameCard = contentEl.createDiv();
+    renameCard.className = "cloudattach-settings-card";
+    renameCard.style.background = "var(--background-secondary)";
+    renameCard.style.borderRadius = "8px";
+    renameCard.style.padding = "20px";
+    renameCard.style.marginBottom = "16px";
+    new Setting(renameCard).setName("\u4E0A\u4F20\u91CD\u547D\u540D").setDesc("\u4E0A\u4F20\u65F6\u5728\u6587\u4EF6\u540D\u540E\u8FFD\u52A0\u65F6\u95F4\u6233\uFF08\u539F\u540D_YYYYMMDD_HHMMSS.\u6269\u5C55\u540D\uFF09\uFF0C\u907F\u514D\u540C\u540D\u6587\u4EF6\u51B2\u7A81").addToggle((toggle) => {
+      toggle.setValue(!!this.plugin.settings.renameWithTimestamp);
+      toggle.onChange(async (value) => {
+        this.plugin.settings.renameWithTimestamp = value;
+        await this.plugin.saveSettings();
+      });
+    });
     const typeCard = contentEl.createDiv();
     typeCard.className = "cloudattach-settings-card";
     typeCard.style.background = "var(--background-secondary)";
     typeCard.style.borderRadius = "8px";
     typeCard.style.padding = "20px";
     typeCard.style.marginBottom = "16px";
-    const typeTitle = typeCard.createEl("h3", { text: "自动上传文件类型" });
+    const typeTitle = typeCard.createEl("h3", { text: "\u81EA\u52A8\u4E0A\u4F20\u6587\u4EF6\u7C7B\u578B" });
     typeTitle.style.marginTop = "0";
     typeTitle.style.marginBottom = "8px";
     typeTitle.style.fontSize = "14px";
-    typeCard.createEl("p", { text: "勾选允许自动上传的格式，未勾选的类型将不会上传。留空则上传所有类型。" }).style.marginBottom = "12px";
+    typeCard.createEl("p", { text: "\u52FE\u9009\u5141\u8BB8\u81EA\u52A8\u4E0A\u4F20\u7684\u683C\u5F0F\uFF0C\u672A\u52FE\u9009\u7684\u7C7B\u578B\u5C06\u4E0D\u4F1A\u4E0A\u4F20\u3002\u7559\u7A7A\u5219\u4E0A\u4F20\u6240\u6709\u7C7B\u578B\u3002" }).style.marginBottom = "12px";
     const TYPE_GROUPS = {
-      "图片": ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico", "heic", "heif", "tiff"],
-      "视频": ["mp4", "mov", "avi", "mkv", "webm", "flv", "m4v"],
-      "音频": ["mp3", "wav", "flac", "aac", "ogg", "m4a"],
-      "文档": ["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt"]
+      "\u56FE\u7247": ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico", "heic", "heif", "tiff"],
+      "\u89C6\u9891": ["mp4", "mov", "avi", "mkv", "webm", "flv", "m4v"],
+      "\u97F3\u9891": ["mp3", "wav", "flac", "aac", "ogg", "m4a"],
+      "\u6587\u6863": ["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt"]
     };
     let currentTypes = this.plugin.settings.autoUploadFileTypes;
     if (!Array.isArray(currentTypes)) currentTypes = [];
-    const getChecked = () => currentTypes.map((s) => String(s).toLowerCase().replace(/^\\./, ""));
+    const getChecked = () => currentTypes.map((s) => String(s).toLowerCase().replace(/^\./, ""));
     const saveTypes = async (list) => {
       this.plugin.settings.autoUploadFileTypes = list.length > 0 ? list : null;
       await this.plugin.saveSettings();
     };
-    // 当前已勾选但不在任何预设组里的扩展名 = 自定义格式
     const getCustomTypes = () => {
       const preset = Object.values(TYPE_GROUPS).flat();
       return getChecked().filter((e) => !preset.includes(e));
@@ -4198,7 +4126,6 @@ var AdvancedSettingModal = class extends Modal {
           block.style.paddingTop = "12px";
         }
         block.style.marginTop = isFirst ? "0" : "10px";
-        // 组标题 + 组级全选框
         const headRow = block.createDiv();
         headRow.style.display = "flex";
         headRow.style.alignItems = "center";
@@ -4230,7 +4157,6 @@ var AdvancedSettingModal = class extends Modal {
         gTitle.style.fontSize = "13px";
         gTitle.style.fontWeight = "600";
         gTitle.style.cursor = "pointer";
-        // 组内格式 checkbox
         const row = block.createDiv();
         row.style.display = "flex";
         row.style.flexWrap = "wrap";
@@ -4259,13 +4185,12 @@ var AdvancedSettingModal = class extends Modal {
           });
         }
       }
-      // ===== 自定义后缀格式 =====
       const customBlock = typeCard.createDiv();
       customBlock.className = "cloudattach-type-block";
       customBlock.style.borderTop = "1px solid var(--background-modifier-border)";
       customBlock.style.paddingTop = "12px";
       customBlock.style.marginTop = "10px";
-      const customHead = customBlock.createEl("div", { text: "自定义格式" });
+      const customHead = customBlock.createEl("div", { text: "\u81EA\u5B9A\u4E49\u683C\u5F0F" });
       customHead.style.fontSize = "13px";
       customHead.style.fontWeight = "600";
       customHead.style.marginBottom = "6px";
@@ -4273,14 +4198,14 @@ var AdvancedSettingModal = class extends Modal {
       customRow.style.display = "flex";
       customRow.style.gap = "6px";
       customRow.style.marginBottom = "6px";
-      const customInput = customRow.createEl("input", { type: "text", placeholder: "例如: 7z, rar, apk" });
+      const customInput = customRow.createEl("input", { type: "text", placeholder: "\u4F8B\u5982: 7z, rar, apk" });
       customInput.className = "cloud-attach-input";
       customInput.style.flex = "1";
       customInput.style.padding = "4px 8px";
       customInput.style.fontSize = "12px";
       const addBtn = document.createElement("button");
       addBtn.className = "cloud-attach-btn";
-      addBtn.textContent = "+ 添加";
+      addBtn.textContent = "+ \u6DFB\u52A0";
       addBtn.style.fontSize = "12px";
       addBtn.style.padding = "4px 10px";
       addBtn.onclick = async () => {
@@ -4290,7 +4215,7 @@ var AdvancedSettingModal = class extends Modal {
         const parts = raw.split(/[,，\s]+/).filter(Boolean);
         let changed = false;
         for (const p of parts) {
-          const ext = p.toLowerCase().replace(/^\\./, "");
+          const ext = p.toLowerCase().replace(/^\./, "");
           if (ext && !cur.includes(ext)) {
             cur.push(ext);
             changed = true;
@@ -4301,18 +4226,17 @@ var AdvancedSettingModal = class extends Modal {
           await saveTypes(cur);
           renderTypeCheckboxes();
         } else {
-          new Notice("格式已存在或无效", 2e3);
+          new Notice("\u683C\u5F0F\u5DF2\u5B58\u5728\u6216\u65E0\u6548", 2e3);
         }
       };
       customRow.appendChild(addBtn);
-      // 已添加的自定义格式列表（可删除）
       const customList = customBlock.createDiv();
       customList.style.display = "flex";
       customList.style.flexWrap = "wrap";
       customList.style.gap = "6px";
       const customTypes = getCustomTypes();
       if (customTypes.length === 0) {
-        const empty = customList.createEl("span", { text: "暂无自定义格式" });
+        const empty = customList.createEl("span", { text: "\u6682\u65E0\u81EA\u5B9A\u4E49\u683C\u5F0F" });
         empty.style.fontSize = "12px";
         empty.style.color = "var(--text-muted)";
       }
@@ -4328,14 +4252,14 @@ var AdvancedSettingModal = class extends Modal {
         chip.style.border = "1px solid var(--background-modifier-border)";
         chip.style.background = "var(--background-primary)";
         const delBtn = chip.createEl("button");
-        delBtn.textContent = "✕";
+        delBtn.textContent = "\u2715";
         delBtn.style.border = "none";
         delBtn.style.background = "transparent";
         delBtn.style.color = "var(--text-muted)";
         delBtn.style.cursor = "pointer";
         delBtn.style.fontSize = "11px";
         delBtn.style.padding = "0 2px";
-        delBtn.title = "删除 " + ext;
+        delBtn.title = "\u5220\u9664 " + ext;
         delBtn.onclick = async () => {
           const cur = getChecked();
           const idx = cur.indexOf(ext);
@@ -4345,15 +4269,14 @@ var AdvancedSettingModal = class extends Modal {
           renderTypeCheckboxes();
         };
       }
-      // ===== 底部操作 =====
-      const btnRow = typeCard.createDiv();
-      btnRow.className = "cloudattach-type-block";
-      btnRow.style.display = "flex";
-      btnRow.style.gap = "8px";
-      btnRow.style.marginTop = "10px";
+      const btnRow2 = typeCard.createDiv();
+      btnRow2.className = "cloudattach-type-block";
+      btnRow2.style.display = "flex";
+      btnRow2.style.gap = "8px";
+      btnRow2.style.marginTop = "10px";
       const noneBtn = document.createElement("button");
       noneBtn.className = "cloud-attach-btn";
-      noneBtn.textContent = "清空(全部上传)";
+      noneBtn.textContent = "\u6E05\u7A7A(\u5168\u90E8\u4E0A\u4F20)";
       noneBtn.style.fontSize = "12px";
       noneBtn.style.padding = "4px 10px";
       noneBtn.onclick = async () => {
@@ -4361,16 +4284,16 @@ var AdvancedSettingModal = class extends Modal {
         await saveTypes([]);
         renderTypeCheckboxes();
       };
-      btnRow.appendChild(noneBtn);
+      btnRow2.appendChild(noneBtn);
       const status = typeCard.createDiv();
       status.className = "cloudattach-type-block";
       status.style.marginTop = "8px";
       status.style.fontSize = "12px";
       status.style.color = "var(--text-muted)";
       if (checkedSet.size === 0) {
-        status.textContent = "当前：上传所有类型";
+        status.textContent = "\u5F53\u524D\uFF1A\u4E0A\u4F20\u6240\u6709\u7C7B\u578B";
       } else {
-        status.textContent = "当前仅上传：" + Array.from(checkedSet).join(", ");
+        status.textContent = "\u5F53\u524D\u4EC5\u4E0A\u4F20\uFF1A" + Array.from(checkedSet).join(", ");
       }
     };
     renderTypeCheckboxes();
@@ -4513,11 +4436,9 @@ var AdvancedSettingModal = class extends Modal {
     ];
     for (const f of files) {
       const res = await fetch(f.url);
-      if (!res.ok)
-        throw new Error("download failed: " + f.name + " HTTP " + res.status);
+      if (!res.ok) throw new Error("download failed: " + f.name + " HTTP " + res.status);
       const buf = await res.arrayBuffer();
-      if (buf.byteLength < 1e3)
-        throw new Error("file too small: " + f.name + " (" + buf.byteLength + " bytes, possibly HTML error page)");
+      if (buf.byteLength < 1e3) throw new Error("file too small: " + f.name + " (" + buf.byteLength + " bytes, possibly HTML error page)");
       await this.app.vault.adapter.writeBinary(destDirNorm + "/" + f.name, new Uint8Array(buf));
     }
     try {
@@ -4533,22 +4454,18 @@ var CloudAttachSuggest = class extends EditorSuggest {
     this.limit = 100;
   }
   onTrigger(cursor, editor, file) {
-    if (!file)
-      return null;
+    if (!file) return null;
     const line = editor.getLine(cursor.line);
     const sub = line.substring(0, cursor.ch);
     const idx = sub.lastIndexOf("cloud-");
-    if (idx === -1)
-      return null;
-    if (idx > 0 && /[\w-]/.test(sub[idx - 1]))
-      return null;
+    if (idx === -1) return null;
+    if (idx > 0 && /[\w-]/.test(sub[idx - 1])) return null;
     const query = sub.substring(idx + 6);
     return { start: { line: cursor.line, ch: idx }, end: { line: cursor.line, ch: cursor.ch }, query };
   }
   async getSuggestions(context) {
     const ctx = this.plugin.getDefaultUploadContext();
-    if (!ctx || !ctx.ok)
-      return [];
+    if (!ctx || !ctx.ok) return [];
     const query = context.query || "";
     let dirPath = "/";
     let filter = "";
@@ -4557,8 +4474,7 @@ var CloudAttachSuggest = class extends EditorSuggest {
       if (lastSlash >= 0) {
         const pathParts = query.substring(0, lastSlash).split("/").filter((p) => p);
         dirPath = "/" + pathParts.join("/");
-        if (dirPath !== "/")
-          dirPath += "/";
+        if (dirPath !== "/") dirPath += "/";
         filter = query.substring(lastSlash + 1);
       } else {
         filter = query;
@@ -4566,14 +4482,11 @@ var CloudAttachSuggest = class extends EditorSuggest {
     }
     try {
       const files = await ctx.client.listDirectory(dirPath);
-      if (!filter)
-        return files;
+      if (!filter) return files;
       const q = filter.toLowerCase();
       return files.filter((f) => {
-        if (f.name.toLowerCase().includes(q))
-          return true;
-        if (f.isDirectory)
-          return f.name.toLowerCase().startsWith(q);
+        if (f.name.toLowerCase().includes(q)) return true;
+        if (f.isDirectory) return f.name.toLowerCase().startsWith(q);
         return false;
       });
     } catch (e) {
@@ -4595,8 +4508,7 @@ var CloudAttachSuggest = class extends EditorSuggest {
   }
   async selectSuggestion(suggestion, evt) {
     const context = this.context;
-    if (!context)
-      return;
+    if (!context) return;
     const { editor, start, end, query } = context;
     if (suggestion.isDirectory) {
       const q = query || "";
@@ -4610,8 +4522,7 @@ var CloudAttachSuggest = class extends EditorSuggest {
       return;
     }
     const ctx = this.plugin.getDefaultUploadContext();
-    if (!ctx || !ctx.ok)
-      return;
+    if (!ctx || !ctx.ok) return;
     try {
       const ext = (suggestion.name.split(".").pop() || "").toLowerCase();
       const nameWithoutExt = suggestion.name.replace(/\.[^.]+$/, "");
@@ -4716,8 +4627,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
           item.setTitle("CloudAttach");
           item.setSubmenu();
           const submenu = item.submenu;
-          if (!submenu)
-            return;
+          if (!submenu) return;
           submenu.addItem((si) => {
             si.setTitle(t("menu.refresh_current_url_sign")).onClick(() => {
               this.checkAndRefreshCurrentUrl();
@@ -4744,13 +4654,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
     );
     this.registerEvent(
       this.app.workspace.on("file-menu", (menu, file, source) => {
-        if (!file || !source.startsWith("file-explorer"))
-          return;
-        if (file.children !== void 0)
-          return;
+        if (!file || !source.startsWith("file-explorer")) return;
+        if (file.children !== void 0) return;
         const ext = file.extension?.toLowerCase() || "";
-        if (ext === "md")
-          return;
+        if (ext === "md") return;
         menu.addSeparator();
         menu.addItem((item) => {
           item.setTitle("\u2601\uFE0F " + t("menu.upload_to_cloud"));
@@ -4761,8 +4668,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
               if (linkedNotes.length > 1) {
                 const activeFile = this.app.workspace.getActiveFile();
                 const found = linkedNotes.find((n) => n.path === activeFile?.path);
-                if (found)
-                  targetNote = found;
+                if (found) targetNote = found;
               }
               let syntax = null;
               if (targetNote && targetNote.extension === "md") {
@@ -4780,19 +4686,16 @@ module.exports = class CloudAttachPlugin extends Plugin {
                   }
                 }
               }
-              if (!syntax)
-                syntax = `![${file.name}](${file.path})`;
+              if (!syntax) syntax = `![${file.name}](${file.path})`;
               const viewOpen = !!this.app.workspace.getLeavesOfType(VIEW_TYPE_CLOUDATTACH).length;
               if (!viewOpen && !this.defaultAccountId) {
                 new Notice(`\u26A0\uFE0F ${t("error.no_default_account_set")}`, 4e3);
                 return;
               }
               let ctx = null;
-              if (viewOpen)
-                ctx = this.getUploadContext();
+              if (viewOpen) ctx = this.getUploadContext();
               const confirmed = await this.showUploadConfirmModal([{ localPath: file.path, syntax }], ctx?.remotePath || "", viewOpen);
-              if (!confirmed)
-                return;
+              if (!confirmed) return;
               const uploadCtx = confirmed.useDefault || !viewOpen ? this.getDefaultUploadContext() : ctx;
               if (!uploadCtx || !uploadCtx.ok) {
                 new Notice(`\u26A0\uFE0F ${uploadCtx?.error || t("error.no_account")}`, 4e3);
@@ -4820,18 +4723,14 @@ module.exports = class CloudAttachPlugin extends Plugin {
     this._observePdfEmbeds();
     this.registerMarkdownPostProcessor(async (el, ctx) => {
       const imgs = el.querySelectorAll("img");
-      if (imgs.length === 0)
-        return;
+      if (imgs.length === 0) return;
       const blobImgs = Array.from(imgs).filter(
         (img) => !img.closest(".cloudattach-pdf-container") && (img.getAttribute("src") || "").startsWith("blob:")
       );
-      if (blobImgs.length === 0)
-        return;
-      if (!ctx.sourcePath)
-        return;
+      if (blobImgs.length === 0) return;
+      if (!ctx.sourcePath) return;
       const file = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
-      if (!file || !file.extension)
-        return;
+      if (!file || !file.extension) return;
       try {
         const content = await this.app.vault.cachedRead(file);
         const pdfPatterns = [];
@@ -4845,8 +4744,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
             const barIdx = label.lastIndexOf("|");
             if (barIdx !== -1) {
               const afterBar = label.substring(barIdx + 1).trim();
-              if (/^\d+$/.test(afterBar))
-                width = afterBar;
+              if (/^\d+$/.test(afterBar)) width = afterBar;
             }
             pdfPatterns.push({ url, width });
           }
@@ -4861,8 +4759,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
               img.dataset.cloudattachHeicUrl = pat.url;
             } else {
               img.dataset.cloudattachPdfUrl = pat.url;
-              if (pat.width)
-                img.dataset.cloudattachWidth = pat.width;
+              if (pat.width) img.dataset.cloudattachWidth = pat.width;
             }
             img.dataset.cloudattachProcessed = "pending";
           }
@@ -4889,19 +4786,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
         throw e;
       }
     }
-    if (!this._autoUploadChain)
-      this._autoUploadChain = Promise.resolve();
+    if (!this._autoUploadChain) this._autoUploadChain = Promise.resolve();
     this.registerEvent(this.app.vault.on("create", (file) => {
-      if (!this.settings.enableAutoUpload)
-        return;
-      if (!this.defaultAccountId)
-        return;
+      if (!this.settings.enableAutoUpload) return;
+      if (!this.defaultAccountId) return;
       const TFile = require("obsidian").TFile;
-      if (!(file instanceof TFile))
-        return;
-      if (file.extension.toLowerCase() === "md")
-        return;
-      // 文件类型过滤：仅上传允许的扩展名
+      if (!(file instanceof TFile)) return;
+      if (file.extension.toLowerCase() === "md") return;
       const allowedTypes = this.settings.autoUploadFileTypes;
       if (Array.isArray(allowedTypes) && allowedTypes.length > 0) {
         const ext = file.extension.toLowerCase();
@@ -5014,13 +4905,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
   onunload() {
     console.log("CloudAttach unloading...");
-    if (this._pdfObserver)
-      this._pdfObserver.disconnect();
+    if (this._pdfObserver) this._pdfObserver.disconnect();
     this._flushPdfErrorLog();
   }
   _flushPdfErrorLog() {
-    if (!this._pdfErrorLog)
-      return;
+    if (!this._pdfErrorLog) return;
     try {
       const filePath = (this.app.vault.configDir || ".obsidian") + "/plugins/cloud-attach/pdf-error-log.md";
       const existingPromise = this.app.vault.adapter.read(filePath).catch(() => "");
@@ -5058,8 +4947,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
    */
   async openPdfFullscreen(url, name) {
     const { workspace } = this.app;
-    if (!name)
-      name = cleanFileNameFromUrl(url);
+    if (!name) name = cleanFileNameFromUrl(url);
     if (Platform.isMobile) {
       this._pendingPdfUrl = url;
       this._pendingPdfName = name;
@@ -5128,8 +5016,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
   // PDF.js 内联预览（v0.3.026）
   // ============================================================
   async _loadPdfJs() {
-    if (window.pdfjsLib)
-      return window.pdfjsLib;
+    if (window.pdfjsLib) return window.pdfjsLib;
     const pdfJsPath = (this.app.vault.configDir || ".obsidian") + "/plugins/cloud-attach/libs/pdfjs/pdf.min.js";
     const workerPath = (this.app.vault.configDir || ".obsidian") + "/plugins/cloud-attach/libs/pdfjs/pdf.worker.min.js";
     try {
@@ -5158,8 +5045,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     return /\.(heic|heif)(\?|#|$)/i.test(url);
   }
   async _loadHeic2any() {
-    if (window._cloudAttachHeic2any)
-      return window._cloudAttachHeic2any;
+    if (window._cloudAttachHeic2any) return window._cloudAttachHeic2any;
     const path = (this.app.vault.configDir || ".obsidian") + "/plugins/cloud-attach/heic2any.bundle.js";
     const code = await this.app.vault.adapter.read(path);
     const m = { exports: {} };
@@ -5169,16 +5055,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
   async _renderHeicAsImage(imgEl, url) {
     url = encodeURI(decodeURI(url));
-    if (imgEl.closest(".cloudattach-heic-container"))
-      return;
+    if (imgEl.closest(".cloudattach-heic-container")) return;
     const modeKey = imgEl.closest(".markdown-reading-view") ? "reading" : "editing";
-    if (!this._renderedHeic)
-      this._renderedHeic = {};
-    if (!this._renderedHeic[modeKey])
-      this._renderedHeic[modeKey] = /* @__PURE__ */ new Set();
+    if (!this._renderedHeic) this._renderedHeic = {};
+    if (!this._renderedHeic[modeKey]) this._renderedHeic[modeKey] = /* @__PURE__ */ new Set();
     const renderedSet = this._renderedHeic[modeKey];
-    if (renderedSet.has(url))
-      return;
+    if (renderedSet.has(url)) return;
     renderedSet.add(url);
     try {
       await new Promise((resolve, reject) => {
@@ -5214,29 +5096,22 @@ module.exports = class CloudAttachPlugin extends Plugin {
       imgEl.style.maxWidth = "100%";
       imgEl.style.height = "auto";
     } catch (e) {
-      if (e.message && e.message.includes("401"))
-        return;
+      if (e.message && e.message.includes("401")) return;
       console.log("[CloudAttach] HEIC render failed:", e.message || e);
     }
   }
   async _renderPdfAsCanvas(imgEl, url) {
     const modeKey = imgEl.closest(".markdown-reading-view") ? "reading" : "editing";
-    if (!this._renderedPdfUrlsByMode)
-      this._renderedPdfUrlsByMode = {};
-    if (!this._renderedPdfUrlsByMode[modeKey])
-      this._renderedPdfUrlsByMode[modeKey] = /* @__PURE__ */ new Set();
+    if (!this._renderedPdfUrlsByMode) this._renderedPdfUrlsByMode = {};
+    if (!this._renderedPdfUrlsByMode[modeKey]) this._renderedPdfUrlsByMode[modeKey] = /* @__PURE__ */ new Set();
     const renderedSet = this._renderedPdfUrlsByMode[modeKey];
-    if (renderedSet.has(url))
-      return;
-    if (!this._pdfRenderChain)
-      this._pdfRenderChain = Promise.resolve();
+    if (renderedSet.has(url)) return;
+    if (!this._pdfRenderChain) this._pdfRenderChain = Promise.resolve();
     if (this._pdfQueuedUrls && this._pdfQueuedUrls.has(url)) {
       return this._pdfRenderPromises ? this._pdfRenderPromises.get(url) : void 0;
     }
-    if (!this._pdfQueuedUrls)
-      this._pdfQueuedUrls = /* @__PURE__ */ new Set();
-    if (!this._pdfRenderPromises)
-      this._pdfRenderPromises = /* @__PURE__ */ new Map();
+    if (!this._pdfQueuedUrls) this._pdfQueuedUrls = /* @__PURE__ */ new Set();
+    if (!this._pdfRenderPromises) this._pdfRenderPromises = /* @__PURE__ */ new Map();
     this._pdfQueuedUrls.add(url);
     const doRender = async () => {
       let failStage = "unknown";
@@ -5265,11 +5140,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
           try {
             const resp = await reqUrlFn({ url, method: "GET" });
             pdfData = resp.arrayBuffer;
-            if (fetchInfo.indexOf("viaObsidian") === -1)
-              fetchInfo += " viaObsidian";
+            if (fetchInfo.indexOf("viaObsidian") === -1) fetchInfo += " viaObsidian";
           } catch (e) {
-            if (!fetchInfo)
-              fetchInfo = "download_err:" + (e.message || e);
+            if (!fetchInfo) fetchInfo = "download_err:" + (e.message || e);
           }
         }
         const loadingTask = pdfData ? pdfjsLib.getDocument({ data: pdfData, ownerDocument: imgEl.ownerDocument }) : pdfjsLib.getDocument({ url, ownerDocument: imgEl.ownerDocument, disableAutoFetch: true });
@@ -5393,8 +5266,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
           const lazyQueue = [];
           let lazyBusy = false;
           const processQueue = async () => {
-            if (lazyBusy || lazyQueue.length === 0)
-              return;
+            if (lazyBusy || lazyQueue.length === 0) return;
             lazyBusy = true;
             const ph = lazyQueue.shift();
             const pageNum = parseInt(ph.dataset.pageNum);
@@ -5410,8 +5282,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
             entries.forEach((entry) => {
               if (entry.isIntersecting) {
                 const ph = entry.target;
-                if (ph.dataset.rendered)
-                  return;
+                if (ph.dataset.rendered) return;
                 ph.dataset.rendered = "true";
                 lazyQueue.push(ph);
                 processQueue();
@@ -5420,8 +5291,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
             });
           }, { rootMargin: "200px" });
           pagePlaceholders.forEach((ph) => lazyObserver.observe(ph));
-          if (!this._pdfLazyObservers)
-            this._pdfLazyObservers = /* @__PURE__ */ new Set();
+          if (!this._pdfLazyObservers) this._pdfLazyObservers = /* @__PURE__ */ new Set();
           this._pdfLazyObservers.add(lazyObserver);
         }
         imgEl.dataset.cloudattachProcessed = "done";
@@ -5505,21 +5375,17 @@ module.exports = class CloudAttachPlugin extends Plugin {
   // 监听滚动更新当前页码（连续滚动模式，scroll 事件 + scrollTop/scrollHeight）
   _bindPdfScroll(container, pdf) {
     const scrollArea = container.querySelector(".cloudattach-pdf-scrollarea");
-    if (!scrollArea)
-      return;
+    if (!scrollArea) return;
     const onScroll = () => {
-      if (container.dataset.scrollProgrammatic)
-        return;
+      if (container.dataset.scrollProgrammatic) return;
       const pages = scrollArea.querySelectorAll(".cloudattach-pdf-page");
-      if (!pages.length)
-        return;
+      if (!pages.length) return;
       const scrollMid = scrollArea.scrollTop + scrollArea.clientHeight / 3;
       let pageNum = 1;
       for (let i = 0; i < pages.length; i++) {
         if (pages[i].offsetTop <= scrollMid) {
           pageNum = parseInt(pages[i].dataset.pageNum) || i + 1;
-        } else
-          break;
+        } else break;
       }
       if (container.dataset.currentPage !== String(pageNum)) {
         container.dataset.currentPage = String(pageNum);
@@ -5600,8 +5466,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const scrollArea = container.querySelector(".cloudattach-pdf-scrollarea");
     const scrollToPage = (pageNum) => {
       const firstPage = scrollArea.querySelector(".cloudattach-pdf-page");
-      if (!firstPage)
-        return;
+      if (!firstPage) return;
       const pageH = firstPage.offsetHeight;
       container.dataset.scrollProgrammatic = "1";
       container.dataset.currentPage = String(pageNum);
@@ -5687,19 +5552,15 @@ module.exports = class CloudAttachPlugin extends Plugin {
       nextBtn.style.visibility = currentPage < totalPages ? "visible" : "hidden";
   }
   _observePdfEmbeds() {
-    if (this._pdfObserver)
-      return;
-    if (!this._renderedPdfUrlsByMode)
-      this._renderedPdfUrlsByMode = { editing: /* @__PURE__ */ new Set(), reading: /* @__PURE__ */ new Set() };
+    if (this._pdfObserver) return;
+    if (!this._renderedPdfUrlsByMode) this._renderedPdfUrlsByMode = { editing: /* @__PURE__ */ new Set(), reading: /* @__PURE__ */ new Set() };
     this._pdfObserver = new MutationObserver((mutations) => {
       mutations.forEach((m) => {
         m.addedNodes.forEach((n) => {
-          if (n.nodeType !== 1)
-            return;
+          if (n.nodeType !== 1) return;
           const imgs = n.tagName === "IMG" ? [n] : Array.from(n.querySelectorAll("img"));
           imgs.forEach((img) => {
-            if (img.closest(".cloudattach-pdf-container"))
-              return;
+            if (img.closest(".cloudattach-pdf-container")) return;
             const src = img.getAttribute("src") || "";
             if (this._isPdfUrl(src)) {
               this._renderPdfAsCanvas(img, src);
@@ -5738,19 +5599,15 @@ module.exports = class CloudAttachPlugin extends Plugin {
   _registerPopoutObservers() {
     this.app.workspace.iterateAllLeaves((leaf) => {
       const doc = leaf.containerEl.ownerDocument;
-      if (doc === document)
-        return;
-      if (this._popoutObservers.has(doc))
-        return;
+      if (doc === document) return;
+      if (this._popoutObservers.has(doc)) return;
       const popoutObserver = new MutationObserver((mutations) => {
         mutations.forEach((m) => {
           m.addedNodes.forEach((n) => {
-            if (n.nodeType !== 1)
-              return;
+            if (n.nodeType !== 1) return;
             const imgs = n.tagName === "IMG" ? [n] : Array.from(n.querySelectorAll("img"));
             imgs.forEach((img) => {
-              if (img.closest(".cloudattach-pdf-container"))
-                return;
+              if (img.closest(".cloudattach-pdf-container")) return;
               const src = img.getAttribute("src") || "";
               if (this._isPdfUrl(src)) {
                 this._renderPdfAsCanvas(img, src);
@@ -5768,8 +5625,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const d = doc || document;
     const pendingImgs = d.querySelectorAll('img[data-cloudattach-processed="pending"]');
     pendingImgs.forEach((img) => {
-      if (img.closest(".cloudattach-pdf-container"))
-        return;
+      if (img.closest(".cloudattach-pdf-container")) return;
       const pdfUrl = img.dataset.cloudattachPdfUrl;
       const heicUrl = img.dataset.cloudattachHeicUrl;
       if (pdfUrl) {
@@ -5782,8 +5638,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     });
     const allImgs = d.querySelectorAll("img");
     allImgs.forEach((img) => {
-      if (img.closest(".cloudattach-pdf-container"))
-        return;
+      if (img.closest(".cloudattach-pdf-container")) return;
       const src = img.getAttribute("src") || "";
       if (this._isPdfUrl(src)) {
         this._renderPdfAsCanvas(img, src);
@@ -5816,16 +5671,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const iframeRe = /<iframe[^>]+src=["']([^"']+)["']/gi;
     const bareRe = /(?:^|\s)(https?:\/\/[^\s<>"\)\]&?=]+)/gm;
     let m;
-    while ((m = imgRe.exec(text)) !== null)
-      urls.push(m[2]);
-    while ((m = linkRe.exec(text)) !== null)
-      urls.push(m[2]);
-    while ((m = iframeRe.exec(text)) !== null)
-      urls.push(m[1]);
+    while ((m = imgRe.exec(text)) !== null) urls.push(m[2]);
+    while ((m = linkRe.exec(text)) !== null) urls.push(m[2]);
+    while ((m = iframeRe.exec(text)) !== null) urls.push(m[1]);
     while ((m = bareRe.exec(text)) !== null) {
       const url = m[1].replace(/[),\]]+$/, "");
-      if (url)
-        urls.push(url);
+      if (url) urls.push(url);
     }
     return [...new Set(urls)];
   }
@@ -5839,8 +5690,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const urlObj = new URL(url);
       const host = urlObj.host;
       for (const account of this.accounts) {
-        if (account.type === "s3")
-          continue;
+        if (account.type === "s3") continue;
         const accountUrl = account.url?.replace(/\/$/, "") || "";
         const accountHost = new URL(accountUrl).host;
         if (host === accountHost) {
@@ -5907,8 +5757,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
               if (newVerify2.ok) {
                 const newText = client.findAndReplaceUrl(accumulatedText, realPath, newUrl);
                 if (newText !== accumulatedText) {
-                  if (!cursorPos)
-                    cursorPos = view.editor.getCursor();
+                  if (!cursorPos) cursorPos = view.editor.getCursor();
                   accumulatedText = newText;
                   results.refreshed++;
                   results.refreshedPaths.push(realPath);
@@ -5946,8 +5795,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
                 if (newVerify2.ok) {
                   const newText = client.findAndReplaceUrl(accumulatedText, realPath, newUrl);
                   if (newText !== accumulatedText) {
-                    if (!cursorPos)
-                      cursorPos = view.editor.getCursor();
+                    if (!cursorPos) cursorPos = view.editor.getCursor();
                     accumulatedText = newText;
                     results.refreshed++;
                     results.refreshedPaths.push(realPath);
@@ -5970,14 +5818,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
     }
     const parts = [];
-    if (results.valid > 0)
-      parts.push(t("notice.url_parts_valid", { count: results.valid }));
-    if (results.refreshed > 0)
-      parts.push(t("notice.urls_refreshed", { count: results.refreshed }));
-    if (results.failed > 0)
-      parts.push(t("notice.urls_failed", { count: results.failed }));
-    if (results.skipped > 0)
-      parts.push(t("notice.urls_skipped", { count: results.skipped }));
+    if (results.valid > 0) parts.push(t("notice.url_parts_valid", { count: results.valid }));
+    if (results.refreshed > 0) parts.push(t("notice.urls_refreshed", { count: results.refreshed }));
+    if (results.failed > 0) parts.push(t("notice.urls_failed", { count: results.failed }));
+    if (results.skipped > 0) parts.push(t("notice.urls_skipped", { count: results.skipped }));
     if (accumulatedText !== text && cursorPos) {
       view.editor.setValue(accumulatedText);
       view.editor.setCursor(cursorPos);
@@ -6117,7 +5961,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
   async loadSettings() {
     const data = await this.loadData();
-    this.settings = { accounts: [], pdfPreview: "iframe", enableAutoUpload: false, autoUploadFileTypes: null, ...data };
+    this.settings = { accounts: [], pdfPreview: "iframe", enableAutoUpload: false, autoUploadFileTypes: null, renameWithTimestamp: false, ...data };
     this.accounts = this.settings.accounts || [];
     this.settings.pdfPreview = this.settings.pdfPreview || "iframe";
     this.settings.enableAutoUpload = this.settings.enableAutoUpload || false;
@@ -6138,13 +5982,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
   async removeAccount(id) {
     this.accounts = this.accounts.filter((a) => a.id !== id);
-    if (this.defaultAccountId === id)
-      this.defaultAccountId = null;
+    if (this.defaultAccountId === id) this.defaultAccountId = null;
     await this.saveSettings();
   }
   async setDefaultAccount(id) {
-    if (id && !this.accounts.find((a) => a.id === id))
-      return;
+    if (id && !this.accounts.find((a) => a.id === id)) return;
     this.defaultAccountId = id || null;
     await this.saveSettings();
   }
@@ -6157,21 +5999,18 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
   async moveAccount(id, direction) {
     const idx = this.accounts.findIndex((a) => a.id === id);
-    if (idx < 0)
-      return;
+    if (idx < 0) return;
     const targetIdx = direction === "up" ? idx - 1 : idx + 1;
-    if (targetIdx < 0 || targetIdx >= this.accounts.length)
-      return;
+    if (targetIdx < 0 || targetIdx >= this.accounts.length) return;
     [this.accounts[idx], this.accounts[targetIdx]] = [this.accounts[targetIdx], this.accounts[idx]];
     await this.saveSettings();
   }
   createClient(accountId) {
     const account = this.getAccount(accountId);
-    if (!account)
-      return null;
-    if (account.type === "s3")
-      return new S3Client(account, this.app);
-    return new OpenListClient(account, this.app);
+    if (!account) return null;
+    const clientOpts = { renameWithTimestamp: !!this.settings?.renameWithTimestamp };
+    if (account.type === "s3") return new S3Client(account, this.app, clientOpts);
+    return new OpenListClient(account, this.app, clientOpts);
   }
   /**
    * 检查是否可以上传（需要至少一个账户且当前打开了视图并选中了目录）
@@ -6296,8 +6135,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
     }
     const confirmed = await this.showUploadConfirmModal([{ localPath: absolutePath, syntax: markdownSyntax }], ctx?.remotePath || "", viewOpen);
-    if (!confirmed)
-      return;
+    if (!confirmed) return;
     const uploadCtx = confirmed.useDefault || !viewOpen ? this.getDefaultUploadContext() : ctx;
     if (!uploadCtx || !uploadCtx.ok) {
       new Notice(`\u26A0\uFE0F ${uploadCtx?.error || t("error.no_account")}`, 4e3);
@@ -6334,8 +6172,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
           absolutePath = noteDir + localPath;
         }
       }
-      if (!absolutePath || !absolutePath.trim())
-        continue;
+      if (!absolutePath || !absolutePath.trim()) continue;
       if (!attachments.find((a) => a.localPath === absolutePath)) {
         attachments.push({
           localPath: absolutePath,
@@ -6357,8 +6194,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
           absolutePath = noteDir + localPath;
         }
       }
-      if (!absolutePath || !absolutePath.trim())
-        continue;
+      if (!absolutePath || !absolutePath.trim()) continue;
       if (!attachments.find((a) => a.localPath === absolutePath)) {
         attachments.push({
           localPath: absolutePath,
@@ -6401,8 +6237,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
     }
     const confirmed = await this.showUploadConfirmModal(attachments, ctx?.remotePath || "", viewOpen);
-    if (!confirmed)
-      return;
+    if (!confirmed) return;
     const uploadCtx = confirmed.useDefault || !viewOpen ? this.getDefaultUploadContext() : ctx;
     if (!uploadCtx || !uploadCtx.ok) {
       new Notice(`\u26A0\uFE0F ${uploadCtx?.error || t("error.no_account")}`, 4e3);
@@ -6419,8 +6254,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const mdFiles = this.app.vault.getMarkdownFiles();
     for (const mf of mdFiles) {
       const cache = this.app.metadataCache.getFileCache(mf);
-      if (!cache?.embeds && !cache?.links)
-        continue;
+      if (!cache?.embeds && !cache?.links) continue;
       const allRefs = [...cache.embeds || [], ...cache.links || []];
       if (allRefs.some((ref) => (ref.link || "").toLowerCase() === fileName.toLowerCase() || (ref.link || "").toLowerCase() === filePath.toLowerCase())) {
         results.push(mf);
@@ -6428,8 +6262,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
     if (results.length === 0) {
       const activeFile = this.app.workspace.getActiveFile();
-      if (activeFile?.extension === "md")
-        results.push(activeFile);
+      if (activeFile?.extension === "md") results.push(activeFile);
     }
     return results;
   }
@@ -6482,8 +6315,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
           radio.name = "upload_target";
           radio.checked = checked;
           radio.onchange = () => {
-            if (radio.checked)
-              onCheck();
+            if (radio.checked) onCheck();
           };
           row.appendChild(radio);
           const labelEl = document.createElement("span");
@@ -6715,14 +6547,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
     }
     const parts = [];
-    if (results.success > 0)
-      parts.push(t("notice.upload_success_count", { count: results.success }));
-    if (results.failed > 0)
-      parts.push(t("notice.upload_failed_count", { count: results.failed }));
-    if (results.skipped > 0)
-      parts.push(t("notice.upload_skipped_count", { count: results.skipped }));
+    if (results.success > 0) parts.push(t("notice.upload_success_count", { count: results.success }));
+    if (results.failed > 0) parts.push(t("notice.upload_failed_count", { count: results.failed }));
+    if (results.skipped > 0) parts.push(t("notice.upload_skipped_count", { count: results.skipped }));
     new Notice(t("notice.upload_complete", { parts: parts.join(", ") }), 5e3);
   }
 };
-
-/* nosourcemap */

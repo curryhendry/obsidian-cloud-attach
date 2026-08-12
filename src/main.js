@@ -558,7 +558,7 @@ function t(key, params = {}) {
 }
 
 class OpenListClient {
-  constructor(account, app) {
+  constructor(account, app, opts = {}) {
     this.serverUrl = account.url.replace(/\/$/, '');
     this.baseUrl = this.serverUrl;
     this.webdavPath = (account.webdavPath || '').replace(/\/$/, '');
@@ -567,6 +567,7 @@ class OpenListClient {
     this.password = account.password;
     this.publicUrl = account.publicUrl?.replace(/\/$/, '') || '';
     this.app = app;
+    this.renameWithTimestamp = !!opts.renameWithTimestamp;
   }
 
   /**
@@ -1215,7 +1216,17 @@ class OpenListClient {
         return { ok: false, error: t('error.local_file_not_found') };
       }
 
-      const fileName = file.name;
+      let fileName = file.name;
+      // 可选：上传时按时间戳重命名（原名_YYYYMMDD_HHMMSS.ext）
+      if (this.renameWithTimestamp) {
+        const dotIdx = fileName.lastIndexOf('.');
+        const base = dotIdx > 0 ? fileName.substring(0, dotIdx) : fileName;
+        const ext = dotIdx > 0 ? fileName.substring(dotIdx) : '';
+        const pad = (n) => String(n).padStart(2, '0');
+        const d = new Date();
+        const ts = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+        fileName = `${base}_${ts}${ext}`;
+      }
       // 确保远程目录以 / 结尾
       const normalizedDir = remoteDir.endsWith('/') ? remoteDir : remoteDir + '/';
       const remotePath = normalizedDir + fileName;
@@ -1498,7 +1509,7 @@ class OpenListClient {
  * - 兼容 S3 的自建存储（MinIO、Ceph RGW 等）
  */
 class S3Client {
-  constructor(account, app) {
+  constructor(account, app, opts = {}) {
     this.app = app;
     this.endpoint = account.endpoint?.replace(/\/$/, '') || '';
     this.bucket = account.bucket || '';
@@ -1507,6 +1518,7 @@ class S3Client {
     this.secretKey = account.secretKey || '';
     this.publicUrl = account.publicUrl?.replace(/\/$/, '') || '';
     this.prefix = account.prefix ? account.prefix.replace(/^\/+|\/+$/g, '') + '/' : '';
+    this.renameWithTimestamp = !!opts.renameWithTimestamp;
   }
 
   /**
@@ -1640,7 +1652,17 @@ class S3Client {
       const file = this.app.vault.getAbstractFileByPath(localPath);
       if (!file) return { ok: false, error: t('error.local_file_not_found') };
 
-      const fileName = file.name;
+      let fileName = file.name;
+      // 可选：上传时按时间戳重命名（原名_YYYYMMDD_HHMMSS.ext）
+      if (this.renameWithTimestamp) {
+        const dotIdx = fileName.lastIndexOf('.');
+        const base = dotIdx > 0 ? fileName.substring(0, dotIdx) : fileName;
+        const ext = dotIdx > 0 ? fileName.substring(dotIdx) : '';
+        const pad = (n) => String(n).padStart(2, '0');
+        const d = new Date();
+        const ts = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+        fileName = `${base}_${ts}${ext}`;
+      }
       const TFile = require('obsidian').TFile;
       if (!(file instanceof TFile)) return { ok: false, error: t('error.unsupported_type') };
 
@@ -4388,6 +4410,24 @@ class AdvancedSettingModal extends Modal {
         });
       });
 
+    // ===== 上传重命名规则 =====
+    const renameCard = contentEl.createDiv();
+    renameCard.className = 'cloudattach-settings-card';
+    renameCard.style.background = 'var(--background-secondary)';
+    renameCard.style.borderRadius = '8px';
+    renameCard.style.padding = '20px';
+    renameCard.style.marginBottom = '16px';
+    new Setting(renameCard)
+      .setName('上传重命名')
+      .setDesc('上传时在文件名后追加时间戳（原名_YYYYMMDD_HHMMSS.扩展名），避免同名文件冲突')
+      .addToggle((toggle) => {
+        toggle.setValue(!!this.plugin.settings.renameWithTimestamp);
+        toggle.onChange(async (value) => {
+          this.plugin.settings.renameWithTimestamp = value;
+          await this.plugin.saveSettings();
+        });
+      });
+
     // ===== 自动上传文件类型过滤 =====
     const typeCard = contentEl.createDiv();
     typeCard.className = 'cloudattach-settings-card';
@@ -6429,7 +6469,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
   async loadSettings() {
     const data = await this.loadData();
-    this.settings = { accounts: [], pdfPreview: 'iframe', enableAutoUpload: false, autoUploadFileTypes: null, ...data };
+    this.settings = { accounts: [], pdfPreview: 'iframe', enableAutoUpload: false, autoUploadFileTypes: null, renameWithTimestamp: false, ...data };
     this.accounts = this.settings.accounts || [];
     this.settings.pdfPreview = this.settings.pdfPreview || 'iframe';
     this.settings.enableAutoUpload = this.settings.enableAutoUpload || false;
@@ -6474,9 +6514,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
   createClient(accountId) {
     const account = this.getAccount(accountId);
     if (!account) return null;
-    if (account.type === 's3') return new S3Client(account, this.app);
+    // 传递全局设置给 client（如上传重命名规则）
+    const clientOpts = { renameWithTimestamp: !!this.settings?.renameWithTimestamp };
+    if (account.type === 's3') return new S3Client(account, this.app, clientOpts);
     // 默认走 openlist / WebDAV
-    return new OpenListClient(account, this.app);
+    return new OpenListClient(account, this.app, clientOpts);
   }
   /**
    * 检查是否可以上传（需要至少一个账户且当前打开了视图并选中了目录）
