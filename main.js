@@ -4154,6 +4154,226 @@ var AdvancedSettingModal = class extends Modal {
         }
       });
     });
+    // ===== 自动上传文件类型过滤 =====
+    const typeCard = contentEl.createDiv();
+    typeCard.className = "cloudattach-settings-card";
+    typeCard.style.background = "var(--background-secondary)";
+    typeCard.style.borderRadius = "8px";
+    typeCard.style.padding = "20px";
+    typeCard.style.marginBottom = "16px";
+    const typeTitle = typeCard.createEl("h3", { text: "自动上传文件类型" });
+    typeTitle.style.marginTop = "0";
+    typeTitle.style.marginBottom = "8px";
+    typeTitle.style.fontSize = "14px";
+    typeCard.createEl("p", { text: "勾选允许自动上传的格式，未勾选的类型将不会上传。留空则上传所有类型。" }).style.marginBottom = "12px";
+    const TYPE_GROUPS = {
+      "图片": ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico", "heic", "heif", "tiff"],
+      "视频": ["mp4", "mov", "avi", "mkv", "webm", "flv", "m4v"],
+      "音频": ["mp3", "wav", "flac", "aac", "ogg", "m4a"],
+      "文档": ["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt"]
+    };
+    let currentTypes = this.plugin.settings.autoUploadFileTypes;
+    if (!Array.isArray(currentTypes)) currentTypes = [];
+    const getChecked = () => currentTypes.map((s) => String(s).toLowerCase().replace(/^\\./, ""));
+    const saveTypes = async (list) => {
+      this.plugin.settings.autoUploadFileTypes = list.length > 0 ? list : null;
+      await this.plugin.saveSettings();
+    };
+    // 当前已勾选但不在任何预设组里的扩展名 = 自定义格式
+    const getCustomTypes = () => {
+      const preset = Object.values(TYPE_GROUPS).flat();
+      return getChecked().filter((e) => !preset.includes(e));
+    };
+    const renderTypeCheckboxes = () => {
+      typeCard.querySelectorAll(".cloudattach-type-block").forEach((el) => el.remove());
+      const checkedSet = new Set(getChecked());
+      let isFirst = true;
+      for (const [groupName, exts] of Object.entries(TYPE_GROUPS)) {
+        const block = typeCard.createDiv();
+        block.className = "cloudattach-type-block";
+        if (isFirst) {
+          isFirst = false;
+        } else {
+          block.style.borderTop = "1px solid var(--background-modifier-border)";
+          block.style.paddingTop = "12px";
+        }
+        block.style.marginTop = isFirst ? "0" : "10px";
+        // 组标题 + 组级全选框
+        const headRow = block.createDiv();
+        headRow.style.display = "flex";
+        headRow.style.alignItems = "center";
+        headRow.style.gap = "6px";
+        headRow.style.marginBottom = "4px";
+        const groupCb = headRow.createEl("input", { type: "checkbox" });
+        groupCb.style.cursor = "pointer";
+        const allChecked = exts.every((e) => checkedSet.has(e));
+        const someChecked = exts.some((e) => checkedSet.has(e));
+        groupCb.checked = allChecked;
+        groupCb.indeterminate = !allChecked && someChecked;
+        groupCb.addEventListener("change", async () => {
+          const cur = getChecked();
+          if (groupCb.checked) {
+            for (const e of exts) {
+              if (!cur.includes(e)) cur.push(e);
+            }
+          } else {
+            for (const e of exts) {
+              const idx = cur.indexOf(e);
+              if (idx >= 0) cur.splice(idx, 1);
+            }
+          }
+          currentTypes = cur;
+          await saveTypes(cur);
+          renderTypeCheckboxes();
+        });
+        const gTitle = headRow.createEl("label", { text: groupName });
+        gTitle.style.fontSize = "13px";
+        gTitle.style.fontWeight = "600";
+        gTitle.style.cursor = "pointer";
+        // 组内格式 checkbox
+        const row = block.createDiv();
+        row.style.display = "flex";
+        row.style.flexWrap = "wrap";
+        row.style.gap = "4px 14px";
+        row.style.marginTop = "4px";
+        for (const ext of exts) {
+          const label = row.createEl("label", { text: ext });
+          label.style.display = "inline-flex";
+          label.style.alignItems = "center";
+          label.style.gap = "3px";
+          label.style.fontSize = "12px";
+          label.style.cursor = "pointer";
+          const cb = label.createEl("input", { type: "checkbox" });
+          cb.checked = checkedSet.has(ext);
+          cb.addEventListener("change", async () => {
+            const cur = getChecked();
+            if (cb.checked) {
+              if (!cur.includes(ext)) cur.push(ext);
+            } else {
+              const idx = cur.indexOf(ext);
+              if (idx >= 0) cur.splice(idx, 1);
+            }
+            currentTypes = cur;
+            await saveTypes(cur);
+            renderTypeCheckboxes();
+          });
+        }
+      }
+      // ===== 自定义后缀格式 =====
+      const customBlock = typeCard.createDiv();
+      customBlock.className = "cloudattach-type-block";
+      customBlock.style.borderTop = "1px solid var(--background-modifier-border)";
+      customBlock.style.paddingTop = "12px";
+      customBlock.style.marginTop = "10px";
+      const customHead = customBlock.createEl("div", { text: "自定义格式" });
+      customHead.style.fontSize = "13px";
+      customHead.style.fontWeight = "600";
+      customHead.style.marginBottom = "6px";
+      const customRow = customBlock.createDiv();
+      customRow.style.display = "flex";
+      customRow.style.gap = "6px";
+      customRow.style.marginBottom = "6px";
+      const customInput = customRow.createEl("input", { type: "text", placeholder: "例如: 7z, rar, apk" });
+      customInput.className = "cloud-attach-input";
+      customInput.style.flex = "1";
+      customInput.style.padding = "4px 8px";
+      customInput.style.fontSize = "12px";
+      const addBtn = document.createElement("button");
+      addBtn.className = "cloud-attach-btn";
+      addBtn.textContent = "+ 添加";
+      addBtn.style.fontSize = "12px";
+      addBtn.style.padding = "4px 10px";
+      addBtn.onclick = async () => {
+        const raw = customInput.value.trim();
+        if (!raw) return;
+        const cur = getChecked();
+        const parts = raw.split(/[,，\s]+/).filter(Boolean);
+        let changed = false;
+        for (const p of parts) {
+          const ext = p.toLowerCase().replace(/^\\./, "");
+          if (ext && !cur.includes(ext)) {
+            cur.push(ext);
+            changed = true;
+          }
+        }
+        if (changed) {
+          currentTypes = cur;
+          await saveTypes(cur);
+          renderTypeCheckboxes();
+        } else {
+          new Notice("格式已存在或无效", 2e3);
+        }
+      };
+      customRow.appendChild(addBtn);
+      // 已添加的自定义格式列表（可删除）
+      const customList = customBlock.createDiv();
+      customList.style.display = "flex";
+      customList.style.flexWrap = "wrap";
+      customList.style.gap = "6px";
+      const customTypes = getCustomTypes();
+      if (customTypes.length === 0) {
+        const empty = customList.createEl("span", { text: "暂无自定义格式" });
+        empty.style.fontSize = "12px";
+        empty.style.color = "var(--text-muted)";
+      }
+      for (const ext of customTypes) {
+        const chip = customList.createEl("span");
+        chip.textContent = ext;
+        chip.style.display = "inline-flex";
+        chip.style.alignItems = "center";
+        chip.style.gap = "4px";
+        chip.style.padding = "2px 8px";
+        chip.style.fontSize = "12px";
+        chip.style.borderRadius = "10px";
+        chip.style.border = "1px solid var(--background-modifier-border)";
+        chip.style.background = "var(--background-primary)";
+        const delBtn = chip.createEl("button");
+        delBtn.textContent = "✕";
+        delBtn.style.border = "none";
+        delBtn.style.background = "transparent";
+        delBtn.style.color = "var(--text-muted)";
+        delBtn.style.cursor = "pointer";
+        delBtn.style.fontSize = "11px";
+        delBtn.style.padding = "0 2px";
+        delBtn.title = "删除 " + ext;
+        delBtn.onclick = async () => {
+          const cur = getChecked();
+          const idx = cur.indexOf(ext);
+          if (idx >= 0) cur.splice(idx, 1);
+          currentTypes = cur;
+          await saveTypes(cur);
+          renderTypeCheckboxes();
+        };
+      }
+      // ===== 底部操作 =====
+      const btnRow = typeCard.createDiv();
+      btnRow.className = "cloudattach-type-block";
+      btnRow.style.display = "flex";
+      btnRow.style.gap = "8px";
+      btnRow.style.marginTop = "10px";
+      const noneBtn = document.createElement("button");
+      noneBtn.className = "cloud-attach-btn";
+      noneBtn.textContent = "清空(全部上传)";
+      noneBtn.style.fontSize = "12px";
+      noneBtn.style.padding = "4px 10px";
+      noneBtn.onclick = async () => {
+        currentTypes = [];
+        await saveTypes([]);
+        renderTypeCheckboxes();
+      };
+      btnRow.appendChild(noneBtn);
+      const status = typeCard.createDiv();
+      status.className = "cloudattach-type-block";
+      status.style.marginTop = "8px";
+      status.style.fontSize = "12px";
+      status.style.color = "var(--text-muted)";
+      if (checkedSet.size === 0) {
+        status.textContent = "当前：上传所有类型";
+      } else {
+        status.textContent = "当前仅上传：" + Array.from(checkedSet).join(", ");
+      }
+    };
+    renderTypeCheckboxes();
     const card = contentEl.createDiv();
     card.className = "cloudattach-settings-card";
     card.style.background = "var(--background-secondary)";
@@ -4681,6 +4901,16 @@ module.exports = class CloudAttachPlugin extends Plugin {
         return;
       if (file.extension.toLowerCase() === "md")
         return;
+      // 文件类型过滤：仅上传允许的扩展名
+      const allowedTypes = this.settings.autoUploadFileTypes;
+      if (Array.isArray(allowedTypes) && allowedTypes.length > 0) {
+        const ext = file.extension.toLowerCase();
+        const allowed = allowedTypes.map((s) => String(s).toLowerCase().replace(/^\./, ""));
+        if (!allowed.includes(ext)) {
+          console.log("[CloudAttach] auto-upload skipped (type not allowed):", file.path, "ext:", ext);
+          return;
+        }
+      }
       this._autoUploadChain = this._autoUploadChain.then(() => new Promise((resolve) => {
         const tryUpload = async (retriesLeft) => {
           const view = this.activeMarkdownView || this.app.workspace.getActiveViewOfType(MarkdownView);
@@ -5887,7 +6117,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
   }
   async loadSettings() {
     const data = await this.loadData();
-    this.settings = { accounts: [], pdfPreview: "iframe", enableAutoUpload: false, ...data };
+    this.settings = { accounts: [], pdfPreview: "iframe", enableAutoUpload: false, autoUploadFileTypes: null, ...data };
     this.accounts = this.settings.accounts || [];
     this.settings.pdfPreview = this.settings.pdfPreview || "iframe";
     this.settings.enableAutoUpload = this.settings.enableAutoUpload || false;
@@ -6494,3 +6724,5 @@ module.exports = class CloudAttachPlugin extends Plugin {
     new Notice(t("notice.upload_complete", { parts: parts.join(", ") }), 5e3);
   }
 };
+
+/* nosourcemap */
