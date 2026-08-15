@@ -1,3 +1,7 @@
+## v0.4.474.dev - 2026-08-16
+
+- 🔧 修复：PDF 预览隐藏 Obsidian 放大镜按钮（仅 PDF，图片不动，`</>` 代码按钮保留）
+
 ## v0.4.473.dev - 2026-08-16
 
 - 🔧 修复：OpenList `/d/` 链接补 sign 签名（修复 401 Unauthorized），无 sign 时回退 raw_url

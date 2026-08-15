@@ -5150,6 +5150,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
         });
         resizeObserver.observe(container);
         this._initPdfToolbar(container, pdf);
+        const embed = container.closest(".internal-embed");
+        if (embed) {
+          const obsidianBtns = [...embed.querySelectorAll("button, .clickable-icon")].filter((btn) => !container.contains(btn));
+          if (obsidianBtns.length > 0)
+            obsidianBtns[0].remove();
+        }
         const pagePlaceholders = [];
         for (let i = 2; i <= pdf.numPages; i++) {
           const placeholder = document.createElement("div");

@@ -5421,6 +5421,14 @@ module.exports = class CloudAttachPlugin extends Plugin {
       });
       resizeObserver.observe(container);
       this._initPdfToolbar(container, pdf);
+      // 只移除 Obsidian 加在 PDF 嵌入上的「放大镜」(第一个操作按钮)，保留 </> 代码按钮
+      // 仅针对 PDF 容器；图片不经过此路径，保持 Obsidian 默认行为
+      const embed = container.closest('.internal-embed');
+      if (embed) {
+        const obsidianBtns = [...embed.querySelectorAll('button, .clickable-icon')]
+          .filter(btn => !container.contains(btn));
+        if (obsidianBtns.length > 0) obsidianBtns[0].remove();
+      }
       // 懒加载：只渲染第1页，其余页创建占位符，滚入视口时才渲染
       const pagePlaceholders = [];
       for (let i = 2; i <= pdf.numPages; i++) {
