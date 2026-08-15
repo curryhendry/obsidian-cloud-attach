@@ -5150,11 +5150,22 @@ module.exports = class CloudAttachPlugin extends Plugin {
         });
         resizeObserver.observe(container);
         this._initPdfToolbar(container, pdf);
-        const embed = container.closest(".internal-embed");
+        const embed = container.closest(".cm-embed-block, .internal-embed, .image-embed");
         if (embed) {
-          const obsidianBtns = [...embed.querySelectorAll("button, .clickable-icon")].filter((btn) => !container.contains(btn));
-          if (obsidianBtns.length > 0)
-            obsidianBtns[0].remove();
+          const removeObsidianZoom = () => {
+            const candidates = [...embed.querySelectorAll("button, .clickable-icon, [aria-label]")].filter((el) => !container.contains(el));
+            if (candidates.length === 0)
+              return;
+            const realBtns = candidates.filter((el) => el.tagName === "BUTTON" || el.classList.contains("clickable-icon"));
+            const target = (realBtns.length ? realBtns : candidates)[0];
+            target.remove();
+          };
+          removeObsidianZoom();
+          const mo = new MutationObserver(removeObsidianZoom);
+          mo.observe(embed, { childList: true, subtree: true });
+          if (!this._pdfEmbedObservers)
+            this._pdfEmbedObservers = /* @__PURE__ */ new Set();
+          this._pdfEmbedObservers.add(mo);
         }
         const pagePlaceholders = [];
         for (let i = 2; i <= pdf.numPages; i++) {

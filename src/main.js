@@ -5423,11 +5423,23 @@ module.exports = class CloudAttachPlugin extends Plugin {
       this._initPdfToolbar(container, pdf);
       // 只移除 Obsidian 加在 PDF 嵌入上的「放大镜」(第一个操作按钮)，保留 </> 代码按钮
       // 仅针对 PDF 容器；图片不经过此路径，保持 Obsidian 默认行为
-      const embed = container.closest('.internal-embed');
+      const embed = container.closest('.cm-embed-block, .internal-embed, .image-embed');
       if (embed) {
-        const obsidianBtns = [...embed.querySelectorAll('button, .clickable-icon')]
-          .filter(btn => !container.contains(btn));
-        if (obsidianBtns.length > 0) obsidianBtns[0].remove();
+        const removeObsidianZoom = () => {
+          const candidates = [...embed.querySelectorAll('button, .clickable-icon, [aria-label]')]
+            .filter(el => !container.contains(el));
+          if (candidates.length === 0) return;
+          // 优先真正的按钮；找不到按钮时再退而求其次用带 aria-label 的元素
+          const realBtns = candidates.filter(el => el.tagName === 'BUTTON' || el.classList.contains('clickable-icon'));
+          const target = (realBtns.length ? realBtns : candidates)[0];
+          target.remove();
+        };
+        removeObsidianZoom();
+        // Obsidian 可能在渲染后才补按钮，用 MutationObserver 兜底
+        const mo = new MutationObserver(removeObsidianZoom);
+        mo.observe(embed, { childList: true, subtree: true });
+        if (!this._pdfEmbedObservers) this._pdfEmbedObservers = new Set();
+        this._pdfEmbedObservers.add(mo);
       }
       // 懒加载：只渲染第1页，其余页创建占位符，滚入视口时才渲染
       const pagePlaceholders = [];
