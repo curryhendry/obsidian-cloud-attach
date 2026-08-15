@@ -839,11 +839,15 @@ class OpenListClient {
       console.log('[CloudAttach] getSignedUrl response:', data);
       
       if (data.code === 200) {
-        // 优先使用 OpenList 自己的 /d/ 代理链接（永久有效，服务器每次访问动态签名转发）
-        // 注意：data.data.raw_url 是后端存储（如阿里云盘）的临时直链，通常 900s 过期，不适合插入笔记
+        // OpenList /d/ 永久代理链接 + sign 签名（OpenList 认证必需，否则 401）
+        // raw_url 是后端存储临时直链（如阿里云盘，约 900s 过期），不适合插入笔记
         const encodedVirtual = virtualPath.split('/').map(seg => encodeURIComponent(seg)).join('/');
-        const proxyUrl = `${this.serverUrl}/d${encodedVirtual}`;
-        return proxyUrl;
+        // 有 sign → /d/+sign（永久链接）；无 sign → 回退 raw_url（老逻辑，能用但会过期）
+        const sign = data.data?.sign ? `?sign=${encodeURIComponent(data.data.sign)}` : '';
+        if (sign) {
+          return `${this.serverUrl}/d${encodedVirtual}${sign}`;
+        }
+        return this.safeDecodeUrl(data.data.raw_url);
       }
       
       // API 返回错误（token 无效/过期），抛错而非静默回退

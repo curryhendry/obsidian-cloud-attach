@@ -1,3 +1,7 @@
+## v0.4.473.dev - 2026-08-16
+
+- 🔧 修复：OpenList `/d/` 链接补 sign 签名（修复 401 Unauthorized），无 sign 时回退 raw_url
+
 ## v0.4.472.dev - 2026-08-16
 
 - 🔧 修复：OpenList 插入链接改用 `/d/` 永久代理链接，避免 token 型后端 `raw_url` 约 900s 过期导致笔记图片失效
