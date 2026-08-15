@@ -839,11 +839,11 @@ class OpenListClient {
       console.log('[CloudAttach] getSignedUrl response:', data);
       
       if (data.code === 200) {
-        // raw_url 全编码，用 safeDecodeUrl 解码保留中文，特殊字符编码
-        let newUrl = this.safeDecodeUrl(data.data.raw_url);
-        // 保持原 URL 的前缀（/d/ 或 /p/）
-        newUrl = newUrl.replace(/\/(d|p)\//, `/${preferredPrefix}/`);
-        return newUrl;
+        // 优先使用 OpenList 自己的 /d/ 代理链接（永久有效，服务器每次访问动态签名转发）
+        // 注意：data.data.raw_url 是后端存储（如阿里云盘）的临时直链，通常 900s 过期，不适合插入笔记
+        const encodedVirtual = virtualPath.split('/').map(seg => encodeURIComponent(seg)).join('/');
+        const proxyUrl = `${this.serverUrl}/d${encodedVirtual}`;
+        return proxyUrl;
       }
       
       // API 返回错误（token 无效/过期），抛错而非静默回退

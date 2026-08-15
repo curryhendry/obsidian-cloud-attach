@@ -774,9 +774,9 @@ var OpenListClient = class {
       const data = await response.json();
       console.log("[CloudAttach] getSignedUrl response:", data);
       if (data.code === 200) {
-        let newUrl = this.safeDecodeUrl(data.data.raw_url);
-        newUrl = newUrl.replace(/\/(d|p)\//, `/${preferredPrefix}/`);
-        return newUrl;
+        const encodedVirtual = virtualPath.split("/").map((seg) => encodeURIComponent(seg)).join("/");
+        const proxyUrl = `${this.serverUrl}/d${encodedVirtual}`;
+        return proxyUrl;
       }
       const errMsg = data.message || `API error ${data.code}`;
       throw new Error(`[CloudAttach] Sign \u8BF7\u6C42\u5931\u8D25: ${errMsg}`);
