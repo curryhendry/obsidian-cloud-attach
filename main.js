@@ -4789,6 +4789,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
     console.log("CloudAttach unloading...");
     if (this._pdfObserver)
       this._pdfObserver.disconnect();
+    if (this._pdfEmbedObservers) {
+      this._pdfEmbedObservers.forEach((mo) => mo.disconnect());
+      this._pdfEmbedObservers.clear();
+    }
     this._flushPdfErrorLog();
   }
   _flushPdfErrorLog() {
@@ -5163,6 +5167,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
             const realBtns = candidates.filter((el) => el.tagName === "BUTTON" || el.classList.contains("clickable-icon"));
             const target = (realBtns.length ? realBtns : candidates)[0];
             target.remove();
+            console.log("[CloudAttach] \u5DF2\u79FB\u9664 Obsidian PDF \u653E\u5927\u955C\u6309\u94AE\uFF08\u4EC5 PDF\uFF09");
             removed = true;
             if (mo)
               mo.disconnect();

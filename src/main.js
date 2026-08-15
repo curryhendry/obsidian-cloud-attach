@@ -5054,6 +5054,11 @@ module.exports = class CloudAttachPlugin extends Plugin {
   onunload() { 
     console.log('CloudAttach unloading...'); 
     if (this._pdfObserver) this._pdfObserver.disconnect();
+    // 清理 PDF 嵌入按钮移除监听，避免长时间使用后监听器累积
+    if (this._pdfEmbedObservers) {
+      this._pdfEmbedObservers.forEach(mo => mo.disconnect());
+      this._pdfEmbedObservers.clear();
+    }
     this._flushPdfErrorLog();
   }
 
@@ -5436,6 +5441,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
           const realBtns = candidates.filter(el => el.tagName === 'BUTTON' || el.classList.contains('clickable-icon'));
           const target = (realBtns.length ? realBtns : candidates)[0];
           target.remove();
+          console.log('[CloudAttach] 已移除 Obsidian PDF 放大镜按钮（仅 PDF）');
           removed = true;
           if (mo) mo.disconnect();
         };
