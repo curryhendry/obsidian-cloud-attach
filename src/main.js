@@ -5425,7 +5425,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
       // 仅针对 PDF 容器；图片不经过此路径，保持 Obsidian 默认行为
       const embed = container.closest('.cm-embed-block, .internal-embed, .image-embed');
       if (embed) {
+        let removed = false;
+        let mo = null;
         const removeObsidianZoom = () => {
+          if (removed) return; // 只删一次，避免 MutationObserver 连锁触发把 </> 也删掉
           const candidates = [...embed.querySelectorAll('button, .clickable-icon, [aria-label]')]
             .filter(el => !container.contains(el));
           if (candidates.length === 0) return;
@@ -5433,10 +5436,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
           const realBtns = candidates.filter(el => el.tagName === 'BUTTON' || el.classList.contains('clickable-icon'));
           const target = (realBtns.length ? realBtns : candidates)[0];
           target.remove();
+          removed = true;
+          if (mo) mo.disconnect();
         };
         removeObsidianZoom();
-        // Obsidian 可能在渲染后才补按钮，用 MutationObserver 兜底
-        const mo = new MutationObserver(removeObsidianZoom);
+        // Obsidian 可能在渲染后才补按钮，用 MutationObserver 兜底（只生效一次）
+        mo = new MutationObserver(removeObsidianZoom);
         mo.observe(embed, { childList: true, subtree: true });
         if (!this._pdfEmbedObservers) this._pdfEmbedObservers = new Set();
         this._pdfEmbedObservers.add(mo);

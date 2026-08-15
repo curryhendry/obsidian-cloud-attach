@@ -5152,16 +5152,23 @@ module.exports = class CloudAttachPlugin extends Plugin {
         this._initPdfToolbar(container, pdf);
         const embed = container.closest(".cm-embed-block, .internal-embed, .image-embed");
         if (embed) {
+          let removed = false;
+          let mo = null;
           const removeObsidianZoom = () => {
+            if (removed)
+              return;
             const candidates = [...embed.querySelectorAll("button, .clickable-icon, [aria-label]")].filter((el) => !container.contains(el));
             if (candidates.length === 0)
               return;
             const realBtns = candidates.filter((el) => el.tagName === "BUTTON" || el.classList.contains("clickable-icon"));
             const target = (realBtns.length ? realBtns : candidates)[0];
             target.remove();
+            removed = true;
+            if (mo)
+              mo.disconnect();
           };
           removeObsidianZoom();
-          const mo = new MutationObserver(removeObsidianZoom);
+          mo = new MutationObserver(removeObsidianZoom);
           mo.observe(embed, { childList: true, subtree: true });
           if (!this._pdfEmbedObservers)
             this._pdfEmbedObservers = /* @__PURE__ */ new Set();
