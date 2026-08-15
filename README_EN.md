@@ -142,6 +142,7 @@ To revert to iframe preview, simply change the setting back in Advanced Settings
 
 - [Obsidian](https://obsidian.md)
 - [OpenList](https://github.com/OpenListTeam/OpenList)
+- [congyong](https://github.com/congyong) — PR #1: contributed the idea for the permanent `/d/` link fix
 
 ---
 

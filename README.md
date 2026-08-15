@@ -140,6 +140,7 @@ CloudAttach 支持使用 PDF.js 内联预览 PDF 文件。启用方法：
 
 - [Obsidian](https://obsidian.md)
 - [OpenList](https://github.com/OpenListTeam/OpenList)
+- [congyong](https://github.com/congyong) — PR #1：贡献 `/d/` 永久链接修复思路
 
 ---
 
