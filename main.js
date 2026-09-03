@@ -777,7 +777,8 @@ var OpenListClient = class {
         const encodedVirtual = virtualPath.split("/").map((seg) => encodeURIComponent(seg)).join("/");
         const sign = data.data?.sign ? `?sign=${encodeURIComponent(data.data.sign)}` : "";
         if (sign) {
-          return `${this.serverUrl}/d${encodedVirtual}${sign}`;
+          const displayPath = this.safeDecodeUrl(encodedVirtual);
+          return `${this.serverUrl}/d${displayPath}${sign}`;
         }
         return this.safeDecodeUrl(data.data.raw_url);
       }

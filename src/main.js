@@ -845,7 +845,9 @@ class OpenListClient {
         // 有 sign → /d/+sign（永久链接）；无 sign → 回退 raw_url（老逻辑，能用但会过期）
         const sign = data.data?.sign ? `?sign=${encodeURIComponent(data.data.sign)}` : '';
         if (sign) {
-          return `${this.serverUrl}/d${encodedVirtual}${sign}`;
+          // 中文路径保留原文（仅空格/特殊字符编码），与 getFileUrl 行为一致；sign 参数本身保持编码
+          const displayPath = this.safeDecodeUrl(encodedVirtual);
+          return `${this.serverUrl}/d${displayPath}${sign}`;
         }
         return this.safeDecodeUrl(data.data.raw_url);
       }
