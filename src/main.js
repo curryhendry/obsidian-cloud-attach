@@ -2519,11 +2519,14 @@ class CloudAttachView extends ItemView {
     content.appendChild(btnRow);
     modal.open();
     input.focus();
-    input.select();
-    content.appendChild(btnRow);
-    modal.open();
-    input.focus();
-    input.select();
+    // 默认选中文件名主体（不含后缀）；文件夹或 .xxx 隐藏文件仍全选
+    if (!file.isDirectory) {
+      const dotIdx = file.name.lastIndexOf('.');
+      if (dotIdx > 0) input.setSelectionRange(0, dotIdx);
+      else input.select();
+    } else {
+      input.select();
+    }
   }
   /**
    * 执行重命名

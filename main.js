@@ -2327,11 +2327,15 @@ var CloudAttachView = class extends ItemView {
     content.appendChild(btnRow);
     modal.open();
     input.focus();
-    input.select();
-    content.appendChild(btnRow);
-    modal.open();
-    input.focus();
-    input.select();
+    if (!file.isDirectory) {
+      const dotIdx = file.name.lastIndexOf(".");
+      if (dotIdx > 0)
+        input.setSelectionRange(0, dotIdx);
+      else
+        input.select();
+    } else {
+      input.select();
+    }
   }
   /**
    * 执行重命名
