@@ -6042,38 +6042,38 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const fullText = view.editor.getValue();
     let localPath = null;
     let markdownSyntax = "";
+    let anchor = "";
     const selection = view.editor.getSelection();
     if (selection) {
       const imgMatch = selection.match(/!\[([^\]]*)\]\(([^)]+)\)/);
       if (imgMatch) {
-        localPath = imgMatch[2];
-        markdownSyntax = selection;
+        const t2 = this._parseAttachTarget(imgMatch[2]);
+        if (t2) {
+          localPath = t2.path;
+          anchor = t2.anchor;
+          markdownSyntax = selection;
+        }
       }
     }
     if (!localPath) {
       const line = view.editor.getLine(cursor.line);
-      const imgMatch = line.match(/!\[([^\]]*)\]\(([^)]+)\)/);
-      if (imgMatch) {
-        localPath = imgMatch[2];
-        markdownSyntax = imgMatch[0];
-      } else {
-        const attachMatch = line.match(/!\[([^\]]*)\]\((?!http)([^)#\s?]+)/);
-        if (attachMatch) {
-          localPath = attachMatch[2];
-          markdownSyntax = attachMatch[0];
-        } else {
-          const wikiMatch = line.match(/!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/);
-          if (wikiMatch) {
-            localPath = wikiMatch[1];
-            markdownSyntax = wikiMatch[0];
-          } else {
-            const plainWikiMatch = line.match(/\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/);
-            if (plainWikiMatch) {
-              localPath = plainWikiMatch[1];
-              markdownSyntax = plainWikiMatch[0];
-            }
-          }
-        }
+      const candidates = [
+        { re: /!\[([^\]]*)\]\(([^)]+)\)/, pick: (m) => m[2] },
+        { re: /!\[([^\]]*)\]\((?!http)([^)\s]*)\)/, pick: (m) => m[2] },
+        { re: /!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/, pick: (m) => m[1] },
+        { re: /\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/, pick: (m) => m[1] }
+      ];
+      for (const c of candidates) {
+        const m = line.match(c.re);
+        if (!m)
+          continue;
+        const t2 = this._parseAttachTarget(c.pick(m));
+        if (!t2)
+          continue;
+        localPath = t2.path;
+        anchor = t2.anchor;
+        markdownSyntax = m[0];
+        break;
       }
     }
     if (!localPath || localPath.startsWith("http://") || localPath.startsWith("https://")) {
@@ -6102,7 +6102,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
         return;
       }
     }
-    const confirmed = await this.showUploadConfirmModal([{ localPath: absolutePath, syntax: markdownSyntax }], ctx?.remotePath || "", viewOpen);
+    const uploadItems = [{ localPath: absolutePath, syntax: markdownSyntax, anchor }];
+    const confirmed = await this.showUploadConfirmModal(uploadItems, ctx?.remotePath || "", viewOpen);
     if (!confirmed)
       return;
     const uploadCtx = confirmed.useDefault || !viewOpen ? this.getDefaultUploadContext() : ctx;
@@ -6110,7 +6111,25 @@ module.exports = class CloudAttachPlugin extends Plugin {
       new Notice(`\u26A0\uFE0F ${uploadCtx?.error || t("error.no_account")}`, 4e3);
       return;
     }
-    await this.doUpload([{ localPath: absolutePath, syntax: markdownSyntax }], uploadCtx);
+    await this.doUpload(uploadItems, uploadCtx);
+  }
+  /**
+   * 判定链接目标是不是"附件文件"
+   * 规则：去掉锚点(#)后，路径部分带扩展名 → 文件（附件）；不带扩展名 → 指向其他笔记里的内容（区块引用），不是附件
+   * @param {string} rawPath 链接里的原始路径
+   * @returns {{path: string, anchor: string}|null} 不是附件返回 null
+   */
+  _parseAttachTarget(rawPath) {
+    if (!rawPath)
+      return null;
+    const hashIdx = rawPath.indexOf("#");
+    const pathPart = (hashIdx >= 0 ? rawPath.substring(0, hashIdx) : rawPath).trim();
+    const anchor = hashIdx >= 0 ? rawPath.substring(hashIdx + 1).trim() : "";
+    if (!pathPart)
+      return null;
+    if (!/\.[A-Za-z0-9]{1,10}$/.test(pathPart))
+      return null;
+    return { path: pathPart, anchor };
   }
   /**
    * 上传当前笔记中的所有附件
@@ -6125,11 +6144,14 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const codeFreeText = text.replace(/```[\s\S]*?```/g, "").replace(/`[^`]+`/g, "");
     const notePath = view.file?.path || "";
     const noteDir = notePath.substring(0, notePath.lastIndexOf("/") + 1);
-    const attachmentRegex = /!\[([^\]]*)\]\((?!http)([^)#\s?]+)/g;
+    const attachmentRegex = /!\[([^\]]*)\]\((?!http)([^)\s]*)\)/g;
     const attachments = [];
     let match;
     while ((match = attachmentRegex.exec(codeFreeText)) !== null) {
-      const localPath = match[2];
+      const target = this._parseAttachTarget(match[2]);
+      if (!target)
+        continue;
+      const localPath = target.path;
       const cacheResolved = this.app.metadataCache.getFirstLinkpathDest(localPath, notePath);
       let absolutePath;
       if (cacheResolved && cacheResolved.path) {
@@ -6146,13 +6168,17 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (!attachments.find((a) => a.localPath === absolutePath)) {
         attachments.push({
           localPath: absolutePath,
-          syntax: match[0]
+          syntax: match[0],
+          anchor: target.anchor
         });
       }
     }
     const wikiRegex = /!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g;
     while ((match = wikiRegex.exec(codeFreeText)) !== null) {
-      const localPath = match[1];
+      const target = this._parseAttachTarget(match[1]);
+      if (!target)
+        continue;
+      const localPath = target.path;
       const cacheResolved = this.app.metadataCache.getFirstLinkpathDest(localPath, notePath);
       let absolutePath;
       if (cacheResolved && cacheResolved.path) {
@@ -6169,13 +6195,17 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (!attachments.find((a) => a.localPath === absolutePath)) {
         attachments.push({
           localPath: absolutePath,
-          syntax: match[0]
+          syntax: match[0],
+          anchor: target.anchor
         });
       }
     }
     const plainWikiRegex = /\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g;
     while ((match = plainWikiRegex.exec(codeFreeText)) !== null) {
-      const localPath = match[1];
+      const target = this._parseAttachTarget(match[1]);
+      if (!target)
+        continue;
+      const localPath = target.path;
       const cacheResolved = this.app.metadataCache.getFirstLinkpathDest(localPath, notePath);
       let absolutePath;
       if (cacheResolved && cacheResolved.path) {
@@ -6190,7 +6220,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (!attachments.find((a) => a.localPath === absolutePath)) {
         attachments.push({
           localPath: absolutePath,
-          syntax: match[0]
+          syntax: match[0],
+          anchor: target.anchor
         });
       }
     }
@@ -6414,7 +6445,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
           oldSyntax: att.syntax,
           newUrl: result.url,
           localPath: att.localPath,
-          remotePath: result.remotePath
+          remotePath: result.remotePath,
+          anchor: att.anchor || ""
         });
       } else {
         results.failed++;
@@ -6439,6 +6471,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
         } else {
           url = rep.newUrl;
         }
+        if (rep.anchor)
+          url = `${url}#${rep.anchor}`;
         let newSyntax;
         if (rep.oldSyntax.startsWith("![[")) {
           const aliasMatch = rep.oldSyntax.match(/!\[\[([^\]|]+)(?:\|([^\]]*))?\]\]/);

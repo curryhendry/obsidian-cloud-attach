@@ -6357,44 +6357,40 @@ module.exports = class CloudAttachPlugin extends Plugin {
     // 提取光标附近的图片或附件
     let localPath = null;
     let markdownSyntax = '';
+    let anchor = '';
     // 策略1: 从选中文本中提取
     const selection = view.editor.getSelection();
     if (selection) {
       const imgMatch = selection.match(/!\[([^\]]*)\]\(([^)]+)\)/);
       if (imgMatch) {
-        localPath = imgMatch[2];
-        markdownSyntax = selection;
+        const t = this._parseAttachTarget(imgMatch[2]);
+        if (t) {
+          localPath = t.path;
+          anchor = t.anchor;
+          markdownSyntax = selection;
+        }
       }
     }
     // 策略2: 从光标所在行提取第一个附件
     if (!localPath) {
       const line = view.editor.getLine(cursor.line);
-      // 匹配 ![alt](path) 格式
-      const imgMatch = line.match(/!\[([^\]]*)\]\(([^)]+)\)/);
-      if (imgMatch) {
-        localPath = imgMatch[2];
-        markdownSyntax = imgMatch[0];
-      } else {
-        // 尝试匹配任何本地附件（![] 格式，排除 http/https）
-        const attachMatch = line.match(/!\[([^\]]*)\]\((?!http)([^)#\s?]+)/);
-        if (attachMatch) {
-          localPath = attachMatch[2];
-          markdownSyntax = attachMatch[0];
-        } else {
-          // 尝试匹配 wiki-link 格式 ![[path]]
-          const wikiMatch = line.match(/!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/);
-          if (wikiMatch) {
-            localPath = wikiMatch[1];
-            markdownSyntax = wikiMatch[0];
-          } else {
-            // 尝试匹配普通 wiki-link 格式 [[path]]（无 ! 前缀）
-            const plainWikiMatch = line.match(/\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/);
-            if (plainWikiMatch) {
-              localPath = plainWikiMatch[1];
-              markdownSyntax = plainWikiMatch[0];
-            }
-          }
-        }
+      // 依次尝试：markdown 图片 / 本地附件 / wiki 嵌入 / 普通 wiki 链接
+      const candidates = [
+        { re: /!\[([^\]]*)\]\(([^)]+)\)/, pick: (m) => m[2] },
+        { re: /!\[([^\]]*)\]\((?!http)([^)\s]*)\)/, pick: (m) => m[2] },
+        { re: /!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/, pick: (m) => m[1] },
+        { re: /\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/, pick: (m) => m[1] },
+      ];
+      for (const c of candidates) {
+        const m = line.match(c.re);
+        if (!m) continue;
+        const t = this._parseAttachTarget(c.pick(m));
+        // 指向笔记内容（如 ![[某笔记#某段]]）→ 不是附件，继续尝试下一个
+        if (!t) continue;
+        localPath = t.path;
+        anchor = t.anchor;
+        markdownSyntax = m[0];
+        break;
       }
     }
     // 检查是否为本地文件（不是 URL）
@@ -6431,7 +6427,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
     }
     // 确认上传
-    const confirmed = await this.showUploadConfirmModal([{ localPath: absolutePath, syntax: markdownSyntax }], ctx?.remotePath || '', viewOpen);
+    const uploadItems = [{ localPath: absolutePath, syntax: markdownSyntax, anchor }];
+    const confirmed = await this.showUploadConfirmModal(uploadItems, ctx?.remotePath || '', viewOpen);
     if (!confirmed) return;
     // 执行上传
     const uploadCtx = (confirmed.useDefault || !viewOpen) ? this.getDefaultUploadContext() : ctx;
@@ -6439,8 +6436,25 @@ module.exports = class CloudAttachPlugin extends Plugin {
       new Notice(`⚠️ ${uploadCtx?.error || t('error.no_account')}`, 4000);
       return;
     }
-    await this.doUpload([{ localPath: absolutePath, syntax: markdownSyntax }], uploadCtx);
+    await this.doUpload(uploadItems, uploadCtx);
   }
+  /**
+   * 判定链接目标是不是"附件文件"
+   * 规则：去掉锚点(#)后，路径部分带扩展名 → 文件（附件）；不带扩展名 → 指向其他笔记里的内容（区块引用），不是附件
+   * @param {string} rawPath 链接里的原始路径
+   * @returns {{path: string, anchor: string}|null} 不是附件返回 null
+   */
+  _parseAttachTarget(rawPath) {
+    if (!rawPath) return null;
+    const hashIdx = rawPath.indexOf('#');
+    const pathPart = (hashIdx >= 0 ? rawPath.substring(0, hashIdx) : rawPath).trim();
+    const anchor = hashIdx >= 0 ? rawPath.substring(hashIdx + 1).trim() : '';
+    if (!pathPart) return null;
+    // 无扩展名 → 笔记名（如 [[某笔记#某段]]），指向的是笔记内容，不是附件
+    if (!/\.[A-Za-z0-9]{1,10}$/.test(pathPart)) return null;
+    return { path: pathPart, anchor };
+  }
+
   /**
    * 上传当前笔记中的所有附件
    */
@@ -6457,11 +6471,15 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const notePath = view.file?.path || '';
     const noteDir = notePath.substring(0, notePath.lastIndexOf('/') + 1);
     // 匹配所有本地附件（![] 格式，排除 http/https）
-    const attachmentRegex = /!\[([^\]]*)\]\((?!http)([^)#\s?]+)/g;
+    // 捕获完整语法（含右括号），替换时不会多出字符；路径允许带 #锚点
+    const attachmentRegex = /!\[([^\]]*)\]\((?!http)([^)\s]*)\)/g;
     const attachments = [];
     let match;
     while ((match = attachmentRegex.exec(codeFreeText)) !== null) {
-      const localPath = match[2];
+      const target = this._parseAttachTarget(match[2]);
+      // 指向笔记内容（如 ![](某笔记#某段)）→ 不是附件，跳过
+      if (!target) continue;
+      const localPath = target.path;
       // 使用 metadataCache 正确解析（支持相对路径、绝对路径、../ 导航）
       const cacheResolved = this.app.metadataCache.getFirstLinkpathDest(localPath, notePath);
       let absolutePath;
@@ -6480,14 +6498,18 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (!attachments.find(a => a.localPath === absolutePath)) {
         attachments.push({
           localPath: absolutePath,
-          syntax: match[0]
+          syntax: match[0],
+          anchor: target.anchor
         });
       }
     }
     // 匹配 wiki-link 格式 ![[path]]
     const wikiRegex = /!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g;
     while ((match = wikiRegex.exec(codeFreeText)) !== null) {
-      const localPath = match[1];
+      const target = this._parseAttachTarget(match[1]);
+      // 指向笔记内容（如 ![[某笔记#某段]]）→ 不是附件，跳过
+      if (!target) continue;
+      const localPath = target.path;
       // 使用 metadataCache 正确解析（支持相对路径、绝对路径、../ 导航）
       const cacheResolved = this.app.metadataCache.getFirstLinkpathDest(localPath, notePath);
       let absolutePath;
@@ -6506,14 +6528,18 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (!attachments.find(a => a.localPath === absolutePath)) {
         attachments.push({
           localPath: absolutePath,
-          syntax: match[0]
+          syntax: match[0],
+          anchor: target.anchor
         });
       }
     }
     // 匹配普通 wiki-link 格式 [[path]]（无 ! 前缀）
     const plainWikiRegex = /\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g;
     while ((match = plainWikiRegex.exec(codeFreeText)) !== null) {
-      const localPath = match[1];
+      const target = this._parseAttachTarget(match[1]);
+      // 指向笔记内容（如 [[某笔记#某段]]）→ 不是附件，跳过
+      if (!target) continue;
+      const localPath = target.path;
       const cacheResolved = this.app.metadataCache.getFirstLinkpathDest(localPath, notePath);
       let absolutePath;
       if (cacheResolved && cacheResolved.path) {
@@ -6528,7 +6554,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (!attachments.find(a => a.localPath === absolutePath)) {
         attachments.push({
           localPath: absolutePath,
-          syntax: match[0]
+          syntax: match[0],
+          anchor: target.anchor
         });
       }
     }
@@ -6757,7 +6784,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
           oldSyntax: att.syntax,
           newUrl: result.url,
           localPath: att.localPath,
-          remotePath: result.remotePath
+          remotePath: result.remotePath,
+          anchor: att.anchor || ''
         });
       } else {
         results.failed++;
@@ -6792,6 +6820,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
           // 图片/链接：使用上传返回的签名 URL
           url = rep.newUrl;
         }
+        // 保留原链接锚点（如 PDF 页码 #page=3）
+        if (rep.anchor) url = `${url}#${rep.anchor}`;
         let newSyntax;
         if (rep.oldSyntax.startsWith('![[')) {
           // wiki-link 格式: ![[path]] 或 ![[path|alias]]
