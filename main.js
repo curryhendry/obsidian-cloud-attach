@@ -5205,13 +5205,23 @@ module.exports = class CloudAttachPlugin extends Plugin {
         this._mdEmbedObservers = /* @__PURE__ */ new Set();
       this._mdEmbedObservers.add(mo);
     };
+    const swapInWrapper = (imgNode, newEl) => {
+      const wrapEl = imgNode.closest(".cm-embed-block, .internal-embed, .image-embed");
+      if (!wrapEl) {
+        imgNode.replaceWith(newEl);
+        return;
+      }
+      const toolbarNodes = [...wrapEl.querySelectorAll("button, .clickable-icon, [aria-label]")].filter((el) => !el.dataset.cloudattachMdSeen);
+      wrapEl.classList.add("cloudattach-md-wrapper");
+      wrapEl.replaceChildren(newEl);
+      wrapEl.querySelectorAll(".resize-handle").forEach((h) => h.remove());
+      toolbarNodes.forEach((n) => wrapEl.appendChild(n));
+      bindFullscreen(wrapEl, newEl);
+    };
     if (renderedSet.has(dedupKey)) {
       const cached = this._mdContainerCache?.get(dedupKey);
       if (cached) {
-        const wrapper2 = imgEl.closest(".cm-embed-block, .internal-embed, .image-embed") || imgEl;
-        const clone = cached.cloneNode(true);
-        wrapper2.replaceChildren(clone);
-        bindFullscreen(wrapper2, clone);
+        swapInWrapper(imgEl, cached.cloneNode(true));
       }
       return;
     }
@@ -5239,15 +5249,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       container.dataset.mdUrl = url;
       const mdName = (imgEl.getAttribute("alt") || "").trim() || cleanFileNameFromUrl(url);
       container.dataset.mdName = mdName.replace(/\.md$/i, "");
-      const wrapper = imgEl.closest(".cm-embed-block, .internal-embed, .image-embed");
-      if (wrapper) {
-        wrapper.classList.add("cloudattach-md-wrapper");
-        wrapper.replaceChildren(container);
-        wrapper.querySelectorAll(".resize-handle").forEach((h) => h.remove());
-        bindFullscreen(wrapper, container);
-      } else {
-        imgEl.replaceWith(container);
-      }
+      swapInWrapper(imgEl, container);
       if (!this._mdContainerCache)
         this._mdContainerCache = /* @__PURE__ */ new Map();
       if (this._mdContainerCache.size >= 20) {

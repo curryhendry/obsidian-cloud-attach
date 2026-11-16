@@ -5479,14 +5479,29 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (!this._mdEmbedObservers) this._mdEmbedObservers = new Set();
       this._mdEmbedObservers.add(mo);
     };
+    // 换壳助手：保留 Obsidian 外层 embed 节点（避免破坏 CodeMirror），内容整体替换。
+    // ⚠️ Obsidian 的图片工具栏（放大镜/</>）是创建嵌入时注入到外壳里的，
+    // replaceChildren 会把它连同 img 一起清掉——所以先快照、换壳后放回去，
+    // 再由 bindFullscreen 把放大镜重绑为 md 全屏入口（</> 等保持原生行为）
+    const swapInWrapper = (imgNode, newEl) => {
+      const wrapEl = imgNode.closest('.cm-embed-block, .internal-embed, .image-embed');
+      if (!wrapEl) {
+        imgNode.replaceWith(newEl);
+        return;
+      }
+      const toolbarNodes = [...wrapEl.querySelectorAll('button, .clickable-icon, [aria-label]')]
+        .filter(el => !el.dataset.cloudattachMdSeen);
+      wrapEl.classList.add('cloudattach-md-wrapper');
+      wrapEl.replaceChildren(newEl);
+      wrapEl.querySelectorAll('.resize-handle').forEach(h => h.remove());
+      toolbarNodes.forEach(n => wrapEl.appendChild(n));
+      bindFullscreen(wrapEl, newEl);
+    };
     if (renderedSet.has(dedupKey)) {
       // live preview 重建 widget 时复用缓存容器（克隆不丢内容，重绑放大镜）
       const cached = this._mdContainerCache?.get(dedupKey);
       if (cached) {
-        const wrapper2 = imgEl.closest('.cm-embed-block, .internal-embed, .image-embed') || imgEl;
-        const clone = cached.cloneNode(true);
-        wrapper2.replaceChildren(clone);
-        bindFullscreen(wrapper2, clone);
+        swapInWrapper(imgEl, cached.cloneNode(true));
       }
       return;
     }
@@ -5514,17 +5529,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
       container.dataset.mdUrl = url;
       const mdName = (imgEl.getAttribute('alt') || '').trim() || cleanFileNameFromUrl(url);
       container.dataset.mdName = mdName.replace(/\.md$/i, '');
-      // 换壳：保留 Obsidian 的外层 embed 节点（避免破坏 CodeMirror），内容整体替换，
-      // 工具栏保持与图片一致（🔍 + </>），仅放大镜重绑为 md 全屏入口；摘除缩放手柄
-      const wrapper = imgEl.closest('.cm-embed-block, .internal-embed, .image-embed');
-      if (wrapper) {
-        wrapper.classList.add('cloudattach-md-wrapper');
-        wrapper.replaceChildren(container);
-        wrapper.querySelectorAll('.resize-handle').forEach(h => h.remove());
-        bindFullscreen(wrapper, container);
-      } else {
-        imgEl.replaceWith(container);
-      }
+      // 换壳 + 工具栏快照恢复 + 放大镜重绑为全屏（详见 swapInWrapper 注释）
+      swapInWrapper(imgEl, container);
       // 缓存容器：live preview 重建 widget 时直接克隆复用，不再重复拉取
       if (!this._mdContainerCache) this._mdContainerCache = new Map();
       if (this._mdContainerCache.size >= 20) {
