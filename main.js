@@ -4767,17 +4767,6 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
     if (!this._mdEmbedDelegated) {
       this._mdEmbedDelegated = true;
-      document.addEventListener("click", (e) => {
-        const btn = e.target?.closest?.(".cloudattach-md-fs-btn");
-        if (!btn)
-          return;
-        e.preventDefault();
-        e.stopPropagation();
-        const cont = btn.closest(".cloudattach-md-container");
-        const mdUrl = cont?.dataset?.mdUrl;
-        if (mdUrl)
-          this.openMdFullscreen(mdUrl, cont.dataset.mdName || cleanFileNameFromUrl(mdUrl));
-      }, true);
       document.addEventListener("contextmenu", (e) => {
         if (e.target?.closest?.(".cloudattach-md-container")) {
           e.preventDefault();
@@ -5187,11 +5176,42 @@ module.exports = class CloudAttachPlugin extends Plugin {
       dedupKey = u.origin + u.pathname;
     } catch (e) {
     }
+    const bindFullscreen = (wrapEl, contEl) => {
+      const rebind = () => {
+        const cands = [...wrapEl.querySelectorAll("button, .clickable-icon, [aria-label]")].filter((el) => !contEl.contains(el) && !el.dataset.cloudattachMdSeen);
+        if (cands.length === 0)
+          return false;
+        cands.forEach((el) => {
+          el.dataset.cloudattachMdSeen = "1";
+        });
+        const zoomBtn = cands[0];
+        const clone = zoomBtn.cloneNode(true);
+        zoomBtn.replaceWith(clone);
+        clone.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          this.openMdFullscreen(url, contEl.dataset.mdName || cleanFileNameFromUrl(url));
+        });
+        return true;
+      };
+      if (rebind())
+        return;
+      const mo = new MutationObserver(() => {
+        if (rebind())
+          mo.disconnect();
+      });
+      mo.observe(wrapEl, { childList: true, subtree: true });
+      if (!this._mdEmbedObservers)
+        this._mdEmbedObservers = /* @__PURE__ */ new Set();
+      this._mdEmbedObservers.add(mo);
+    };
     if (renderedSet.has(dedupKey)) {
       const cached = this._mdContainerCache?.get(dedupKey);
       if (cached) {
         const wrapper2 = imgEl.closest(".cm-embed-block, .internal-embed, .image-embed") || imgEl;
-        wrapper2.replaceChildren(cached.cloneNode(true));
+        const clone = cached.cloneNode(true);
+        wrapper2.replaceChildren(clone);
+        bindFullscreen(wrapper2, clone);
       }
       return;
     }
@@ -5219,29 +5239,12 @@ module.exports = class CloudAttachPlugin extends Plugin {
       container.dataset.mdUrl = url;
       const mdName = (imgEl.getAttribute("alt") || "").trim() || cleanFileNameFromUrl(url);
       container.dataset.mdName = mdName.replace(/\.md$/i, "");
-      const fsBtn = document.createElement("span");
-      fsBtn.className = "cloudattach-md-fs-btn";
-      fsBtn.setAttribute("aria-label", "\u5168\u5C4F\u9884\u89C8");
-      fsBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>';
-      container.appendChild(fsBtn);
       const wrapper = imgEl.closest(".cm-embed-block, .internal-embed, .image-embed");
       if (wrapper) {
         wrapper.classList.add("cloudattach-md-wrapper");
         wrapper.replaceChildren(container);
         wrapper.querySelectorAll(".resize-handle").forEach((h) => h.remove());
-        let mo = null;
-        const stripImageToolbar = () => {
-          const cands = [...wrapper.querySelectorAll("button, .clickable-icon, [aria-label]")].filter((el) => !container.contains(el) && !el.classList.contains("cloudattach-md-fs-btn"));
-          cands.forEach((el) => el.remove());
-          if (cands.length > 0 && mo)
-            mo.disconnect();
-        };
-        stripImageToolbar();
-        mo = new MutationObserver(stripImageToolbar);
-        mo.observe(wrapper, { childList: true, subtree: true });
-        if (!this._mdEmbedObservers)
-          this._mdEmbedObservers = /* @__PURE__ */ new Set();
-        this._mdEmbedObservers.add(mo);
+        bindFullscreen(wrapper, container);
       } else {
         imgEl.replaceWith(container);
       }
