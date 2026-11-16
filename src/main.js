@@ -35,6 +35,7 @@ const I18n = {
 Object.assign(I18n.translations.zh, {
   // Notice 消息
   'notice.sign_expired_403': '⚠️ Sign 已过期，请刷新',
+  'notice.md_render_failed': '⚠️ 云端 Markdown 渲染失败：{error}',
   'notice.sign_invalid': '❌ Sign 无效',
   'notice.sign_rebuild_failed': '⚠️ 签名失败：{error}',
   'notice.sign_ok': '✅ Sign 有效，无需刷新',
@@ -292,6 +293,7 @@ Object.assign(I18n.translations.zh, {
 
 Object.assign(I18n.translations.en, {
   'notice.sign_expired_403': '⚠️ Sign expired, please refresh',
+  'notice.md_render_failed': '⚠️ Cloud Markdown render failed: {error}',
   'notice.sign_invalid': '❌ Sign invalid',
   'notice.sign_rebuild_failed': '⚠️ Sign rebuild failed: {error}',
   'notice.sign_ok': '✅ Sign valid, no refresh needed',
@@ -2688,6 +2690,9 @@ class CloudAttachView extends ItemView {
         return `![${file.name}${w}](${url})`;
       }
       return `<iframe src="${url}" width="100%" height="800px"></iframe>`;
+    } else if (ext === 'md' || ext === 'markdown') {
+      // 云端 Markdown：用图片语法插入，阅读/编辑视图渲染时由 postProcessor 拦截拉取内容渲染为原生笔记
+      return `![${file.name}](${url})`;
     } else {
       return `[${file.name}](${url})`;
     }
@@ -4910,12 +4915,18 @@ module.exports = class CloudAttachPlugin extends Plugin {
           if (this._isHeicUrl(url)) {
             pdfPatterns.push({ url, width: '', heic: true });
           }
+          // 云端 Markdown 也做标记（渲染为原生笔记内容）
+          if (this._isMdUrl(url)) {
+            pdfPatterns.push({ url, width: '', md: true });
+          }
         }
         // 按 DOM 顺序给 blob img 打标记，不直接渲染
         blobImgs.forEach((img, idx) => {
           if (idx < pdfPatterns.length) {
             const pat = pdfPatterns[idx];
-            if (pat.heic) {
+            if (pat.md) {
+              img.dataset.cloudattachMdUrl = pat.url;
+            } else if (pat.heic) {
               img.dataset.cloudattachHeicUrl = pat.url;
             } else {
               img.dataset.cloudattachPdfUrl = pat.url;
@@ -5218,6 +5229,10 @@ module.exports = class CloudAttachPlugin extends Plugin {
     return /\.(heic|heif)(\?|#|$)/i.test(url);
   }
 
+  _isMdUrl(url) {
+    return /\.(md|markdown)(\?|#|$)/i.test(url);
+  }
+
   async _loadHeic2any() {
     if (window._cloudAttachHeic2any) return window._cloudAttachHeic2any;
     const path = (this.app.vault.configDir || '.obsidian') + '/plugins/cloud-attach/heic2any.bundle.js';
@@ -5270,6 +5285,118 @@ module.exports = class CloudAttachPlugin extends Plugin {
     } catch (e) {
       if (e.message && e.message.includes('401')) return;
       console.log('[CloudAttach] HEIC render failed:', e.message || e);
+    }
+  }
+
+  /**
+   * 云端 Markdown 渲染：拉取 .md 文本 → MarkdownRenderer 渲染为原生笔记 → 替换 img
+   * 流程同 PDF（拦截替换式）：img 元素 → 容器 div
+   * 签名过期时自动重建（复用 matchAccount/extractRealPath/getSignedUrl）
+   */
+  async _renderMdAsMarkdown(imgEl, url) {
+    if (imgEl.closest('.cloudattach-md-container')) return;
+    const modeKey = imgEl.closest('.markdown-reading-view') ? 'reading' : 'editing';
+    if (!this._renderedMdUrlsByMode) this._renderedMdUrlsByMode = { editing: new Set(), reading: new Set() };
+    const renderedSet = this._renderedMdUrlsByMode[modeKey];
+    // 去重 key 去掉 query（sign 可能已变，同一文件不重复渲染）
+    let dedupKey = url;
+    try { const u = new URL(url); dedupKey = u.origin + u.pathname; } catch (e) {}
+    if (renderedSet.has(dedupKey)) return;
+    renderedSet.add(dedupKey);
+
+    const { MarkdownRenderer } = require('obsidian');
+    const fetchText = async (fetchUrl) => {
+      let reqUrlFn = null;
+      try { reqUrlFn = require('obsidian').requestUrl; } catch (e) {}
+      const resp = reqUrlFn
+        ? await reqUrlFn({ url: fetchUrl, method: 'GET' })
+        : await fetch(fetchUrl);
+      const status = resp.status || 0;
+      if (status >= 400) throw new Error(String(status));
+      const text = typeof resp.text === 'string' ? resp.text : await resp.text();
+      return text;
+    };
+
+    const tryRender = async (content) => {
+      const container = document.createElement('div');
+      container.className = 'cloudattach-md-container';
+      container.style.cssText = 'max-width:100%;overflow:hidden auto;border:1px solid var(--background-modifier-border);border-radius:6px;padding:8px 12px;margin:4px 0;';
+      const sourcePath = this.app.workspace.getActiveFile()?.path || '';
+      await MarkdownRenderer.render(this.app, content, container, sourcePath, this);
+      imgEl.replaceWith(container);
+    };
+
+    const fallback = (err) => {
+      console.log('[CloudAttach] MD render failed:', err.message || err);
+      new Notice(t('notice.md_render_failed', {error: err.message || err}), 4000);
+      // 回退：把 img 换成普通链接块，保证内容可达
+      const linkBox = document.createElement('div');
+      linkBox.className = 'cloudattach-md-container';
+      linkBox.style.cssText = 'max-width:100%;padding:6px 10px;margin:4px 0;';
+      const a = document.createElement('a');
+      a.href = url;
+      a.textContent = imgEl.getAttribute('alt') || url;
+      a.target = '_blank';
+      linkBox.appendChild(a);
+      imgEl.replaceWith(linkBox);
+    };
+
+    // 先尝试直接拉取；401/403/签名问题时重建签名再拉一次
+    let content = null;
+    try {
+      content = await fetchText(url);
+    } catch (firstErr) {
+      const status = firstErr.message || '';
+      if (status === '401' || status === '403') {
+        try {
+          const match = this.matchAccount(url);
+          if (match && match.client.extractRealPath) {
+            const realPath = match.client.extractRealPath(url);
+            const prefix = url.match(/\/(d|p)\//)?.[1]?.[0] || 'd';
+            if (realPath && match.account.token) {
+              const newUrl = await match.client.getSignedUrl(realPath, prefix);
+              const verify = match.client.verifySignUrl ? await match.client.verifySignUrl(newUrl) : { ok: true };
+              if (verify.ok) {
+                try {
+                  content = await fetchText(newUrl);
+                } catch (retryErr) {
+                  renderedSet.delete(dedupKey);
+                  fallback(retryErr);
+                  return;
+                }
+              } else {
+                renderedSet.delete(dedupKey);
+                fallback(new Error(verify.reason || 'sign invalid'));
+                return;
+              }
+            } else {
+              renderedSet.delete(dedupKey);
+              fallback(firstErr);
+              return;
+            }
+          } else {
+            renderedSet.delete(dedupKey);
+            fallback(firstErr);
+            return;
+          }
+        } catch (rebuildErr) {
+          renderedSet.delete(dedupKey);
+          fallback(rebuildErr);
+          return;
+        }
+      } else {
+        renderedSet.delete(dedupKey);
+        fallback(firstErr);
+        return;
+      }
+    }
+
+    try {
+      if (content === null || content === undefined) throw new Error('empty');
+      await tryRender(content);
+    } catch (renderErr) {
+      renderedSet.delete(dedupKey);
+      fallback(renderErr);
     }
   }
 
@@ -5787,10 +5914,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
           const imgs = n.tagName === 'IMG' ? [n] : Array.from(n.querySelectorAll('img'));
           imgs.forEach(img => {
             // 避免重复处理已替换的容器
-            if (img.closest('.cloudattach-pdf-container')) return;
+            if (img.closest('.cloudattach-pdf-container') || img.closest('.cloudattach-md-container')) return;
             const src = img.getAttribute('src') || '';
             if (this._isPdfUrl(src)) {
               this._renderPdfAsCanvas(img, src);
+            }
+            if (this._isMdUrl(src)) {
+              this._renderMdAsMarkdown(img, src);
             }
           });
         });
@@ -5809,6 +5939,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const rescanPdfImgs = () => {
       // 清空已渲染记录，确保切换笔记后重新渲染（编辑/阅读模式独立）
       this._renderedPdfUrlsByMode = { editing: new Set(), reading: new Set() };
+      // md 渲染记录同步清空（切换笔记后重新渲染云端 Markdown）
+      this._renderedMdUrlsByMode = { editing: new Set(), reading: new Set() };
       // 注：不再 disconnect _pdfLazyObservers —— 已渲染的容器占位符仍依赖它们继续 lazy-load
       // 主窗口：立即扫一次
       this._scanAllPdfImgs();
@@ -5829,6 +5961,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     this.registerEvent(this.app.workspace.on('layout-change', () => {
       // 重新扫描主窗口（编辑/阅读模式独立）
       this._renderedPdfUrlsByMode = { editing: new Set(), reading: new Set() };
+      this._renderedMdUrlsByMode = { editing: new Set(), reading: new Set() };
       this._scanAllPdfImgs();
       setTimeout(() => this._scanAllPdfImgs(), 500);
       setTimeout(() => this._scanAllPdfImgs(), 3000);
@@ -5848,10 +5981,13 @@ module.exports = class CloudAttachPlugin extends Plugin {
             if (n.nodeType !== 1) return;
             const imgs = n.tagName === 'IMG' ? [n] : Array.from(n.querySelectorAll('img'));
             imgs.forEach(img => {
-              if (img.closest('.cloudattach-pdf-container')) return;
+              if (img.closest('.cloudattach-pdf-container') || img.closest('.cloudattach-md-container')) return;
               const src = img.getAttribute('src') || '';
               if (this._isPdfUrl(src)) {
                 this._renderPdfAsCanvas(img, src);
+              }
+              if (this._isMdUrl(src)) {
+                this._renderMdAsMarkdown(img, src);
               }
             });
           });
@@ -5868,24 +6004,32 @@ module.exports = class CloudAttachPlugin extends Plugin {
     // 优先处理 PostProcessor 标记的 pending img（阅读模式 iOS blob URL）
     const pendingImgs = d.querySelectorAll('img[data-cloudattach-processed="pending"]');
     pendingImgs.forEach(img => {
-      if (img.closest('.cloudattach-pdf-container')) return;
+      if (img.closest('.cloudattach-pdf-container') || img.closest('.cloudattach-md-container')) return;
       const pdfUrl = img.dataset.cloudattachPdfUrl;
       const heicUrl = img.dataset.cloudattachHeicUrl;
+      const mdUrl = img.dataset.cloudattachMdUrl;
       if (pdfUrl) {
         img.dataset.cloudattachProcessed = 'done';
         this._renderPdfAsCanvas(img, pdfUrl);
+      } else if (mdUrl) {
+        img.dataset.cloudattachProcessed = 'done';
+        this._renderMdAsMarkdown(img, mdUrl);
       } else if (heicUrl) {
         img.dataset.cloudattachProcessed = 'done';
         this._renderHeicAsImage(img, heicUrl);
       }
     });
-    // 再处理普通 PDF/HEIC URL
+    // 再处理普通 PDF/HEIC/MD URL
     const allImgs = d.querySelectorAll('img');
     allImgs.forEach(img => {
-      if (img.closest('.cloudattach-pdf-container')) return;
+      if (img.closest('.cloudattach-pdf-container') || img.closest('.cloudattach-md-container')) return;
       const src = img.getAttribute('src') || '';
       if (this._isPdfUrl(src)) {
         this._renderPdfAsCanvas(img, src);
+        return;
+      }
+      if (this._isMdUrl(src)) {
+        this._renderMdAsMarkdown(img, src);
         return;
       }
       if (this._isHeicUrl(src)) {
@@ -5895,6 +6039,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const alt = img.getAttribute('alt') || '';
       if (alt && /^https?:\/\//i.test(alt) && /\.pdf\s*$/i.test(alt.trim())) {
         this._renderPdfAsCanvas(img, alt);
+      }
+      if (this._isMdUrl(alt) && /^https?:\/\//i.test(alt)) {
+        this._renderMdAsMarkdown(img, alt);
       }
       if (this._isHeicUrl(alt) && /^https?:\/\//i.test(alt)) {
         this._renderHeicAsImage(img, alt);

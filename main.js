@@ -24,6 +24,7 @@ var I18n = {
 Object.assign(I18n.translations.zh, {
   // Notice 消息
   "notice.sign_expired_403": "\u26A0\uFE0F Sign \u5DF2\u8FC7\u671F\uFF0C\u8BF7\u5237\u65B0",
+  "notice.md_render_failed": "\u26A0\uFE0F \u4E91\u7AEF Markdown \u6E32\u67D3\u5931\u8D25\uFF1A{error}",
   "notice.sign_invalid": "\u274C Sign \u65E0\u6548",
   "notice.sign_rebuild_failed": "\u26A0\uFE0F \u7B7E\u540D\u5931\u8D25\uFF1A{error}",
   "notice.sign_ok": "\u2705 Sign \u6709\u6548\uFF0C\u65E0\u9700\u5237\u65B0",
@@ -275,6 +276,7 @@ Object.assign(I18n.translations.zh, {
 });
 Object.assign(I18n.translations.en, {
   "notice.sign_expired_403": "\u26A0\uFE0F Sign expired, please refresh",
+  "notice.md_render_failed": "\u26A0\uFE0F Cloud Markdown render failed: {error}",
   "notice.sign_invalid": "\u274C Sign invalid",
   "notice.sign_rebuild_failed": "\u26A0\uFE0F Sign rebuild failed: {error}",
   "notice.sign_ok": "\u2705 Sign valid, no refresh needed",
@@ -2525,6 +2527,8 @@ var CloudAttachView = class extends ItemView {
         return `![${file.name}${w}](${url})`;
       }
       return `<iframe src="${url}" width="100%" height="800px"></iframe>`;
+    } else if (ext === "md" || ext === "markdown") {
+      return `![${file.name}](${url})`;
     } else {
       return `[${file.name}](${url})`;
     }
@@ -4641,11 +4645,16 @@ module.exports = class CloudAttachPlugin extends Plugin {
           if (this._isHeicUrl(url)) {
             pdfPatterns.push({ url, width: "", heic: true });
           }
+          if (this._isMdUrl(url)) {
+            pdfPatterns.push({ url, width: "", md: true });
+          }
         }
         blobImgs.forEach((img, idx) => {
           if (idx < pdfPatterns.length) {
             const pat = pdfPatterns[idx];
-            if (pat.heic) {
+            if (pat.md) {
+              img.dataset.cloudattachMdUrl = pat.url;
+            } else if (pat.heic) {
               img.dataset.cloudattachHeicUrl = pat.url;
             } else {
               img.dataset.cloudattachPdfUrl = pat.url;
@@ -4939,6 +4948,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
   _isHeicUrl(url) {
     return /\.(heic|heif)(\?|#|$)/i.test(url);
   }
+  _isMdUrl(url) {
+    return /\.(md|markdown)(\?|#|$)/i.test(url);
+  }
   async _loadHeic2any() {
     if (window._cloudAttachHeic2any)
       return window._cloudAttachHeic2any;
@@ -4999,6 +5011,119 @@ module.exports = class CloudAttachPlugin extends Plugin {
       if (e.message && e.message.includes("401"))
         return;
       console.log("[CloudAttach] HEIC render failed:", e.message || e);
+    }
+  }
+  /**
+   * 云端 Markdown 渲染：拉取 .md 文本 → MarkdownRenderer 渲染为原生笔记 → 替换 img
+   * 流程同 PDF（拦截替换式）：img 元素 → 容器 div
+   * 签名过期时自动重建（复用 matchAccount/extractRealPath/getSignedUrl）
+   */
+  async _renderMdAsMarkdown(imgEl, url) {
+    if (imgEl.closest(".cloudattach-md-container"))
+      return;
+    const modeKey = imgEl.closest(".markdown-reading-view") ? "reading" : "editing";
+    if (!this._renderedMdUrlsByMode)
+      this._renderedMdUrlsByMode = { editing: /* @__PURE__ */ new Set(), reading: /* @__PURE__ */ new Set() };
+    const renderedSet = this._renderedMdUrlsByMode[modeKey];
+    let dedupKey = url;
+    try {
+      const u = new URL(url);
+      dedupKey = u.origin + u.pathname;
+    } catch (e) {
+    }
+    if (renderedSet.has(dedupKey))
+      return;
+    renderedSet.add(dedupKey);
+    const { MarkdownRenderer } = require("obsidian");
+    const fetchText = async (fetchUrl) => {
+      let reqUrlFn = null;
+      try {
+        reqUrlFn = require("obsidian").requestUrl;
+      } catch (e) {
+      }
+      const resp = reqUrlFn ? await reqUrlFn({ url: fetchUrl, method: "GET" }) : await fetch(fetchUrl);
+      const status = resp.status || 0;
+      if (status >= 400)
+        throw new Error(String(status));
+      const text = typeof resp.text === "string" ? resp.text : await resp.text();
+      return text;
+    };
+    const tryRender = async (content2) => {
+      const container = document.createElement("div");
+      container.className = "cloudattach-md-container";
+      container.style.cssText = "max-width:100%;overflow:hidden auto;border:1px solid var(--background-modifier-border);border-radius:6px;padding:8px 12px;margin:4px 0;";
+      const sourcePath = this.app.workspace.getActiveFile()?.path || "";
+      await MarkdownRenderer.render(this.app, content2, container, sourcePath, this);
+      imgEl.replaceWith(container);
+    };
+    const fallback = (err) => {
+      console.log("[CloudAttach] MD render failed:", err.message || err);
+      new Notice(t("notice.md_render_failed", { error: err.message || err }), 4e3);
+      const linkBox = document.createElement("div");
+      linkBox.className = "cloudattach-md-container";
+      linkBox.style.cssText = "max-width:100%;padding:6px 10px;margin:4px 0;";
+      const a = document.createElement("a");
+      a.href = url;
+      a.textContent = imgEl.getAttribute("alt") || url;
+      a.target = "_blank";
+      linkBox.appendChild(a);
+      imgEl.replaceWith(linkBox);
+    };
+    let content = null;
+    try {
+      content = await fetchText(url);
+    } catch (firstErr) {
+      const status = firstErr.message || "";
+      if (status === "401" || status === "403") {
+        try {
+          const match = this.matchAccount(url);
+          if (match && match.client.extractRealPath) {
+            const realPath = match.client.extractRealPath(url);
+            const prefix = url.match(/\/(d|p)\//)?.[1]?.[0] || "d";
+            if (realPath && match.account.token) {
+              const newUrl = await match.client.getSignedUrl(realPath, prefix);
+              const verify = match.client.verifySignUrl ? await match.client.verifySignUrl(newUrl) : { ok: true };
+              if (verify.ok) {
+                try {
+                  content = await fetchText(newUrl);
+                } catch (retryErr) {
+                  renderedSet.delete(dedupKey);
+                  fallback(retryErr);
+                  return;
+                }
+              } else {
+                renderedSet.delete(dedupKey);
+                fallback(new Error(verify.reason || "sign invalid"));
+                return;
+              }
+            } else {
+              renderedSet.delete(dedupKey);
+              fallback(firstErr);
+              return;
+            }
+          } else {
+            renderedSet.delete(dedupKey);
+            fallback(firstErr);
+            return;
+          }
+        } catch (rebuildErr) {
+          renderedSet.delete(dedupKey);
+          fallback(rebuildErr);
+          return;
+        }
+      } else {
+        renderedSet.delete(dedupKey);
+        fallback(firstErr);
+        return;
+      }
+    }
+    try {
+      if (content === null || content === void 0)
+        throw new Error("empty");
+      await tryRender(content);
+    } catch (renderErr) {
+      renderedSet.delete(dedupKey);
+      fallback(renderErr);
     }
   }
   async _renderPdfAsCanvas(imgEl, url) {
@@ -5505,11 +5630,14 @@ module.exports = class CloudAttachPlugin extends Plugin {
             return;
           const imgs = n.tagName === "IMG" ? [n] : Array.from(n.querySelectorAll("img"));
           imgs.forEach((img) => {
-            if (img.closest(".cloudattach-pdf-container"))
+            if (img.closest(".cloudattach-pdf-container") || img.closest(".cloudattach-md-container"))
               return;
             const src = img.getAttribute("src") || "";
             if (this._isPdfUrl(src)) {
               this._renderPdfAsCanvas(img, src);
+            }
+            if (this._isMdUrl(src)) {
+              this._renderMdAsMarkdown(img, src);
             }
           });
         });
@@ -5522,6 +5650,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     setTimeout(() => this._scanAllPdfImgs(), 3e3);
     const rescanPdfImgs = () => {
       this._renderedPdfUrlsByMode = { editing: /* @__PURE__ */ new Set(), reading: /* @__PURE__ */ new Set() };
+      this._renderedMdUrlsByMode = { editing: /* @__PURE__ */ new Set(), reading: /* @__PURE__ */ new Set() };
       this._scanAllPdfImgs();
       setTimeout(() => this._scanAllPdfImgs(), 500);
       setTimeout(() => this._scanAllPdfImgs(), 1500);
@@ -5536,6 +5665,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     this.registerEvent(this.app.workspace.on("active-leaf-change", rescanPdfImgs));
     this.registerEvent(this.app.workspace.on("layout-change", () => {
       this._renderedPdfUrlsByMode = { editing: /* @__PURE__ */ new Set(), reading: /* @__PURE__ */ new Set() };
+      this._renderedMdUrlsByMode = { editing: /* @__PURE__ */ new Set(), reading: /* @__PURE__ */ new Set() };
       this._scanAllPdfImgs();
       setTimeout(() => this._scanAllPdfImgs(), 500);
       setTimeout(() => this._scanAllPdfImgs(), 3e3);
@@ -5556,11 +5686,14 @@ module.exports = class CloudAttachPlugin extends Plugin {
               return;
             const imgs = n.tagName === "IMG" ? [n] : Array.from(n.querySelectorAll("img"));
             imgs.forEach((img) => {
-              if (img.closest(".cloudattach-pdf-container"))
+              if (img.closest(".cloudattach-pdf-container") || img.closest(".cloudattach-md-container"))
                 return;
               const src = img.getAttribute("src") || "";
               if (this._isPdfUrl(src)) {
                 this._renderPdfAsCanvas(img, src);
+              }
+              if (this._isMdUrl(src)) {
+                this._renderMdAsMarkdown(img, src);
               }
             });
           });
@@ -5575,13 +5708,17 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const d = doc || document;
     const pendingImgs = d.querySelectorAll('img[data-cloudattach-processed="pending"]');
     pendingImgs.forEach((img) => {
-      if (img.closest(".cloudattach-pdf-container"))
+      if (img.closest(".cloudattach-pdf-container") || img.closest(".cloudattach-md-container"))
         return;
       const pdfUrl = img.dataset.cloudattachPdfUrl;
       const heicUrl = img.dataset.cloudattachHeicUrl;
+      const mdUrl = img.dataset.cloudattachMdUrl;
       if (pdfUrl) {
         img.dataset.cloudattachProcessed = "done";
         this._renderPdfAsCanvas(img, pdfUrl);
+      } else if (mdUrl) {
+        img.dataset.cloudattachProcessed = "done";
+        this._renderMdAsMarkdown(img, mdUrl);
       } else if (heicUrl) {
         img.dataset.cloudattachProcessed = "done";
         this._renderHeicAsImage(img, heicUrl);
@@ -5589,11 +5726,15 @@ module.exports = class CloudAttachPlugin extends Plugin {
     });
     const allImgs = d.querySelectorAll("img");
     allImgs.forEach((img) => {
-      if (img.closest(".cloudattach-pdf-container"))
+      if (img.closest(".cloudattach-pdf-container") || img.closest(".cloudattach-md-container"))
         return;
       const src = img.getAttribute("src") || "";
       if (this._isPdfUrl(src)) {
         this._renderPdfAsCanvas(img, src);
+        return;
+      }
+      if (this._isMdUrl(src)) {
+        this._renderMdAsMarkdown(img, src);
         return;
       }
       if (this._isHeicUrl(src)) {
@@ -5603,6 +5744,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const alt = img.getAttribute("alt") || "";
       if (alt && /^https?:\/\//i.test(alt) && /\.pdf\s*$/i.test(alt.trim())) {
         this._renderPdfAsCanvas(img, alt);
+      }
+      if (this._isMdUrl(alt) && /^https?:\/\//i.test(alt)) {
+        this._renderMdAsMarkdown(img, alt);
       }
       if (this._isHeicUrl(alt) && /^https?:\/\//i.test(alt)) {
         this._renderHeicAsImage(img, alt);
