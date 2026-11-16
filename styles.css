@@ -1,1 +1,36 @@
 /* cloud-attach styles */
+
+/* === 云端 Markdown 嵌入 === */
+/* 全屏（放大镜）按钮：悬停容器时显示，移动端（无 hover）常显 */
+.cloudattach-md-fs-btn {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  cursor: pointer;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  line-height: 0;
+  color: var(--text-muted);
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  padding: 4px;
+}
+.cloudattach-md-container:hover .cloudattach-md-fs-btn {
+  opacity: 0.85;
+}
+.cloudattach-md-fs-btn:hover {
+  color: var(--text-normal);
+  background: var(--background-secondary);
+}
+@media (hover: none) {
+  .cloudattach-md-fs-btn {
+    opacity: 0.85;
+  }
+}
+/* 缩放手柄兜底隐藏（JS 已摘除，防 Obsidian 后补） */
+.cloudattach-md-wrapper .resize-handle {
+  display: none !important;
+}
+

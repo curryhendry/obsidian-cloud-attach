@@ -4765,6 +4765,26 @@ module.exports = class CloudAttachPlugin extends Plugin {
         throw e;
       }
     }
+    if (!this._mdEmbedDelegated) {
+      this._mdEmbedDelegated = true;
+      document.addEventListener("click", (e) => {
+        const btn = e.target?.closest?.(".cloudattach-md-fs-btn");
+        if (!btn)
+          return;
+        e.preventDefault();
+        e.stopPropagation();
+        const cont = btn.closest(".cloudattach-md-container");
+        const mdUrl = cont?.dataset?.mdUrl;
+        if (mdUrl)
+          this.openMdFullscreen(mdUrl, cont.dataset.mdName || cleanFileNameFromUrl(mdUrl));
+      }, true);
+      document.addEventListener("contextmenu", (e) => {
+        if (e.target?.closest?.(".cloudattach-md-container")) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }, true);
+    }
     if (!this._autoUploadChain)
       this._autoUploadChain = Promise.resolve();
     this.registerEvent(this.app.vault.on("create", (file) => {
@@ -5167,8 +5187,14 @@ module.exports = class CloudAttachPlugin extends Plugin {
       dedupKey = u.origin + u.pathname;
     } catch (e) {
     }
-    if (renderedSet.has(dedupKey))
+    if (renderedSet.has(dedupKey)) {
+      const cached = this._mdContainerCache?.get(dedupKey);
+      if (cached) {
+        const wrapper2 = imgEl.closest(".cm-embed-block, .internal-embed, .image-embed") || imgEl;
+        wrapper2.replaceChildren(cached.cloneNode(true));
+      }
       return;
+    }
     renderedSet.add(dedupKey);
     const { MarkdownRenderer } = require("obsidian");
     const fetchText = async (fetchUrl) => {
@@ -5190,17 +5216,42 @@ module.exports = class CloudAttachPlugin extends Plugin {
       container.style.cssText = "max-width:100%;overflow:hidden auto;border:1px solid var(--background-modifier-border);border-radius:6px;padding:8px 12px;margin:4px 0;position:relative;";
       const sourcePath = this.app.workspace.getActiveFile()?.path || "";
       await MarkdownRenderer.render(this.app, content2, container, sourcePath, this);
+      container.dataset.mdUrl = url;
+      const mdName = (imgEl.getAttribute("alt") || "").trim() || cleanFileNameFromUrl(url);
+      container.dataset.mdName = mdName.replace(/\.md$/i, "");
       const fsBtn = document.createElement("span");
-      fsBtn.textContent = "\u26F6";
-      fsBtn.style.cssText = "position:absolute;top:4px;right:6px;cursor:pointer;opacity:0.45;font-size:14px;line-height:1;z-index:2;background:var(--background-primary);border:1px solid var(--background-modifier-border);border-radius:4px;padding:2px 4px;";
-      fsBtn.title = "\u5168\u5C4F\u9884\u89C8";
-      fsBtn.onclick = (e) => {
-        e.stopPropagation();
-        const mdName = (imgEl.getAttribute("alt") || "").trim() || cleanFileNameFromUrl(url);
-        this.openMdFullscreen(url, mdName.replace(/\.md$/i, ""));
-      };
+      fsBtn.className = "cloudattach-md-fs-btn";
+      fsBtn.setAttribute("aria-label", "\u5168\u5C4F\u9884\u89C8");
+      fsBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>';
       container.appendChild(fsBtn);
-      imgEl.replaceWith(container);
+      const wrapper = imgEl.closest(".cm-embed-block, .internal-embed, .image-embed");
+      if (wrapper) {
+        wrapper.classList.add("cloudattach-md-wrapper");
+        wrapper.replaceChildren(container);
+        wrapper.querySelectorAll(".resize-handle").forEach((h) => h.remove());
+        let mo = null;
+        const stripImageToolbar = () => {
+          const cands = [...wrapper.querySelectorAll("button, .clickable-icon, [aria-label]")].filter((el) => !container.contains(el) && !el.classList.contains("cloudattach-md-fs-btn"));
+          cands.forEach((el) => el.remove());
+          if (cands.length > 0 && mo)
+            mo.disconnect();
+        };
+        stripImageToolbar();
+        mo = new MutationObserver(stripImageToolbar);
+        mo.observe(wrapper, { childList: true, subtree: true });
+        if (!this._mdEmbedObservers)
+          this._mdEmbedObservers = /* @__PURE__ */ new Set();
+        this._mdEmbedObservers.add(mo);
+      } else {
+        imgEl.replaceWith(container);
+      }
+      if (!this._mdContainerCache)
+        this._mdContainerCache = /* @__PURE__ */ new Map();
+      if (this._mdContainerCache.size >= 20) {
+        const oldest = this._mdContainerCache.keys().next().value;
+        this._mdContainerCache.delete(oldest);
+      }
+      this._mdContainerCache.set(dedupKey, container);
     };
     const fallback = (err) => {
       console.log("[CloudAttach] MD render failed:", err.message || err);
