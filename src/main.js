@@ -5453,48 +5453,29 @@ module.exports = class CloudAttachPlugin extends Plugin {
     // 去重 key 去掉 query（sign 可能已变，同一文件不重复渲染）
     let dedupKey = url;
     try { const u = new URL(url); dedupKey = u.origin + u.pathname; } catch (e) {}
-    // 把 Obsidian 注入的放大镜（工具栏第一个按钮）克隆重绑为 md 全屏入口，
-    // 其余按钮（</> 等）保持原生行为；Obsidian 渲染后才注入工具栏时用 MutationObserver 兜底
+    // 把 Obsidian 注入的放大镜（工具栏第一个按钮）拦截为 md 全屏入口。
+    // 不克隆、不挪动任何节点：在外壳上加捕获阶段 click 监听（先于按钮自身监听触发），
+    // 点到放大镜就阻断原生图片放大并打开全屏；其余按钮（</> 等）完全走原生。
     const bindFullscreen = (wrapEl, contEl) => {
-      const rebind = () => {
+      wrapEl.addEventListener('click', (e) => {
+        const btn = e.target?.closest?.('button, .clickable-icon, [aria-label]');
+        if (!btn || contEl.contains(btn) || btn.closest('.cloudattach-md-container')) return;
+        // 外壳工具栏里第一个按钮 = Obsidian 放大镜（与 PDF removeObsidianZoom 同款判定）
         const cands = [...wrapEl.querySelectorAll('button, .clickable-icon, [aria-label]')]
-          .filter(el => !contEl.contains(el) && !el.dataset.cloudattachMdSeen);
-        if (cands.length === 0) return false;
-        cands.forEach(el => { el.dataset.cloudattachMdSeen = '1'; });
-        const zoomBtn = cands[0];
-        const clone = zoomBtn.cloneNode(true);
-        zoomBtn.replaceWith(clone);
-        clone.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          this.openMdFullscreen(url, contEl.dataset.mdName || cleanFileNameFromUrl(url));
-        });
-        return true;
-      };
-      if (rebind()) return;
-      const mo = new MutationObserver(() => {
-        if (rebind()) mo.disconnect();
-      });
-      mo.observe(wrapEl, { childList: true, subtree: true });
-      if (!this._mdEmbedObservers) this._mdEmbedObservers = new Set();
-      this._mdEmbedObservers.add(mo);
+          .filter(el => !contEl.contains(el));
+        if (cands[0] !== btn) return;
+        e.preventDefault();
+        e.stopPropagation();
+        this.openMdFullscreen(url, contEl.dataset.mdName || cleanFileNameFromUrl(url));
+      }, true);
     };
-    // 换壳助手：保留 Obsidian 外层 embed 节点（避免破坏 CodeMirror），内容整体替换。
-    // ⚠️ Obsidian 的图片工具栏（放大镜/</>）是创建嵌入时注入到外壳里的，
-    // replaceChildren 会把它连同 img 一起清掉——所以先快照、换壳后放回去，
-    // 再由 bindFullscreen 把放大镜重绑为 md 全屏入口（</> 等保持原生行为）
+    // 换壳助手：只替换 img 本体，外壳与 Obsidian 原生工具栏节点一律不动（UI 与图片嵌入完全一致）
     const swapInWrapper = (imgNode, newEl) => {
-      const wrapEl = imgNode.closest('.cm-embed-block, .internal-embed, .image-embed');
-      if (!wrapEl) {
-        imgNode.replaceWith(newEl);
-        return;
-      }
-      const toolbarNodes = [...wrapEl.querySelectorAll('button, .clickable-icon, [aria-label]')]
-        .filter(el => !el.dataset.cloudattachMdSeen);
+      imgNode.replaceWith(newEl);
+      const wrapEl = newEl.closest('.cm-embed-block, .internal-embed, .image-embed');
+      if (!wrapEl) return;
       wrapEl.classList.add('cloudattach-md-wrapper');
-      wrapEl.replaceChildren(newEl);
       wrapEl.querySelectorAll('.resize-handle').forEach(h => h.remove());
-      toolbarNodes.forEach(n => wrapEl.appendChild(n));
       bindFullscreen(wrapEl, newEl);
     };
     if (renderedSet.has(dedupKey)) {

@@ -5177,45 +5177,25 @@ module.exports = class CloudAttachPlugin extends Plugin {
     } catch (e) {
     }
     const bindFullscreen = (wrapEl, contEl) => {
-      const rebind = () => {
-        const cands = [...wrapEl.querySelectorAll("button, .clickable-icon, [aria-label]")].filter((el) => !contEl.contains(el) && !el.dataset.cloudattachMdSeen);
-        if (cands.length === 0)
-          return false;
-        cands.forEach((el) => {
-          el.dataset.cloudattachMdSeen = "1";
-        });
-        const zoomBtn = cands[0];
-        const clone = zoomBtn.cloneNode(true);
-        zoomBtn.replaceWith(clone);
-        clone.addEventListener("click", (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          this.openMdFullscreen(url, contEl.dataset.mdName || cleanFileNameFromUrl(url));
-        });
-        return true;
-      };
-      if (rebind())
-        return;
-      const mo = new MutationObserver(() => {
-        if (rebind())
-          mo.disconnect();
-      });
-      mo.observe(wrapEl, { childList: true, subtree: true });
-      if (!this._mdEmbedObservers)
-        this._mdEmbedObservers = /* @__PURE__ */ new Set();
-      this._mdEmbedObservers.add(mo);
+      wrapEl.addEventListener("click", (e) => {
+        const btn = e.target?.closest?.("button, .clickable-icon, [aria-label]");
+        if (!btn || contEl.contains(btn) || btn.closest(".cloudattach-md-container"))
+          return;
+        const cands = [...wrapEl.querySelectorAll("button, .clickable-icon, [aria-label]")].filter((el) => !contEl.contains(el));
+        if (cands[0] !== btn)
+          return;
+        e.preventDefault();
+        e.stopPropagation();
+        this.openMdFullscreen(url, contEl.dataset.mdName || cleanFileNameFromUrl(url));
+      }, true);
     };
     const swapInWrapper = (imgNode, newEl) => {
-      const wrapEl = imgNode.closest(".cm-embed-block, .internal-embed, .image-embed");
-      if (!wrapEl) {
-        imgNode.replaceWith(newEl);
+      imgNode.replaceWith(newEl);
+      const wrapEl = newEl.closest(".cm-embed-block, .internal-embed, .image-embed");
+      if (!wrapEl)
         return;
-      }
-      const toolbarNodes = [...wrapEl.querySelectorAll("button, .clickable-icon, [aria-label]")].filter((el) => !el.dataset.cloudattachMdSeen);
       wrapEl.classList.add("cloudattach-md-wrapper");
-      wrapEl.replaceChildren(newEl);
       wrapEl.querySelectorAll(".resize-handle").forEach((h) => h.remove());
-      toolbarNodes.forEach((n) => wrapEl.appendChild(n));
       bindFullscreen(wrapEl, newEl);
     };
     if (renderedSet.has(dedupKey)) {
