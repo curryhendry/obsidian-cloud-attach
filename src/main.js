@@ -10,6 +10,7 @@ const { Plugin, Notice, Menu, Modal, Platform, PluginSettingTab, MarkdownView, I
 
 const VIEW_TYPE_CLOUDATTACH = 'cloud-attach-view';
 const VIEW_TYPE_PDF_FULLSCREEN = 'cloud-attach-pdf-fullscreen';
+const VIEW_TYPE_MD_FULLSCREEN = 'cloud-attach-md-fullscreen';
 
 // 国际化系统
 // ============================================================
@@ -184,6 +185,8 @@ Object.assign(I18n.translations.zh, {
   'view.fullscreen_loading': '⏳ 加载 PDF...',
   'view.fullscreen_preparing': '⏳ 正在渲染在线PDF，稍后自动打开…',
   'view.fullscreen_load_fail': '❌ 加载 PDF 失败',
+  'view.md_loading': '⏳ 加载中...',
+  'view.md_load_fail': '❌ 加载失败',
   'view.fullscreen_fit_width': '适应宽度',
   'view.file_count': '{count}/{total} 项已选',
   'view.select_all': '全选',
@@ -451,6 +454,8 @@ Object.assign(I18n.translations.en, {
   'view.fullscreen_loading': '⏳ Loading PDF...',
   'view.fullscreen_preparing': '⏳ Rendering, will open shortly…',
   'view.fullscreen_load_fail': '❌ Failed to load PDF',
+  'view.md_loading': '⏳ Loading...',
+  'view.md_load_fail': '❌ Failed to load',
   'view.fullscreen_fit_width': 'Fit Width',
   'view.file_count': '{count}/{total} selected',
   'view.select_all': 'Select All',
@@ -3797,6 +3802,78 @@ class PdfFullscreenView extends ItemView {
   }
 }
 
+// === 云端 Markdown 全屏预览视图 ===
+class MdFullscreenView extends ItemView {
+  constructor(leaf, plugin, mdUrl, mdName) {
+    super(leaf);
+    this.plugin = plugin;
+    this.mdUrl = mdUrl;
+    this.mdName = mdName || plugin._pendingMdName || cleanFileNameFromUrl(mdUrl || plugin._pendingMdUrl || '');
+  }
+
+  getViewType() { return VIEW_TYPE_MD_FULLSCREEN; }
+  getDisplayText() { return this.mdName || 'Markdown'; }
+  getIcon() { return 'file-text'; }
+
+  async onOpen() {
+    const container = this.containerEl.children[1];
+    container.empty();
+
+    // 新创建的视图，从 plugin 取 pending URL
+    if (!this.mdUrl && this.plugin._pendingMdUrl) {
+      this.mdUrl = this.plugin._pendingMdUrl;
+      this.mdName = this.plugin._pendingMdName || cleanFileNameFromUrl(this.mdUrl);
+    }
+
+    container.style.padding = '0';
+    container.style.overflow = 'hidden';
+    container.style.height = '100%';
+    container.style.display = 'flex';
+    container.style.flexDirection = 'column';
+
+    // 顶栏：文件名 + 关闭按钮
+    const header = container.createEl('div');
+    header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--background-modifier-border);flex:0 0 auto;';
+    const title = header.createEl('div', { text: this.mdName });
+    title.style.cssText = 'font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+    const closeBtn = header.createEl('button');
+    closeBtn.className = 'clickable-icon';
+    closeBtn.setAttribute('aria-label', '关闭');
+    closeBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+    closeBtn.onclick = () => this.leaf.detach();
+
+    // 内容区：Markdown 原生渲染
+    this.scrollEl = container.createEl('div');
+    this.scrollEl.style.cssText = 'flex:1;min-height:0;overflow-y:auto;background:var(--background-primary);padding:16px 24px;';
+    this._load();
+  }
+
+  async _load() {
+    try {
+      this.scrollEl.empty();
+      this.scrollEl.createEl('div', { text: t('view.md_loading'), cls: 'cloud-attach-loading' });
+      const text = await this.plugin._fetchMdText(this.mdUrl);
+      this.scrollEl.empty();
+      const { MarkdownRenderer } = require('obsidian');
+      const wrap = this.scrollEl.createEl('div');
+      wrap.style.cssText = 'max-width:800px;margin:0 auto;';
+      const sourcePath = this.plugin.app.workspace.getActiveFile()?.path || '';
+      await MarkdownRenderer.render(this.app, text, wrap, sourcePath, this);
+    } catch (e) {
+      console.error('[CloudAttach] MdFullscreenView load error:', e);
+      this.scrollEl.empty();
+      this.scrollEl.createEl('div', {
+        text: t('view.md_load_fail') + ': ' + (e.message || ''),
+        cls: 'cloud-attach-error'
+      });
+    }
+  }
+
+  async onClose() {
+    this.contentEl.empty();
+  }
+}
+
 class AddAccountModal extends Modal {
   constructor(app, plugin, onSave, account = null) {
     super(app);
@@ -4960,6 +5037,16 @@ module.exports = class CloudAttachPlugin extends Plugin {
         throw e;
       }
     }
+    // 注册云端 Markdown 全屏预览视图
+    try {
+      this.registerView(VIEW_TYPE_MD_FULLSCREEN, (leaf) => new MdFullscreenView(leaf, this, '', ''));
+    } catch (e) {
+      if (e.message?.includes('existing view type')) {
+        console.log('[CloudAttach] md fullscreen view type already registered, skipping');
+      } else {
+        throw e;
+      }
+    }
     // Auto-upload: 监听粘贴/拖入创建的新文件
     if (!this._autoUploadChain) this._autoUploadChain = Promise.resolve();
     this.registerEvent(this.app.vault.on('create', (file) => {
@@ -5191,6 +5278,60 @@ module.exports = class CloudAttachPlugin extends Plugin {
     workspace.revealLeaf(leaf);
   }
 
+  /**
+   * 打开云端 Markdown 全屏预览（桌面 Popout 窗口 / 移动端分屏）
+   */
+  async openMdFullscreen(url, name) {
+    const { workspace } = this.app;
+    if (!name) name = cleanFileNameFromUrl(url);
+    this._pendingMdUrl = url;
+    this._pendingMdName = name;
+    let leaf;
+    if (Platform.isMobile) {
+      leaf = workspace.getLeaf('split', 'vertical');
+    } else {
+      try {
+        leaf = workspace.openPopoutLeaf();
+      } catch (e) {
+        console.log('[CloudAttach] openPopoutLeaf failed, fallback to split:', e);
+        leaf = workspace.getLeaf('split', 'vertical');
+      }
+    }
+    await leaf.setViewState({ type: VIEW_TYPE_MD_FULLSCREEN, active: true, state: { mdUrl: url, mdName: name } });
+    workspace.revealLeaf(leaf);
+  }
+
+  /**
+   * 拉取云端 Markdown 文本（401/403 时自动重建签名重试一次），失败抛错
+   */
+  async _fetchMdText(url) {
+    let reqUrlFn = null;
+    try { reqUrlFn = require('obsidian').requestUrl; } catch (e) {}
+    const fetchText = async (fetchUrl) => {
+      const resp = reqUrlFn
+        ? await reqUrlFn({ url: fetchUrl, method: 'GET' })
+        : await fetch(fetchUrl);
+      const status = resp.status || 0;
+      if (status >= 400) throw new Error(String(status));
+      const text = typeof resp.text === 'string' ? resp.text : await resp.text();
+      return text;
+    };
+    try {
+      return await fetchText(url);
+    } catch (firstErr) {
+      const status = firstErr.message || '';
+      if (status !== '401' && status !== '403') throw firstErr;
+      // 签名过期：重建签名再拉一次
+      const match = this.matchAccount(url);
+      if (!match || !match.client.extractRealPath) throw firstErr;
+      const realPath = match.client.extractRealPath(url);
+      if (!realPath || !match.account.token) throw firstErr;
+      const prefix = url.match(/\/(d|p)\//)?.[1]?.[0] || 'd';
+      const newUrl = await match.client.getSignedUrl(realPath, prefix);
+      return await fetchText(newUrl);
+    }
+  }
+
   // ============================================================
   // PDF.js 内联预览（v0.3.026）
   // ============================================================
@@ -5320,9 +5461,20 @@ module.exports = class CloudAttachPlugin extends Plugin {
     const tryRender = async (content) => {
       const container = document.createElement('div');
       container.className = 'cloudattach-md-container';
-      container.style.cssText = 'max-width:100%;overflow:hidden auto;border:1px solid var(--background-modifier-border);border-radius:6px;padding:8px 12px;margin:4px 0;';
+      container.style.cssText = 'max-width:100%;overflow:hidden auto;border:1px solid var(--background-modifier-border);border-radius:6px;padding:8px 12px;margin:4px 0;position:relative;';
       const sourcePath = this.app.workspace.getActiveFile()?.path || '';
       await MarkdownRenderer.render(this.app, content, container, sourcePath, this);
+      // 全屏预览按钮（照 PDF 容器工具栏的 ⛶ 样式）
+      const fsBtn = document.createElement('span');
+      fsBtn.textContent = '\u26F6';
+      fsBtn.style.cssText = 'position:absolute;top:4px;right:6px;cursor:pointer;opacity:0.45;font-size:14px;line-height:1;z-index:2;background:var(--background-primary);border:1px solid var(--background-modifier-border);border-radius:4px;padding:2px 4px;';
+      fsBtn.title = '全屏预览';
+      fsBtn.onclick = (e) => {
+        e.stopPropagation();
+        const mdName = (imgEl.getAttribute('alt') || '').trim() || cleanFileNameFromUrl(url);
+        this.openMdFullscreen(url, mdName.replace(/\.md$/i, ''));
+      };
+      container.appendChild(fsBtn);
       imgEl.replaceWith(container);
     };
 
