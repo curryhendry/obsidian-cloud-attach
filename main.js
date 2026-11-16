@@ -5227,7 +5227,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const sourcePath = this.app.workspace.getActiveFile()?.path || "";
       await MarkdownRenderer.render(this.app, content2, container, sourcePath, this);
       container.dataset.mdUrl = url;
-      const mdName = (imgEl.getAttribute("alt") || "").trim() || cleanFileNameFromUrl(url);
+      const mdName = (imgEl.getAttribute("alt") || "").trim().replace(/\|\d+$/, "") || cleanFileNameFromUrl(url);
       container.dataset.mdName = mdName.replace(/\.md$/i, "");
       swapInWrapper(imgEl, container);
       if (!this._mdContainerCache)

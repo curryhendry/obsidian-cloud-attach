@@ -5508,7 +5508,8 @@ module.exports = class CloudAttachPlugin extends Plugin {
       const sourcePath = this.app.workspace.getActiveFile()?.path || '';
       await MarkdownRenderer.render(this.app, content, container, sourcePath, this);
       container.dataset.mdUrl = url;
-      const mdName = (imgEl.getAttribute('alt') || '').trim() || cleanFileNameFromUrl(url);
+      // alt 可能带 Obsidian 缩放手柄写入的 |宽度 后缀（如 xxx.md|0），清掉再显示
+      const mdName = (imgEl.getAttribute('alt') || '').trim().replace(/\|\d+$/, '') || cleanFileNameFromUrl(url);
       container.dataset.mdName = mdName.replace(/\.md$/i, '');
       // 换壳 + 工具栏快照恢复 + 放大镜重绑为全屏（详见 swapInWrapper 注释）
       swapInWrapper(imgEl, container);
