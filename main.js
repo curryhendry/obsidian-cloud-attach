@@ -6382,7 +6382,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
       }
     }
     if (!localPath) {
-      const RANGE = 10;
+      const RANGE = 5;
       const total = view.editor.lineCount();
       const candidates = [
         { re: /!\[([^\]]*)\]\(([^)]+)\)/, pick: (m) => m[2] },

@@ -6716,7 +6716,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
     }
     // 策略2: 从光标所在行开始，向上/向下各扩 10 行，取距离最近的一个本地附件
     if (!localPath) {
-      const RANGE = 10;
+      const RANGE = 5;
       const total = view.editor.lineCount();
       // 依次尝试：markdown 图片 / 本地附件 / wiki 嵌入 / 普通 wiki 链接
       const candidates = [
