@@ -6169,9 +6169,9 @@ module.exports = class CloudAttachPlugin extends Plugin {
       while ((match2 = urlPattern.exec(fullText)) !== null) {
         const matchStart = match2.index;
         const matchEnd = matchStart + match2[0].length;
-        const dist2 = Math.min(Math.abs(offset - matchStart), Math.abs(offset - matchEnd));
-        if (dist2 < nearestDist) {
-          nearestDist = dist2;
+        const dist = Math.min(Math.abs(offset - matchStart), Math.abs(offset - matchEnd));
+        if (dist < nearestDist) {
+          nearestDist = dist;
           if (match2[3]) {
             nearestUrl = match2[3];
             urlType = "image";
@@ -6400,18 +6400,18 @@ module.exports = class CloudAttachPlugin extends Plugin {
             continue;
           if (/^https?:\/\//i.test(t2.path))
             continue;
-          return { localPath: t2.path, anchor: t2.anchor, markdownSyntax: m[0], dist };
+          return { localPath: t2.path, anchor: t2.anchor, markdownSyntax: m[0] };
         }
         return null;
       };
-      for (let dist2 = 0; dist2 <= RANGE; dist2++) {
-        const lineIdxs = dist2 === 0 ? [cursor.line] : [cursor.line - dist2, cursor.line + dist2];
+      for (let dist = 0; dist <= RANGE; dist++) {
+        const lineIdxs = dist === 0 ? [cursor.line] : [cursor.line - dist, cursor.line + dist];
         for (const li of lineIdxs) {
           if (li < 0 || li >= total)
             continue;
           const found = matchLine(view.editor.getLine(li));
           if (found) {
-            console.log("[CloudAttach] \u5149\u6807\u9644\u8FD1\u627E\u5230\u9644\u4EF6(\u8DDD\u79BB " + dist2 + " \u884C):", found.localPath);
+            console.log("[CloudAttach] \u5149\u6807\u9644\u8FD1\u627E\u5230\u9644\u4EF6(\u8DDD\u79BB " + dist + " \u884C):", found.localPath);
             localPath = found.localPath;
             anchor = found.anchor;
             markdownSyntax = found.markdownSyntax;

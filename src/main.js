@@ -6734,7 +6734,7 @@ module.exports = class CloudAttachPlugin extends Plugin {
           // 指向笔记内容（如 ![[某笔记#某段]]）→ 不是附件，继续尝试下一个
           if (!t) continue;
           if (/^https?:\/\//i.test(t.path)) continue;
-          return { localPath: t.path, anchor: t.anchor, markdownSyntax: m[0], dist };
+          return { localPath: t.path, anchor: t.anchor, markdownSyntax: m[0] };
         }
         return null;
       };
