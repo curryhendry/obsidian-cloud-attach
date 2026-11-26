@@ -6701,22 +6701,23 @@ module.exports = class CloudAttachPlugin extends Plugin {
     let localPath = null;
     let markdownSyntax = '';
     let anchor = '';
-    // 策略1: 从选中文本中提取
+    // 策略1: 从选中文本中提取（云端链接不算，交给策略2 继续）
     const selection = view.editor.getSelection();
     if (selection) {
       const imgMatch = selection.match(/!\[([^\]]*)\]\(([^)]+)\)/);
       if (imgMatch) {
         const t = this._parseAttachTarget(imgMatch[2]);
-        if (t) {
+        if (t && !/^https?:\/\//i.test(t.path)) {
           localPath = t.path;
           anchor = t.anchor;
           markdownSyntax = selection;
         }
       }
     }
-    // 策略2: 从光标所在行提取第一个附件
+    // 策略2: 从光标所在行开始，向上/向下各扩 10 行，取距离最近的一个本地附件
     if (!localPath) {
-      const line = view.editor.getLine(cursor.line);
+      const RANGE = 10;
+      const total = view.editor.lineCount();
       // 依次尝试：markdown 图片 / 本地附件 / wiki 嵌入 / 普通 wiki 链接
       const candidates = [
         { re: /!\[([^\]]*)\]\(([^)]+)\)/, pick: (m) => m[2] },
@@ -6724,16 +6725,33 @@ module.exports = class CloudAttachPlugin extends Plugin {
         { re: /!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/, pick: (m) => m[1] },
         { re: /\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/, pick: (m) => m[1] },
       ];
-      for (const c of candidates) {
-        const m = line.match(c.re);
-        if (!m) continue;
-        const t = this._parseAttachTarget(c.pick(m));
-        // 指向笔记内容（如 ![[某笔记#某段]]）→ 不是附件，继续尝试下一个
-        if (!t) continue;
-        localPath = t.path;
-        anchor = t.anchor;
-        markdownSyntax = m[0];
-        break;
+      // 单行匹配：云端链接（http/https）不需要上传，跳过继续找本地的
+      const matchLine = (line) => {
+        for (const c of candidates) {
+          const m = line.match(c.re);
+          if (!m) continue;
+          const t = this._parseAttachTarget(c.pick(m));
+          // 指向笔记内容（如 ![[某笔记#某段]]）→ 不是附件，继续尝试下一个
+          if (!t) continue;
+          if (/^https?:\/\//i.test(t.path)) continue;
+          return { localPath: t.path, anchor: t.anchor, markdownSyntax: m[0], dist };
+        }
+        return null;
+      };
+      for (let dist = 0; dist <= RANGE; dist++) {
+        const lineIdxs = dist === 0 ? [cursor.line] : [cursor.line - dist, cursor.line + dist];
+        for (const li of lineIdxs) {
+          if (li < 0 || li >= total) continue;
+          const found = matchLine(view.editor.getLine(li));
+          if (found) {
+            console.log('[CloudAttach] 光标附近找到附件(距离 ' + dist + ' 行):', found.localPath);
+            localPath = found.localPath;
+            anchor = found.anchor;
+            markdownSyntax = found.markdownSyntax;
+            break;
+          }
+        }
+        if (localPath) break;
       }
     }
     // 检查是否为本地文件（不是 URL）
